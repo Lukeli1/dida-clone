@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { isToday as dateFnsIsToday } from 'date-fns'
 import { api } from './api'
-import type { Task, List, Tag } from './types'
+import type { Task, List, Tag, ReorderItem } from './types'
 import { Sidebar, type ViewType } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { CalendarView } from './components/CalendarView'
+import { StatsView } from './components/StatsView'
 import { useToast } from './components/Toast'
 
 function App() {
@@ -161,6 +162,11 @@ function App() {
     return filtered.sort((a, b) => {
       // 未完成在前
       if (a.completed !== b.completed) return a.completed ? 1 : -1
+      // 搜索/今日模式按优先级→截止日期排序；其他模式按 sort_order 排序
+      const isSmartView = searchQuery.trim() || currentView === 'today'
+      if (!isSmartView) {
+        return (a.sort_order || 0) - (b.sort_order || 0)
+      }
       // 优先级排序（1=高 > 2=中 > 3=低 > 0=无）
       const pa = a.priority === 0 ? 4 : a.priority
       const pb = b.priority === 0 ? 4 : b.priority
@@ -226,6 +232,20 @@ function App() {
 
   async function handleToggleTask(task: Task) {
     try {
+      // 如果是完成操作且有重复规则，使用 completeTask 自动生成下一周期
+      if (!task.completed && task.repeat_rule) {
+        const result = await api.completeTask(task.id)
+        // 标记当前任务为已完成
+        setTasks(tasks.map((t) => (t.id === task.id ? { ...t, completed: true, updated_at: new Date().toISOString() } : t)))
+        // 如果生成了新任务，重新加载数据
+        if (result.new_task_id) {
+          await loadData()
+          toast.success('重复任务已生成下一周期')
+        } else {
+          toast.success('任务已完成')
+        }
+        return
+      }
       await api.updateTask(task.id, { completed: !task.completed })
       setTasks(tasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t)))
     } catch (error) {
@@ -390,6 +410,38 @@ function App() {
     }
   }
 
+  // 拖拽排序
+  async function handleReorderTasks(draggedId: number, targetId: number) {
+    if (draggedId === targetId) return
+    // 找到拖拽任务和目标任务在列表中的位置
+    const draggedIndex = incompleteTaskTree.findIndex(t => t.id === draggedId)
+    const targetIndex = incompleteTaskTree.findIndex(t => t.id === targetId)
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    // 重新排列
+    const newOrder = [...incompleteTaskTree]
+    const [moved] = newOrder.splice(draggedIndex, 1)
+    newOrder.splice(targetIndex, 0, moved)
+
+    // 重新计算 sort_order：使用相邻任务的中间值
+    const reorderItems: ReorderItem[] = newOrder.map((task, index) => ({
+      id: task.id,
+      sort_order: index,
+    }))
+
+    // 乐观更新 UI
+    const sortOrderMap = new Map(reorderItems.map(item => [item.id, item.sort_order]))
+    setTasks(tasks.map(t => sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t))
+
+    try {
+      await api.reorderTasks(reorderItems)
+    } catch (error) {
+      console.error('Failed to reorder tasks:', error)
+      toast.error('排序失败')
+      await loadData()
+    }
+  }
+
   async function handleCreateTaskOnDate(date: string, title?: string) {
     try {
       const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
@@ -491,6 +543,8 @@ function App() {
             />
           )}
         </main>
+      ) : currentView === 'stats' ? (
+        <StatsView tasks={tasks} lists={lists} />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -565,6 +619,7 @@ function App() {
                       onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                       onToggle={() => handleToggleTask(task)}
                       onClick={() => setSelectedTaskId(task.id)}
+                      onReorder={handleReorderTasks}
                     />
                   ))}
                 </ul>
@@ -595,6 +650,7 @@ function App() {
                             onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                             onToggle={() => handleToggleTask(task)}
                             onClick={() => setSelectedTaskId(task.id)}
+                            onReorder={() => {}}
                           />
                         ))}
                       </ul>
@@ -622,7 +678,7 @@ function App() {
   )
 }
 
-function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick }: {
+function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder }: {
   task: Task
   tags: Tag[]
   isSelected: boolean
@@ -633,13 +689,37 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
   onCreateSubtask: (title: string) => void
   onToggle: () => void
   onClick: () => void
+  onReorder: (draggedId: number, targetId: number) => void
 }) {
   const hasSubtasks = task.subtasks && task.subtasks.length > 0
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
   const totalSubtasks = task.subtasks?.length || 0
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(task.id))
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const draggedId = Number(e.dataTransfer.getData('text/plain'))
+    if (draggedId && draggedId !== task.id) {
+      onReorder(draggedId, task.id)
+    }
+  }
+
   return (
-    <li>
+    <li
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div
         onClick={onClick}
         className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${

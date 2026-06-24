@@ -9,6 +9,7 @@ export interface Task {
   list_id: number
   parent_id?: number
   repeat_rule?: string
+  sort_order: number
   created_at: string
   updated_at: string
   tag_ids?: number[]
@@ -56,4 +57,13 @@ export interface UpdateListRequest {
 export interface CreateTagRequest {
   name: string
   color?: string
+}
+
+export interface ReorderItem {
+  id: number
+  sort_order: number
+}
+
+export interface CompleteResult {
+  new_task_id: number | null
 }

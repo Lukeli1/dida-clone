@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns'
+import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import type { Task, List } from '../types'
 import { MonthView } from './MonthView'
 import { WeekView } from './WeekView'
+import { DayView } from './DayView'
 
-type ViewMode = 'month' | 'week'
+type ViewMode = 'month' | 'week' | 'day'
 
 interface CalendarViewProps {
   tasks: Task[]
@@ -26,6 +27,30 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
 
   function goToToday() {
     setCurrentDate(new Date())
+  }
+
+  if (viewMode === 'day') {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-white">
+          <ViewToggle mode={viewMode} onChange={setViewMode} />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <DayView
+            currentDate={currentDate}
+            tasks={tasks}
+            lists={lists}
+            onDateClick={handleDateClick}
+            onTaskClick={onTaskClick}
+            onToggleTask={onToggleTask}
+            onPrevDay={() => setCurrentDate(subDays(currentDate, 1))}
+            onNextDay={() => setCurrentDate(addDays(currentDate, 1))}
+            onToday={goToToday}
+            onCreateTaskOnRange={onCreateTaskOnRange}
+          />
+        </div>
+      </div>
+    )
   }
 
   if (viewMode === 'week') {
@@ -98,6 +123,16 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         }`}
       >
         周
+      </button>
+      <button
+        onClick={() => onChange('day')}
+        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+          mode === 'day'
+            ? 'bg-white text-gray-900 shadow-sm font-medium'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        日
       </button>
     </div>
   )

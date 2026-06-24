@@ -58,6 +58,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
             list_id INTEGER NOT NULL,
             parent_id INTEGER,
             repeat_rule TEXT,
+            sort_order REAL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (list_id) REFERENCES lists(id),
@@ -65,6 +66,16 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         )",
         [],
     )?;
+
+    // 兼容已有数据库：如果 tasks 表没有 sort_order 列，则添加
+    let has_sort_order: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
+        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
+        cols.iter().any(|c| c == "sort_order")
+    };
+    if !has_sort_order {
+        conn.execute("ALTER TABLE tasks ADD COLUMN sort_order REAL DEFAULT 0", [])?;
+    }
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (

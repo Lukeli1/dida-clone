@@ -1,6 +1,7 @@
 use rusqlite::{Result, params};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use chrono::Datelike;
 
 use crate::db::DbState;
 
@@ -16,6 +17,7 @@ pub struct Task {
     pub list_id: i64,
     pub parent_id: Option<i64>,
     pub repeat_rule: Option<String>,
+    pub sort_order: f64,
     pub created_at: String,
     pub updated_at: String,
     #[serde(default)]
@@ -66,6 +68,7 @@ pub struct UpdateTaskRequest {
     pub reminder: Option<String>,
     pub completed: Option<bool>,
     pub repeat_rule: Option<String>,
+    pub sort_order: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,7 +90,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().unwrap();
 
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, reminder, completed, list_id, parent_id, repeat_rule, created_at, updated_at FROM tasks ORDER BY created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, reminder, completed, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<Task> = stmt
@@ -103,8 +106,9 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
                 list_id: row.get(7)?,
                 parent_id: row.get(8)?,
                 repeat_rule: row.get(9)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                sort_order: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -136,10 +140,11 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
 pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task, String> {
     let conn = state.0.lock().unwrap();
     let now = chrono::Local::now().to_rfc3339();
+    let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
     conn.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, parent_id, repeat_rule, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             req.title,
             req.notes,
@@ -149,6 +154,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
             req.list_id,
             req.parent_id,
             req.repeat_rule,
+            sort_order,
             now,
             now,
         ],
@@ -167,6 +173,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         list_id: req.list_id,
         parent_id: req.parent_id,
         repeat_rule: req.repeat_rule,
+        sort_order,
         created_at: now.clone(),
         updated_at: now,
         tag_ids: Vec::new(),
@@ -209,6 +216,10 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
     if let Some(ref repeat_rule) = updates.repeat_rule {
         set_clauses.push("repeat_rule = ?".to_string());
         params_vec.push(Box::new(repeat_rule.clone()));
+    }
+    if let Some(sort_order) = updates.sort_order {
+        set_clauses.push("sort_order = ?".to_string());
+        params_vec.push(Box::new(sort_order));
     }
 
     set_clauses.push("updated_at = ?".to_string());
@@ -418,4 +429,122 @@ pub fn remove_tag_from_task(state: State<DbState>, task_id: i64, tag_id: i64) ->
         params![task_id, tag_id],
     ).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ===== 任务排序 =====
+
+#[derive(Debug, Deserialize)]
+pub struct ReorderItem {
+    pub id: i64,
+    pub sort_order: f64,
+}
+
+#[tauri::command]
+pub fn reorder_tasks(state: State<DbState>, items: Vec<ReorderItem>) -> Result<(), String> {
+    let conn = state.0.lock().unwrap();
+    let now = chrono::Local::now().to_rfc3339();
+    for item in &items {
+        conn.execute(
+            "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
+            params![item.sort_order, now, item.id],
+        ).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ===== 重复任务完成 =====
+
+#[derive(Debug, Serialize)]
+pub struct CompleteResult {
+    pub new_task_id: Option<i64>,
+}
+
+#[tauri::command]
+pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, String> {
+    let conn = state.0.lock().unwrap();
+    let now = chrono::Local::now().to_rfc3339();
+
+    // 查询任务详情
+    let task: (String, Option<String>, i64, Option<String>, Option<String>, i64, Option<String>, f64) = conn
+        .query_row(
+            "SELECT title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let (title, notes, priority, due_date, reminder, list_id, repeat_rule, _sort_order) = task;
+
+    // 标记当前任务为已完成
+    conn.execute(
+        "UPDATE tasks SET completed = 1, updated_at = ?1 WHERE id = ?2",
+        params![now, id],
+    ).map_err(|e| e.to_string())?;
+
+    // 如果有重复规则，创建下一个周期的任务
+    if let Some(ref rule) = repeat_rule {
+        if !rule.is_empty() {
+            let next_due = due_date.as_ref().and_then(|d| {
+                compute_next_due_date(d, rule)
+            });
+
+            let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
+
+            conn.execute(
+                "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![title, notes, priority, next_due, reminder, list_id, repeat_rule, next_sort_order, now, now],
+            ).map_err(|e| e.to_string())?;
+
+            let new_id = conn.last_insert_rowid();
+
+            // 复制标签关联
+            let tag_ids: Vec<i64> = conn
+                .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
+                .map_err(|e| e.to_string())?
+                .query_map(params![id], |row| row.get(0))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            for tag_id in tag_ids {
+                conn.execute(
+                    "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
+                    params![new_id, tag_id],
+                ).map_err(|e| e.to_string())?;
+            }
+
+            return Ok(CompleteResult { new_task_id: Some(new_id) });
+        }
+    }
+
+    Ok(CompleteResult { new_task_id: None })
+}
+
+fn compute_next_due_date(due_date: &str, rule: &str) -> Option<String> {
+    let dt = chrono::DateTime::parse_from_rfc3339(due_date).ok()?;
+    let local = dt.with_timezone(&chrono::Local);
+
+    let next = match rule.as_ref() {
+        "daily" => local + chrono::Duration::days(1),
+        "weekly" => local + chrono::Duration::weeks(1),
+        "monthly" => {
+            // 简单处理：加 30 天
+            local + chrono::Duration::days(30)
+        }
+        "weekdays" => {
+            let tomorrow = local + chrono::Duration::days(1);
+            let weekday = tomorrow.weekday();
+            if weekday == chrono::Weekday::Sat {
+                local + chrono::Duration::days(3)
+            } else if weekday == chrono::Weekday::Sun {
+                local + chrono::Duration::days(2)
+            } else {
+                tomorrow
+            }
+        }
+        _ => return None,
+    };
+
+    Some(next.to_rfc3339())
 }

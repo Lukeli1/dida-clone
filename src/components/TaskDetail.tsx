@@ -130,6 +130,21 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
         </div>
 
         <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">重复</label>
+          <select
+            value={task.repeat_rule || ''}
+            onChange={(e) => onUpdate(task.id, { repeat_rule: e.target.value || undefined })}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+          >
+            <option value="">不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="monthly">每月</option>
+            <option value="weekdays">工作日</option>
+          </select>
+        </div>
+
+        <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">优先级</label>
           <div className="flex gap-2">
             {priorityOptions.map((opt) => (

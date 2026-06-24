@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest } from './types'
+import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest, ReorderItem, CompleteResult } from './types'
 
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
 
@@ -47,6 +47,7 @@ export const api = {
         list_id: req.list_id,
         parent_id: req.parent_id,
         repeat_rule: req.repeat_rule,
+        sort_order: Date.now(),
         created_at: now,
         updated_at: now,
         tag_ids: [],
@@ -186,5 +187,48 @@ export const api = {
       return Promise.resolve()
     }
     await invoke('remove_tag_from_task', { taskId, tagId })
+  },
+
+  // ===== 排序与完成 =====
+
+  reorderTasks: async (items: ReorderItem[]): Promise<void> => {
+    if (!isTauri) {
+      items.forEach(item => {
+        const idx = mockTasks.findIndex(t => t.id === item.id)
+        if (idx !== -1) mockTasks[idx].sort_order = item.sort_order
+      })
+      return Promise.resolve()
+    }
+    await invoke('reorder_tasks', { items })
+  },
+
+  completeTask: async (id: number): Promise<CompleteResult> => {
+    if (!isTauri) {
+      const idx = mockTasks.findIndex(t => t.id === id)
+      if (idx !== -1) {
+        mockTasks[idx].completed = true
+        const task = mockTasks[idx]
+        if (task.repeat_rule && task.due_date) {
+          const now = new Date().toISOString()
+          const nextDue = new Date(task.due_date)
+          if (task.repeat_rule === 'daily') nextDue.setDate(nextDue.getDate() + 1)
+          else if (task.repeat_rule === 'weekly') nextDue.setDate(nextDue.getDate() + 7)
+          else if (task.repeat_rule === 'monthly') nextDue.setDate(nextDue.getDate() + 30)
+          const newTask: Task = {
+            ...task,
+            id: nextTaskId++,
+            completed: false,
+            due_date: nextDue.toISOString(),
+            sort_order: Date.now(),
+            created_at: now,
+            updated_at: now,
+          }
+          mockTasks.unshift(newTask)
+          return Promise.resolve({ new_task_id: newTask.id })
+        }
+      }
+      return Promise.resolve({ new_task_id: null })
+    }
+    return await invoke<CompleteResult>('complete_task', { id })
   },
 }
