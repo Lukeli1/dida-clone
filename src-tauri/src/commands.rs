@@ -12,6 +12,7 @@ pub struct Task {
     pub notes: Option<String>,
     pub priority: i64,
     pub due_date: Option<String>,
+    pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: bool,
     pub list_id: i64,
@@ -40,6 +41,7 @@ pub struct CreateTaskRequest {
     pub notes: Option<String>,
     pub priority: Option<i64>,
     pub due_date: Option<String>,
+    pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub list_id: i64,
     pub parent_id: Option<i64>,
@@ -65,6 +67,7 @@ pub struct UpdateTaskRequest {
     pub notes: Option<String>,
     pub priority: Option<i64>,
     pub due_date: Option<String>,
+    pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: Option<bool>,
     pub repeat_rule: Option<String>,
@@ -90,7 +93,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().unwrap();
 
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, reminder, completed, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<Task> = stmt
@@ -101,14 +104,15 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
                 notes: row.get(2)?,
                 priority: row.get(3)?,
                 due_date: row.get(4)?,
-                reminder: row.get(5)?,
-                completed: row.get(6)?,
-                list_id: row.get(7)?,
-                parent_id: row.get(8)?,
-                repeat_rule: row.get(9)?,
-                sort_order: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+                end_date: row.get(5)?,
+                reminder: row.get(6)?,
+                completed: row.get(7)?,
+                list_id: row.get(8)?,
+                parent_id: row.get(9)?,
+                repeat_rule: row.get(10)?,
+                sort_order: row.get(11)?,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -143,13 +147,14 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
     conn.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             req.title,
             req.notes,
             req.priority.unwrap_or(2),
             req.due_date,
+            req.end_date,
             req.reminder,
             req.list_id,
             req.parent_id,
@@ -168,6 +173,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         notes: req.notes,
         priority: req.priority.unwrap_or(2),
         due_date: req.due_date,
+        end_date: req.end_date,
         reminder: req.reminder,
         completed: false,
         list_id: req.list_id,
@@ -204,6 +210,10 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
     if let Some(ref due_date) = updates.due_date {
         set_clauses.push("due_date = ?".to_string());
         params_vec.push(Box::new(due_date.clone()));
+    }
+    if let Some(ref end_date) = updates.end_date {
+        set_clauses.push("end_date = ?".to_string());
+        params_vec.push(Box::new(end_date.clone()));
     }
     if let Some(ref reminder) = updates.reminder {
         set_clauses.push("reminder = ?".to_string());

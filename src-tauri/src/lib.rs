@@ -1,5 +1,6 @@
 pub mod db;
 pub mod commands;
+pub mod llm;
 
 use db::DbState;
 use tauri::{
@@ -86,6 +87,8 @@ pub fn run() {
             commands::remove_tag_from_task,
             commands::reorder_tasks,
             commands::complete_task,
+            llm::test_llm_connection,
+            llm::llm_chat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

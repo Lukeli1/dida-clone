@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Task, Tag } from '../types'
+import { hexWithAlpha } from '../utils/priority'
+import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../utils/llm'
 
 interface TaskDetailProps {
   task: Task
@@ -9,6 +11,7 @@ interface TaskDetailProps {
   onClose: () => void
   onAddTag: (taskId: number, tagId: number) => void
   onRemoveTag: (taskId: number, tagId: number) => void
+  onCreateSubtask: (parentId: number, title: string) => void
 }
 
 const priorityOptions = [
@@ -18,12 +21,16 @@ const priorityOptions = [
   { value: 3, label: '低', color: 'bg-green-100 text-green-700' },
 ]
 
-export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, onRemoveTag }: TaskDetailProps) {
+export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes || '')
   const [dueDate, setDueDate] = useState(task.due_date || '')
   const [reminder, setReminder] = useState(task.reminder || '')
   const [priority, setPriority] = useState(task.priority)
+  const [aiBreaking, setAiBreaking] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState<SubtaskSuggestion[]>([])
+  const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set())
+  const [aiPriorityLoading, setAiPriorityLoading] = useState(false)
 
   useEffect(() => {
     setTitle(task.title)
@@ -47,6 +54,60 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
   function handleDelete() {
     if (confirm('确定删除这个任务吗？')) {
       onDelete(task.id)
+    }
+  }
+
+  // AI 智能拆解任务
+  async function handleAIBreakdown() {
+    if (!getLLMConfig()) {
+      alert('请先在设置中配置大模型 API')
+      return
+    }
+    setAiBreaking(true)
+    setAiSuggestions([])
+    setAddedSuggestions(new Set())
+    try {
+      const suggestions = await breakdownTask(task.title, task.notes)
+      setAiSuggestions(suggestions)
+    } catch (e: any) {
+      alert(`AI 拆解失败: ${e.message || e}`)
+    } finally {
+      setAiBreaking(false)
+    }
+  }
+
+  // 添加单个 AI 建议子任务
+  function handleAddSuggestion(idx: number, suggestion: SubtaskSuggestion) {
+    onCreateSubtask(task.id, suggestion.title)
+    setAddedSuggestions(prev => new Set(prev).add(idx))
+  }
+
+  // 一键添加所有 AI 建议子任务
+  function handleAddAllSuggestions() {
+    aiSuggestions.forEach((s, idx) => {
+      if (!addedSuggestions.has(idx)) {
+        onCreateSubtask(task.id, s.title)
+      }
+    })
+    setAddedSuggestions(new Set(aiSuggestions.map((_, i) => i)))
+  }
+
+  // AI 优先级建议
+  async function handleAIPriority() {
+    if (!getLLMConfig()) {
+      alert('请先在设置中配置大模型 API')
+      return
+    }
+    setAiPriorityLoading(true)
+    try {
+      const result = await suggestPriority(task.title, task.notes)
+      setPriority(result.priority)
+      onUpdate(task.id, { priority: result.priority })
+      alert(`AI 建议优先级：${result.priority === 1 ? '高' : result.priority === 2 ? '中' : '低'}\n原因：${result.reason}`)
+    } catch (e: any) {
+      alert(`AI 建议失败: ${e.message || e}`)
+    } finally {
+      setAiPriorityLoading(false)
     }
   }
 
@@ -91,7 +152,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
 
@@ -103,7 +164,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             onBlur={handleSave}
             rows={4}
             placeholder="添加备注..."
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 resize-none"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
           />
         </div>
 
@@ -114,7 +175,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             value={toLocalInputValue(dueDate)}
             onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
             onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
 
@@ -125,7 +186,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             value={toLocalInputValue(reminder)}
             onChange={(e) => setReminder(e.target.value ? new Date(e.target.value).toISOString() : '')}
             onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
 
@@ -134,7 +195,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
           <select
             value={task.repeat_rule || ''}
             onChange={(e) => onUpdate(task.id, { repeat_rule: e.target.value || undefined })}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           >
             <option value="">不重复</option>
             <option value="daily">每天</option>
@@ -145,7 +206,27 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">优先级</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-medium text-gray-500">优先级</label>
+            <button
+              onClick={handleAIPriority}
+              disabled={aiPriorityLoading}
+              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
+              title="让 AI 建议优先级"
+            >
+              {aiPriorityLoading ? (
+                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              )}
+              AI 建议
+            </button>
+          </div>
           <div className="flex gap-2">
             {priorityOptions.map((opt) => (
               <button
@@ -177,7 +258,7 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                   <span
                     key={tagId}
                     className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md"
-                    style={{ backgroundColor: (tag.color || '#6B7280') + '20', color: tag.color || '#6B7280' }}
+                    style={{ backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12), color: tag.color || '#6B7280' }}
                   >
                     {tag.name}
                     <button
@@ -215,6 +296,70 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                 }
               </select>
             </div>
+          )}
+        </div>
+
+        {/* AI 智能拆解 */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-medium text-gray-500">AI 智能拆解</label>
+            <button
+              onClick={handleAIBreakdown}
+              disabled={aiBreaking}
+              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
+            >
+              {aiBreaking ? (
+                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              )}
+              {aiBreaking ? '拆解中...' : 'AI 拆解任务'}
+            </button>
+          </div>
+          {aiSuggestions.length > 0 && (
+            <div className="space-y-1.5">
+              {aiSuggestions.map((s, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-purple-50/50 border border-purple-100">
+                  <span className="flex-1 text-sm text-gray-700">{s.title}</span>
+                  {s.priority && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      s.priority === 1 ? 'bg-red-100 text-red-700' :
+                      s.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {s.priority === 1 ? '高' : s.priority === 2 ? '中' : '低'}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleAddSuggestion(idx, s)}
+                    disabled={addedSuggestions.has(idx)}
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                      addedSuggestions.has(idx)
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-purple-500 text-white hover:bg-purple-600'
+                    }`}
+                  >
+                    {addedSuggestions.has(idx) ? '已添加' : '+ 添加'}
+                  </button>
+                </div>
+              ))}
+              {addedSuggestions.size < aiSuggestions.length && (
+                <button
+                  onClick={handleAddAllSuggestions}
+                  className="w-full text-xs text-purple-600 hover:text-purple-700 py-1 border border-dashed border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                >
+                  一键添加全部 ({aiSuggestions.length - addedSuggestions.size} 个)
+                </button>
+              )}
+            </div>
+          )}
+          {!aiBreaking && aiSuggestions.length === 0 && (
+            <p className="text-xs text-gray-400">让 AI 自动将任务拆解为可执行的子任务</p>
           )}
         </div>
 

@@ -87,6 +87,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
         <MonthView
           currentDate={currentDate}
           tasks={tasks}
+          lists={lists}
           onDateClick={handleDateClick}
           onTaskClick={onTaskClick}
           onToggleTask={onToggleTask}
@@ -95,6 +96,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
           onToday={goToToday}
           onMoveTask={onMoveTask}
           onCreateTask={onCreateTask}
+          onCreateTaskOnRange={onCreateTaskOnRange}
         />
       </div>
     </div>

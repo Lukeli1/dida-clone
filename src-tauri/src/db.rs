@@ -11,6 +11,7 @@ pub struct Task {
     pub notes: Option<String>,
     pub priority: i64,
     pub due_date: Option<String>,
+    pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: bool,
     pub list_id: i64,
@@ -75,6 +76,16 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     };
     if !has_sort_order {
         conn.execute("ALTER TABLE tasks ADD COLUMN sort_order REAL DEFAULT 0", [])?;
+    }
+
+    // 兼容已有数据库：如果 tasks 表没有 end_date 列，则添加
+    let has_end_date: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
+        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
+        cols.iter().any(|c| c == "end_date")
+    };
+    if !has_end_date {
+        conn.execute("ALTER TABLE tasks ADD COLUMN end_date TEXT", [])?;
     }
 
     conn.execute(

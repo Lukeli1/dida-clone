@@ -4,6 +4,7 @@ export interface Task {
   notes?: string
   priority: number
   due_date?: string
+  end_date?: string
   reminder?: string
   completed: boolean
   list_id: number
@@ -37,6 +38,7 @@ export interface CreateTaskRequest {
   notes?: string
   priority?: number
   due_date?: string
+  end_date?: string
   reminder?: string
   list_id: number
   parent_id?: number

@@ -30,6 +30,7 @@ interface CreatePopup {
   endHour: number
   endMin: number
   top: number
+  isQuickAdd: boolean
 }
 
 const priorityOptions = [
@@ -37,6 +38,13 @@ const priorityOptions = [
   { value: 1, label: '高', color: 'text-red-600' },
   { value: 2, label: '中', color: 'text-yellow-600' },
   { value: 3, label: '低', color: 'text-green-600' },
+]
+
+const priorityFlags = [
+  { value: 0, color: 'text-gray-300', label: '无优先级' },
+  { value: 1, color: 'text-red-500', label: '高优先级' },
+  { value: 2, color: 'text-yellow-500', label: '中优先级' },
+  { value: 3, color: 'text-green-500', label: '低优先级' },
 ]
 
 export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onCreateTaskOnRange }: DayViewProps) {
@@ -66,6 +74,17 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
     if (!task.due_date) return 0
     const d = new Date(task.due_date)
     return getHours(d) * HOUR_HEIGHT + getMinutes(d)
+  }
+
+  function getTaskHeight(task: Task) {
+    if (!task.due_date) return 30
+    if (!task.end_date) return 30
+    const start = new Date(task.due_date)
+    const end = new Date(task.end_date)
+    const diffMs = end.getTime() - start.getTime()
+    const diffMin = diffMs / 60000
+    if (diffMin <= 0) return 30
+    return Math.max(30, (diffMin / 60) * HOUR_HEIGHT)
   }
 
   function getMinuteFromEvent(e: React.MouseEvent): number | null {
@@ -112,17 +131,39 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
     const endMinute = Math.max(selStartRef.current, minute)
     selectingRef.current = false
     selStartRef.current = null
+
+    const top = (startMinute / 60) * HOUR_HEIGHT
+
+    // 短按（< 15分钟）→ 快速添加弹窗（默认1小时）
     if (endMinute - startMinute < 15) {
+      const quickStart = startMinute
+      const quickEnd = Math.min(startMinute + 60, 24 * 60)
       setSelection(null)
+      setCreatePopup({
+        startHour: Math.floor(quickStart / 60),
+        startMin: quickStart % 60,
+        endHour: Math.floor(quickEnd / 60),
+        endMin: quickEnd % 60,
+        top,
+        isQuickAdd: true,
+      })
+      setPopupTitle('')
+      setPopupNotes('')
+      setPopupPriority(2)
+      setPopupListId(defaultListId)
+      setTimeout(() => popupInputRef.current?.focus(), 50)
       return
     }
+
+    // 拖选 → 详细弹窗
     setSelection(null)
     setCreatePopup({
       startHour: Math.floor(startMinute / 60),
       startMin: startMinute % 60,
       endHour: Math.floor(endMinute / 60),
       endMin: endMinute % 60,
-      top: (startMinute / 60) * HOUR_HEIGHT,
+      top,
+      isQuickAdd: false,
     })
     setPopupTitle('')
     setPopupNotes('')
@@ -161,6 +202,10 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
       })
     }
     setCreatePopup(null)
+  }
+
+  function cyclePriority() {
+    setPopupPriority((p) => (p + 1) % 4)
   }
 
   function formatMinute(m: number) {
@@ -208,14 +253,19 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
 
             <div
               ref={columnRef}
-              className="relative"
+              className="relative group"
               onMouseDown={handleTimeMouseDown}
               onMouseMove={handleTimeMouseMove}
               onMouseUp={handleTimeMouseUp}
             >
               {HOURS.map((hour) => (
-                <div key={hour} className="border-b border-gray-100" style={{ height: `${HOUR_HEIGHT}px` }} />
+                <div key={hour} className="border-b border-gray-100 hover:bg-blue-50/20 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
               ))}
+
+              {/* 悬停提示 */}
+              <div className="absolute top-0 right-1 opacity-0 group-hover:opacity-30 pointer-events-none text-xs text-blue-500 font-medium">
+                点击添加
+              </div>
 
               {selection && (
                 <div className="absolute left-0 right-0 bg-blue-100 border border-blue-300 rounded-sm pointer-events-none z-10"
@@ -226,16 +276,17 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
 
               {dayTasks.filter((t) => t.due_date).map((task) => {
                 const top = getTaskTop(task)
+                const height = getTaskHeight(task)
                 return (
                   <div key={task.id} data-task
-                    className={`absolute left-2 right-2 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none ${
+                    className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none ${
                       task.completed
                         ? 'bg-gray-200 text-gray-400 line-through'
                         : task.priority === 1 ? 'bg-red-100 text-red-700 border-l-2 border-red-400'
                         : task.priority === 2 ? 'bg-yellow-100 text-yellow-700 border-l-2 border-yellow-400'
                         : 'bg-blue-100 text-blue-700 border-l-2 border-blue-400'
                     }`}
-                    style={{ top: `${top}px`, height: '30px' }}>
+                    style={{ top: `${top}px`, height: `${height}px` }}>
                     <input type="checkbox" checked={task.completed}
                       onChange={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
                       onClick={(e) => e.stopPropagation()}
@@ -248,7 +299,34 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
                 )
               })}
 
-              {createPopup && (
+              {/* 快速添加弹窗（轻量） */}
+              {createPopup?.isQuickAdd && (
+                <div className="absolute z-20 bg-white rounded-lg shadow-xl border border-blue-200 p-3 w-64"
+                  style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: '20px' }}
+                  onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-blue-600 font-medium">
+                      {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
+                    </span>
+                    <button
+                      onClick={cyclePriority}
+                      className={`ml-auto p-1 rounded hover:bg-gray-100 ${priorityFlags[popupPriority].color}`}
+                      title={priorityFlags[popupPriority].label}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5v9" />
+                      </svg>
+                    </button>
+                  </div>
+                  <input ref={popupInputRef} value={popupTitle} onChange={(e) => setPopupTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePopupSubmit(); if (e.key === 'Escape') setCreatePopup(null) }}
+                    placeholder="任务标题，回车保存"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                </div>
+              )}
+
+              {/* 详细创建弹窗（拖选后） */}
+              {createPopup && !createPopup.isQuickAdd && (
                 <div className="absolute z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-72"
                   style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: '20px' }}
                   onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
@@ -261,11 +339,11 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
 
                   <input ref={popupInputRef} value={popupTitle} onChange={(e) => setPopupTitle(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePopupSubmit(); if (e.key === 'Escape') setCreatePopup(null) }}
-                    placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2" />
+                    placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-2" />
 
                   <textarea value={popupNotes} onChange={(e) => setPopupNotes(e.target.value)}
                     placeholder="备注（可选）" rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 mb-3 resize-none" />
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-3 resize-none" />
 
                   <div className="mb-3">
                     <label className="block text-xs text-gray-500 mb-1.5">优先级</label>
@@ -285,7 +363,7 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
                     <div className="mb-3">
                       <label className="block text-xs text-gray-500 mb-1.5">清单</label>
                       <select value={popupListId || defaultListId} onChange={(e) => setPopupListId(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                         {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                       </select>
                     </div>

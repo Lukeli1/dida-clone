@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest, ReorderItem, CompleteResult } from './types'
 
-const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
+export const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
 
 const mockTasks: Task[] = []
 const mockLists: List[] = [
@@ -42,6 +42,7 @@ export const api = {
         notes: req.notes,
         priority: req.priority ?? 2,
         due_date: req.due_date,
+        end_date: req.end_date,
         reminder: req.reminder,
         completed: false,
         list_id: req.list_id,

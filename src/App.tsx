@@ -1,12 +1,15 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { isToday as dateFnsIsToday } from 'date-fns'
+import { isToday as dateFnsIsToday, isBefore as dateFnsIsBefore, startOfDay as dateFnsStartOfDay } from 'date-fns'
 import { api } from './api'
 import type { Task, List, Tag, ReorderItem } from './types'
 import { Sidebar, type ViewType } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { CalendarView } from './components/CalendarView'
 import { StatsView } from './components/StatsView'
+import { SettingsView } from './components/SettingsView'
 import { useToast } from './components/Toast'
+import { getPriorityStyle, hexWithAlpha } from './utils/priority'
+import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
 
 function App() {
   const toast = useToast()
@@ -20,9 +23,12 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [currentView, setCurrentView] = useState<ViewType>('tasks')
   const [showCompleted, setShowCompleted] = useState(false)
+  const [showOverdue, setShowOverdue] = useState(true)
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [subtaskInputs, setSubtaskInputs] = useState<Record<number, string>>({})
   const [searchQuery, setSearchQuery] = useState('')
+  const [aiMode, setAiMode] = useState(false)
+  const [aiParsing, setAiParsing] = useState(false)
   const newTaskInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const notifiedTaskIds = useRef<Set<number>>(new Set())
@@ -198,6 +204,22 @@ function App() {
     return taskTree.filter(t => !t.completed)
   }, [taskTree])
 
+  // 今日视图：已过期任务（截止日期早于今天且未完成）
+  const overdueTaskTree = useMemo(() => {
+    if (currentView !== 'today') return []
+    const todayStart = dateFnsStartOfDay(new Date())
+    return tasks.filter(t => {
+      if (!t.due_date || t.completed) return false
+      return dateFnsIsBefore(new Date(t.due_date), todayStart)
+    }).sort((a, b) => {
+      const pa = a.priority === 0 ? 4 : a.priority
+      const pb = b.priority === 0 ? 4 : b.priority
+      if (pa !== pb) return pa - pb
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+      return b.created_at.localeCompare(a.created_at)
+    })
+  }, [tasks, currentView])
+
   const taskCounts = useMemo(() => {
     const counts: Record<number, number> = {}
     tasks.forEach((t) => {
@@ -215,6 +237,12 @@ function App() {
   async function handleCreateTask() {
     if (!newTaskTitle.trim()) return
 
+    // AI 模式：解析自然语言
+    if (aiMode) {
+      await handleCreateTaskWithAI()
+      return
+    }
+
     try {
       const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
       const newTask = await api.createTask({
@@ -227,6 +255,41 @@ function App() {
     } catch (error) {
       console.error('Failed to create task:', error)
       toast.error('创建任务失败')
+    }
+  }
+
+  // AI 自然语言创建任务
+  async function handleCreateTaskWithAI() {
+    if (!newTaskTitle.trim()) return
+    if (!getLLMConfig()) {
+      toast.error('请先在设置中配置大模型 API')
+      return
+    }
+    setAiParsing(true)
+    try {
+      const parsed = await parseNaturalLanguageTask(newTaskTitle.trim())
+      const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
+      const newTask = await api.createTask({
+        title: parsed.title,
+        list_id: listId,
+        due_date: parsed.due_date || undefined,
+        priority: parsed.priority ?? 0,
+        notes: parsed.notes || undefined,
+      })
+      setTasks([newTask, ...tasks])
+      setNewTaskTitle('')
+      const extras: string[] = []
+      if (parsed.due_date) extras.push(`时间: ${new Date(parsed.due_date).toLocaleString('zh-CN')}`)
+      if (parsed.priority && parsed.priority > 0) {
+        const pLabel = parsed.priority === 1 ? '高' : parsed.priority === 2 ? '中' : '低'
+        extras.push(`优先级: ${pLabel}`)
+      }
+      toast.success(`AI 已创建任务${extras.length ? '（' + extras.join('，') + '）' : ''}`)
+    } catch (error: any) {
+      console.error('AI parse failed:', error)
+      toast.error(`AI 解析失败: ${error.message || error}`)
+    } finally {
+      setAiParsing(false)
     }
   }
 
@@ -463,6 +526,7 @@ function App() {
     try {
       const [year, month, day] = data.dateKey.split('-').map(Number)
       const dueDate = new Date(year, month - 1, day, data.startHour, data.startMin)
+      const endDate = new Date(year, month - 1, day, data.endHour, data.endMin)
       const reminder = new Date(year, month - 1, day, data.startHour, data.startMin)
       const newTask = await api.createTask({
         title: data.title,
@@ -470,6 +534,7 @@ function App() {
         priority: data.priority,
         list_id: data.listId,
         due_date: dueDate.toISOString(),
+        end_date: endDate.toISOString(),
         reminder: reminder.toISOString(),
       })
       setTasks([newTask, ...tasks])
@@ -540,11 +605,14 @@ function App() {
               onClose={() => setSelectedTaskId(null)}
               onAddTag={handleAddTagToTask}
               onRemoveTag={handleRemoveTagFromTask}
+              onCreateSubtask={handleCreateSubtask}
             />
           )}
         </main>
       ) : currentView === 'stats' ? (
         <StatsView tasks={tasks} lists={lists} />
+      ) : currentView === 'settings' ? (
+        <SettingsView onClose={() => setCurrentView('tasks')} />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -567,36 +635,117 @@ function App() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索任务... (Ctrl+F)"
-                  className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 w-64"
+                  className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
                 />
               </div>
             </div>
           </header>
 
-          {currentView !== 'today' && (
+          {currentView !== 'calendar' && currentView !== 'stats' && currentView !== 'settings' && (
             <div className="p-4 border-b border-gray-200 bg-white">
               <div className="flex gap-2">
-                <input
-                  ref={newTaskInputRef}
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
-                  placeholder="添加新任务..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex-1 relative">
+                  <input
+                    ref={newTaskInputRef}
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !aiParsing && handleCreateTask()}
+                    disabled={aiParsing}
+                    placeholder={aiMode ? '试试输入：明天下午3点开会，优先级高' : '添加新任务...'}
+                    className={`w-full pl-4 pr-24 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-60 ${
+                      aiMode ? 'border-purple-300 bg-purple-50/30' : 'border-gray-300'
+                    }`}
+                  />
+                  <button
+                    onClick={() => { setAiMode(!aiMode); newTaskInputRef.current?.focus() }}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors ${
+                      aiMode
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                    }`}
+                    title={aiMode ? '关闭 AI 模式' : '开启 AI 自然语言输入'}
+                  >
+                    {aiMode ? (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    )}
+                    AI
+                  </button>
+                </div>
                 <button
                   onClick={handleCreateTask}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  disabled={aiParsing}
+                  className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                    aiMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
                 >
-                  添加
+                  {aiParsing && (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {aiParsing ? '解析中...' : aiMode ? 'AI 创建' : '添加'}
                 </button>
               </div>
+              {aiMode && (
+                <p className="mt-1.5 text-xs text-purple-500 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  AI 模式：用自然语言描述任务，AI 会自动识别时间、优先级
+                </p>
+              )}
             </div>
           )}
 
           <div className="flex-1 overflow-y-auto p-4">
-            {filteredTasks.length === 0 ? (
+            {/* 今日视图：已过期任务 */}
+            {currentView === 'today' && overdueTaskTree.length > 0 && (
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowOverdue(!showOverdue)}
+                  className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-2 transition-colors font-medium"
+                >
+                  <svg className={`w-4 h-4 transition-transform ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  已过期 ({overdueTaskTree.length})
+                </button>
+                {showOverdue && (
+                  <ul className="space-y-1">
+                    {overdueTaskTree.map((task) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        tags={tags}
+                        isSelected={selectedTaskId === task.id}
+                        isExpanded={expandedTasks.has(task.id)}
+                        onToggleExpand={() => toggleTaskExpand(task.id)}
+                        subtaskInput={subtaskInputs[task.id] || ''}
+                        onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                        onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
+                        onToggle={() => handleToggleTask(task)}
+                        onClick={() => setSelectedTaskId(task.id)}
+                        onReorder={() => {}}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {filteredTasks.length === 0 && overdueTaskTree.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -620,6 +769,7 @@ function App() {
                       onToggle={() => handleToggleTask(task)}
                       onClick={() => setSelectedTaskId(task.id)}
                       onReorder={handleReorderTasks}
+                      onDelete={handleDeleteTask}
                     />
                   ))}
                 </ul>
@@ -651,6 +801,7 @@ function App() {
                             onToggle={() => handleToggleTask(task)}
                             onClick={() => setSelectedTaskId(task.id)}
                             onReorder={() => {}}
+                            onDelete={handleDeleteTask}
                           />
                         ))}
                       </ul>
@@ -663,7 +814,7 @@ function App() {
         </main>
       )}
 
-      {currentView !== 'calendar' && selectedTask && (
+      {currentView !== 'calendar' && currentView !== 'settings' && selectedTask && (
         <TaskDetail
           task={selectedTask}
           tags={tags}
@@ -672,13 +823,14 @@ function App() {
           onClose={() => setSelectedTaskId(null)}
           onAddTag={handleAddTagToTask}
           onRemoveTag={handleRemoveTagFromTask}
+          onCreateSubtask={handleCreateSubtask}
         />
       )}
     </div>
   )
 }
 
-function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder }: {
+function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder, onDelete }: {
   task: Task
   tags: Tag[]
   isSelected: boolean
@@ -690,10 +842,14 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
   onToggle: () => void
   onClick: () => void
   onReorder: (draggedId: number, targetId: number) => void
+  onDelete: (taskId: number) => void
 }) {
+  const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const hasSubtasks = task.subtasks && task.subtasks.length > 0
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
   const totalSubtasks = task.subtasks?.length || 0
+  const priorityStyle = getPriorityStyle(task.priority)
 
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.effectAllowed = 'move'
@@ -703,6 +859,12 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
+  }
+
+  function handleDragLeave() {
+    setDragOverPos(null)
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -711,25 +873,43 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
     if (draggedId && draggedId !== task.id) {
       onReorder(draggedId, task.id)
     }
+    setDragOverPos(null)
   }
+
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  useEffect(() => {
+    if (!contextMenu) return
+    function closeMenu() { setContextMenu(null) }
+    window.addEventListener('click', closeMenu)
+    return () => window.removeEventListener('click', closeMenu)
+  }, [contextMenu])
 
   return (
     <li
       draggable
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onContextMenu={handleContextMenu}
+      className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-blue-400' : dragOverPos === 'after' ? 'border-b-2 border-blue-400' : ''}`}
     >
       <div
         onClick={onClick}
-        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 ${
           isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-        } ${task.completed ? 'opacity-60' : ''}`}
+        } ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
       >
         {hasSubtasks ? (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleExpand() }}
             className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600"
+            aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
           >
             <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -743,13 +923,13 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
           checked={task.completed}
           onChange={(e) => { e.stopPropagation(); onToggle() }}
           onClick={(e) => e.stopPropagation()}
-          className="w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
         />
         <div className="flex-1 min-w-0">
-          <p className={`text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+          <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
             {task.title}
           </p>
-          <div className="flex items-center gap-3 mt-0.5">
+          <div className="flex items-center gap-3 mt-0.5 opacity-70">
             {task.due_date && (
               <span className="text-xs text-gray-400 flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -778,8 +958,8 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
                   return (
                     <span
                       key={tagId}
-                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded"
-                      style={{ backgroundColor: (tag.color || '#6B7280') + '20', color: tag.color || '#6B7280' }}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] rounded"
+                      style={{ backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12), color: tag.color || '#6B7280' }}
                     >
                       {tag.name}
                     </span>
@@ -789,19 +969,6 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
             )}
           </div>
         </div>
-        {task.priority > 0 && (
-          <span
-            className={`px-2 py-0.5 text-xs rounded ${
-              task.priority === 1
-                ? 'bg-red-100 text-red-700'
-                : task.priority === 2
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'bg-green-100 text-green-700'
-            }`}
-          >
-            {task.priority === 1 ? '高' : task.priority === 2 ? '中' : '低'}
-          </span>
-        )}
       </div>
 
       {/* 子任务列表 */}
@@ -820,7 +987,7 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
                 checked={subtask.completed}
                 onChange={(e) => { e.stopPropagation(); onToggle() }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                className="checkbox-bounce w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
               />
               <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                 {subtask.title}
@@ -841,9 +1008,28 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
                 if (e.key === 'Escape') onSubtaskInputChange('')
               }}
               placeholder="添加子任务..."
-              className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
+        </div>
+      )}
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-40"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { onDelete(task.id); setContextMenu(null) }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            删除任务
+          </button>
         </div>
       )}
     </li>
