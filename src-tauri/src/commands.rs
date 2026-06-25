@@ -15,6 +15,8 @@ pub struct Task {
     pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: bool,
+    #[serde(default)]
+    pub archived: bool,
     pub list_id: i64,
     pub parent_id: Option<i64>,
     pub repeat_rule: Option<String>,
@@ -70,6 +72,8 @@ pub struct UpdateTaskRequest {
     pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: Option<bool>,
+    pub archived: Option<bool>,
+    pub list_id: Option<i64>,
     pub repeat_rule: Option<String>,
     pub sort_order: Option<f64>,
 }
@@ -93,7 +97,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().unwrap();
 
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<Task> = stmt
@@ -107,12 +111,13 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
                 end_date: row.get(5)?,
                 reminder: row.get(6)?,
                 completed: row.get(7)?,
-                list_id: row.get(8)?,
-                parent_id: row.get(9)?,
-                repeat_rule: row.get(10)?,
-                sort_order: row.get(11)?,
-                created_at: row.get(12)?,
-                updated_at: row.get(13)?,
+                archived: row.get::<_, i64>(8)? != 0,
+                list_id: row.get(9)?,
+                parent_id: row.get(10)?,
+                repeat_rule: row.get(11)?,
+                sort_order: row.get(12)?,
+                created_at: row.get(13)?,
+                updated_at: row.get(14)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -176,6 +181,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         end_date: req.end_date,
         reminder: req.reminder,
         completed: false,
+        archived: false,
         list_id: req.list_id,
         parent_id: req.parent_id,
         repeat_rule: req.repeat_rule,
@@ -222,6 +228,14 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
     if let Some(completed) = updates.completed {
         set_clauses.push("completed = ?".to_string());
         params_vec.push(Box::new(completed));
+    }
+    if let Some(archived) = updates.archived {
+        set_clauses.push("archived = ?".to_string());
+        params_vec.push(Box::new(archived));
+    }
+    if let Some(list_id) = updates.list_id {
+        set_clauses.push("list_id = ?".to_string());
+        params_vec.push(Box::new(list_id));
     }
     if let Some(ref repeat_rule) = updates.repeat_rule {
         set_clauses.push("repeat_rule = ?".to_string());

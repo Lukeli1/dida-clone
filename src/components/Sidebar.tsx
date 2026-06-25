@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { List, Tag } from '../types'
 
-export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai'
+export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived'
 
 const PRESET_COLORS = [
   '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',
@@ -24,9 +24,10 @@ interface SidebarProps {
   onDeleteTag: (id: number) => void
   taskCounts: Record<number, number>
   todayCount: number
+  archivedCount: number
 }
 
-export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentView, onSelectList, onSelectTag, onViewChange, onCreateList, onUpdateList, onDeleteList, onCreateTag, onDeleteTag, taskCounts, todayCount }: SidebarProps) {
+export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentView, onSelectList, onSelectTag, onViewChange, onCreateList, onUpdateList, onDeleteList, onCreateTag, onDeleteTag, taskCounts, todayCount, archivedCount }: SidebarProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [newListColor, setNewListColor] = useState('#6B7280')
@@ -169,6 +170,23 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
               今日任务
             </span>
             <span className="text-xs text-gray-400">{todayCount}</span>
+          </button>
+
+          <button
+            onClick={() => { onViewChange('archived'); onSelectList(null); onSelectTag(null) }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              currentView === 'archived'
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              归档
+            </span>
+            <span className="text-xs text-gray-400">{archivedCount}</span>
           </button>
 
           <button

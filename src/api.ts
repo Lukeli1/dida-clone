@@ -45,6 +45,7 @@ export const api = {
         end_date: req.end_date,
         reminder: req.reminder,
         completed: false,
+        archived: false,
         list_id: req.list_id,
         parent_id: req.parent_id,
         repeat_rule: req.repeat_rule,

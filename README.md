@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.1.0-blue)
+![版本](https://img.shields.io/badge/version-1.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -19,8 +19,13 @@
 - 子任务：支持多级任务拆解
 - 标签与清单：多清单管理，彩色标签分类
 - 拖拽排序：任务可拖拽调整顺序
-- 右键菜单：快速删除任务
+- 右键菜单：删除、重命名、归档/恢复
 - 已过期模块：今日视图聚合逾期未完成任务
+- **快速编辑**（v1.2.0）：双击任务标题行内编辑，Enter 保存 / Esc 取消
+- **批量操作**（v1.2.0）：多选 + 批量完成/归档/设优先级/移动清单/删除
+- **任务归档**（v1.2.0）：完成超 7 天自动归档 + 归档视图 + 一键恢复
+- **拖拽到日历**（v1.2.0）：拖任务至浮动迷你日历即可设置截止日期
+- **任务搜索增强**（v1.2.0）：组合筛选（优先级/日期范围/标签/清单）
 
 ### 日历视图
 - 月视图：悬停"+"按钮快速添加，双击打开详细弹窗
@@ -148,6 +153,22 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.2.0（2026-06-25）
+
+#### 新增功能
+- **快速编辑**：双击任务标题进入行内编辑模式，Enter 保存 / Esc 取消 / 失焦自动保存；右键菜单新增"重命名"入口
+- **批量操作**：header 新增"批量"按钮切换批量模式；支持全选/取消、批量完成、批量归档、批量设优先级、批量移动清单、批量删除；批量工具栏实时显示已选数量
+- **拖拽到日历**：从任务列表开始拖拽时自动弹出浮动迷你日历（MiniCalendarDropzone）；拖到日期格子即设置该日 9:00 为截止时间；支持月份前后切换
+- **任务归档**：新增 `archived` 字段全栈支持（SQLite 迁移 + Rust CRUD + 前端类型）；完成超过 7 天的任务自动归档（仅运行一次的 useEffect）；侧边栏新增"归档"入口显示归档数量；归档视图右键菜单显示"恢复任务"
+- **任务搜索增强**：header 新增"筛选"按钮（带激活状态指示器）；组合筛选面板支持优先级、日期范围（今天/本周/本月/已过期/无截止日期）、标签、清单四维度；多条件叠加，一键清除所有筛选
+
+#### 技术改进
+- 后端 `UpdateTaskRequest` 新增 `list_id` 字段，支持批量移动清单
+- `filteredTasks` 新增 `hasActiveFilters` 判断和归档视图分支
+- 新增 `MiniCalendarDropzone` 组件，使用 date-fns 生成 7×6 月历网格
+- TaskItem 组件新增 8 个可选 props（batchMode/isSelectedForBatch/onToggleSelect/onInlineEdit/onArchive/onUnarchive/isArchivedView/onDragStartGlobal）
+- 拖拽时通过 `onDragStartGlobal` / `onDragEndGlobal` 触发浮动日历显示/隐藏
 
 ### v1.1.0（2026-06-25）
 

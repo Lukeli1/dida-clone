@@ -7,6 +7,7 @@ export interface Task {
   end_date?: string
   reminder?: string
   completed: boolean
+  archived?: boolean
   list_id: number
   parent_id?: number
   repeat_rule?: string

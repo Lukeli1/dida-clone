@@ -14,6 +14,7 @@ pub struct Task {
     pub end_date: Option<String>,
     pub reminder: Option<String>,
     pub completed: bool,
+    pub archived: bool,
     pub list_id: i64,
     pub parent_id: Option<i64>,
     pub repeat_rule: Option<String>,
@@ -86,6 +87,16 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     };
     if !has_end_date {
         conn.execute("ALTER TABLE tasks ADD COLUMN end_date TEXT", [])?;
+    }
+
+    // 兼容已有数据库：如果 tasks 表没有 archived 列，则添加
+    let has_archived: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
+        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
+        cols.iter().any(|c| c == "archived")
+    };
+    if !has_archived {
+        conn.execute("ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0", [])?;
     }
 
     conn.execute(

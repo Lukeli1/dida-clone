@@ -1,5 +1,10 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { isToday as dateFnsIsToday, isBefore as dateFnsIsBefore, startOfDay as dateFnsStartOfDay } from 'date-fns'
+import {
+  isToday as dateFnsIsToday, isBefore as dateFnsIsBefore, startOfDay as dateFnsStartOfDay,
+  isThisWeek, isThisMonth,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth,
+} from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 import { api } from './api'
 import type { Task, List, Tag, ReorderItem } from './types'
 import { Sidebar, type ViewType } from './components/Sidebar'
@@ -11,6 +16,13 @@ import { AIAssistant } from './components/AIAssistant'
 import { useToast } from './components/Toast'
 import { getPriorityStyle, hexWithAlpha } from './utils/priority'
 import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
+
+interface FilterState {
+  priority: number | null
+  dateRange: 'all' | 'today' | 'week' | 'month' | 'overdue' | 'none'
+  tagId: number | null
+  listId: number | null
+}
 
 function App() {
   const toast = useToast()
@@ -30,6 +42,13 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [aiMode, setAiMode] = useState(false)
   const [aiParsing, setAiParsing] = useState(false)
+  const [filters, setFilters] = useState<FilterState>({ priority: null, dateRange: 'all', tagId: null, listId: null })
+  const [showFilters, setShowFilters] = useState(false)
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
+  const [isDraggingTask, setIsDraggingTask] = useState(false)
+  const [dragOverCalendarDate, setDragOverCalendarDate] = useState<string | null>(null)
+  const [miniCalendarDate, setMiniCalendarDate] = useState(new Date())
   const newTaskInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const notifiedTaskIds = useRef<Set<number>>(new Set())
@@ -37,6 +56,22 @@ function App() {
   useEffect(() => {
     loadData()
   }, [])
+
+  const autoArchivedRef = useRef(false)
+  useEffect(() => {
+    if (autoArchivedRef.current || tasks.length === 0) return
+    autoArchivedRef.current = true
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const toArchive = tasks.filter(t =>
+      t.completed && !t.archived && new Date(t.updated_at) < sevenDaysAgo
+    )
+    if (toArchive.length > 0) {
+      Promise.all(toArchive.map(t => api.updateTask(t.id, { archived: true })))
+        .then(() => loadData())
+        .catch(err => console.error('Auto-archive failed:', err))
+    }
+  }, [tasks])
 
   // 桌面通知：每 60 秒检查提醒
   useEffect(() => {
@@ -140,37 +175,75 @@ function App() {
 
   // 今日未完成任务数
   const todayCount = useMemo(() => {
-    return tasks.filter((t) => !t.completed && t.due_date && dateFnsIsToday(new Date(t.due_date))).length
+    return tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date))).length
   }, [tasks])
+
+  // 归档任务数
+  const archivedCount = useMemo(() => {
+    return tasks.filter((t) => t.archived).length
+  }, [tasks])
+
+  // 是否有激活的筛选条件
+  const hasActiveFilters = filters.priority !== null || filters.dateRange !== 'all' || filters.tagId !== null || filters.listId !== null
 
   // 排序：未完成在前，按优先级→截止日期→创建时间排序
   const filteredTasks = useMemo(() => {
     let filtered: Task[]
 
-    // 搜索模式：全局搜索，忽略视图/清单/标签筛选
-    if (searchQuery.trim()) {
+    // 归档视图：只显示已归档任务
+    if (currentView === 'archived') {
+      filtered = tasks.filter((t) => t.archived)
+    } else if (searchQuery.trim()) {
+      // 搜索模式：全局搜索，忽略视图/清单/标签筛选，但排除归档任务
       const q = searchQuery.trim().toLowerCase()
       filtered = tasks.filter(t =>
-        t.title.toLowerCase().includes(q) ||
-        (t.notes && t.notes.toLowerCase().includes(q))
+        !t.archived && (
+          t.title.toLowerCase().includes(q) ||
+          (t.notes && t.notes.toLowerCase().includes(q))
+        )
       )
     } else if (currentView === 'today') {
       // 今日任务：截止日期是今天的未完成任务
-      filtered = tasks.filter((t) => !t.completed && t.due_date && dateFnsIsToday(new Date(t.due_date)))
+      filtered = tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date)))
     } else if (selectedTagId !== null) {
       // 按标签筛选
-      filtered = tasks.filter((t) => t.tag_ids?.includes(selectedTagId))
+      filtered = tasks.filter((t) => !t.archived && t.tag_ids?.includes(selectedTagId))
     } else if (selectedListId !== null) {
-      filtered = tasks.filter((t) => t.list_id === selectedListId)
+      filtered = tasks.filter((t) => !t.archived && t.list_id === selectedListId)
     } else {
-      filtered = tasks
+      // 全部任务视图：排除归档任务
+      filtered = tasks.filter((t) => !t.archived)
+    }
+
+    // 组合筛选（在视图筛选基础上叠加）
+    if (hasActiveFilters && currentView !== 'archived') {
+      filtered = filtered.filter((t) => {
+        if (filters.priority !== null && t.priority !== filters.priority) return false
+        if (filters.tagId !== null && !(t.tag_ids?.includes(filters.tagId))) return false
+        if (filters.listId !== null && t.list_id !== filters.listId) return false
+        if (filters.dateRange !== 'all') {
+          if (filters.dateRange === 'none') {
+            if (t.due_date) return false
+          } else if (filters.dateRange === 'overdue') {
+            if (!t.due_date || t.completed) return false
+            if (!dateFnsIsBefore(new Date(t.due_date), dateFnsStartOfDay(new Date()))) return false
+          } else {
+            if (!t.due_date) return false
+            const dueDate = new Date(t.due_date)
+            if (filters.dateRange === 'today' && !dateFnsIsToday(dueDate)) return false
+            if (filters.dateRange === 'week' && !isThisWeek(dueDate, { weekStartsOn: 1 })) return false
+            if (filters.dateRange === 'month' && !isThisMonth(dueDate)) return false
+          }
+        }
+        return true
+      })
     }
 
     return filtered.sort((a, b) => {
       // 未完成在前
       if (a.completed !== b.completed) return a.completed ? 1 : -1
-      // 搜索/今日模式按优先级→截止日期排序；其他模式按 sort_order 排序
-      const isSmartView = searchQuery.trim() || currentView === 'today'
+      // 归档视图/搜索/今日模式/激活筛选按优先级→截止日期排序；其他模式按 sort_order 排序
+      const isSmartView = currentView === 'archived' || searchQuery.trim() || currentView === 'today' || hasActiveFilters
       if (!isSmartView) {
         return (a.sort_order || 0) - (b.sort_order || 0)
       }
@@ -185,7 +258,7 @@ function App() {
       // 创建时间降序
       return b.created_at.localeCompare(a.created_at)
     })
-  }, [tasks, selectedListId, selectedTagId, currentView, searchQuery])
+  }, [tasks, selectedListId, selectedTagId, currentView, searchQuery, filters, hasActiveFilters])
 
   // 组装任务树：只显示顶层任务（无 parent_id），子任务挂载到 subtasks
   const taskTree = useMemo(() => {
@@ -547,6 +620,158 @@ function App() {
     }
   }
 
+  // ============ 批量操作 ============
+  function toggleTaskSelection(taskId: number) {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+  }
+
+  function selectAllTasks() {
+    setSelectedTaskIds(new Set(incompleteTaskTree.map(t => t.id)))
+  }
+
+  function clearSelection() {
+    setSelectedTaskIds(new Set())
+  }
+
+  async function handleBatchComplete() {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+    try {
+      await Promise.all(ids.map(id => api.updateTask(id, { completed: true })))
+      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, completed: true, updated_at: new Date().toISOString() } : t))
+      toast.success(`已完成 ${ids.length} 个任务`)
+      clearSelection()
+    } catch (error) {
+      console.error('Batch complete failed:', error)
+      toast.error('批量完成失败')
+      await loadData()
+    }
+  }
+
+  async function handleBatchDelete() {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+    if (!confirm(`确定批量删除 ${ids.length} 个任务吗？`)) return
+    try {
+      await Promise.all(ids.map(id => api.deleteTask(id)))
+      setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)))
+      toast.success(`已删除 ${ids.length} 个任务`)
+      clearSelection()
+    } catch (error) {
+      console.error('Batch delete failed:', error)
+      toast.error('批量删除失败')
+      await loadData()
+    }
+  }
+
+  async function handleBatchPriority(priority: number) {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+    try {
+      await Promise.all(ids.map(id => api.updateTask(id, { priority })))
+      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, priority, updated_at: new Date().toISOString() } : t))
+      toast.success(`已设置 ${ids.length} 个任务的优先级`)
+      clearSelection()
+    } catch (error) {
+      console.error('Batch priority failed:', error)
+      toast.error('批量设置优先级失败')
+      await loadData()
+    }
+  }
+
+  async function handleBatchMoveList(listId: number) {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+    try {
+      await Promise.all(ids.map(id => api.updateTask(id, { list_id: listId })))
+      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, list_id: listId, updated_at: new Date().toISOString() } : t))
+      toast.success(`已移动 ${ids.length} 个任务`)
+      clearSelection()
+    } catch (error) {
+      console.error('Batch move failed:', error)
+      toast.error('批量移动失败')
+      await loadData()
+    }
+  }
+
+  async function handleBatchArchive() {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+    try {
+      await Promise.all(ids.map(id => api.updateTask(id, { archived: true })))
+      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, archived: true, updated_at: new Date().toISOString() } : t))
+      toast.success(`已归档 ${ids.length} 个任务`)
+      clearSelection()
+      if (currentView !== 'archived') setBatchMode(false)
+    } catch (error) {
+      console.error('Batch archive failed:', error)
+      toast.error('批量归档失败')
+      await loadData()
+    }
+  }
+
+  // ============ 快速编辑 ============
+  async function handleInlineEdit(id: number, title: string) {
+    const trimmed = title.trim()
+    if (!trimmed) return
+    await handleUpdateTask(id, { title: trimmed })
+  }
+
+  // ============ 归档/恢复 ============
+  async function handleArchiveTask(id: number) {
+    try {
+      await api.updateTask(id, { archived: true })
+      setTasks(tasks.map(t => t.id === id ? { ...t, archived: true, updated_at: new Date().toISOString() } : t))
+      toast.success('任务已归档')
+      if (selectedTaskId === id) setSelectedTaskId(null)
+    } catch (error) {
+      console.error('Archive failed:', error)
+      toast.error('归档失败')
+    }
+  }
+
+  async function handleUnarchiveTask(id: number) {
+    try {
+      await api.updateTask(id, { archived: false })
+      setTasks(tasks.map(t => t.id === id ? { ...t, archived: false, updated_at: new Date().toISOString() } : t))
+      toast.success('任务已恢复')
+    } catch (error) {
+      console.error('Unarchive failed:', error)
+      toast.error('恢复失败')
+    }
+  }
+
+  // ============ 拖拽到日历（设置截止日期）============
+  async function handleDropToCalendarDate(taskId: number, dateKey: string) {
+    try {
+      const [year, month, day] = dateKey.split('-').map(Number)
+      const dueDate = new Date(year, month - 1, day, 9, 0)
+      await api.updateTask(taskId, { due_date: dueDate.toISOString() })
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, due_date: dueDate.toISOString(), updated_at: new Date().toISOString() } : t))
+      toast.success(`已设置截止日期为 ${month}月${day}日`)
+    } catch (error) {
+      console.error('Drop to calendar failed:', error)
+      toast.error('设置截止日期失败')
+    }
+  }
+
+  function handleDragStartGlobal() {
+    setIsDraggingTask(true)
+  }
+
+  function handleDragEndGlobal() {
+    setIsDraggingTask(false)
+    setDragOverCalendarDate(null)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -582,6 +807,7 @@ function App() {
         onDeleteTag={handleDeleteTag}
         taskCounts={taskCounts}
         todayCount={todayCount}
+        archivedCount={archivedCount}
       />
 
       {currentView === 'calendar' ? (
@@ -622,29 +848,213 @@ function App() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {searchQuery.trim() ? '搜索结果' : currentListName}
+                  {currentView === 'archived' ? '归档' : searchQuery.trim() ? '搜索结果' : currentListName}
                 </h2>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {incompleteTaskTree.length} 个未完成 / {taskTree.length} 个总计
+                  {currentView === 'archived'
+                    ? `${taskTree.length} 个已归档`
+                    : `${incompleteTaskTree.length} 个未完成 / ${taskTree.length} 个总计`}
                 </p>
               </div>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="搜索任务... (Ctrl+F)"
-                  className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
-                />
+              <div className="flex items-center gap-2">
+                {/* 批量模式切换按钮 */}
+                {currentView !== 'archived' && (
+                  <button
+                    onClick={() => {
+                      setBatchMode(!batchMode)
+                      if (batchMode) clearSelection()
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      batchMode
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                    title={batchMode ? '退出批量模式' : '进入批量模式'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    批量
+                  </button>
+                )}
+                {/* 筛选按钮 */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors relative ${
+                    hasActiveFilters
+                      ? 'bg-blue-50 text-blue-600 border-blue-300'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                  title="组合筛选"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-3.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  筛选
+                  {hasActiveFilters && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                  )}
+                </button>
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="搜索任务... (Ctrl+F)"
+                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
+                  />
+                </div>
               </div>
             </div>
+
+            {/* 筛选面板 */}
+            {showFilters && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-wrap items-center gap-3">
+                <span className="text-xs font-medium text-gray-500">筛选条件：</span>
+                {/* 优先级筛选 */}
+                <select
+                  value={filters.priority === null ? '' : filters.priority}
+                  onChange={(e) => setFilters({ ...filters, priority: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">全部优先级</option>
+                  <option value="1">高优先级</option>
+                  <option value="2">中优先级</option>
+                  <option value="3">低优先级</option>
+                  <option value="0">无优先级</option>
+                </select>
+                {/* 日期范围筛选 */}
+                <select
+                  value={filters.dateRange}
+                  onChange={(e) => setFilters({ ...filters, dateRange: e.target.value as FilterState['dateRange'] })}
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="all">全部日期</option>
+                  <option value="today">今天</option>
+                  <option value="week">本周</option>
+                  <option value="month">本月</option>
+                  <option value="overdue">已过期</option>
+                  <option value="none">无截止日期</option>
+                </select>
+                {/* 标签筛选 */}
+                <select
+                  value={filters.tagId === null ? '' : filters.tagId}
+                  onChange={(e) => setFilters({ ...filters, tagId: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">全部标签</option>
+                  {tags.map(tag => (
+                    <option key={tag.id} value={tag.id}>{tag.name}</option>
+                  ))}
+                </select>
+                {/* 清单筛选 */}
+                <select
+                  value={filters.listId === null ? '' : filters.listId}
+                  onChange={(e) => setFilters({ ...filters, listId: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">全部清单</option>
+                  {lists.map(list => (
+                    <option key={list.id} value={list.id}>{list.name}</option>
+                  ))}
+                </select>
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => setFilters({ priority: null, dateRange: 'all', tagId: null, listId: null })}
+                    className="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded-md"
+                  >
+                    清除筛选
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 批量操作工具栏 */}
+            {batchMode && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-blue-700">
+                  已选 {selectedTaskIds.size} 项
+                </span>
+                <div className="h-4 w-px bg-blue-200 mx-1" />
+                <button onClick={selectAllTasks} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 rounded">全选</button>
+                <button onClick={clearSelection} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 rounded">取消</button>
+                <div className="h-4 w-px bg-blue-200 mx-1" />
+                <button
+                  onClick={handleBatchComplete}
+                  disabled={selectedTaskIds.size === 0}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-100 rounded disabled:opacity-40"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  完成
+                </button>
+                <button
+                  onClick={handleBatchArchive}
+                  disabled={selectedTaskIds.size === 0}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                  归档
+                </button>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) handleBatchPriority(Number(e.target.value))
+                    e.target.value = ''
+                  }}
+                  disabled={selectedTaskIds.size === 0}
+                  className="px-2 py-1 text-xs border border-blue-200 rounded bg-white disabled:opacity-40"
+                  defaultValue=""
+                >
+                  <option value="" disabled>设优先级</option>
+                  <option value="1">高</option>
+                  <option value="2">中</option>
+                  <option value="3">低</option>
+                  <option value="0">无</option>
+                </select>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) handleBatchMoveList(Number(e.target.value))
+                    e.target.value = ''
+                  }}
+                  disabled={selectedTaskIds.size === 0}
+                  className="px-2 py-1 text-xs border border-blue-200 rounded bg-white disabled:opacity-40"
+                  defaultValue=""
+                >
+                  <option value="" disabled>移动到清单</option>
+                  {lists.map(list => (
+                    <option key={list.id} value={list.id}>{list.name}</option>
+                  ))}
+                </select>
+                <div className="flex-1" />
+                <button
+                  onClick={handleBatchDelete}
+                  disabled={selectedTaskIds.size === 0}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-100 rounded disabled:opacity-40"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  删除
+                </button>
+              </div>
+            )}
           </header>
 
-          {currentView !== 'calendar' && currentView !== 'stats' && currentView !== 'settings' && (
+          {/* 拖拽任务时显示的浮动迷你日历 */}
+          {isDraggingTask && (
+            <MiniCalendarDropzone
+              currentDate={miniCalendarDate}
+              onPrevMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() - 1, 1))}
+              onNextMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 1))}
+              onDropDate={handleDropToCalendarDate}
+              onClose={handleDragEndGlobal}
+              dragOverDate={dragOverCalendarDate}
+              setDragOverDate={setDragOverCalendarDate}
+            />
+          )}
+
+          {currentView !== 'archived' && (
             <div className="p-4 border-b border-gray-200 bg-white">
               <div className="flex gap-2">
                 <div className="flex-1 relative">
@@ -709,56 +1119,19 @@ function App() {
           )}
 
           <div className="flex-1 overflow-y-auto p-4">
-            {/* 今日视图：已过期任务 */}
-            {currentView === 'today' && overdueTaskTree.length > 0 && (
-              <div className="mb-4">
-                <button
-                  onClick={() => setShowOverdue(!showOverdue)}
-                  className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-2 transition-colors font-medium"
-                >
-                  <svg className={`w-4 h-4 transition-transform ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* 归档视图：直接显示所有归档任务 */}
+            {currentView === 'archived' ? (
+              taskTree.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                   </svg>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  已过期 ({overdueTaskTree.length})
-                </button>
-                {showOverdue && (
-                  <ul className="space-y-1">
-                    {overdueTaskTree.map((task) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        tags={tags}
-                        isSelected={selectedTaskId === task.id}
-                        isExpanded={expandedTasks.has(task.id)}
-                        onToggleExpand={() => toggleTaskExpand(task.id)}
-                        subtaskInput={subtaskInputs[task.id] || ''}
-                        onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
-                        onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
-                        onToggle={() => handleToggleTask(task)}
-                        onClick={() => setSelectedTaskId(task.id)}
-                        onReorder={() => {}}
-                        onDelete={handleDeleteTask}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {filteredTasks.length === 0 && overdueTaskTree.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <p>暂无任务，开始添加你的第一个任务吧！</p>
-              </div>
-            ) : (
-              <>
+                  <p>暂无归档任务</p>
+                  <p className="text-xs mt-1">完成的任务超过 7 天后会自动归档</p>
+                </div>
+              ) : (
                 <ul className="space-y-1">
-                  {incompleteTaskTree.map((task) => (
+                  {taskTree.map((task) => (
                     <TaskItem
                       key={task.id}
                       task={task}
@@ -771,26 +1144,35 @@ function App() {
                       onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                       onToggle={() => handleToggleTask(task)}
                       onClick={() => setSelectedTaskId(task.id)}
-                      onReorder={handleReorderTasks}
+                      onReorder={() => {}}
                       onDelete={handleDeleteTask}
+                      isArchivedView={true}
+                      onUnarchive={handleUnarchiveTask}
+                      onInlineEdit={handleInlineEdit}
                     />
                   ))}
                 </ul>
-
-                {completedTaskTree.length > 0 && (
-                  <div className="mt-4">
+              )
+            ) : (
+              <>
+                {/* 今日视图：已过期任务 */}
+                {currentView === 'today' && overdueTaskTree.length > 0 && (
+                  <div className="mb-4">
                     <button
-                      onClick={() => setShowCompleted(!showCompleted)}
-                      className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+                      onClick={() => setShowOverdue(!showOverdue)}
+                      className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-2 transition-colors font-medium"
                     >
-                      <svg className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-4 h-4 transition-transform ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                      已完成 ({completedTaskTree.length})
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      已过期 ({overdueTaskTree.length})
                     </button>
-                    {showCompleted && (
+                    {showOverdue && (
                       <ul className="space-y-1">
-                        {completedTaskTree.map((task) => (
+                        {overdueTaskTree.map((task) => (
                           <TaskItem
                             key={task.id}
                             task={task}
@@ -805,11 +1187,98 @@ function App() {
                             onClick={() => setSelectedTaskId(task.id)}
                             onReorder={() => {}}
                             onDelete={handleDeleteTask}
+                            batchMode={batchMode}
+                            isSelectedForBatch={selectedTaskIds.has(task.id)}
+                            onToggleSelect={() => toggleTaskSelection(task.id)}
+                            onInlineEdit={handleInlineEdit}
+                            onArchive={handleArchiveTask}
+                            onDragStartGlobal={handleDragStartGlobal}
+                            onDragEndGlobal={handleDragEndGlobal}
                           />
                         ))}
                       </ul>
                     )}
                   </div>
+                )}
+
+                {filteredTasks.length === 0 && overdueTaskTree.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <p>{hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}</p>
+                  </div>
+                ) : (
+                  <>
+                    <ul className="space-y-1">
+                      {incompleteTaskTree.map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          tags={tags}
+                          isSelected={selectedTaskId === task.id}
+                          isExpanded={expandedTasks.has(task.id)}
+                          onToggleExpand={() => toggleTaskExpand(task.id)}
+                          subtaskInput={subtaskInputs[task.id] || ''}
+                          onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                          onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
+                          onToggle={() => handleToggleTask(task)}
+                          onClick={() => setSelectedTaskId(task.id)}
+                          onReorder={handleReorderTasks}
+                          onDelete={handleDeleteTask}
+                          batchMode={batchMode}
+                          isSelectedForBatch={selectedTaskIds.has(task.id)}
+                          onToggleSelect={() => toggleTaskSelection(task.id)}
+                          onInlineEdit={handleInlineEdit}
+                          onArchive={handleArchiveTask}
+                          onDragStartGlobal={handleDragStartGlobal}
+                          onDragEndGlobal={handleDragEndGlobal}
+                        />
+                      ))}
+                    </ul>
+
+                    {completedTaskTree.length > 0 && (
+                      <div className="mt-4">
+                        <button
+                          onClick={() => setShowCompleted(!showCompleted)}
+                          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+                        >
+                          <svg className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          已完成 ({completedTaskTree.length})
+                        </button>
+                        {showCompleted && (
+                          <ul className="space-y-1">
+                            {completedTaskTree.map((task) => (
+                              <TaskItem
+                                key={task.id}
+                                task={task}
+                                tags={tags}
+                                isSelected={selectedTaskId === task.id}
+                                isExpanded={expandedTasks.has(task.id)}
+                                onToggleExpand={() => toggleTaskExpand(task.id)}
+                                subtaskInput={subtaskInputs[task.id] || ''}
+                                onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                                onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
+                                onToggle={() => handleToggleTask(task)}
+                                onClick={() => setSelectedTaskId(task.id)}
+                                onReorder={() => {}}
+                                onDelete={handleDeleteTask}
+                                batchMode={batchMode}
+                                isSelectedForBatch={selectedTaskIds.has(task.id)}
+                                onToggleSelect={() => toggleTaskSelection(task.id)}
+                                onInlineEdit={handleInlineEdit}
+                                onArchive={handleArchiveTask}
+                                onDragStartGlobal={handleDragStartGlobal}
+                                onDragEndGlobal={handleDragEndGlobal}
+                              />
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -833,7 +1302,7 @@ function App() {
   )
 }
 
-function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder, onDelete }: {
+function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal }: {
   task: Task
   tags: Tag[]
   isSelected: boolean
@@ -846,9 +1315,20 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
   onClick: () => void
   onReorder: (draggedId: number, targetId: number) => void
   onDelete: (taskId: number) => void
+  batchMode?: boolean
+  isSelectedForBatch?: boolean
+  onToggleSelect?: () => void
+  onInlineEdit?: (id: number, title: string) => void
+  onArchive?: (id: number) => void
+  onUnarchive?: (id: number) => void
+  isArchivedView?: boolean
+  onDragStartGlobal?: () => void
+  onDragEndGlobal?: () => void
 }) {
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
   const hasSubtasks = task.subtasks && task.subtasks.length > 0
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
   const totalSubtasks = task.subtasks?.length || 0
@@ -857,6 +1337,7 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(task.id))
+    onDragStartGlobal?.()
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -879,10 +1360,40 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
     setDragOverPos(null)
   }
 
+  function handleDragEnd() {
+    onDragEndGlobal?.()
+  }
+
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  function handleDoubleClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (onInlineEdit && !batchMode) {
+      setEditTitle(task.title)
+      setIsEditing(true)
+    }
+  }
+
+  function handleEditSave() {
+    if (onInlineEdit) {
+      onInlineEdit(task.id, editTitle)
+    }
+    setIsEditing(false)
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleEditSave()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditTitle(task.title)
+      setIsEditing(false)
+    }
   }
 
   useEffect(() => {
@@ -894,19 +1405,28 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
 
   return (
     <li
-      draggable
+      draggable={!batchMode && !isEditing}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
       className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-blue-400' : dragOverPos === 'after' ? 'border-b-2 border-blue-400' : ''}`}
     >
       <div
-        onClick={onClick}
+        onClick={(e) => {
+          if (batchMode && onToggleSelect) {
+            e.stopPropagation()
+            onToggleSelect()
+          } else if (!isEditing) {
+            onClick()
+          }
+        }}
+        onDoubleClick={handleDoubleClick}
         className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 ${
           isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-        } ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
+        } ${batchMode && isSelectedForBatch ? 'bg-blue-50' : ''} ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
       >
         {hasSubtasks ? (
           <button
@@ -921,17 +1441,44 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
         ) : (
           <span className="w-5 flex-shrink-0" />
         )}
-        <input
-          type="checkbox"
-          checked={task.completed}
-          onChange={(e) => { e.stopPropagation(); onToggle() }}
-          onClick={(e) => e.stopPropagation()}
-          className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-        />
+        {batchMode ? (
+          <input
+            type="checkbox"
+            checked={isSelectedForBatch || false}
+            onChange={(e) => { e.stopPropagation(); onToggleSelect?.() }}
+            onClick={(e) => e.stopPropagation()}
+            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          />
+        ) : (
+          <input
+            type="checkbox"
+            checked={task.completed}
+            onChange={(e) => { e.stopPropagation(); onToggle() }}
+            onClick={(e) => e.stopPropagation()}
+            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          />
+        )}
         <div className="flex-1 min-w-0">
-          <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-            {task.title}
-          </p>
+          {isEditing ? (
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              onBlur={handleEditSave}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              autoFocus
+              className="w-full text-[15px] font-medium px-1 py-0.5 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          ) : (
+            <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+              {task.title}
+              {isArchivedView && (
+                <span className="ml-2 text-xs text-gray-400 font-normal">(已归档)</span>
+              )}
+            </p>
+          )}
           <div className="flex items-center gap-3 mt-0.5 opacity-70">
             {task.due_date && (
               <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -1024,6 +1571,42 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
+          {!isArchivedView && onInlineEdit && (
+            <button
+              onClick={() => {
+                setContextMenu(null)
+                setEditTitle(task.title)
+                setIsEditing(true)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              重命名
+            </button>
+          )}
+          {isArchivedView && onUnarchive ? (
+            <button
+              onClick={() => { onUnarchive(task.id); setContextMenu(null) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              恢复任务
+            </button>
+          ) : onArchive && (
+            <button
+              onClick={() => { onArchive(task.id); setContextMenu(null) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              归档
+            </button>
+          )}
           <button
             onClick={() => { onDelete(task.id); setContextMenu(null) }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -1036,6 +1619,96 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
         </div>
       )}
     </li>
+  )
+}
+
+function MiniCalendarDropzone({ currentDate, onPrevMonth, onNextMonth, onDropDate, onClose, dragOverDate, setDragOverDate }: {
+  currentDate: Date
+  onPrevMonth: () => void
+  onNextMonth: () => void
+  onDropDate: (taskId: number, dateKey: string) => void
+  onClose: () => void
+  dragOverDate: string | null
+  setDragOverDate: (d: string | null) => void
+}) {
+  const monthStart = startOfMonth(currentDate)
+  const monthEnd = endOfMonth(currentDate)
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  const days = eachDayOfInterval({ start: calStart, end: calEnd })
+
+  const weekDays = ['一', '二', '三', '四', '五', '六', '日']
+
+  function handleDrop(e: React.DragEvent, date: Date) {
+    e.preventDefault()
+    const taskId = Number(e.dataTransfer.getData('text/plain'))
+    if (taskId) {
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      onDropDate(taskId, dateKey)
+    }
+    setDragOverDate(null)
+    onClose()
+  }
+
+  function handleDragOver(e: React.DragEvent, date: Date) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    setDragOverDate(dateKey)
+  }
+
+  return (
+    <div className="absolute right-6 top-32 z-40 bg-white rounded-lg shadow-2xl border border-gray-200 p-3 w-72">
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={onPrevMonth} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <span className="text-sm font-medium text-gray-700">
+          {format(currentDate, 'yyyy年M月', { locale: zhCN })}
+        </span>
+        <button onClick={onNextMonth} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {weekDays.map(d => (
+          <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map(date => {
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          const isToday = dateFnsIsToday(date)
+          const isCurrentMonth = isSameMonth(date, currentDate)
+          const isDragOver = dragOverDate === dateKey
+          return (
+            <div
+              key={date.toISOString()}
+              onDrop={(e) => handleDrop(e, date)}
+              onDragOver={(e) => handleDragOver(e, date)}
+              onDragLeave={() => setDragOverDate(null)}
+              className={`text-center text-xs py-1.5 rounded cursor-pointer transition-colors ${
+                isDragOver
+                  ? 'bg-blue-500 text-white'
+                  : isToday
+                  ? 'bg-blue-100 text-blue-600'
+                  : isCurrentMonth
+                  ? 'text-gray-700 hover:bg-gray-100'
+                  : 'text-gray-300'
+              }`}
+            >
+              {date.getDate()}
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-center text-xs text-gray-400">
+        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        拖拽任务到日期设置截止时间
+      </div>
+    </div>
   )
 }
 

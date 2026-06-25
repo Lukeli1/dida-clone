@@ -186,7 +186,6 @@ export async function chat(
 /** 将任务列表格式化为 AI 可读的文本上下文 */
 export function formatTasksContext(tasks: Task[]): string {
   if (tasks.length === 0) return '（暂无任务）'
-  const today = new Date().toLocaleDateString('zh-CN')
   return tasks.slice(0, 50).map((t, i) => {
     const status = t.completed ? '✓' : '○'
     const due = t.due_date ? ` 截止:${new Date(t.due_date).toLocaleString('zh-CN')}` : ''
