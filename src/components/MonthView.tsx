@@ -72,6 +72,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
   }
 
   function handleDragStart(e: React.DragEvent, taskId: number) {
+    console.log('[拖拽诊断] dragStart 触发, taskId:', taskId)
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(taskId))
@@ -79,8 +80,22 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
     e.preventDefault()
-    e.dataTransfer.dropEffect = draggedTaskId ? 'move' : 'copy'
-    setDragOverDate(dateKey)
+    // 统一设为 'move'，避免与源的 'move' effectAllowed 不匹配导致禁止图标
+    e.dataTransfer.dropEffect = 'move'
+    // 仅在 dateKey 变化时记录，避免刷屏
+    if (dragOverDate !== dateKey) {
+      console.log('[拖拽诊断] dragOver 触发, 目标日期:', dateKey)
+      setDragOverDate(dateKey)
+    }
+  }
+
+  // dragenter 也需要 preventDefault，否则 WebView 可能拒绝 drop
+  function handleDragEnter(e: React.DragEvent, dateKey: string) {
+    e.preventDefault()
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move'
+    }
+    console.log('[拖拽诊断] dragEnter 触发, 目标日期:', dateKey)
   }
 
   function handleDragLeave() {
@@ -88,11 +103,24 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
   }
 
   function handleDrop(e: React.DragEvent, dateKey: string) {
+    console.log('[拖拽诊断] drop 触发, 目标日期:', dateKey)
     e.preventDefault()
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
+    console.log('[拖拽诊断] 读取 taskId:', taskId)
     if (taskId) {
-      onMoveTask(taskId, dateKey)
+      // 保留原任务的时间部分，只替换日期
+      const task = tasks.find(t => t.id === taskId)
+      const [year, month, day] = dateKey.split('-').map(Number)
+      let hour = 9, minute = 0
+      if (task?.due_date) {
+        const oldDate = new Date(task.due_date)
+        hour = oldDate.getHours()
+        minute = oldDate.getMinutes()
+      }
+      const newDate = new Date(year, month - 1, day, hour, minute)
+      console.log('[拖拽诊断] 调用 onMoveTask, 新日期:', newDate.toISOString())
+      onMoveTask(taskId, newDate.toISOString())
     }
     setDraggedTaskId(null)
   }
@@ -201,6 +229,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
                   key={key}
                   onClick={() => onDateClick(day)}
                   onDoubleClick={() => handleCellDoubleClick(key)}
+                  onDragEnter={(e) => handleDragEnter(e, key)}
                   onDragOver={(e) => handleDragOver(e, key)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, key)}

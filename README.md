@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.2.0-blue)
+![版本](https://img.shields.io/badge/version-1.2.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -32,6 +32,11 @@
 - 周视图：单击快速添加，拖拽时间段创建任务
 - 日视图：同周视图，支持时间段任务块
 - 任务块高度按时长自动计算（支持 end_date 字段）
+- **甘特图视图**（v1.2.1）：21 天时间轴，左侧任务列表 + 右侧任务条，支持拖拽调整截止日期
+- **看板视图**（v1.2.1）：三列看板（待处理/进行中/已完成），拖拽卡片在列间移动自动改变状态
+- **任务侧边栏**（v1.2.1）：日历工具栏新增「侧边栏」按钮，按清单分组显示任务，支持搜索和拖拽到日历
+- **更多选项菜单**（v1.2.1）：日历工具栏右上角 ⋯ 按钮，统一切换月/周/日/甘特/看板视图
+- **任务拖拽**（v1.2.1）：月视图拖拽任务保留原时间；周/日视图拖拽任务到任意时间格（15 分钟对齐）；保留原任务时长
 
 ### AI 智能助手（v1.1.0 新增）
 - **AI 对话界面**：ChatGPT 风格多轮对话，始终可访问任务数据
@@ -75,6 +80,8 @@
 - 任务行高 56px、优先级左侧色条
 - 打勾弹跳动画、拖拽指示线、细滚动条
 - 键盘快捷键：Ctrl+N 新建、Ctrl+F 搜索、Ctrl+1/2/3 切换视图
+- **深色模式完善**（v1.2.1）：全局 CSS 覆盖策略，背景/文字/边框/输入框/滚动条/主题色全适配，应用启动立即应用主题
+- **设置模块位置**（v1.2.1）：从智能清单列表移至侧边栏左下角固定底部栏
 
 ## 技术栈
 
@@ -123,12 +130,14 @@ npm run tauri build
 ├── src/                        # 前端源码
 │   ├── components/
 │   │   ├── AIAssistant.tsx     # AI 对话助手（v1.1.0）
-│   │   ├── CalendarView.tsx    # 日历视图容器
+│   │   ├── CalendarView.tsx    # 日历视图容器（v1.2.1 含侧边栏 + 更多选项）
 │   │   ├── DayView.tsx         # 日视图
+│   │   ├── GanttView.tsx       # 甘特图视图（v1.2.1）
+│   │   ├── KanbanView.tsx      # 看板视图（v1.2.1）
 │   │   ├── MonthView.tsx       # 月视图
 │   │   ├── WeekView.tsx        # 周视图
 │   │   ├── SettingsView.tsx    # 设置模块
-│   │   ├── Sidebar.tsx         # 侧边栏
+│   │   ├── Sidebar.tsx         # 侧边栏（v1.2.1 设置移至左下角）
 │   │   ├── StatsView.tsx      # 统计面板
 │   │   ├── TaskDetail.tsx     # 任务详情
 │   │   ├── TaskItem.tsx       # 任务项
@@ -153,6 +162,36 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.2.1（2026-06-25）
+
+#### 新增功能
+- **甘特图视图**：21 天时间轴，左侧任务列表（清单色点 + 标题 + 优先级点）+ 右侧任务条（颜色取自清单色），支持拖拽任务条调整截止日期，工具栏上一周/今天/下一周
+- **看板视图**：三列看板（待处理/进行中/已完成），卡片显示清单标签/标题/截止日期/子任务进度/备注图标/优先级点；拖拽卡片在列间移动自动改变状态（拖到「已完成」标记完成，拖到「待处理」清除截止日期，拖到「进行中」设置今天为截止日期）
+- **任务侧边栏**：日历工具栏新增「三横线」按钮切换右侧固定侧边栏，按清单分组显示任务（带搜索框 + 提示条 + 清单色点 + 优先级色点），支持拖拽任务到月/周/日任何视图的日期格子
+- **更多选项菜单**：日历工具栏右上角 ⋯ 按钮（三个竖排圆点），统一切换月/周/日/甘特/看板视图，当前视图显示蓝色对勾
+- **日视图任务拖拽**：DayView 添加 onMoveTask prop，任务块 draggable，拖拽到任意时间格（15 分钟对齐）
+- **深色模式完善**：全局 CSS 覆盖策略（无需逐组件修改），在 .dark 选择器下覆盖常见 Tailwind 颜色类（背景/文字/边框/悬停/输入框/滚动条/主题色），应用启动时立即应用保存的主题
+
+#### 改进
+- **设置模块位置**：从智能清单列表移至侧边栏左下角固定底部栏（带 border-t 分隔线）
+- **月视图拖拽**：拖拽任务保留原时间部分，只替换日期
+- **周/日视图拖拽**：根据鼠标 Y 位置计算具体时间（15 分钟对齐），保留原任务时长（如有 end_date 则同步调整）
+- **handleMoveTask**：保留原任务时长，按原始 end_date - due_date 时长同步调整
+
+#### 修复
+- **HTML5 拖拽失效**：Tauri WebView2 默认拦截原生拖拽事件导致显示禁止图标；在 tauri.conf.json 设置 `dragDropEnabled: false` 禁用 Tauri 原生文件拖放拦截
+- **dropEffect 不匹配**：MonthView/WeekView/DayView 的 handleDragOver 中 `dropEffect = draggedTaskId ? 'move' : 'copy'` 与源的 `effectAllowed = 'move'` 不匹配导致禁止图标；统一改为 `'move'`
+- **侧边栏拖拽失效**：`<li>` 元素在 Tauri WebView2 中 `draggable` 属性不可靠，子元素的 `pointer-events` 干扰拖拽事件；改为 `<div>` + 添加 `select-none` + 子元素 `pointer-events-none`
+- **缺少 dragenter preventDefault**：某些 WebView 需要 dragenter 也调用 preventDefault() 才能正常 drop
+
+#### 技术改进
+- 新增 GanttView.tsx 组件（左侧任务列表 + 右侧时间轴网格）
+- 新增 KanbanView.tsx 组件（三列拖拽看板）
+- CalendarView.tsx 重构：拆分为 TaskSidebar 独立组件 + MoreOptionsButton 精简（仅视图切换）
+- DayView.tsx 新增 draggedTaskId state 和 handleDragStart/handleDragOver/handleDrop
+- tailwind.config.js 启用 `darkMode: 'class'`
+- index.css 添加深色模式全局覆盖样式
 
 ### v1.2.0（2026-06-25）
 

@@ -250,7 +250,8 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
     e.preventDefault()
-    e.dataTransfer.dropEffect = draggedTaskId ? 'move' : 'copy'
+    // 统一设为 'move'，避免与源的 'move' effectAllowed 不匹配导致禁止图标
+    e.dataTransfer.dropEffect = 'move'
     setDragOverDate(dateKey)
   }
 
@@ -260,7 +261,24 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
     e.preventDefault()
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
-    if (taskId) onMoveTask(taskId, dateKey)
+    if (!taskId) { setDraggedTaskId(null); return }
+
+    // 计算鼠标在时间网格中的 Y 位置 → 小时:分钟
+    const colEl = columnRefs.current.get(dateKey)
+    let hour = 9, minute = 0
+    if (colEl) {
+      const rect = colEl.getBoundingClientRect()
+      const y = e.clientY - rect.top
+      const rawMinute = (y / HOUR_HEIGHT) * 60
+      const clampedMinute = Math.max(0, Math.min(24 * 60 - 15, Math.round(rawMinute / 15) * 15))
+      hour = Math.floor(clampedMinute / 60)
+      minute = clampedMinute % 60
+    }
+
+    // 构建 ISO 日期时间字符串
+    const [year, month, day] = dateKey.split('-').map(Number)
+    const newDate = new Date(year, month - 1, day, hour, minute)
+    onMoveTask(taskId, newDate.toISOString())
     setDraggedTaskId(null)
   }
 

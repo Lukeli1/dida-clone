@@ -13,6 +13,7 @@ interface DayViewProps {
   onPrevDay: () => void
   onNextDay: () => void
   onToday: () => void
+  onMoveTask: (taskId: number, newDate: string) => void
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
 }
 
@@ -47,7 +48,8 @@ const priorityFlags = [
   { value: 3, color: 'text-green-500', label: '低优先级' },
 ]
 
-export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onCreateTaskOnRange }: DayViewProps) {
+export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onMoveTask, onCreateTaskOnRange }: DayViewProps) {
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [createPopup, setCreatePopup] = useState<CreatePopup | null>(null)
   const [popupTitle, setPopupTitle] = useState('')
@@ -208,6 +210,39 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
     setPopupPriority((p) => (p + 1) % 4)
   }
 
+  function handleDragStart(e: React.DragEvent, taskId: number) {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(taskId))
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    // 统一设为 'move'，避免与源的 'move' effectAllowed 不匹配导致禁止图标
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const taskId = Number(e.dataTransfer.getData('text/plain'))
+    if (!taskId) { setDraggedTaskId(null); return }
+
+    // 计算鼠标在时间网格中的 Y 位置 → 小时:分钟
+    if (!columnRef.current) { setDraggedTaskId(null); return }
+    const rect = columnRef.current.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const rawMinute = (y / HOUR_HEIGHT) * 60
+    const clampedMinute = Math.max(0, Math.min(24 * 60 - 15, Math.round(rawMinute / 15) * 15))
+    const hour = Math.floor(clampedMinute / 60)
+    const minute = clampedMinute % 60
+
+    // 构建 ISO 日期时间字符串
+    const [year, month, day] = dateKey.split('-').map(Number)
+    const newDate = new Date(year, month - 1, day, hour, minute)
+    onMoveTask(taskId, newDate.toISOString())
+    setDraggedTaskId(null)
+  }
+
   function formatMinute(m: number) {
     const h = Math.floor(m / 60)
     const min = m % 60
@@ -257,6 +292,8 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
               onMouseDown={handleTimeMouseDown}
               onMouseMove={handleTimeMouseMove}
               onMouseUp={handleTimeMouseUp}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
             >
               {HOURS.map((hour) => (
                 <div key={hour} className="border-b border-gray-100 hover:bg-blue-50/20 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
@@ -279,13 +316,15 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
                 const height = getTaskHeight(task)
                 return (
                   <div key={task.id} data-task
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
                     className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none ${
                       task.completed
                         ? 'bg-gray-200 text-gray-400 line-through'
                         : task.priority === 1 ? 'bg-red-100 text-red-700 border-l-2 border-red-400'
                         : task.priority === 2 ? 'bg-yellow-100 text-yellow-700 border-l-2 border-yellow-400'
                         : 'bg-blue-100 text-blue-700 border-l-2 border-blue-400'
-                    }`}
+                    } ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                     style={{ top: `${top}px`, height: `${height}px` }}>
                     <input type="checkbox" checked={task.completed}
                       onChange={(e) => { e.stopPropagation(); onToggleTask(task.id) }}

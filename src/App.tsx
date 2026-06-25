@@ -55,6 +55,14 @@ function App() {
 
   useEffect(() => {
     loadData()
+    // 启动时应用保存的主题
+    const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system'
+    const root = document.documentElement
+    if (savedTheme === 'dark' || (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
   }, [])
 
   const autoArchivedRef = useRef(false)
@@ -453,9 +461,20 @@ function App() {
 
   async function handleMoveTask(taskId: number, newDate: string) {
     try {
-      await api.updateTask(taskId, { due_date: newDate })
+      const task = tasks.find(t => t.id === taskId)
+      const updates: Partial<Task> = { due_date: newDate }
+      // 如果任务有 end_date，保留时长不变
+      if (task?.end_date && task?.due_date) {
+        const oldStart = new Date(task.due_date).getTime()
+        const oldEnd = new Date(task.end_date).getTime()
+        const duration = oldEnd - oldStart
+        const newStart = new Date(newDate)
+        const newEnd = new Date(newStart.getTime() + duration)
+        updates.end_date = newEnd.toISOString()
+      }
+      await api.updateTask(taskId, updates)
       setTasks(tasks.map((t) =>
-        t.id === taskId ? { ...t, due_date: newDate, updated_at: new Date().toISOString() } : t
+        t.id === taskId ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
       ))
     } catch (error) {
       console.error('Failed to move task:', error)
@@ -821,6 +840,7 @@ function App() {
               onMoveTask={handleMoveTask}
               onCreateTask={handleCreateTaskOnDate}
               onCreateTaskOnRange={handleCreateTaskOnRange}
+              onUpdateTask={handleUpdateTask}
             />
           </div>
           {selectedTask && (
