@@ -27,6 +27,9 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   const [llmModels, setLlmModels] = useState<string[]>([])
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  // 思考模式
+  const [reasoning, setReasoning] = useState(existingConfig?.reasoning ?? false)
+  const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high'>(existingConfig?.reasoningEffort || 'medium')
   // 厂商列表
   const [providers, setProviders] = useState<LLMProvider[]>(() => getProviders())
   const [providerName, setProviderName] = useState('')
@@ -91,7 +94,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   }
 
   function handleSaveLlmConfig() {
-    saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel })
+    saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort })
   }
 
   // 保存当前配置为厂商
@@ -288,6 +291,40 @@ export function SettingsView({ onClose }: SettingsViewProps) {
               </div>
             )}
 
+            {/* 思考模式 */}
+            <div className="pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">思考模式</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    启用模型的深度推理能力（适用于 o1/o3、DeepSeek-R1 等推理模型）
+                  </p>
+                </div>
+                <Toggle checked={reasoning} onChange={(v) => { setReasoning(v); saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning: v, reasoningEffort }); }} />
+              </div>
+              {reasoning && (
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">思考强度</label>
+                  <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                    {(['low', 'medium', 'high'] as const).map(e => (
+                      <button
+                        key={e}
+                        onClick={() => { setReasoningEffort(e); saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort: e }); }}
+                        className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
+                          reasoningEffort === e ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {e === 'low' ? '低（快速）' : e === 'medium' ? '中（平衡）' : '高（深度）'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    低：快速响应，适合简单任务 ｜ 中：平衡速度与深度 ｜ 高：深度推理，适合复杂分析
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* 保存当前配置为厂商 */}
             <div className="pt-2 border-t border-gray-100">
               <label className="block text-xs font-medium text-gray-500 mb-1.5">保存为厂商（方便后续快速切换）</label>
@@ -405,7 +442,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">滴答清单</p>
-                <p className="text-xs text-gray-500">版本 1.0.0</p>
+                <p className="text-xs text-gray-500">版本 1.1.0</p>
               </div>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">

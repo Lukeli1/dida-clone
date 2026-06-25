@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
@@ -56,7 +56,7 @@ pub async fn test_llm_connection(base_url: String, api_key: String) -> Result<Ve
     Ok(models)
 }
 
-/// 调用大模型对话接口
+/// 调用大模型对话接口（支持多轮对话）
 #[tauri::command]
 pub async fn llm_chat(
     base_url: String,
@@ -64,18 +64,36 @@ pub async fn llm_chat(
     model: String,
     system_prompt: String,
     user_message: String,
+    reasoning: Option<bool>,
+    reasoning_effort: Option<String>,
+    history: Option<Vec<ChatMessage>>,
 ) -> Result<String, String> {
     let url = build_url(&base_url, "/chat/completions");
     let client = reqwest::Client::new();
 
-    let body = serde_json::json!({
+    let reasoning_enabled = reasoning.unwrap_or(false);
+    let effort = reasoning_effort.unwrap_or_else(|| "medium".to_string());
+
+    // 构建消息列表：system + history + user
+    let mut messages: Vec<serde_json::Value> = vec![
+        serde_json::json!({"role": "system", "content": system_prompt})
+    ];
+    if let Some(hist) = &history {
+        for msg in hist {
+            messages.push(serde_json::json!({"role": msg.role, "content": msg.content}));
+        }
+    }
+    messages.push(serde_json::json!({"role": "user", "content": user_message}));
+
+    let mut body = serde_json::json!({
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ],
-        "temperature": 0.3
+        "messages": messages
     });
+    if reasoning_enabled {
+        body["reasoning_effort"] = serde_json::Value::String(effort);
+    } else {
+        body["temperature"] = serde_json::json!(0.3);
+    }
 
     let resp = client
         .post(&url)
