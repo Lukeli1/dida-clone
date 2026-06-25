@@ -45,8 +45,8 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className={`p-1.5 rounded-lg transition-colors ${
             sidebarOpen
-              ? 'bg-blue-100 text-blue-600'
-              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+              ? 'bg-blue-50/60 text-[#378ADD]'
+              : 'text-gray-500 hover:bg-gray-50/60 hover:text-gray-700'
           }`}
           title={sidebarOpen ? '隐藏任务列表' : '显示任务列表'}
           aria-label="任务列表侧边栏"
@@ -266,7 +266,7 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-200 w-56 py-1"
+          className="absolute right-0 top-full mt-1 z-50 bg-white rounded-lg shadow-md border border-gray-100 w-56 py-1"
           onClick={(e) => e.stopPropagation()}
         >
           <p className="px-3 py-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">视图切换</p>
@@ -276,8 +276,8 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
               onClick={() => { onChangeView(v.key); setOpen(false) }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                 viewMode === v.key
-                  ? 'bg-blue-50 text-blue-600 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                  : 'text-gray-700 hover:bg-gray-50/60'
               }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

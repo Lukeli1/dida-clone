@@ -65,11 +65,40 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============ 卡片组件样式 ============ */
+@layer components {
+  .task-card {
+    @apply bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors;
+  }
+}
+
+/* 任务创建滑入动画 */
+@keyframes slide-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-top {
+  animation: slide-in-top 0.2s ease-out;
+}
+
+/* 拖拽半透明效果 */
+.dragging {
+  opacity: 0.5;
+  transform: scale(1.02);
+  transition: all 0.15s ease;
 }
 
 /* ============ 深色模式全局覆盖 ============ */
@@ -126,13 +155,13 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* 蓝色主题色微调（保持品牌感但略调亮度） */
-.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
+/* 蓝色主题色微调（使用品牌色 #378ADD） */
+.dark .bg-blue-50 { background-color: rgba(55, 138, 221, 0.15) !important; }
 .dark .text-blue-600 { color: #60a5fa !important; }           /* blue-400 */
-.dark .border-blue-200 { border-color: rgba(59, 130, 246, 0.3) !important; }
-.dark .border-blue-300 { border-color: rgba(59, 130, 246, 0.5) !important; }
+.dark .border-blue-200 { border-color: rgba(55, 138, 221, 0.3) !important; }
+.dark .border-blue-300 { border-color: rgba(55, 138, 221, 0.5) !important; }
 .dark .border-blue-400 { border-color: #60a5fa !important; }
-.dark .ring-blue-500\/20 { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important; }
+.dark .ring-blue-500\/20 { box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.3) !important; }
 
 /* 紫色主题（AI 助手） */
 .dark .bg-purple-50 { background-color: rgba(139, 92, 246, 0.15) !important; }

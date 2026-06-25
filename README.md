@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.2.1-blue)
+![版本](https://img.shields.io/badge/version-1.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -73,6 +73,11 @@
 - **系统**：开机自启、数据导出
 - **关于**：应用信息
 
+### 高级视图（v1.3.0 新增）
+- **四象限视图**：2×2 Eisenhower 矩阵（重要且紧急 / 重要不紧急 / 紧急不重要 / 不紧急不重要），支持拖拽任务改变优先级
+- **番茄钟**：25 分钟专注 / 5 分钟短休息 / 15 分钟长休息，圆环进度展示，支持任务选择、自定义时长、当日/累计专注统计
+- **习惯打卡**：每日习惯追踪，7 天迷你日历，进度条，连续打卡统计，支持自定义目标、单位和 emoji
+
 ### UI/UX 优化
 - 自定义应用图标
 - 系统托盘集成（关闭窗口时最小化到托盘）
@@ -132,12 +137,15 @@ npm run tauri build
 │   │   ├── AIAssistant.tsx     # AI 对话助手（v1.1.0）
 │   │   ├── CalendarView.tsx    # 日历视图容器（v1.2.1 含侧边栏 + 更多选项）
 │   │   ├── DayView.tsx         # 日视图
+│   │   ├── EmptyState.tsx      # 统一空状态组件（v1.3.0）
 │   │   ├── GanttView.tsx       # 甘特图视图（v1.2.1）
+│   │   ├── HabitView.tsx       # 习惯打卡视图（v1.3.0）
 │   │   ├── KanbanView.tsx      # 看板视图（v1.2.1）
 │   │   ├── MonthView.tsx       # 月视图
-│   │   ├── WeekView.tsx        # 周视图
+│   │   ├── PomodoroView.tsx    # 番茄钟视图（v1.3.0）
+│   │   ├── QuadrantView.tsx    # 四象限视图（v1.3.0）
 │   │   ├── SettingsView.tsx    # 设置模块
-│   │   ├── Sidebar.tsx         # 侧边栏（v1.2.1 设置移至左下角）
+│   │   ├── Sidebar.tsx         # 侧边栏（v1.2.1 设置移至左下角，v1.3.0 新增高级视图）
 │   │   ├── StatsView.tsx      # 统计面板
 │   │   ├── TaskDetail.tsx     # 任务详情
 │   │   ├── TaskItem.tsx       # 任务项
@@ -162,6 +170,21 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.3.0（2026-06-26）
+
+#### 新增功能
+- **四象限视图**：Eisenhower 矩阵（重要且紧急 / 重要不紧急 / 紧急不重要 / 不紧急不重要），支持拖拽任务到不同象限自动切换优先级
+- **番茄钟**：25 分钟专注 / 5 分钟短休息 / 15 分钟长休息，SVG 圆环进度、任务选择器、自定义时长、当日/累计专注统计
+- **习惯打卡**：每日习惯追踪，图标 + 名称 + 今日进度条 + 7 天迷你日历，支持自定义目标、单位、emoji，连续打卡统计
+- **主色优化**：品牌色调整为 `#378ADD`（原版滴答清单柔和蓝），全局字体栈改为系统字体（更贴近原生体验）
+- **任务卡片化**：任务列表采用卡片式布局（圆角 + 边框 + 悬停效果），批量操作栏减轻视觉权重，右键菜单阴影优化
+
+#### 改进
+- 优先级颜色对齐：低优先级从绿色改为蓝色 `#378ADD`，中优先级从 yellow 改为 amber
+- 空状态统一：新建 EmptyState 组件，图标 + 标题 + 副标题，各视图复用
+- 侧边栏选中态柔化：`bg-blue-50/60 text-[#378ADD]` 替代高饱和蓝色，清单项增加左侧色条标识
+- 日历视图更多选项下拉阴影减轻
 
 ### v1.2.1（2026-06-25）
 

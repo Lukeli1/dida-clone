@@ -6,9 +6,9 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#3B82F6',
+          DEFAULT: '#378ADD',  // 原版主色蓝
           light: '#60A5FA',
-          dark: '#2563EB',
+          dark: '#185FA5',     // 深色模式主色
         },
         success: {
           DEFAULT: '#10B981',
@@ -24,7 +24,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
       },
       boxShadow: {
         card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',

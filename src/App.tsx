@@ -13,6 +13,10 @@ import { CalendarView } from './components/CalendarView'
 import { StatsView } from './components/StatsView'
 import { SettingsView } from './components/SettingsView'
 import { AIAssistant } from './components/AIAssistant'
+import { QuadrantView } from './components/QuadrantView'
+import { PomodoroView } from './components/PomodoroView'
+import { HabitView } from './components/HabitView'
+import { EmptyState } from './components/EmptyState'
 import { useToast } from './components/Toast'
 import { getPriorityStyle, hexWithAlpha } from './utils/priority'
 import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
@@ -862,6 +866,37 @@ function App() {
         <SettingsView onClose={() => setCurrentView('tasks')} />
       ) : currentView === 'ai' ? (
         <AIAssistant tasks={tasks} onClose={() => setCurrentView('tasks')} onTasksChange={loadData} />
+      ) : currentView === 'quadrant' ? (
+        <main className="flex-1 flex overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <QuadrantView
+              tasks={tasks.filter(t => !t.archived)}
+              onTaskClick={(id) => setSelectedTaskId(id)}
+              onToggleTask={(id) => handleToggleTask(tasks.find(t => t.id === id)!)}
+              onUpdateTaskPriority={(id, priority) => handleUpdateTask(id, { priority })}
+            />
+          </div>
+          {selectedTask && (
+            <TaskDetail
+              task={selectedTask}
+              tags={tags}
+              onUpdate={handleUpdateTask}
+              onDelete={handleDeleteTask}
+              onClose={() => setSelectedTaskId(null)}
+              onAddTag={handleAddTagToTask}
+              onRemoveTag={handleRemoveTagFromTask}
+              onCreateSubtask={handleCreateSubtask}
+            />
+          )}
+        </main>
+      ) : currentView === 'pomodoro' ? (
+        <PomodoroView
+          tasks={tasks.filter(t => !t.completed && !t.archived)}
+          onTaskClick={(id) => setSelectedTaskId(id)}
+          onToggleTask={(id) => handleToggleTask(tasks.find(t => t.id === id)!)}
+        />
+      ) : currentView === 'habit' ? (
+        <HabitView />
       ) : (
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -886,8 +921,8 @@ function App() {
                     }}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
                       batchMode
-                        ? 'bg-blue-500 text-white border-blue-500'
-                        : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                        ? 'bg-[#378ADD] text-white border-[#378ADD]'
+                        : 'text-gray-600 border-gray-200 hover:bg-gray-50/60'
                     }`}
                     title={batchMode ? '退出批量模式' : '进入批量模式'}
                   >
@@ -912,7 +947,7 @@ function App() {
                   </svg>
                   筛选
                   {hasActiveFilters && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#378ADD] rounded-full" />
                   )}
                 </button>
                 <div className="relative">
@@ -995,14 +1030,14 @@ function App() {
 
             {/* 批量操作工具栏 */}
             {batchMode && (
-              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-blue-700">
+              <div className="mt-3 p-2 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-700">
                   已选 {selectedTaskIds.size} 项
                 </span>
-                <div className="h-4 w-px bg-blue-200 mx-1" />
-                <button onClick={selectAllTasks} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 rounded">全选</button>
-                <button onClick={clearSelection} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 rounded">取消</button>
-                <div className="h-4 w-px bg-blue-200 mx-1" />
+                <div className="h-4 w-px bg-gray-200 mx-1" />
+                <button onClick={selectAllTasks} className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">全选</button>
+                <button onClick={clearSelection} className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                <div className="h-4 w-px bg-gray-200 mx-1" />
                 <button
                   onClick={handleBatchComplete}
                   disabled={selectedTaskIds.size === 0}
@@ -1025,7 +1060,7 @@ function App() {
                     e.target.value = ''
                   }}
                   disabled={selectedTaskIds.size === 0}
-                  className="px-2 py-1 text-xs border border-blue-200 rounded bg-white disabled:opacity-40"
+                  className="px-2 py-1 text-xs border border-gray-200 rounded bg-white disabled:opacity-40"
                   defaultValue=""
                 >
                   <option value="" disabled>设优先级</option>
@@ -1040,7 +1075,7 @@ function App() {
                     e.target.value = ''
                   }}
                   disabled={selectedTaskIds.size === 0}
-                  className="px-2 py-1 text-xs border border-blue-200 rounded bg-white disabled:opacity-40"
+                  className="px-2 py-1 text-xs border border-gray-200 rounded bg-white disabled:opacity-40"
                   defaultValue=""
                 >
                   <option value="" disabled>移动到清单</option>
@@ -1115,7 +1150,7 @@ function App() {
                   onClick={handleCreateTask}
                   disabled={aiParsing}
                   className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
-                    aiMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-blue-500 hover:bg-blue-600'
+                    aiMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-[#378ADD] hover:bg-[#185FA5]'
                   }`}
                 >
                   {aiParsing && (
@@ -1142,13 +1177,11 @@ function App() {
             {/* 归档视图：直接显示所有归档任务 */}
             {currentView === 'archived' ? (
               taskTree.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  <p>暂无归档任务</p>
-                  <p className="text-xs mt-1">完成的任务超过 7 天后会自动归档</p>
-                </div>
+                <EmptyState
+                  icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
+                  title="暂无归档任务"
+                  subtitle="完成的任务超过 7 天后会自动归档"
+                />
               ) : (
                 <ul className="space-y-1">
                   {taskTree.map((task) => (
@@ -1222,12 +1255,10 @@ function App() {
                 )}
 
                 {filteredTasks.length === 0 && overdueTaskTree.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    <p>{hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}</p>
-                  </div>
+                  <EmptyState
+                    icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
+                    title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
+                  />
                 ) : (
                   <>
                     <ul className="space-y-1">
@@ -1306,7 +1337,7 @@ function App() {
         </main>
       )}
 
-      {currentView !== 'calendar' && currentView !== 'settings' && selectedTask && (
+      {currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && selectedTask && (
         <TaskDetail
           task={selectedTask}
           tags={tags}
@@ -1444,9 +1475,9 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
           }
         }}
         onDoubleClick={handleDoubleClick}
-        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 ${
-          isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-        } ${batchMode && isSelectedForBatch ? 'bg-blue-50' : ''} ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 border border-gray-100 ${
+          isSelected ? 'bg-blue-50/60 border-gray-200' : 'hover:border-gray-200 hover:bg-gray-50/60'
+        } ${batchMode && isSelectedForBatch ? 'bg-blue-50/60' : ''} ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
       >
         {hasSubtasks ? (
           <button
@@ -1549,7 +1580,7 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
               key={subtask.id}
               onClick={() => onClick()}
               className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50/60'
               } ${subtask.completed ? 'opacity-60' : ''}`}
             >
               <input
@@ -1587,7 +1618,7 @@ function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskI
       {/* 右键菜单 */}
       {contextMenu && (
         <div
-          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-40"
+          className="fixed z-50 bg-white rounded-lg shadow-md border border-gray-100 py-1 w-40"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1709,9 +1740,9 @@ function MiniCalendarDropzone({ currentDate, onPrevMonth, onNextMonth, onDropDat
               onDragLeave={() => setDragOverDate(null)}
               className={`text-center text-xs py-1.5 rounded cursor-pointer transition-colors ${
                 isDragOver
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-[#378ADD] text-white'
                   : isToday
-                  ? 'bg-blue-100 text-blue-600'
+                  ? 'bg-blue-50/60 text-[#378ADD]'
                   : isCurrentMonth
                   ? 'text-gray-700 hover:bg-gray-100'
                   : 'text-gray-300'

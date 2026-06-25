@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { List, Tag } from '../types'
 
-export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived'
+export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit'
 
 const PRESET_COLORS = [
   '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',
@@ -142,8 +142,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => { onViewChange('tasks'); onSelectList(null) }}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'tasks' && selectedListId === null
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -159,8 +159,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => { onViewChange('today'); onSelectList(null) }}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'today'
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -176,8 +176,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => { onViewChange('archived'); onSelectList(null); onSelectTag(null) }}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'archived'
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -193,8 +193,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => onViewChange('calendar')}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'calendar'
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -209,8 +209,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => onViewChange('stats')}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'stats'
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -225,8 +225,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
             onClick={() => onViewChange('ai')}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'ai'
-                ? 'bg-purple-50 text-purple-600'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-purple-50/60 text-purple-600 font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -234,6 +234,57 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               AI 助手
+            </span>
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+            高级视图
+          </p>
+          <button
+            onClick={() => onViewChange('quadrant')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              currentView === 'quadrant'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+              </svg>
+              四象限
+            </span>
+          </button>
+          <button
+            onClick={() => onViewChange('pomodoro')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              currentView === 'pomodoro'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              番茄钟
+            </span>
+          </button>
+          <button
+            onClick={() => onViewChange('habit')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              currentView === 'habit'
+                ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                : 'text-gray-700 hover:bg-gray-50/60'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              习惯打卡
             </span>
           </button>
         </div>
@@ -279,7 +330,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={handleCreate} className="px-3 py-1 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600">创建</button>
+                <button onClick={handleCreate} className="px-3 py-1 text-xs bg-[#378ADD] text-white rounded-md hover:bg-[#185FA5]">创建</button>
                 <button onClick={() => { setIsCreating(false); setNewListName('') }} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">取消</button>
               </div>
             </div>
@@ -307,16 +358,22 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                   <button
                     onClick={() => { onViewChange('tasks'); onSelectList(list.id) }}
                     onContextMenu={(e) => handleContextMenu(e, list.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors group ${
+                    className={`relative w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors group ${
                       currentView === 'tasks' && selectedListId === list.id
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                        : 'text-gray-700 hover:bg-gray-50/60'
                     }`}
                   >
+                    {currentView === 'tasks' && selectedListId === list.id && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                        style={{ backgroundColor: list.color || (list.is_default ? '#378ADD' : '#6B7280') }}
+                      />
+                    )}
                     <span className="flex items-center gap-2 truncate">
                       <span
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: list.color || (list.is_default ? '#3B82F6' : '#6B7280') }}
+                        style={{ backgroundColor: list.color || (list.is_default ? '#378ADD' : '#6B7280') }}
                       />
                       <span className="truncate">{list.name}</span>
                     </span>
@@ -384,7 +441,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={handleCreateTag} className="px-3 py-1 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600">创建</button>
+                <button onClick={handleCreateTag} className="px-3 py-1 text-xs bg-[#378ADD] text-white rounded-md hover:bg-[#185FA5]">创建</button>
                 <button onClick={() => { setIsCreatingTag(false); setNewTagName('') }} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">取消</button>
               </div>
             </div>
@@ -398,8 +455,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                   onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                     selectedTagId === tag.id
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                      : 'text-gray-700 hover:bg-gray-50/60'
                   }`}
                 >
                   <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" style={{ color: tag.color || '#6B7280' }}>
@@ -421,8 +478,8 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
           onClick={() => onViewChange('settings')}
           className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'settings'
-              ? 'bg-blue-50 text-blue-600'
-              : 'text-gray-700 hover:bg-gray-50'
+              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+              : 'text-gray-700 hover:bg-gray-50/60'
           }`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -437,7 +494,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[140px]"
+          className="fixed z-50 bg-white rounded-lg shadow-md border border-gray-100 py-1 min-w-[140px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button
@@ -474,7 +531,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       {/* 颜色选择器弹窗 */}
       {showColorPicker !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={() => setShowColorPicker(null)}>
-          <div className="bg-white rounded-xl shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-md p-4" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm font-medium text-gray-700 mb-3">选择颜色</p>
             <div className="flex gap-2 flex-wrap max-w-[200px]">
               {PRESET_COLORS.map((c) => {
@@ -501,7 +558,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       {tagContextMenu && (
         <div
           ref={tagContextMenuRef}
-          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[120px]"
+          className="fixed z-50 bg-white rounded-lg shadow-md border border-gray-100 py-1 min-w-[120px]"
           style={{ left: tagContextMenu.x, top: tagContextMenu.y }}
         >
           <button
