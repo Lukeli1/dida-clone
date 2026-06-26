@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.3.0-blue)
+![版本](https://img.shields.io/badge/version-1.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -99,6 +99,9 @@
 | HTTP 请求 | reqwest（Rust 端调用 LLM API） |
 | 日期处理 | date-fns |
 | 大模型协议 | OpenAI 兼容（/v1/models, /v1/chat/completions） |
+| 状态管理 | Zustand v5 |
+| 数据缓存 | TanStack Query v5 |
+| 虚拟列表 | @tanstack/react-virtual |
 
 ## 快速开始
 
@@ -170,6 +173,28 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.4.0（2026-06-26）
+
+#### 架构重构
+- **Zustand 状态管理层**：引入 6 个独立 store（taskStore/listStore/tagStore/filterStore/uiStore/localStorageStore），将 App.tsx 中 22 个 useState 全部迁移，状态可预测、可测试
+- **TanStack Query 缓存层**：引入 QueryClient + queryKeys + invalidate 基础设施，支持 30 秒缓存、乐观更新、错误重试；浏览器降级模式下自动关闭缓存
+- **虚拟列表**：新增 TaskList 组件，使用 @tanstack/react-virtual 实现按需渲染，支持动态高度测量（子任务展开自适应）
+- **统一错误处理**：新增 AppError 类和 handleApiError 工具函数
+
+#### 性能优化
+- **taskTree 算法优化**：从 O(n*m) 的多次 filter 改为 O(n) 的 Map-based 单次遍历，大幅优化大数据量下的列表渲染性能
+- **组件拆分**：将内联 TaskItem（~320 行）提取为独立文件，App.tsx 从 1767 行减少到约 1100 行
+
+#### 安全修复
+- **移除硬编码 API Key**：`src/utils/llm.ts` 中移除硬编码的 API Key，改为从 localStorage 读取，无配置时返回 null
+
+#### 技术改进
+- 新增 `src/stores/` 目录（6 个 Zustand store）
+- 新增 `src/lib/` 目录（queryClient/queryKeys/invalidate/errorHandler）
+- 新增 `src/components/TaskItem.tsx` 独立任务项组件
+- 新增 `src/components/TaskList.tsx` 虚拟列表组件
+- `src/main.tsx` 已包裹 QueryClientProvider
 
 ### v1.3.0（2026-06-26）
 
