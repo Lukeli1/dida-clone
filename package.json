@@ -10,10 +10,13 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.1",
+    "@tanstack/react-virtual": "^3.14.3",
     "@tauri-apps/api": "^2.9.0",
     "date-fns": "^3.6.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",

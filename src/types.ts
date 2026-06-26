@@ -67,6 +67,21 @@ export interface ReorderItem {
   sort_order: number
 }
 
+export interface UpdateTaskRequest {
+  title?: string
+  notes?: string
+  priority?: number
+  due_date?: string
+  end_date?: string
+  reminder?: string
+  completed?: boolean
+  archived?: boolean
+  list_id?: number
+  parent_id?: number
+  repeat_rule?: string
+  sort_order?: number
+}
+
 export interface CompleteResult {
   new_task_id: number | null
 }

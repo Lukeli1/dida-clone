@@ -10,10 +10,10 @@ export interface LLMConfig {
   reasoningEffort?: 'low' | 'medium' | 'high'  // 思考强度
 }
 
-// 项目默认大模型配置（用户可在设置中覆盖）
-const DEFAULT_BASE_URL = 'https://apihub.agnes-ai.com/v1'
-const DEFAULT_API_KEY = 'sk-8LsZ7d09ekp3WLZh20ERChicLjaZPxxYYaQikEMU4IrTpXiZ'
-const DEFAULT_MODEL = 'agnes-1.5-flash'
+// 安全：不再硬编码 API Key，从 localStorage 读取，无配置时返回 null
+const DEFAULT_BASE_URL = ''
+const DEFAULT_API_KEY = ''
+const DEFAULT_MODEL = ''
 
 export function getLLMConfig(): LLMConfig | null {
   const baseUrl = localStorage.getItem('llm_base_url') || DEFAULT_BASE_URL
