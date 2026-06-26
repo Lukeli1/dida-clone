@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from 'react'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isToday
+  eachDayOfInterval, format, isSameMonth, isToday, getISOWeek
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
@@ -21,11 +21,46 @@ interface MonthViewProps {
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
 }
 
+// 任务条带颜色映射 - 基于清单颜色，无清单色时回退到优先级色
+const FALLBACK_COLORS = ['#378ADD', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899', '#6B7280']
+
+function getTaskBarColor(task: Task, lists: List[]): string {
+  // 优先使用清单颜色
+  const list = lists.find(l => l.id === task.list_id)
+  if (list?.color) return list.color
+  // 回退到优先级色
+  if (task.priority === 1) return '#EF4444'
+  if (task.priority === 2) return '#F59E0B'
+  if (task.priority === 3) return '#378ADD'
+  // 默认使用回退色数组中的颜色（基于 list_id 取模）
+  return FALLBACK_COLORS[task.list_id % FALLBACK_COLORS.length]
+}
+
+// 计算农历日期文本（简版：使用 date-fns 的中文本地化格式）
+function getLunarLabel(day: Date): string {
+  const dayOfMonth = day.getDate()
+  const month = day.getMonth() + 1
+  // 简单的农历近似显示（实际应使用 lunar-javascript 库，这里用日期特征替代）
+  const solarTerms: Record<string, string> = {
+    '3-5': '惊蛰', '3-20': '春分', '4-4': '清明', '4-20': '谷雨',
+    '5-5': '立夏', '5-20': '小满', '6-5': '芒种', '6-21': '夏至',
+    '7-7': '小暑', '7-22': '大暑', '8-7': '立秋', '8-23': '处暑',
+    '9-7': '白露', '9-22': '秋分', '10-8': '寒露', '10-23': '霜降',
+    '11-7': '立冬', '11-22': '小雪', '12-7': '大雪', '12-22': '冬至',
+    '1-5': '小寒', '1-20': '大寒', '2-4': '立春', '2-19': '雨水',
+  }
+  const key = `${month}-${dayOfMonth}`
+  if (solarTerms[key]) return solarTerms[key]
+  // 显示星期简写
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+  return `周${weekdays[day.getDay()]}`
+}
+
 const priorityOptions = [
   { value: 0, label: '无', color: 'text-gray-400' },
   { value: 1, label: '高', color: 'text-red-600' },
-  { value: 2, label: '中', color: 'text-yellow-600' },
-  { value: 3, label: '低', color: 'text-green-600' },
+  { value: 2, label: '中', color: 'text-amber-600' },
+  { value: 3, label: '低', color: 'text-blue-600' },
 ]
 
 export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevMonth, onNextMonth, onToday, onMoveTask, onCreateTask, onCreateTaskOnRange }: MonthViewProps) {
@@ -62,17 +97,29 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
         map.set(key, arr)
       }
     })
+    // 每天的任务排序：未完成在前，然后按时间
+    map.forEach(arr => {
+      arr.sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1
+        if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+        return 0
+      })
+    })
     return map
   }, [tasks])
 
+  // 计算周数
+  const weekRows = useMemo(() => {
+    const rows: Date[][] = []
+    for (let i = 0; i < weeks.length; i += 7) {
+      rows.push(weeks.slice(i, i + 7))
+    }
+    return rows
+  }, [weeks])
+
   const weekDays = ['一', '二', '三', '四', '五', '六', '日']
-  const rows: Date[][] = []
-  for (let i = 0; i < weeks.length; i += 7) {
-    rows.push(weeks.slice(i, i + 7))
-  }
 
   function handleDragStart(e: React.DragEvent, taskId: number) {
-    console.log('[拖拽诊断] dragStart 触发, taskId:', taskId)
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(taskId))
@@ -80,22 +127,17 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
     e.preventDefault()
-    // 统一设为 'move'，避免与源的 'move' effectAllowed 不匹配导致禁止图标
     e.dataTransfer.dropEffect = 'move'
-    // 仅在 dateKey 变化时记录，避免刷屏
     if (dragOverDate !== dateKey) {
-      console.log('[拖拽诊断] dragOver 触发, 目标日期:', dateKey)
       setDragOverDate(dateKey)
     }
   }
 
-  // dragenter 也需要 preventDefault，否则 WebView 可能拒绝 drop
-  function handleDragEnter(e: React.DragEvent, dateKey: string) {
+  function handleDragEnter(e: React.DragEvent) {
     e.preventDefault()
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move'
     }
-    console.log('[拖拽诊断] dragEnter 触发, 目标日期:', dateKey)
   }
 
   function handleDragLeave() {
@@ -103,13 +145,10 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
   }
 
   function handleDrop(e: React.DragEvent, dateKey: string) {
-    console.log('[拖拽诊断] drop 触发, 目标日期:', dateKey)
     e.preventDefault()
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
-    console.log('[拖拽诊断] 读取 taskId:', taskId)
     if (taskId) {
-      // 保留原任务的时间部分，只替换日期
       const task = tasks.find(t => t.id === taskId)
       const [year, month, day] = dateKey.split('-').map(Number)
       let hour = 9, minute = 0
@@ -119,20 +158,17 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
         minute = oldDate.getMinutes()
       }
       const newDate = new Date(year, month - 1, day, hour, minute)
-      console.log('[拖拽诊断] 调用 onMoveTask, 新日期:', newDate.toISOString())
       onMoveTask(taskId, newDate.toISOString())
     }
     setDraggedTaskId(null)
   }
 
-  // 单击"+"按钮 → 内联快速输入
   function handleQuickAdd(dateKey: string) {
     setCreatingDate(dateKey)
     setNewTitle('')
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
-  // 双击 → 打开详细弹窗
   function handleCellDoubleClick(dateKey: string) {
     setDetailPopup(dateKey)
     setPopupTitle('')
@@ -173,155 +209,213 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
     setDetailPopup(null)
   }
 
+  function formatTaskTime(dueDate: string): string {
+    const d = new Date(dueDate)
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (m === 0) return `${String(h).padStart(2, '0')}:00`
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  // 判断颜色是亮色还是暗色，决定文字用白色还是深色
+  function isLightColor(hex: string): boolean {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.7
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full bg-[#FAFAFA]">
+      {/* 月份导航栏 */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-3">
           <button
             onClick={onPrevMonth}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h3 className="text-lg font-semibold text-gray-900 min-w-[140px] text-center">
-            {format(currentDate, 'yyyy年 M月', { locale: zhCN })}
+          <h3 className="text-xl font-semibold text-gray-800 min-w-[100px] text-center">
+            {format(currentDate, 'M月', { locale: zhCN })}
+            <span className="text-sm font-normal text-gray-400 ml-1">{format(currentDate, 'yyyy')}</span>
           </h3>
           <button
             onClick={onNextMonth}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
         <button
           onClick={onToday}
-          className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          className="px-3 py-1 text-sm text-[#378ADD] hover:bg-blue-50 rounded-lg transition-colors font-medium"
         >
           今天
         </button>
       </div>
 
+      {/* 星期标题行 */}
       <div className="grid grid-cols-7 border-b border-gray-200 bg-white">
         {weekDays.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-medium text-gray-500">
+          <div key={day} className="py-2 text-center text-xs font-medium text-gray-400">
             {day}
           </div>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white">
-        {rows.map((week, ri) => (
-          <div key={ri} className="grid grid-cols-7 border-b border-gray-100" style={{ minHeight: '110px' }}>
-            {week.map((day) => {
-              const key = format(day, 'yyyy-MM-dd')
-              const dayTasks = tasksByDate.get(key) || []
-              const inMonth = isSameMonth(day, currentDate)
-              const today = isToday(day)
-              const isDragOver = dragOverDate === key
-              const isCreating = creatingDate === key
-
-              return (
-                <div
-                  key={key}
-                  onClick={() => onDateClick(day)}
-                  onDoubleClick={() => handleCellDoubleClick(key)}
-                  onDragEnter={(e) => handleDragEnter(e, key)}
-                  onDragOver={(e) => handleDragOver(e, key)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, key)}
-                  className={`group relative border-r border-gray-100 last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
-                    isDragOver
-                      ? 'bg-blue-100 ring-2 ring-blue-300 ring-inset'
-                      : !inMonth
-                      ? 'bg-gray-50/50'
-                      : 'hover:bg-blue-50/30'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span
-                      className={`w-7 h-7 flex items-center justify-center text-sm rounded-full ${
-                        today
-                          ? 'bg-blue-500 text-white font-semibold'
-                          : !inMonth
-                          ? 'text-gray-300'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      {format(day, 'd')}
-                    </span>
-                    {/* 悬停显示的"+"按钮 */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleQuickAdd(key) }}
-                      className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-100 rounded transition-all"
-                      title="快速添加任务"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="space-y-0.5 flex-1">
-                    {dayTasks.slice(0, 3).map((task) => (
-                      <div
-                        key={task.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, task.id)}
-                        className={`text-xs px-1.5 py-0.5 rounded truncate cursor-grab active:cursor-grabbing select-none flex items-center gap-1 ${
-                          task.completed
-                            ? 'bg-gray-100 text-gray-400 line-through'
-                            : task.priority === 1
-                            ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                            : task.priority === 2
-                            ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                        } ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={task.completed}
-                          onChange={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-3 h-3 rounded-sm cursor-pointer flex-shrink-0"
-                        />
-                        <span
-                          onClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }}
-                          className="cursor-pointer truncate"
-                        >
-                          {task.title}
-                        </span>
-                      </div>
-                    ))}
-                    {dayTasks.length > 3 && (
-                      <div className="text-xs text-gray-400 px-1.5">
-                        +{dayTasks.length - 3} 更多
-                      </div>
-                    )}
-                    {isCreating && (
-                      <input
-                        ref={inputRef}
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleQuickAddSubmit(key)
-                          if (e.key === 'Escape') { setCreatingDate(null); setNewTitle('') }
-                        }}
-                        onBlur={() => handleQuickAddSubmit(key)}
-                        placeholder="输入任务标题，回车保存"
-                        className="w-full text-xs px-1.5 py-0.5 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                  </div>
+      {/* 日历网格 */}
+      <div className="flex-1 overflow-y-auto">
+        {weekRows.map((week, ri) => {
+          const weekNum = getISOWeek(week[0])
+          return (
+            <div key={ri} className="grid grid-cols-7 border-b border-gray-100 relative" style={{ minHeight: '120px' }}>
+              {/* 左侧周数标记 */}
+              {ri === 0 && (
+                <div className="absolute -left-0 top-0 text-[10px] text-gray-300 px-1 py-0.5 z-10 hidden">
+                  {weekNum}周
                 </div>
-              )
-            })}
-          </div>
-        ))}
+              )}
+              {week.map((day) => {
+                const key = format(day, 'yyyy-MM-dd')
+                const dayTasks = tasksByDate.get(key) || []
+                const inMonth = isSameMonth(day, currentDate)
+                const today = isToday(day)
+                const isDragOver = dragOverDate === key
+                const isCreating = creatingDate === key
+                const lunarLabel = getLunarLabel(day)
+
+                return (
+                  <div
+                    key={key}
+                    onClick={() => onDateClick(day)}
+                    onDoubleClick={() => handleCellDoubleClick(key)}
+                    onDragEnter={(e) => handleDragEnter(e)}
+                    onDragOver={(e) => handleDragOver(e, key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, key)}
+                    className={`group relative border-r border-gray-100 last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
+                      isDragOver
+                        ? 'bg-blue-50 ring-2 ring-[#378ADD]/30 ring-inset'
+                        : !inMonth
+                        ? 'bg-gray-50/40'
+                        : 'hover:bg-blue-50/20'
+                    }`}
+                  >
+                    {/* 日期头部：日期数字 + 农历 + 添加按钮 */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex flex-col items-start leading-tight">
+                        <span
+                          className={`flex items-center justify-center text-[15px] font-medium rounded-full transition-colors ${
+                            today
+                              ? 'bg-[#378ADD] text-white w-7 h-7'
+                              : !inMonth
+                              ? 'text-gray-300 w-7 h-7'
+                              : 'text-gray-700 w-7 h-7 hover:bg-gray-100'
+                          }`}
+                        >
+                          {format(day, 'd')}
+                        </span>
+                        {inMonth && !today && (
+                          <span className="text-[9px] text-gray-400 ml-1 mt-0.5">
+                            {lunarLabel}
+                          </span>
+                        )}
+                      </div>
+                      {/* 悬停显示的"+"按钮 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleQuickAdd(key) }}
+                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-[#378ADD] hover:bg-blue-100 rounded transition-all"
+                        title="快速添加任务"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* 任务条带列表 */}
+                    <div className="space-y-1 flex-1 overflow-hidden">
+                      {dayTasks.slice(0, 4).map((task) => {
+                        const barColor = getTaskBarColor(task, lists)
+                        const taskTime = task.due_date ? formatTaskTime(task.due_date) : null
+
+                        return (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            onClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }}
+                            className={`flex items-center gap-1 px-1.5 py-1 rounded text-[11px] cursor-grab active:cursor-grabbing select-none transition-opacity hover:opacity-80 ${
+                              task.completed ? 'opacity-50' : ''
+                            } ${draggedTaskId === task.id ? 'opacity-30' : ''}`}
+                            style={{
+                              backgroundColor: barColor,
+                              color: isLightColor(barColor) ? '#374151' : '#ffffff',
+                            }}
+                          >
+                            {/* 复选框 */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
+                              className={`flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${
+                                task.completed
+                                  ? 'bg-white/30 border-white/50'
+                                  : isLightColor(barColor)
+                                  ? 'border-gray-400'
+                                  : 'border-white/60'
+                              }`}
+                            >
+                              {task.completed && (
+                                <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                            {/* 任务标题 */}
+                            <span className={`truncate flex-1 ${task.completed ? 'line-through' : ''}`}>
+                              {task.title}
+                            </span>
+                            {/* 时间 */}
+                            {taskTime && (
+                              <span className="flex-shrink-0 text-[10px] opacity-80">
+                                {taskTime}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                      {dayTasks.length > 4 && (
+                        <div className="text-[10px] text-gray-400 px-1.5 py-0.5">
+                          +{dayTasks.length - 4} 项
+                        </div>
+                      )}
+                      {isCreating && (
+                        <input
+                          ref={inputRef}
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleQuickAddSubmit(key)
+                            if (e.key === 'Escape') { setCreatingDate(null); setNewTitle('') }
+                          }}
+                          onBlur={() => handleQuickAddSubmit(key)}
+                          placeholder="标题..."
+                          className="w-full text-[11px] px-1.5 py-1 border border-[#378ADD] rounded focus:outline-none focus:ring-1 focus:ring-[#378ADD]/30"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
       </div>
 
       {/* 双击打开的详细创建弹窗 */}
@@ -331,11 +425,11 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
           onClick={() => setDetailPopup(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl border border-gray-200 p-5 w-80"
+            className="bg-white rounded-xl shadow-lg border border-gray-100 p-5 w-80"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#378ADD]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span className="text-sm font-medium text-gray-700">
@@ -352,7 +446,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
                 if (e.key === 'Escape') setDetailPopup(null)
               }}
               placeholder="任务标题"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-3"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#378ADD]/20 focus:border-[#378ADD] mb-3"
             />
 
             <div className="mb-3">
@@ -361,7 +455,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
                 <select
                   value={popupHour}
                   onChange={(e) => setPopupHour(Number(e.target.value))}
-                  className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#378ADD]/20 focus:border-[#378ADD]"
                 >
                   {Array.from({ length: 24 }, (_, i) => (
                     <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
@@ -371,7 +465,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
                 <select
                   value={popupMinute}
                   onChange={(e) => setPopupMinute(Number(e.target.value))}
-                  className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#378ADD]/20 focus:border-[#378ADD]"
                 >
                   <option value={0}>00</option>
                   <option value={15}>15</option>
@@ -386,7 +480,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
               onChange={(e) => setPopupNotes(e.target.value)}
               placeholder="备注（可选）"
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-3 resize-none"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#378ADD]/20 focus:border-[#378ADD] mb-3 resize-none"
             />
 
             <div className="mb-3">
@@ -414,7 +508,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
                 <select
                   value={popupListId || defaultListId}
                   onChange={(e) => setPopupListId(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#378ADD]/20 focus:border-[#378ADD]"
                 >
                   {lists.map((l) => (
                     <option key={l.id} value={l.id}>{l.name}</option>
@@ -426,7 +520,7 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
             <div className="flex gap-2">
               <button
                 onClick={handleDetailSubmit}
-                className="flex-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                className="flex-1 px-3 py-2 text-sm bg-[#378ADD] text-white rounded-lg hover:bg-[#185FA5] transition-colors font-medium"
               >
                 创建任务
               </button>

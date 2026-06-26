@@ -181,12 +181,12 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
   return (
-    <div className="flex bg-gray-100 rounded-lg p-0.5">
+    <div className="flex bg-gray-100/60 rounded-lg p-0.5">
       <button
         onClick={() => onChange('month')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'month'
-            ? 'bg-white text-gray-900 shadow-sm font-medium'
+            ? 'bg-white text-[#378ADD] shadow-sm font-medium'
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >
@@ -196,7 +196,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange('week')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'week'
-            ? 'bg-white text-gray-900 shadow-sm font-medium'
+            ? 'bg-white text-[#378ADD] shadow-sm font-medium'
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >
@@ -206,7 +206,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange('day')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'day'
-            ? 'bg-white text-gray-900 shadow-sm font-medium'
+            ? 'bg-white text-[#378ADD] shadow-sm font-medium'
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >

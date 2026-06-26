@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.4.0-blue)
+![版本](https://img.shields.io/badge/version-1.5.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -173,6 +173,22 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.5.0（2026-06-26）
+
+#### 月视图 UI 重设计
+- **彩色任务条带**：月视图任务从半透明文字背景改为纯色实心条带，颜色取自清单色（无清单色时回退到优先级色或循环色板），与滴答清单原版风格一致
+- **智能文字颜色**：根据条带背景亮度自动切换白色/深色文字（luminance 算法），保证可读性
+- **今日高亮**：日期数字使用蓝色圆形背景 `#378ADD` + 白色文字
+- **农历/节气标注**：日期下方显示二十四节气或星期简写
+- **任务排序**：未完成在前 + 按时间排序
+- **显示 4 条任务**：单日最多显示 4 条，溢出显示 "+N 项"
+- **单元格增高**：从 110px 增加到 120px
+- **背景色**：整体改为 `#FAFAFA` 浅灰底
+- **弹窗样式**：边框/阴影柔化，品牌色统一
+
+#### 改进
+- 视图切换按钮激活态文字色从 `text-gray-900` 改为 `text-[#378ADD]`，与品牌色统一
 
 ### v1.4.0（2026-06-26）
 
