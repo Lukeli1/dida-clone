@@ -263,6 +263,19 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
 #[tauri::command]
 pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = state.0.lock().unwrap();
+    // 先删除关联的 task_tags，避免外键约束失败
+    conn.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    // 删除子任务的 task_tags
+    conn.execute(
+        "DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE parent_id = ?1)",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    // 删除子任务
+    conn.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    // 最后删除任务本身
     conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     Ok(())

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Task, Tag } from '../types'
 import { hexWithAlpha } from '../utils/priority'
 import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../utils/llm'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 
 interface TaskDetailProps {
   task: Task
@@ -14,12 +16,21 @@ interface TaskDetailProps {
   onCreateSubtask: (parentId: number, title: string) => void
 }
 
-const priorityOptions = [
-  { value: 0, label: '无', color: 'bg-gray-100 text-gray-600' },
-  { value: 1, label: '高', color: 'bg-red-100 text-red-700' },
-  { value: 2, label: '中', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 3, label: '低', color: 'bg-green-100 text-green-700' },
-]
+// 优先级对应的色条颜色
+const PRIORITY_BAR_COLORS: Record<number, string> = {
+  0: '#D1D5DB',
+  1: '#EF4444',
+  2: '#F59E0B',
+  3: '#378ADD',
+}
+
+// 重复规则对应的中文标签
+const REPEAT_LABELS: Record<string, string> = {
+  daily: '每天',
+  weekly: '每周',
+  monthly: '每月',
+  weekdays: '工作日',
+}
 
 export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title)
@@ -32,6 +43,15 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set())
   const [aiPriorityLoading, setAiPriorityLoading] = useState(false)
 
+  const [showScheduleEdit, setShowScheduleEdit] = useState(false)
+  const [showTagPicker, setShowTagPicker] = useState(false)
+  const [showAIPanel, setShowAIPanel] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false)
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+
+  const titleRef = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => {
     setTitle(task.title)
     setNotes(task.notes || '')
@@ -39,6 +59,15 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
     setReminder(task.reminder ? task.reminder.slice(0, 16) : '')
     setPriority(task.priority)
   }, [task])
+
+  // 标题输入框自适应高度
+  useEffect(() => {
+    const el = titleRef.current
+    if (el) {
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+  }, [title])
 
   function handleSave() {
     const updates: Partial<Task> = {
@@ -55,6 +84,13 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
     if (confirm('确定删除这个任务吗？')) {
       onDelete(task.id)
     }
+  }
+
+  // 点击色条循环切换优先级：0 -> 1 -> 2 -> 3 -> 0
+  function cyclePriority() {
+    const newPriority = (priority + 1) % 4
+    setPriority(newPriority)
+    onUpdate(task.id, { priority: newPriority })
   }
 
   // AI 智能拆解任务
@@ -118,137 +154,213 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 
+  // 格式化日程显示文本，如 "6月26日 14:00"
+  function formatScheduleText() {
+    if (!dueDate) return ''
+    try {
+      const d = new Date(dueDate)
+      if (isNaN(d.getTime())) return ''
+      return format(d, "M'月'd'日' HH:mm", { locale: zhCN })
+    } catch {
+      return ''
+    }
+  }
+
+  // 添加检查事项（子任务）
+  function handleAddSubtask() {
+    const t = newSubtaskTitle.trim()
+    if (!t) return
+    onCreateSubtask(task.id, t)
+    setNewSubtaskTitle('')
+  }
+
+  const subtasks = task.subtasks || []
+  const availableTags = tags.filter(t => !task.tag_ids?.includes(t.id))
+
   return (
     <aside className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">任务详情</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDelete}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="删除任务"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="关闭"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      {/* ===== Top zone (fixed) ===== */}
+      <div className="flex items-start relative shrink-0">
+        {/* 优先级色条，点击循环切换 */}
+        <button
+          onClick={cyclePriority}
+          title="点击切换优先级"
+          style={{ backgroundColor: PRIORITY_BAR_COLORS[priority] ?? PRIORITY_BAR_COLORS[0] }}
+          className="w-1 self-stretch shrink-0 hover:opacity-80 transition-opacity"
+        />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">标题</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">备注</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={handleSave}
-            rows={4}
-            placeholder="添加备注..."
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">截止时间</label>
-          <input
-            type="datetime-local"
-            value={toLocalInputValue(dueDate)}
-            onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
-            onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">提醒时间</label>
-          <input
-            type="datetime-local"
-            value={toLocalInputValue(reminder)}
-            onChange={(e) => setReminder(e.target.value ? new Date(e.target.value).toISOString() : '')}
-            onBlur={handleSave}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">重复</label>
-          <select
-            value={task.repeat_rule || ''}
-            onChange={(e) => onUpdate(task.id, { repeat_rule: e.target.value || undefined })}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          >
-            <option value="">不重复</option>
-            <option value="daily">每天</option>
-            <option value="weekly">每周</option>
-            <option value="monthly">每月</option>
-            <option value="weekdays">工作日</option>
-          </select>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-medium text-gray-500">优先级</label>
+        <div className="flex-1 px-4 pt-4 pb-3 min-w-0">
+          {/* 标题行：标题 + 子任务按钮（右侧留出关闭按钮空间） */}
+          <div className="flex items-start gap-2 pr-8">
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={handleSave}
+              rows={1}
+              placeholder="任务标题"
+              className="flex-1 text-[17px] font-semibold text-[#1F2937] placeholder:text-gray-300 border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[#378ADD] overflow-hidden transition-colors"
+            />
+            {/* 子任务按钮：列表图标，点击展开子任务区域 */}
             <button
-              onClick={handleAIPriority}
-              disabled={aiPriorityLoading}
-              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
-              title="让 AI 建议优先级"
+              onClick={() => setShowSubtaskInput(v => !v)}
+              className={`shrink-0 p-1 rounded transition-colors mt-0.5 ${
+                showSubtaskInput ? 'text-[#378ADD] bg-blue-50' : 'text-gray-400 hover:text-[#378ADD] hover:bg-gray-50'
+              }`}
+              title="添加子任务"
             >
-              {aiPriorityLoading ? (
-                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              )}
-              AI 建议
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
           </div>
-          <div className="flex gap-2">
-            {priorityOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  setPriority(opt.value)
-                  onUpdate(task.id, { priority: opt.value })
-                }}
-                className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                  priority === opt.value
-                    ? `${opt.color} border-current font-medium`
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+
+          {/* 日程行：折叠的日期/时间 */}
+          <button
+            onClick={() => setShowScheduleEdit(v => !v)}
+            className="mt-2 flex items-center gap-1.5 text-sm hover:text-[#378ADD] transition-colors"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {dueDate ? (
+              <span className="text-[#6B7280]">{formatScheduleText()}</span>
+            ) : (
+              <span className="text-gray-400">设置日期</span>
+            )}
+            {task.repeat_rule && REPEAT_LABELS[task.repeat_rule] && (
+              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600">
+                {REPEAT_LABELS[task.repeat_rule]}
+              </span>
+            )}
+          </button>
+
+          {/* 内联日程编辑面板 */}
+          {showScheduleEdit && (
+            <div className="mt-2 space-y-2 bg-gray-50 rounded-lg p-3">
+              <div>
+                <span className="block text-xs text-gray-500 mb-1">截止时间</span>
+                <input
+                  type="datetime-local"
+                  value={toLocalInputValue(dueDate)}
+                  onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                  onBlur={handleSave}
+                  className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+                />
+              </div>
+              <div>
+                <span className="block text-xs text-gray-500 mb-1">提醒时间</span>
+                <input
+                  type="datetime-local"
+                  value={toLocalInputValue(reminder)}
+                  onChange={(e) => setReminder(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                  onBlur={handleSave}
+                  className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+                />
+              </div>
+              <div>
+                <span className="block text-xs text-gray-500 mb-1">重复</span>
+                <select
+                  value={task.repeat_rule || ''}
+                  onChange={(e) => onUpdate(task.id, { repeat_rule: e.target.value || undefined })}
+                  className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+                >
+                  <option value="">不重复</option>
+                  <option value="daily">每天</option>
+                  <option value="weekly">每周</option>
+                  <option value="monthly">每月</option>
+                  <option value="weekdays">工作日</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">标签</label>
+        {/* 关闭按钮：右上角 */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          title="关闭"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* ===== Middle zone (scrollable) ===== */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+        {/* 备注：内联 */}
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleSave}
+          rows={3}
+          placeholder="添加备注..."
+          className="w-full text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none resize-none bg-transparent"
+        />
+
+        {/* 子任务列表（点击标题旁按钮后展开） */}
+        {showSubtaskInput && (
+          <div className="rounded-lg bg-gray-50/60 p-3 space-y-1">
+            {subtasks.length > 0 && (
+              <div className="space-y-0.5 mb-1">
+                {subtasks.map(subtask => (
+                  <div key={subtask.id} className="group flex items-center gap-2 py-1">
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onUpdate(subtask.id, { completed: !subtask.completed })}
+                      className={`w-4 h-4 shrink-0 rounded-sm border-2 flex items-center justify-center transition-colors ${
+                        subtask.completed
+                          ? 'bg-[#378ADD] border-[#378ADD]'
+                          : 'border-gray-300 hover:border-[#378ADD]'
+                      }`}
+                    >
+                      {subtask.completed && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                    <span className={`flex-1 text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                      {subtask.title}
+                    </span>
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onDelete(subtask.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* 添加子任务输入框 */}
+            <div className="flex items-center gap-2 py-1 border-t border-gray-200/60 pt-2">
+              <span className="w-4 h-4 shrink-0 rounded-sm border-2 border-gray-200" />
+              <input
+                type="text"
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddSubtask()
+                  }
+                }}
+                placeholder="回车添加子任务"
+                className="flex-1 text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none bg-transparent border-b border-[#378ADD]/40 focus:border-[#378ADD]"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 标签：内联 pill */}
+        <div className="relative">
           <div className="flex flex-wrap gap-1.5 items-center">
             {task.tag_ids && task.tag_ids.length > 0 ? (
               task.tag_ids.map((tagId) => {
@@ -257,8 +369,11 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                 return (
                   <span
                     key={tagId}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md"
-                    style={{ backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12), color: tag.color || '#6B7280' }}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                    style={{
+                      backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12),
+                      color: tag.color || '#6B7280',
+                    }}
                   >
                     {tag.name}
                     <button
@@ -272,37 +387,71 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                   </span>
                 )
               })
-            ) : (
-              <span className="text-xs text-gray-400">暂无标签</span>
-            )}
+            ) : null}
+            {/* 添加标签按钮 */}
+            <button
+              onClick={() => setShowTagPicker(v => !v)}
+              className="w-5 h-5 flex items-center justify-center rounded-full border border-gray-200 hover:border-[#378ADD] text-gray-400 hover:text-[#378ADD] transition-colors"
+              title="添加标签"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
-          {tags.length > 0 && (
-            <div className="mt-2">
-              <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    onAddTag(task.id, Number(e.target.value))
-                  }
-                }}
-                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-500"
-              >
-                <option value="">+ 添加标签</option>
-                {tags
-                  .filter(t => !task.tag_ids?.includes(t.id))
-                  .map(tag => (
-                    <option key={tag.id} value={tag.id}>{tag.name}</option>
-                  ))
-                }
-              </select>
+
+          {/* 标签选择浮层 */}
+          {showTagPicker && (
+            <div className="absolute z-20 mt-1 bg-white rounded-lg shadow-md border border-gray-100 p-2 w-52">
+              {availableTags.length > 0 ? (
+                availableTags.map(tag => (
+                  <button
+                    key={tag.id}
+                    onClick={() => {
+                      onAddTag(task.id, tag.id)
+                      setShowTagPicker(false)
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-left"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: tag.color || '#6B7280' }}
+                    />
+                    <span className="text-sm text-gray-700">{tag.name}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 px-2 py-1">没有可添加的标签</p>
+              )}
             </div>
           )}
         </div>
 
-        {/* AI 智能拆解 */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-medium text-gray-500">AI 智能拆解</label>
+        {/* AI 面板（可折叠，默认隐藏） */}
+        {showAIPanel && (
+          <div className="rounded-lg border border-purple-100 bg-purple-50/30 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-purple-700">AI 助手</span>
+              <button
+                onClick={handleAIPriority}
+                disabled={aiPriorityLoading}
+                className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                title="让 AI 建议优先级"
+              >
+                {aiPriorityLoading ? (
+                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                )}
+                AI 建议优先级
+              </button>
+            </div>
+
             <button
               onClick={handleAIBreakdown}
               disabled={aiBreaking}
@@ -320,91 +469,109 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
               )}
               {aiBreaking ? '拆解中...' : 'AI 拆解任务'}
             </button>
-          </div>
-          {aiSuggestions.length > 0 && (
-            <div className="space-y-1.5">
-              {aiSuggestions.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-purple-50/50 border border-purple-100">
-                  <span className="flex-1 text-sm text-gray-700">{s.title}</span>
-                  {s.priority && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      s.priority === 1 ? 'bg-red-100 text-red-700' :
-                      s.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {s.priority === 1 ? '高' : s.priority === 2 ? '中' : '低'}
-                    </span>
-                  )}
+
+            {aiSuggestions.length > 0 && (
+              <div className="space-y-1.5">
+                {aiSuggestions.map((s, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-purple-100">
+                    <span className="flex-1 text-sm text-gray-700">{s.title}</span>
+                    {s.priority && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        s.priority === 1 ? 'bg-red-100 text-red-700' :
+                        s.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {s.priority === 1 ? '高' : s.priority === 2 ? '中' : '低'}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleAddSuggestion(idx, s)}
+                      disabled={addedSuggestions.has(idx)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        addedSuggestions.has(idx)
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-purple-500 text-white hover:bg-purple-600'
+                      }`}
+                    >
+                      {addedSuggestions.has(idx) ? '已添加' : '+ 添加'}
+                    </button>
+                  </div>
+                ))}
+                {addedSuggestions.size < aiSuggestions.length && (
                   <button
-                    onClick={() => handleAddSuggestion(idx, s)}
-                    disabled={addedSuggestions.has(idx)}
-                    className={`text-xs px-2 py-1 rounded transition-colors ${
-                      addedSuggestions.has(idx)
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-purple-500 text-white hover:bg-purple-600'
-                    }`}
+                    onClick={handleAddAllSuggestions}
+                    className="w-full text-xs text-purple-600 hover:text-purple-700 py-1 border border-dashed border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
                   >
-                    {addedSuggestions.has(idx) ? '已添加' : '+ 添加'}
+                    一键添加全部 ({aiSuggestions.length - addedSuggestions.size} 个)
                   </button>
-                </div>
-              ))}
-              {addedSuggestions.size < aiSuggestions.length && (
-                <button
-                  onClick={handleAddAllSuggestions}
-                  className="w-full text-xs text-purple-600 hover:text-purple-700 py-1 border border-dashed border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
-                >
-                  一键添加全部 ({aiSuggestions.length - addedSuggestions.size} 个)
-                </button>
-              )}
-            </div>
-          )}
-          {!aiBreaking && aiSuggestions.length === 0 && (
-            <p className="text-xs text-gray-400">让 AI 自动将任务拆解为可执行的子任务</p>
-          )}
+                )}
+              </div>
+            )}
+            {!aiBreaking && aiSuggestions.length === 0 && (
+              <p className="text-xs text-gray-400">让 AI 自动将任务拆解为可执行的子任务</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ===== Bottom zone (fixed toolbar) ===== */}
+      <div className="h-12 border-t border-gray-100 flex items-center justify-between px-4 relative shrink-0">
+        {/* 左侧：清单标识 */}
+        <div className="flex items-center gap-1.5">
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <span className="text-sm text-[#6B7280]">清单</span>
         </div>
 
-        {task.subtasks && task.subtasks.length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              子任务 ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
-            </label>
-            <div className="space-y-1">
-              {task.subtasks.map(subtask => (
-                <div key={subtask.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={subtask.completed}
-                    readOnly
-                    className="w-4 h-4 text-blue-500 rounded border-gray-300"
-                  />
-                  <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                    {subtask.title}
-                  </span>
-                </div>
-              ))}
+        {/* 右侧按钮组 */}
+        <div className="flex items-center gap-2">
+          {/* AI 魔法棒按钮，切换 AI 面板 */}
+          <button
+            onClick={() => setShowAIPanel(v => !v)}
+            className={`p-1 transition-colors ${showAIPanel ? 'text-purple-600' : 'text-purple-500 hover:text-purple-600'}`}
+            title="AI 助手"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+            </svg>
+          </button>
+
+          {/* 更多选项按钮 */}
+          <button
+            onClick={() => setShowMoreMenu(v => !v)}
+            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            title="更多"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="12" cy="19" r="1.5" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 更多菜单下拉 */}
+        {showMoreMenu && (
+          <div className="absolute bottom-full right-2 mb-1 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-30">
+            <button
+              onClick={() => {
+                setShowMoreMenu(false)
+                handleDelete()
+              }}
+              className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+            >
+              删除任务
+            </button>
+            <div className="my-1 border-t border-gray-100" />
+            <div className="px-3 py-1.5 text-xs text-gray-400">
+              创建于: {new Date(task.created_at).toLocaleString('zh-CN')}
+            </div>
+            <div className="px-3 py-1.5 text-xs text-gray-400">
+              更新于: {new Date(task.updated_at).toLocaleString('zh-CN')}
             </div>
           </div>
         )}
-
-        <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>创建于</span>
-            <span>{new Date(task.created_at).toLocaleString('zh-CN')}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
-            <span>更新于</span>
-            <span>{new Date(task.updated_at).toLocaleString('zh-CN')}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4 border-t border-gray-200">
-        <button
-          onClick={handleSave}
-          className="w-full px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          保存
-        </button>
       </div>
     </aside>
   )

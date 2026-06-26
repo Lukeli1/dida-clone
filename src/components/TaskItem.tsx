@@ -12,6 +12,7 @@ export interface TaskItemProps {
   onSubtaskInputChange: (val: string) => void
   onCreateSubtask: (title: string) => void
   onToggle: () => void
+  onToggleSubtask?: (subtaskId: number, completed: boolean) => void
   onClick: () => void
   onReorder: (draggedId: number, targetId: number) => void
   onDelete: (taskId: number) => void
@@ -26,7 +27,7 @@ export interface TaskItemProps {
   onDragEndGlobal?: () => void
 }
 
-export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal }: TaskItemProps) {
+export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onToggleSubtask, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal }: TaskItemProps) {
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -69,6 +70,8 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
+    // 通知其他 TaskItem 关闭各自的右键菜单
+    document.dispatchEvent(new CustomEvent('close-context-menus'))
     setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
@@ -101,8 +104,24 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
   useEffect(() => {
     if (!contextMenu) return
     function closeMenu() { setContextMenu(null) }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
     window.addEventListener('click', closeMenu)
-    return () => window.removeEventListener('click', closeMenu)
+    // 右键空白处也能关闭菜单（stopPropagation 阻止了右键任务时的冒泡）
+    window.addEventListener('contextmenu', closeMenu)
+    // 滚动时关闭菜单
+    window.addEventListener('scroll', closeMenu, true)
+    // 其他 TaskItem 右键时发来的关闭信号
+    document.addEventListener('close-context-menus', closeMenu)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('click', closeMenu)
+      window.removeEventListener('contextmenu', closeMenu)
+      window.removeEventListener('scroll', closeMenu, true)
+      document.removeEventListener('close-context-menus', closeMenu)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [contextMenu])
 
   return (
@@ -237,7 +256,12 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
               <input
                 type="checkbox"
                 checked={subtask.completed}
-                onChange={(e) => { e.stopPropagation(); onToggle() }}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  if (onToggleSubtask) {
+                    onToggleSubtask(subtask.id, !subtask.completed)
+                  }
+                }}
                 onClick={(e) => e.stopPropagation()}
                 className="checkbox-bounce w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
               />

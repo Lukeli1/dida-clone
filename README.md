@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.6.0-blue)
+![版本](https://img.shields.io/badge/version-1.7.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -17,6 +17,8 @@
 - 三栏布局：侧边栏 | 任务列表 | 任务详情
 - 任务支持：标题、备注、优先级（高/中/低）、截止时间、时间段、提醒、重复规则
 - 子任务：支持多级任务拆解
+- **详情页子任务创建**（v1.7.0）：任务详情页标题栏新增子任务按钮，点击展开子任务列表区域，支持复选框勾选、删除、回车快速添加
+- **子任务独立勾选**（v1.7.0）：任务列表和详情页中子任务复选框独立切换完成状态，不再错误标记父任务完成
 - 标签与清单：多清单管理，彩色标签分类
 - 拖拽排序：任务可拖拽调整顺序
 - 右键菜单：删除、重命名、归档/恢复
@@ -173,6 +175,21 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.7.0（2026-06-27）
+
+#### 新增功能
+- **任务详情页子任务管理**：TaskDetail 重写为滴答清单风格三区布局（固定标题区 + 可滚动内容区 + 固定底部工具栏），标题栏新增子任务按钮，点击展开子任务列表区域，支持复选框勾选、删除、回车快速添加子任务；底部工具栏集成 AI 助手、更多操作菜单
+
+#### Bug 修复
+- **子任务复选框错误标记父任务完成**：任务列表中展开的子任务复选框原先调用父任务的 `onToggle`，导致点击子任务勾选框会将父任务标记为完成（添加删除线）；新增 `onToggleSubtask` prop 走 `updateTask` 路径独立更新子任务状态
+- **详情页子任务操作触发标题失焦保存**：点击子任务复选框/删除按钮会触发标题 textarea 的 `onBlur` → `handleSave()`，可能在子任务更新之前先保存父任务字段；添加 `onMouseDown preventDefault` 阻止焦点转移
+- **右键菜单不消失**：每个 TaskItem 维护独立的 `contextMenu` 状态，右键新任务时旧菜单不关闭；新增 `close-context-menus` 自定义事件通知其他实例关闭，同时监听 `contextmenu`、`scroll`、`Escape` 键
+- **删除任务 FK 约束失败**：Rust 后端 `delete_task` 在存在子任务或标签关联时因 FOREIGN KEY 约束删除失败；改为先级联删除 `task_tags` 和子任务再删除主任务
+
+#### 改进
+- `taskStore.updateTask` 支持嵌套子任务更新（同时更新顶层任务和父任务的 `subtasks` 数组）
+- `taskStore.deleteTask` 支持从父任务的 `subtasks` 数组中移除被删子任务
 
 ### v1.6.0（2026-06-26）
 

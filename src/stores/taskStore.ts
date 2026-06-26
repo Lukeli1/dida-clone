@@ -48,9 +48,24 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       await api.updateTask(id, updates)
       set((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
-        ),
+        tasks: state.tasks.map((t) => {
+          // 更新顶层任务本身
+          if (t.id === id) {
+            return { ...t, ...updates, updated_at: new Date().toISOString() }
+          }
+          // 同时检查并更新嵌套的子任务
+          if (t.subtasks && t.subtasks.some(st => st.id === id)) {
+            return {
+              ...t,
+              subtasks: t.subtasks.map(st =>
+                st.id === id
+                  ? { ...st, ...updates, updated_at: new Date().toISOString() }
+                  : st
+              ),
+            }
+          }
+          return t
+        }),
       }))
       return true
     } catch (error) {
@@ -63,7 +78,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       await api.deleteTask(id)
       set((state) => ({
-        tasks: state.tasks.filter((t) => t.id !== id),
+        tasks: state.tasks
+          .filter((t) => t.id !== id)
+          .map((t) =>
+            t.subtasks
+              ? { ...t, subtasks: t.subtasks.filter(st => st.id !== id) }
+              : t
+          ),
       }))
       return true
     } catch (error) {

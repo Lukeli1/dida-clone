@@ -542,6 +542,14 @@ function App() {
       parent_id: parentId,
     })
     if (newTask) {
+      // 手动更新父任务的 subtasks 字段，使详情页立即显示新子任务
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === parentId
+            ? { ...t, subtasks: [...(t.subtasks || []), newTask] }
+            : t
+        ),
+      }))
       setSubtaskInput(parentId, '')
       // 自动展开父任务
       const uiState = useUIStore.getState()
@@ -1153,6 +1161,7 @@ function App() {
                       onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                       onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                       onToggle={() => handleToggleTask(task)}
+                      onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
                       onClick={() => setSelectedTaskId(task.id)}
                       onReorder={() => {}}
                       onDelete={handleDeleteTask}
@@ -1194,6 +1203,7 @@ function App() {
                             onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                             onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                             onToggle={() => handleToggleTask(task)}
+                            onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
                             onClick={() => setSelectedTaskId(task.id)}
                             onReorder={() => {}}
                             onDelete={handleDeleteTask}
@@ -1231,6 +1241,7 @@ function App() {
                           onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                           onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                           onToggle={() => handleToggleTask(task)}
+                          onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
                           onClick={() => setSelectedTaskId(task.id)}
                           onReorder={handleReorderTasks}
                           onDelete={handleDeleteTask}
@@ -1270,6 +1281,7 @@ function App() {
                                 onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                                 onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                                 onToggle={() => handleToggleTask(task)}
+                                onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
                                 onClick={() => setSelectedTaskId(task.id)}
                                 onReorder={() => {}}
                                 onDelete={handleDeleteTask}

@@ -1,6 +1,6 @@
 [package]
 name = "dida-clone"
-version = "1.6.0"
+version = "1.7.0"
 description = "滴答清单本地复刻"
 authors = ["you"]
 edition = "2021"
