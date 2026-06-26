@@ -150,6 +150,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
             onToday={goToToday}
             onMoveTask={onMoveTask}
             onCreateTaskOnRange={onCreateTaskOnRange}
+            onUpdateTask={onUpdateTask}
           />
         )}
       </div>

@@ -18,6 +18,7 @@ interface WeekViewProps {
   onToday: () => void
   onMoveTask: (taskId: number, newDate: string) => void
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
+  onUpdateTask: (taskId: number, updates: Partial<Task>) => void
 }
 
 const HOUR_HEIGHT = 60
@@ -54,9 +55,13 @@ const priorityFlags = [
   { value: 3, color: 'text-green-500', label: '低优先级' },
 ]
 
-export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevWeek, onNextWeek, onToday, onMoveTask, onCreateTaskOnRange }: WeekViewProps) {
+export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevWeek, onNextWeek, onToday, onMoveTask, onCreateTaskOnRange, onUpdateTask }: WeekViewProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
+
+  const [resizingTaskId, setResizingTaskId] = useState<number | null>(null)
+  const [resizeMode, setResizeMode] = useState<'top' | 'bottom' | null>(null)
+  const [resizePreview, setResizePreview] = useState<{ top: number; height: number } | null>(null)
 
   const [selection, setSelection] = useState<Selection | null>(null)
   const [createPopup, setCreatePopup] = useState<CreatePopup | null>(null)
@@ -69,6 +74,8 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
   const selectingRef = useRef(false)
   const selStartRef = useRef<{ dateKey: string; minute: number } | null>(null)
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  const resizeStartRef = useRef<{ taskId: number; mode: 'top' | 'bottom'; startY: number; originalTop: number; originalHeight: number; dateKey: string } | null>(null)
 
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
@@ -119,6 +126,7 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
 
   const handleTimeMouseDown = useCallback((e: React.MouseEvent, dateKey: string) => {
     if (e.button !== 0) return
+    if (resizeMode !== null) return
     if ((e.target as HTMLElement).closest('[data-task]')) return
     const minute = getMinuteFromEvent(e, dateKey)
     if (minute === null) return
@@ -126,7 +134,7 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
     selStartRef.current = { dateKey, minute }
     setSelection({ dateKey, startMinute: minute, endMinute: minute })
     setCreatePopup(null)
-  }, [])
+  }, [resizeMode])
 
   const handleTimeMouseMove = useCallback((e: React.MouseEvent, dateKey: string) => {
     if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) return
@@ -288,6 +296,101 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
   }
 
+  function handleResizeStart(e: React.MouseEvent, task: Task, mode: 'top' | 'bottom', dateKey: string) {
+    e.stopPropagation()
+    e.preventDefault()
+
+    const top = getTaskTop(task)
+    const height = getTaskHeight(task)
+
+    resizeStartRef.current = {
+      taskId: task.id,
+      mode,
+      startY: e.clientY,
+      originalTop: top,
+      originalHeight: height,
+      dateKey,
+    }
+    setResizingTaskId(task.id)
+    setResizeMode(mode)
+    setResizePreview({ top, height })
+  }
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizeStartRef.current) return
+    const { startY, originalTop, originalHeight, mode } = resizeStartRef.current
+    const deltaY = e.clientY - startY
+
+    if (mode === 'top') {
+      // Dragging top edge: change start time (top position)
+      let newTop = originalTop + deltaY
+      // Constrain: top can't go below bottom - 30px (min 30min task)
+      const maxTop = originalTop + originalHeight - 30
+      newTop = Math.max(0, Math.min(maxTop, newTop))
+      // Snap to 15-min increments
+      newTop = Math.round(newTop / 15) * 15
+      const newHeight = originalHeight + (originalTop - newTop)
+      setResizePreview({ top: newTop, height: newHeight })
+    } else {
+      // Dragging bottom edge: change end time (height)
+      let newHeight = originalHeight + deltaY
+      // Constrain: min 30px height
+      newHeight = Math.max(30, newHeight)
+      // Snap to 15-min increments
+      newHeight = Math.round(newHeight / 15) * 15
+      setResizePreview({ top: originalTop, height: newHeight })
+    }
+  }, [])
+
+  const handleResizeEnd = useCallback(() => {
+    if (!resizeStartRef.current || !resizePreview) {
+      resizeStartRef.current = null
+      setResizingTaskId(null)
+      setResizeMode(null)
+      setResizePreview(null)
+      return
+    }
+
+    const { taskId, dateKey, mode } = resizeStartRef.current
+    const task = tasks.find(t => t.id === taskId)
+    if (task && task.due_date) {
+      const [year, month, day] = dateKey.split('-').map(Number)
+
+      if (mode === 'top') {
+        // Calculate new start time from preview top
+        const newStartMinutes = resizePreview.top  // top is already in minutes (since HOUR_HEIGHT=60, pixels == minutes)
+        const newStartHour = Math.floor(newStartMinutes / 60)
+        const newStartMin = newStartMinutes % 60
+        const newDueDate = new Date(year, month - 1, day, newStartHour, newStartMin)
+        // Don't change end_date - it stays the same, so the duration changes
+        onUpdateTask(taskId, { due_date: newDueDate.toISOString() })
+      } else {
+        // Calculate new end time from preview height
+        const newEndMinutes = resizePreview.top + resizePreview.height
+        const newEndHour = Math.floor(newEndMinutes / 60)
+        const newEndMin = newEndMinutes % 60
+        const newEndDate = new Date(year, month - 1, day, newEndHour, newEndMin)
+        onUpdateTask(taskId, { end_date: newEndDate.toISOString() })
+      }
+    }
+
+    resizeStartRef.current = null
+    setResizingTaskId(null)
+    setResizeMode(null)
+    setResizePreview(null)
+  }, [resizePreview, tasks, onUpdateTask])
+
+  useEffect(() => {
+    if (resizingTaskId) {
+      window.addEventListener('mousemove', handleResizeMove)
+      window.addEventListener('mouseup', handleResizeEnd)
+      return () => {
+        window.removeEventListener('mousemove', handleResizeMove)
+        window.removeEventListener('mouseup', handleResizeEnd)
+      }
+    }
+  }, [resizingTaskId, handleResizeMove, handleResizeEnd])
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
@@ -353,8 +456,12 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
                     {dayTasks.filter((t) => t.due_date).map((task) => {
                       const top = getTaskTop(task)
                       const height = getTaskHeight(task)
+                      // If this task is being resized, use preview values
+                      const isResizing = resizingTaskId === task.id
+                      const displayTop = isResizing && resizePreview ? resizePreview.top : top
+                      const displayHeight = isResizing && resizePreview ? resizePreview.height : height
                       return (
-                        <div key={task.id} data-task draggable onDragStart={(e) => handleDragStart(e, task.id)}
+                        <div key={task.id} data-task draggable={resizingTaskId === null} onDragStart={(e) => handleDragStart(e, task.id)}
                           className={`absolute left-1 right-1 rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group ${
                             task.completed
                               ? 'bg-gray-200 text-gray-400 line-through'
@@ -362,7 +469,22 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
                               : task.priority === 2 ? 'bg-yellow-100 text-yellow-700 border-l-2 border-yellow-400'
                               : 'bg-blue-100 text-blue-700 border-l-2 border-blue-400'
                           } ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
-                          style={{ top: `${top}px`, height: `${height}px` }}>
+                          style={{ top: `${displayTop}px`, height: `${displayHeight}px` }}>
+                          {/* TOP resize handle */}
+                          {task.end_date && (
+                            <div
+                              className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-black/10 z-10"
+                              onMouseDown={(e) => handleResizeStart(e, task, 'top', key)}
+                            />
+                          )}
+
+                          {/* resize time tooltip */}
+                          {isResizing && resizePreview && (
+                            <div className="absolute -top-6 left-0 bg-gray-800 text-white text-xs px-2 py-0.5 rounded whitespace-nowrap z-30">
+                              {formatMinute(resizePreview.top)} - {formatMinute(resizePreview.top + resizePreview.height)}
+                            </div>
+                          )}
+
                           <input type="checkbox" checked={task.completed}
                             onChange={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
                             onClick={(e) => e.stopPropagation()}
@@ -371,6 +493,14 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
                           <span onClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }} className="cursor-pointer">
                             {task.due_date && <span className="font-medium">{format(new Date(task.due_date), 'HH:mm')}</span>} {task.title}
                           </span>
+
+                          {/* BOTTOM resize handle */}
+                          {task.end_date && (
+                            <div
+                              className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-black/10 z-10"
+                              onMouseDown={(e) => handleResizeStart(e, task, 'bottom', key)}
+                            />
+                          )}
                         </div>
                       )
                     })}

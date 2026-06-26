@@ -270,11 +270,11 @@ export function MonthView({ currentDate, tasks, lists, onDateClick, onTaskClick,
       </div>
 
       {/* 日历网格 */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-y-auto">
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
           return (
-            <div key={ri} className="grid grid-cols-7 border-b border-gray-100 relative" style={{ minHeight: '120px' }}>
+            <div key={ri} className="grid grid-cols-7 border-b border-gray-100 relative flex-1" style={{ minHeight: '110px' }}>
               {/* 左侧周数标记 */}
               {ri === 0 && (
                 <div className="absolute -left-0 top-0 text-[10px] text-gray-300 px-1 py-0.5 z-10 hidden">
