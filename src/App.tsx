@@ -6,9 +6,10 @@ import {
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { api } from './api'
-import type { Task, List, Tag, ReorderItem } from './types'
-import { Sidebar, type ViewType } from './components/Sidebar'
+import type { Task, ReorderItem } from './types'
+import { Sidebar } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
+import { TaskItem } from './components/TaskItem'
 import { CalendarView } from './components/CalendarView'
 import { StatsView } from './components/StatsView'
 import { SettingsView } from './components/SettingsView'
@@ -18,47 +19,79 @@ import { PomodoroView } from './components/PomodoroView'
 import { HabitView } from './components/HabitView'
 import { EmptyState } from './components/EmptyState'
 import { useToast } from './components/Toast'
-import { getPriorityStyle, hexWithAlpha } from './utils/priority'
 import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
-
-interface FilterState {
-  priority: number | null
-  dateRange: 'all' | 'today' | 'week' | 'month' | 'overdue' | 'none'
-  tagId: number | null
-  listId: number | null
-}
+import { useTaskStore } from './stores/taskStore'
+import { useListStore } from './stores/listStore'
+import { useTagStore } from './stores/tagStore'
+import { useFilterStore, type FilterState } from './stores/filterStore'
+import { useUIStore } from './stores/uiStore'
 
 function App() {
   const toast = useToast()
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [lists, setLists] = useState<List[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
-  const [loading, setLoading] = useState(true)
+
+  // ===== Store hooks: data =====
+  const tasks = useTaskStore(s => s.tasks)
+  const lists = useListStore(s => s.lists)
+  const tags = useTagStore(s => s.tags)
+  const loading = useTaskStore(s => s.loading)
+
+  // ===== Store hooks: UI state =====
+  const currentView = useUIStore(s => s.currentView)
+  const selectedListId = useUIStore(s => s.selectedListId)
+  const selectedTagId = useUIStore(s => s.selectedTagId)
+  const selectedTaskId = useUIStore(s => s.selectedTaskId)
+  const showCompleted = useUIStore(s => s.showCompleted)
+  const showOverdue = useUIStore(s => s.showOverdue)
+  const showFilters = useUIStore(s => s.showFilters)
+  const aiMode = useUIStore(s => s.aiMode)
+  const aiParsing = useUIStore(s => s.aiParsing)
+  const expandedTasks = useUIStore(s => s.expandedTasks)
+  const subtaskInputs = useUIStore(s => s.subtaskInputs)
+  const batchMode = useUIStore(s => s.batchMode)
+  const selectedTaskIds = useUIStore(s => s.selectedTaskIds)
+  const isDraggingTask = useUIStore(s => s.isDraggingTask)
+  const dragOverCalendarDate = useUIStore(s => s.dragOverCalendarDate)
+  const miniCalendarDate = useUIStore(s => s.miniCalendarDate)
+  const searchQuery = useUIStore(s => s.searchQuery)
+
+  // ===== Store hooks: UI actions =====
+  const setCurrentView = useUIStore(s => s.setCurrentView)
+  const setSelectedListId = useUIStore(s => s.setSelectedListId)
+  const setSelectedTagId = useUIStore(s => s.setSelectedTagId)
+  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const setShowCompleted = useUIStore(s => s.setShowCompleted)
+  const setShowOverdue = useUIStore(s => s.setShowOverdue)
+  const toggleTaskExpand = useUIStore(s => s.toggleTaskExpand)
+  const toggleTaskSelection = useUIStore(s => s.toggleTaskSelection)
+  const selectAllTasksAction = useUIStore(s => s.selectAllTasks)
+  const clearSelection = useUIStore(s => s.clearSelection)
+  const setSearchQuery = useUIStore(s => s.setSearchQuery)
+  const toggleBatchMode = useUIStore(s => s.toggleBatchMode)
+  const toggleFilters = useUIStore(s => s.toggleFilters)
+  const setSubtaskInput = useUIStore(s => s.setSubtaskInput)
+  const setAiMode = useUIStore(s => s.setAiMode)
+  const setAiParsing = useUIStore(s => s.setAiParsing)
+  const setIsDraggingTask = useUIStore(s => s.setIsDraggingTask)
+  const setDragOverCalendarDate = useUIStore(s => s.setDragOverCalendarDate)
+  const setMiniCalendarDate = useUIStore(s => s.setMiniCalendarDate)
+
+  // ===== Filter store =====
+  const filters = useFilterStore()
+
+  // ===== Local state =====
   const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [selectedListId, setSelectedListId] = useState<number | null>(null)
-  const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
-  const [currentView, setCurrentView] = useState<ViewType>('tasks')
-  const [showCompleted, setShowCompleted] = useState(false)
-  const [showOverdue, setShowOverdue] = useState(true)
-  const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
-  const [subtaskInputs, setSubtaskInputs] = useState<Record<number, string>>({})
-  const [searchQuery, setSearchQuery] = useState('')
-  const [aiMode, setAiMode] = useState(false)
-  const [aiParsing, setAiParsing] = useState(false)
-  const [filters, setFilters] = useState<FilterState>({ priority: null, dateRange: 'all', tagId: null, listId: null })
-  const [showFilters, setShowFilters] = useState(false)
-  const [batchMode, setBatchMode] = useState(false)
-  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
-  const [isDraggingTask, setIsDraggingTask] = useState(false)
-  const [dragOverCalendarDate, setDragOverCalendarDate] = useState<string | null>(null)
-  const [miniCalendarDate, setMiniCalendarDate] = useState(new Date())
+
+  // ===== Refs =====
   const newTaskInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const notifiedTaskIds = useRef<Set<number>>(new Set())
+  const autoArchivedRef = useRef(false)
 
+  // ===== Effects =====
   useEffect(() => {
-    loadData()
+    useTaskStore.getState().loadTasks()
+    useListStore.getState().loadLists()
+    useTagStore.getState().loadTags()
     // 启动时应用保存的主题
     const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system'
     const root = document.documentElement
@@ -69,7 +102,6 @@ function App() {
     }
   }, [])
 
-  const autoArchivedRef = useRef(false)
   useEffect(() => {
     if (autoArchivedRef.current || tasks.length === 0) return
     autoArchivedRef.current = true
@@ -80,7 +112,7 @@ function App() {
     )
     if (toArchive.length > 0) {
       Promise.all(toArchive.map(t => api.updateTask(t.id, { archived: true })))
-        .then(() => loadData())
+        .then(() => useTaskStore.getState().loadTasks())
         .catch(err => console.error('Auto-archive failed:', err))
     }
   }, [tasks])
@@ -165,26 +197,9 @@ function App() {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTaskId, searchQuery])
+  }, [selectedTaskId, searchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setSearchQuery])
 
-  async function loadData() {
-    try {
-      const [tasksData, listsData, tagsData] = await Promise.all([
-        api.getTasks(),
-        api.getLists(),
-        api.getTags(),
-      ])
-      setTasks(tasksData)
-      setLists(listsData)
-      setTags(tagsData)
-    } catch (error) {
-      console.error('Failed to load data:', error)
-      toast.error('加载数据失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // ===== Memoized computations =====
   // 今日未完成任务数
   const todayCount = useMemo(() => {
     return tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date))).length
@@ -272,13 +287,22 @@ function App() {
     })
   }, [tasks, selectedListId, selectedTagId, currentView, searchQuery, filters, hasActiveFilters])
 
-  // 组装任务树：只显示顶层任务（无 parent_id），子任务挂载到 subtasks
+  // 组装任务树：只显示顶层任务（无 parent_id），子任务挂载到 subtasks（Map-based O(n)）
   const taskTree = useMemo(() => {
-    const topLevel = filteredTasks.filter(t => !t.parent_id)
-    const subtasks = filteredTasks.filter(t => t.parent_id)
-    return topLevel.map(task => ({
+    const subtaskMap = new Map<number, Task[]>()
+    const topLevel: Task[] = []
+    for (const task of filteredTasks) {
+      if (task.parent_id) {
+        const arr = subtaskMap.get(task.parent_id)
+        if (arr) arr.push(task)
+        else subtaskMap.set(task.parent_id, [task])
+      } else {
+        topLevel.push(task)
+      }
+    }
+    return topLevel.map((task) => ({
       ...task,
-      subtasks: subtasks.filter(st => st.parent_id === task.id)
+      subtasks: subtaskMap.get(task.id) || [],
     }))
   }, [filteredTasks])
 
@@ -320,6 +344,7 @@ function App() {
     return tasks.find((t) => t.id === selectedTaskId) || null
   }, [tasks, selectedTaskId])
 
+  // ===== Handler functions =====
   async function handleCreateTask() {
     if (!newTaskTitle.trim()) return
 
@@ -329,17 +354,15 @@ function App() {
       return
     }
 
-    try {
-      const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-      const newTask = await api.createTask({
-        title: newTaskTitle,
-        list_id: listId,
-      })
-      setTasks([newTask, ...tasks])
+    const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
+    const newTask = await useTaskStore.getState().createTask({
+      title: newTaskTitle,
+      list_id: listId,
+    })
+    if (newTask) {
       setNewTaskTitle('')
       toast.success('任务已创建')
-    } catch (error) {
-      console.error('Failed to create task:', error)
+    } else {
       toast.error('创建任务失败')
     }
   }
@@ -355,22 +378,25 @@ function App() {
     try {
       const parsed = await parseNaturalLanguageTask(newTaskTitle.trim())
       const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-      const newTask = await api.createTask({
+      const newTask = await useTaskStore.getState().createTask({
         title: parsed.title,
         list_id: listId,
         due_date: parsed.due_date || undefined,
         priority: parsed.priority ?? 0,
         notes: parsed.notes || undefined,
       })
-      setTasks([newTask, ...tasks])
-      setNewTaskTitle('')
-      const extras: string[] = []
-      if (parsed.due_date) extras.push(`时间: ${new Date(parsed.due_date).toLocaleString('zh-CN')}`)
-      if (parsed.priority && parsed.priority > 0) {
-        const pLabel = parsed.priority === 1 ? '高' : parsed.priority === 2 ? '中' : '低'
-        extras.push(`优先级: ${pLabel}`)
+      if (newTask) {
+        setNewTaskTitle('')
+        const extras: string[] = []
+        if (parsed.due_date) extras.push(`时间: ${new Date(parsed.due_date).toLocaleString('zh-CN')}`)
+        if (parsed.priority && parsed.priority > 0) {
+          const pLabel = parsed.priority === 1 ? '高' : parsed.priority === 2 ? '中' : '低'
+          extras.push(`优先级: ${pLabel}`)
+        }
+        toast.success(`AI 已创建任务${extras.length ? '（' + extras.join('，') + '）' : ''}`)
+      } else {
+        toast.error('创建任务失败')
       }
-      toast.success(`AI 已创建任务${extras.length ? '（' + extras.join('，') + '）' : ''}`)
     } catch (error: any) {
       console.error('AI parse failed:', error)
       toast.error(`AI 解析失败: ${error.message || error}`)
@@ -380,192 +406,149 @@ function App() {
   }
 
   async function handleToggleTask(task: Task) {
-    try {
-      // 如果是完成操作且有重复规则，使用 completeTask 自动生成下一周期
-      if (!task.completed && task.repeat_rule) {
-        const result = await api.completeTask(task.id)
-        // 标记当前任务为已完成
-        setTasks(tasks.map((t) => (t.id === task.id ? { ...t, completed: true, updated_at: new Date().toISOString() } : t)))
-        // 如果生成了新任务，重新加载数据
-        if (result.new_task_id) {
-          await loadData()
-          toast.success('重复任务已生成下一周期')
-        } else {
-          toast.success('任务已完成')
-        }
-        return
-      }
-      await api.updateTask(task.id, { completed: !task.completed })
-      setTasks(tasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t)))
-    } catch (error) {
-      console.error('Failed to update task:', error)
+    const result = await useTaskStore.getState().toggleTask(task)
+    if (!result.success) {
       toast.error('更新任务失败')
+    } else if (!task.completed && task.repeat_rule) {
+      // Was completing a repeat task
+      if (result.newTaskGenerated) {
+        toast.success('重复任务已生成下一周期')
+      } else {
+        toast.success('任务已完成')
+      }
     }
   }
 
   async function handleUpdateTask(id: number, updates: Partial<Task>) {
-    try {
-      await api.updateTask(id, updates)
-      setTasks(tasks.map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t)))
-    } catch (error) {
-      console.error('Failed to update task:', error)
+    const success = await useTaskStore.getState().updateTask(id, updates)
+    if (!success) {
       toast.error('更新任务失败')
     }
   }
 
   async function handleDeleteTask(id: number) {
-    try {
-      await api.deleteTask(id)
-      setTasks(tasks.filter((t) => t.id !== id))
+    const success = await useTaskStore.getState().deleteTask(id)
+    if (success) {
       setSelectedTaskId(null)
       toast.success('任务已删除')
-    } catch (error) {
-      console.error('Failed to delete task:', error)
+    } else {
       toast.error('删除任务失败')
     }
   }
 
   async function handleCreateList(name: string, color?: string) {
-    try {
-      const newList = await api.createList({ name, color })
-      setLists([...lists, newList])
+    const newList = await useListStore.getState().createList({ name, color })
+    if (newList) {
       toast.success('清单已创建')
-    } catch (error) {
-      console.error('Failed to create list:', error)
+    } else {
       toast.error('创建清单失败')
     }
   }
 
   async function handleUpdateList(id: number, updates: { name?: string; color?: string }) {
-    try {
-      await api.updateList(id, updates)
-      setLists(lists.map((l) => (l.id === id ? { ...l, ...updates, updated_at: new Date().toISOString() } : l)))
+    const success = await useListStore.getState().updateList(id, updates)
+    if (success) {
       toast.success('清单已更新')
-    } catch (error) {
-      console.error('Failed to update list:', error)
+    } else {
       toast.error('更新清单失败')
     }
   }
 
   async function handleDeleteList(id: number) {
-    try {
-      await api.deleteList(id)
+    // Get default list ID before deleting
+    const allLists = useListStore.getState().lists
+    const defaultList = allLists.find((l) => l.is_default)
+    const defaultId = defaultList?.id ?? allLists[0]?.id ?? 1
+
+    const success = await useListStore.getState().deleteList(id)
+    if (success) {
       // 将被删清单的任务移到默认清单
-      const defaultList = lists.find((l) => l.is_default)
-      const defaultId = defaultList?.id ?? lists[0]?.id ?? 1
-      setTasks(tasks.map((t) => (t.list_id === id ? { ...t, list_id: defaultId } : t)))
-      setLists(lists.filter((l) => l.id !== id))
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) => (t.list_id === id ? { ...t, list_id: defaultId } : t))
+      }))
       if (selectedListId === id) setSelectedListId(null)
       toast.success('清单已删除')
-    } catch (error) {
-      console.error('Failed to delete list:', error)
+    } else {
       toast.error('删除清单失败')
     }
   }
 
   async function handleMoveTask(taskId: number, newDate: string) {
-    try {
-      const task = tasks.find(t => t.id === taskId)
-      const updates: Partial<Task> = { due_date: newDate }
-      // 如果任务有 end_date，保留时长不变
-      if (task?.end_date && task?.due_date) {
-        const oldStart = new Date(task.due_date).getTime()
-        const oldEnd = new Date(task.end_date).getTime()
-        const duration = oldEnd - oldStart
-        const newStart = new Date(newDate)
-        const newEnd = new Date(newStart.getTime() + duration)
-        updates.end_date = newEnd.toISOString()
-      }
-      await api.updateTask(taskId, updates)
-      setTasks(tasks.map((t) =>
-        t.id === taskId ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
-      ))
-    } catch (error) {
-      console.error('Failed to move task:', error)
+    const success = await useTaskStore.getState().moveTask(taskId, newDate)
+    if (!success) {
       toast.error('移动任务失败')
     }
   }
 
   async function handleCreateTag(name: string, color?: string) {
-    try {
-      const newTag = await api.createTag({ name, color })
-      setTags([...tags, newTag])
+    const newTag = await useTagStore.getState().createTag({ name, color })
+    if (newTag) {
       toast.success('标签已创建')
-    } catch (error) {
-      console.error('Failed to create tag:', error)
+    } else {
       toast.error('创建标签失败')
     }
   }
 
   async function handleDeleteTag(id: number) {
-    try {
-      await api.deleteTag(id)
-      setTags(tags.filter((t) => t.id !== id))
+    const success = await useTagStore.getState().deleteTag(id)
+    if (success) {
       // 从所有任务中移除该标签
-      setTasks(tasks.map((t) => ({
-        ...t,
-        tag_ids: t.tag_ids?.filter(tid => tid !== id)
-      })))
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) => ({
+          ...t,
+          tag_ids: t.tag_ids?.filter(tid => tid !== id)
+        }))
+      }))
       if (selectedTagId === id) setSelectedTagId(null)
       toast.success('标签已删除')
-    } catch (error) {
-      console.error('Failed to delete tag:', error)
+    } else {
       toast.error('删除标签失败')
     }
   }
 
   async function handleAddTagToTask(taskId: number, tagId: number) {
-    try {
-      await api.addTagToTask(taskId, tagId)
-      setTasks(tasks.map((t) =>
-        t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t
-      ))
-    } catch (error) {
-      console.error('Failed to add tag:', error)
+    const success = await useTagStore.getState().addTagToTask(taskId, tagId)
+    if (success) {
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t
+        )
+      }))
+    } else {
       toast.error('添加标签失败')
     }
   }
 
   async function handleRemoveTagFromTask(taskId: number, tagId: number) {
-    try {
-      await api.removeTagFromTask(taskId, tagId)
-      setTasks(tasks.map((t) =>
-        t.id === taskId ? { ...t, tag_ids: t.tag_ids?.filter(tid => tid !== tagId) } : t
-      ))
-    } catch (error) {
-      console.error('Failed to remove tag:', error)
+    const success = await useTagStore.getState().removeTagFromTask(taskId, tagId)
+    if (success) {
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId ? { ...t, tag_ids: t.tag_ids?.filter(tid => tid !== tagId) } : t
+        )
+      }))
+    } else {
       toast.error('移除标签失败')
     }
   }
 
-  function toggleTaskExpand(taskId: number) {
-    setExpandedTasks(prev => {
-      const next = new Set(prev)
-      if (next.has(taskId)) {
-        next.delete(taskId)
-      } else {
-        next.add(taskId)
-      }
-      return next
-    })
-  }
-
   async function handleCreateSubtask(parentId: number, title: string) {
     if (!title.trim()) return
-    try {
-      const parentTask = tasks.find(t => t.id === parentId)
-      const listId = parentTask?.list_id ?? (lists.length > 0 ? lists[0].id : 1)
-      const newTask = await api.createTask({
-        title: title.trim(),
-        list_id: listId,
-        parent_id: parentId,
-      })
-      setTasks([newTask, ...tasks])
-      setSubtaskInputs({ ...subtaskInputs, [parentId]: '' })
+    const parentTask = tasks.find(t => t.id === parentId)
+    const listId = parentTask?.list_id ?? (lists.length > 0 ? lists[0].id : 1)
+    const newTask = await useTaskStore.getState().createTask({
+      title: title.trim(),
+      list_id: listId,
+      parent_id: parentId,
+    })
+    if (newTask) {
+      setSubtaskInput(parentId, '')
       // 自动展开父任务
-      setExpandedTasks(prev => new Set(prev).add(parentId))
-    } catch (error) {
-      console.error('Failed to create subtask:', error)
+      const uiState = useUIStore.getState()
+      if (!uiState.expandedTasks.has(parentId)) {
+        uiState.toggleTaskExpand(parentId)
+      }
+    } else {
       toast.error('创建子任务失败')
     }
   }
@@ -591,30 +574,27 @@ function App() {
 
     // 乐观更新 UI
     const sortOrderMap = new Map(reorderItems.map(item => [item.id, item.sort_order]))
-    setTasks(tasks.map(t => sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t))
+    useTaskStore.setState((state) => ({
+      tasks: state.tasks.map(t => sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t)
+    }))
 
-    try {
-      await api.reorderTasks(reorderItems)
-    } catch (error) {
-      console.error('Failed to reorder tasks:', error)
+    const success = await useTaskStore.getState().reorderTasks(reorderItems)
+    if (!success) {
       toast.error('排序失败')
-      await loadData()
     }
   }
 
   async function handleCreateTaskOnDate(date: string, title?: string) {
-    try {
-      const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-      const newTask = await api.createTask({
-        title: title || '新任务',
-        list_id: listId,
-        due_date: date,
-      })
-      setTasks([newTask, ...tasks])
+    const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
+    const newTask = await useTaskStore.getState().createTask({
+      title: title || '新任务',
+      list_id: listId,
+      due_date: date,
+    })
+    if (newTask) {
       setSelectedTaskId(newTask.id)
       toast.success('任务已创建')
-    } catch (error) {
-      console.error('Failed to create task:', error)
+    } else {
       toast.error('创建任务失败')
     }
   }
@@ -625,7 +605,7 @@ function App() {
       const dueDate = new Date(year, month - 1, day, data.startHour, data.startMin)
       const endDate = new Date(year, month - 1, day, data.endHour, data.endMin)
       const reminder = new Date(year, month - 1, day, data.startHour, data.startMin)
-      const newTask = await api.createTask({
+      const newTask = await useTaskStore.getState().createTask({
         title: data.title,
         notes: data.notes,
         priority: data.priority,
@@ -634,9 +614,12 @@ function App() {
         end_date: endDate.toISOString(),
         reminder: reminder.toISOString(),
       })
-      setTasks([newTask, ...tasks])
-      setSelectedTaskId(newTask.id)
-      toast.success('任务已创建')
+      if (newTask) {
+        setSelectedTaskId(newTask.id)
+        toast.success('任务已创建')
+      } else {
+        toast.error('创建任务失败')
+      }
     } catch (error) {
       console.error('Failed to create task:', error)
       toast.error('创建任务失败')
@@ -644,24 +627,8 @@ function App() {
   }
 
   // ============ 批量操作 ============
-  function toggleTaskSelection(taskId: number) {
-    setSelectedTaskIds(prev => {
-      const next = new Set(prev)
-      if (next.has(taskId)) {
-        next.delete(taskId)
-      } else {
-        next.add(taskId)
-      }
-      return next
-    })
-  }
-
   function selectAllTasks() {
-    setSelectedTaskIds(new Set(incompleteTaskTree.map(t => t.id)))
-  }
-
-  function clearSelection() {
-    setSelectedTaskIds(new Set())
+    selectAllTasksAction(incompleteTaskTree.map(t => t.id))
   }
 
   async function handleBatchComplete() {
@@ -669,13 +636,13 @@ function App() {
     if (ids.length === 0) return
     try {
       await Promise.all(ids.map(id => api.updateTask(id, { completed: true })))
-      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, completed: true, updated_at: new Date().toISOString() } : t))
+      await useTaskStore.getState().loadTasks()
       toast.success(`已完成 ${ids.length} 个任务`)
       clearSelection()
     } catch (error) {
       console.error('Batch complete failed:', error)
       toast.error('批量完成失败')
-      await loadData()
+      await useTaskStore.getState().loadTasks()
     }
   }
 
@@ -685,13 +652,13 @@ function App() {
     if (!confirm(`确定批量删除 ${ids.length} 个任务吗？`)) return
     try {
       await Promise.all(ids.map(id => api.deleteTask(id)))
-      setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)))
+      await useTaskStore.getState().loadTasks()
       toast.success(`已删除 ${ids.length} 个任务`)
       clearSelection()
     } catch (error) {
       console.error('Batch delete failed:', error)
       toast.error('批量删除失败')
-      await loadData()
+      await useTaskStore.getState().loadTasks()
     }
   }
 
@@ -700,13 +667,13 @@ function App() {
     if (ids.length === 0) return
     try {
       await Promise.all(ids.map(id => api.updateTask(id, { priority })))
-      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, priority, updated_at: new Date().toISOString() } : t))
+      await useTaskStore.getState().loadTasks()
       toast.success(`已设置 ${ids.length} 个任务的优先级`)
       clearSelection()
     } catch (error) {
       console.error('Batch priority failed:', error)
       toast.error('批量设置优先级失败')
-      await loadData()
+      await useTaskStore.getState().loadTasks()
     }
   }
 
@@ -715,13 +682,13 @@ function App() {
     if (ids.length === 0) return
     try {
       await Promise.all(ids.map(id => api.updateTask(id, { list_id: listId })))
-      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, list_id: listId, updated_at: new Date().toISOString() } : t))
+      await useTaskStore.getState().loadTasks()
       toast.success(`已移动 ${ids.length} 个任务`)
       clearSelection()
     } catch (error) {
       console.error('Batch move failed:', error)
       toast.error('批量移动失败')
-      await loadData()
+      await useTaskStore.getState().loadTasks()
     }
   }
 
@@ -730,14 +697,13 @@ function App() {
     if (ids.length === 0) return
     try {
       await Promise.all(ids.map(id => api.updateTask(id, { archived: true })))
-      setTasks(tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, archived: true, updated_at: new Date().toISOString() } : t))
+      await useTaskStore.getState().loadTasks()
       toast.success(`已归档 ${ids.length} 个任务`)
       clearSelection()
-      if (currentView !== 'archived') setBatchMode(false)
     } catch (error) {
       console.error('Batch archive failed:', error)
       toast.error('批量归档失败')
-      await loadData()
+      await useTaskStore.getState().loadTasks()
     }
   }
 
@@ -750,38 +716,32 @@ function App() {
 
   // ============ 归档/恢复 ============
   async function handleArchiveTask(id: number) {
-    try {
-      await api.updateTask(id, { archived: true })
-      setTasks(tasks.map(t => t.id === id ? { ...t, archived: true, updated_at: new Date().toISOString() } : t))
+    const success = await useTaskStore.getState().updateTask(id, { archived: true })
+    if (success) {
       toast.success('任务已归档')
       if (selectedTaskId === id) setSelectedTaskId(null)
-    } catch (error) {
-      console.error('Archive failed:', error)
+    } else {
       toast.error('归档失败')
     }
   }
 
   async function handleUnarchiveTask(id: number) {
-    try {
-      await api.updateTask(id, { archived: false })
-      setTasks(tasks.map(t => t.id === id ? { ...t, archived: false, updated_at: new Date().toISOString() } : t))
+    const success = await useTaskStore.getState().updateTask(id, { archived: false })
+    if (success) {
       toast.success('任务已恢复')
-    } catch (error) {
-      console.error('Unarchive failed:', error)
+    } else {
       toast.error('恢复失败')
     }
   }
 
   // ============ 拖拽到日历（设置截止日期）============
   async function handleDropToCalendarDate(taskId: number, dateKey: string) {
-    try {
-      const [year, month, day] = dateKey.split('-').map(Number)
-      const dueDate = new Date(year, month - 1, day, 9, 0)
-      await api.updateTask(taskId, { due_date: dueDate.toISOString() })
-      setTasks(tasks.map(t => t.id === taskId ? { ...t, due_date: dueDate.toISOString(), updated_at: new Date().toISOString() } : t))
+    const [year, month, day] = dateKey.split('-').map(Number)
+    const dueDate = new Date(year, month - 1, day, 9, 0)
+    const success = await useTaskStore.getState().updateTask(taskId, { due_date: dueDate.toISOString() })
+    if (success) {
       toast.success(`已设置截止日期为 ${month}月${day}日`)
-    } catch (error) {
-      console.error('Drop to calendar failed:', error)
+    } else {
       toast.error('设置截止日期失败')
     }
   }
@@ -820,8 +780,8 @@ function App() {
         selectedListId={selectedListId}
         selectedTagId={selectedTagId}
         currentView={currentView}
-        onSelectList={(id) => { setSelectedListId(id); setSelectedTagId(null) }}
-        onSelectTag={(id) => { setSelectedTagId(id); setSelectedListId(null) }}
+        onSelectList={(id) => setSelectedListId(id)}
+        onSelectTag={(id) => setSelectedTagId(id)}
         onViewChange={setCurrentView}
         onCreateList={handleCreateList}
         onUpdateList={handleUpdateList}
@@ -865,7 +825,7 @@ function App() {
       ) : currentView === 'settings' ? (
         <SettingsView onClose={() => setCurrentView('tasks')} />
       ) : currentView === 'ai' ? (
-        <AIAssistant tasks={tasks} onClose={() => setCurrentView('tasks')} onTasksChange={loadData} />
+        <AIAssistant tasks={tasks} onClose={() => setCurrentView('tasks')} onTasksChange={() => useTaskStore.getState().loadTasks()} />
       ) : currentView === 'quadrant' ? (
         <main className="flex-1 flex overflow-hidden">
           <div className="flex-1 overflow-hidden">
@@ -915,10 +875,7 @@ function App() {
                 {/* 批量模式切换按钮 */}
                 {currentView !== 'archived' && (
                   <button
-                    onClick={() => {
-                      setBatchMode(!batchMode)
-                      if (batchMode) clearSelection()
-                    }}
+                    onClick={() => toggleBatchMode()}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
                       batchMode
                         ? 'bg-[#378ADD] text-white border-[#378ADD]'
@@ -934,7 +891,7 @@ function App() {
                 )}
                 {/* 筛选按钮 */}
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
+                  onClick={() => toggleFilters()}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors relative ${
                     hasActiveFilters
                       ? 'bg-blue-50 text-blue-600 border-blue-300'
@@ -973,7 +930,7 @@ function App() {
                 {/* 优先级筛选 */}
                 <select
                   value={filters.priority === null ? '' : filters.priority}
-                  onChange={(e) => setFilters({ ...filters, priority: e.target.value === '' ? null : Number(e.target.value) })}
+                  onChange={(e) => filters.setFilter('priority', e.target.value === '' ? null : Number(e.target.value))}
                   className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">全部优先级</option>
@@ -985,7 +942,7 @@ function App() {
                 {/* 日期范围筛选 */}
                 <select
                   value={filters.dateRange}
-                  onChange={(e) => setFilters({ ...filters, dateRange: e.target.value as FilterState['dateRange'] })}
+                  onChange={(e) => filters.setFilter('dateRange', e.target.value as FilterState['dateRange'])}
                   className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="all">全部日期</option>
@@ -998,7 +955,7 @@ function App() {
                 {/* 标签筛选 */}
                 <select
                   value={filters.tagId === null ? '' : filters.tagId}
-                  onChange={(e) => setFilters({ ...filters, tagId: e.target.value === '' ? null : Number(e.target.value) })}
+                  onChange={(e) => filters.setFilter('tagId', e.target.value === '' ? null : Number(e.target.value))}
                   className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">全部标签</option>
@@ -1009,7 +966,7 @@ function App() {
                 {/* 清单筛选 */}
                 <select
                   value={filters.listId === null ? '' : filters.listId}
-                  onChange={(e) => setFilters({ ...filters, listId: e.target.value === '' ? null : Number(e.target.value) })}
+                  onChange={(e) => filters.setFilter('listId', e.target.value === '' ? null : Number(e.target.value))}
                   className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">全部清单</option>
@@ -1019,7 +976,7 @@ function App() {
                 </select>
                 {hasActiveFilters && (
                   <button
-                    onClick={() => setFilters({ priority: null, dateRange: 'all', tagId: null, listId: null })}
+                    onClick={() => filters.resetFilters()}
                     className="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded-md"
                   >
                     清除筛选
@@ -1193,7 +1150,7 @@ function App() {
                       isExpanded={expandedTasks.has(task.id)}
                       onToggleExpand={() => toggleTaskExpand(task.id)}
                       subtaskInput={subtaskInputs[task.id] || ''}
-                      onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                      onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                       onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                       onToggle={() => handleToggleTask(task)}
                       onClick={() => setSelectedTaskId(task.id)}
@@ -1234,7 +1191,7 @@ function App() {
                             isExpanded={expandedTasks.has(task.id)}
                             onToggleExpand={() => toggleTaskExpand(task.id)}
                             subtaskInput={subtaskInputs[task.id] || ''}
-                            onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                            onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                             onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                             onToggle={() => handleToggleTask(task)}
                             onClick={() => setSelectedTaskId(task.id)}
@@ -1271,7 +1228,7 @@ function App() {
                           isExpanded={expandedTasks.has(task.id)}
                           onToggleExpand={() => toggleTaskExpand(task.id)}
                           subtaskInput={subtaskInputs[task.id] || ''}
-                          onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                          onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                           onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                           onToggle={() => handleToggleTask(task)}
                           onClick={() => setSelectedTaskId(task.id)}
@@ -1310,7 +1267,7 @@ function App() {
                                 isExpanded={expandedTasks.has(task.id)}
                                 onToggleExpand={() => toggleTaskExpand(task.id)}
                                 subtaskInput={subtaskInputs[task.id] || ''}
-                                onSubtaskInputChange={(val) => setSubtaskInputs({ ...subtaskInputs, [task.id]: val })}
+                                onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
                                 onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
                                 onToggle={() => handleToggleTask(task)}
                                 onClick={() => setSelectedTaskId(task.id)}
@@ -1353,326 +1310,6 @@ function App() {
   )
 }
 
-function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal }: {
-  task: Task
-  tags: Tag[]
-  isSelected: boolean
-  isExpanded: boolean
-  onToggleExpand: () => void
-  subtaskInput: string
-  onSubtaskInputChange: (val: string) => void
-  onCreateSubtask: (title: string) => void
-  onToggle: () => void
-  onClick: () => void
-  onReorder: (draggedId: number, targetId: number) => void
-  onDelete: (taskId: number) => void
-  batchMode?: boolean
-  isSelectedForBatch?: boolean
-  onToggleSelect?: () => void
-  onInlineEdit?: (id: number, title: string) => void
-  onArchive?: (id: number) => void
-  onUnarchive?: (id: number) => void
-  isArchivedView?: boolean
-  onDragStartGlobal?: () => void
-  onDragEndGlobal?: () => void
-}) {
-  const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(task.title)
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0
-  const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
-  const totalSubtasks = task.subtasks?.length || 0
-  const priorityStyle = getPriorityStyle(task.priority)
-
-  function handleDragStart(e: React.DragEvent) {
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(task.id))
-    onDragStartGlobal?.()
-  }
-
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    const rect = e.currentTarget.getBoundingClientRect()
-    setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
-  }
-
-  function handleDragLeave() {
-    setDragOverPos(null)
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    const draggedId = Number(e.dataTransfer.getData('text/plain'))
-    if (draggedId && draggedId !== task.id) {
-      onReorder(draggedId, task.id)
-    }
-    setDragOverPos(null)
-  }
-
-  function handleDragEnd() {
-    onDragEndGlobal?.()
-  }
-
-  function handleContextMenu(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    setContextMenu({ x: e.clientX, y: e.clientY })
-  }
-
-  function handleDoubleClick(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (onInlineEdit && !batchMode) {
-      setEditTitle(task.title)
-      setIsEditing(true)
-    }
-  }
-
-  function handleEditSave() {
-    if (onInlineEdit) {
-      onInlineEdit(task.id, editTitle)
-    }
-    setIsEditing(false)
-  }
-
-  function handleEditKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleEditSave()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      setEditTitle(task.title)
-      setIsEditing(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!contextMenu) return
-    function closeMenu() { setContextMenu(null) }
-    window.addEventListener('click', closeMenu)
-    return () => window.removeEventListener('click', closeMenu)
-  }, [contextMenu])
-
-  return (
-    <li
-      draggable={!batchMode && !isEditing}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onDragEnd={handleDragEnd}
-      onContextMenu={handleContextMenu}
-      className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-blue-400' : dragOverPos === 'after' ? 'border-b-2 border-blue-400' : ''}`}
-    >
-      <div
-        onClick={(e) => {
-          if (batchMode && onToggleSelect) {
-            e.stopPropagation()
-            onToggleSelect()
-          } else if (!isEditing) {
-            onClick()
-          }
-        }}
-        onDoubleClick={handleDoubleClick}
-        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 border border-gray-100 ${
-          isSelected ? 'bg-blue-50/60 border-gray-200' : 'hover:border-gray-200 hover:bg-gray-50/60'
-        } ${batchMode && isSelectedForBatch ? 'bg-blue-50/60' : ''} ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
-      >
-        {hasSubtasks ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleExpand() }}
-            className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600"
-            aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
-          >
-            <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ) : (
-          <span className="w-5 flex-shrink-0" />
-        )}
-        {batchMode ? (
-          <input
-            type="checkbox"
-            checked={isSelectedForBatch || false}
-            onChange={(e) => { e.stopPropagation(); onToggleSelect?.() }}
-            onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-          />
-        ) : (
-          <input
-            type="checkbox"
-            checked={task.completed}
-            onChange={(e) => { e.stopPropagation(); onToggle() }}
-            onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          {isEditing ? (
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onKeyDown={handleEditKeyDown}
-              onBlur={handleEditSave}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              autoFocus
-              className="w-full text-[15px] font-medium px-1 py-0.5 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          ) : (
-            <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-              {task.title}
-              {isArchivedView && (
-                <span className="ml-2 text-xs text-gray-400 font-normal">(已归档)</span>
-              )}
-            </p>
-          )}
-          <div className="flex items-center gap-3 mt-0.5 opacity-70">
-            {task.due_date && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {new Date(task.due_date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-              </span>
-            )}
-            {task.notes && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </span>
-            )}
-            {hasSubtasks && (
-              <span className="text-xs text-gray-400">
-                {completedSubtasks}/{totalSubtasks}
-              </span>
-            )}
-            {task.tag_ids && task.tag_ids.length > 0 && (
-              <div className="flex items-center gap-1">
-                {task.tag_ids.map(tagId => {
-                  const tag = tags.find(t => t.id === tagId)
-                  if (!tag) return null
-                  return (
-                    <span
-                      key={tagId}
-                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] rounded"
-                      style={{ backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12), color: tag.color || '#6B7280' }}
-                    >
-                      {tag.name}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 子任务列表 */}
-      {isExpanded && hasSubtasks && (
-        <div className="ml-8 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
-          {task.subtasks!.map(subtask => (
-            <div
-              key={subtask.id}
-              onClick={() => onClick()}
-              className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50/60'
-              } ${subtask.completed ? 'opacity-60' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={subtask.completed}
-                onChange={(e) => { e.stopPropagation(); onToggle() }}
-                onClick={(e) => e.stopPropagation()}
-                className="checkbox-bounce w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-              />
-              <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                {subtask.title}
-              </span>
-            </div>
-          ))}
-          {/* 添加子任务输入框 */}
-          <div className="flex items-center gap-2 p-2">
-            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <input
-              type="text"
-              value={subtaskInput}
-              onChange={(e) => onSubtaskInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onCreateSubtask(subtaskInput)
-                if (e.key === 'Escape') onSubtaskInputChange('')
-              }}
-              placeholder="添加子任务..."
-              className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 右键菜单 */}
-      {contextMenu && (
-        <div
-          className="fixed z-50 bg-white rounded-lg shadow-md border border-gray-100 py-1 w-40"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {!isArchivedView && onInlineEdit && (
-            <button
-              onClick={() => {
-                setContextMenu(null)
-                setEditTitle(task.title)
-                setIsEditing(true)
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              重命名
-            </button>
-          )}
-          {isArchivedView && onUnarchive ? (
-            <button
-              onClick={() => { onUnarchive(task.id); setContextMenu(null) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-              恢复任务
-            </button>
-          ) : onArchive && (
-            <button
-              onClick={() => { onArchive(task.id); setContextMenu(null) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-              归档
-            </button>
-          )}
-          <button
-            onClick={() => { onDelete(task.id); setContextMenu(null) }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            删除任务
-          </button>
-        </div>
-      )}
-    </li>
-  )
-}
-
 function MiniCalendarDropzone({ currentDate, onPrevMonth, onNextMonth, onDropDate, onClose, dragOverDate, setDragOverDate }: {
   currentDate: Date
   onPrevMonth: () => void
@@ -1712,7 +1349,7 @@ function MiniCalendarDropzone({ currentDate, onPrevMonth, onNextMonth, onDropDat
     <div className="absolute right-6 top-32 z-40 bg-white rounded-lg shadow-2xl border border-gray-200 p-3 w-72">
       <div className="flex items-center justify-between mb-2">
         <button onClick={onPrevMonth} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7 7-7-7" /></svg>
         </button>
         <span className="text-sm font-medium text-gray-700">
           {format(currentDate, 'yyyy年M月', { locale: zhCN })}
