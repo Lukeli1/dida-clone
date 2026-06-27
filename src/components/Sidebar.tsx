@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { List, Tag } from '../types'
+import { getAvatar, setAvatar, removeAvatar, fileToAvatar } from '../utils/avatar'
 
 export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit'
 
@@ -42,6 +43,46 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
   const [tagContextMenu, setTagContextMenu] = useState<{ tagId: number; x: number; y: number } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const tagContextMenuRef = useRef<HTMLDivElement>(null)
+
+  // 用户头像
+  const [avatar, setAvatarState] = useState<string | null>(() => getAvatar())
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
+  const avatarMenuRef = useRef<HTMLDivElement>(null)
+
+  // 点击外部关闭头像菜单
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // 处理头像上传
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await fileToAvatar(file)
+      setAvatar(dataUrl)
+      setAvatarState(dataUrl)
+      setAvatarMenuOpen(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '上传失败')
+    }
+    // 重置 input，允许重复选择同一文件
+    e.target.value = ''
+  }
+
+  // 删除头像
+  function handleRemoveAvatar() {
+    removeAvatar()
+    setAvatarState(null)
+    setAvatarMenuOpen(false)
+  }
 
   // 点击外部关闭右键菜单
   useEffect(() => {
@@ -131,8 +172,68 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+      {/* 隐藏的文件选择器 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+      {/* 顶部头像区域 */}
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">滴答清单</h1>
+        <div className="relative" ref={avatarMenuRef}>
+          <button
+            onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
+            className="flex items-center gap-3 w-full group"
+          >
+            {avatar ? (
+              <img
+                src={avatar}
+                alt="头像"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-400 transition-all"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center ring-2 ring-gray-200 group-hover:ring-blue-400 transition-all">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+            )}
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">滴答清单</p>
+              <p className="text-xs text-gray-400">点击上传头像</p>
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${avatarMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {/* 下拉菜单 */}
+          {avatarMenuOpen && (
+            <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {avatar ? '更换头像' : '上传头像'}
+              </button>
+              {avatar && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  移除头像
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">

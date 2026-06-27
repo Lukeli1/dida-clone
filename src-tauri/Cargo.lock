@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "dida-clone"
-version = "1.14.1"
+version = "1.16.0"
 dependencies = [
  "chrono",
  "font-loader",
