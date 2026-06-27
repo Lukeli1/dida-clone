@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.13.0-blue)
+![版本](https://img.shields.io/badge/version-1.14.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,14 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.14.0（2026-06-27）
+
+#### 架构重构
+- **App.tsx 拆分为 hooks**：将 1500+ 行的 App.tsx 拆分为 4 个自定义 hook（`useAppInit`、`useKeyboardShortcuts`、`useTaskFiltering`、`useTaskActions`），App.tsx 缩减 45%
+- **TaskItem Context 收敛**：TaskItem 的 props 从 29 个简化到 6 个，通过 `TaskActionContext` 传递回调函数，减少组件耦合
+- **筛选逻辑合并**：视图筛选 + 组合筛选举合并入 `useTaskFiltering` hook，消除重复逻辑
+- **tagStore 本地同步**：`addTagToTask`/`removeTagFromTask` 本地同步更新 taskStore，无需手动 reloadTasks
 
 ### v1.13.0（2026-06-27）
 

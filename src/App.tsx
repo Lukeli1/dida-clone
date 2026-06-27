@@ -1,12 +1,9 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
-  isToday as dateFnsIsToday, isBefore as dateFnsIsBefore, startOfDay as dateFnsStartOfDay,
-  isThisWeek, isThisMonth,
+  isToday as dateFnsIsToday,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { api } from './api'
-import type { Task, ReorderItem } from './types'
 import { Sidebar } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskItem } from './components/TaskItem'
@@ -19,15 +16,17 @@ import { PomodoroView } from './components/PomodoroView'
 import { HabitView } from './components/HabitView'
 import { EmptyState } from './components/EmptyState'
 import { useToast } from './components/Toast'
-import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
 import { parseSmartDate } from './utils/smartDate'
 import { useTaskStore } from './stores/taskStore'
 import { useListStore } from './stores/listStore'
 import { useTagStore } from './stores/tagStore'
 import { useFilterStore, type FilterState } from './stores/filterStore'
 import { useUIStore } from './stores/uiStore'
-import { getFontSetting, applyFont } from './utils/font'
-import { getAppearance, applyAppearance } from './utils/appearance'
+import { useAppInit } from './hooks/useAppInit'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useTaskFiltering } from './hooks/useTaskFiltering'
+import { useTaskActions } from './hooks/useTaskActions'
+import { TaskActionProvider, type TaskActionContextValue } from './contexts/TaskActionContext'
 
 function App() {
   const toast = useToast()
@@ -52,7 +51,6 @@ function App() {
   const subtaskInputs = useUIStore(s => s.subtaskInputs)
   const batchMode = useUIStore(s => s.batchMode)
   const selectedTaskIds = useUIStore(s => s.selectedTaskIds)
-  const isDraggingTask = useUIStore(s => s.isDraggingTask)
   const dragOverCalendarDate = useUIStore(s => s.dragOverCalendarDate)
   const miniCalendarDate = useUIStore(s => s.miniCalendarDate)
   const searchQuery = useUIStore(s => s.searchQuery)
@@ -73,10 +71,10 @@ function App() {
   const toggleFilters = useUIStore(s => s.toggleFilters)
   const setSubtaskInput = useUIStore(s => s.setSubtaskInput)
   const setAiMode = useUIStore(s => s.setAiMode)
-  const setAiParsing = useUIStore(s => s.setAiParsing)
-  const setIsDraggingTask = useUIStore(s => s.setIsDraggingTask)
-  const setDragOverCalendarDate = useUIStore(s => s.setDragOverCalendarDate)
   const setMiniCalendarDate = useUIStore(s => s.setMiniCalendarDate)
+  const setDragOverCalendarDate = useUIStore(s => s.setDragOverCalendarDate)
+
+  const isDraggingTask = useUIStore(s => s.isDraggingTask)
 
   // ===== Filter store =====
   const filters = useFilterStore()
@@ -87,756 +85,66 @@ function App() {
   // ===== Refs =====
   const newTaskInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const notifiedTaskIds = useRef<Set<number>>(new Set())
-  const autoArchivedRef = useRef(false)
 
-  // ===== Effects =====
-  useEffect(() => {
-    useTaskStore.getState().loadTasks()
-    useListStore.getState().loadLists()
-    useTagStore.getState().loadTags()
-    // 启动时应用保存的主题
-    const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system'
-    const root = document.documentElement
-    if (savedTheme === 'dark' || (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    // 启动时恢复保存的字体设置
-    applyFont(getFontSetting())
-    // 启动时恢复外观设置（字体大小、侧边栏密度）
-    applyAppearance(getAppearance())
-  }, [])
+  // ===== Custom hooks =====
+  useAppInit(toast)
+  useKeyboardShortcuts(newTaskInputRef, searchInputRef)
 
-  useEffect(() => {
-    if (autoArchivedRef.current || tasks.length === 0) return
-    autoArchivedRef.current = true
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const toArchive = tasks.filter(t =>
-      t.completed && !t.archived && new Date(t.updated_at) < sevenDaysAgo
-    )
-    if (toArchive.length > 0) {
-      Promise.all(toArchive.map(t => api.updateTask(t.id, { archived: true })))
-        .then(() => useTaskStore.getState().loadTasks())
-        .catch(err => console.error('Auto-archive failed:', err))
-    }
-  }, [tasks])
+  const {
+    filteredTasks, taskTree, completedTaskTree, incompleteTaskTree,
+    overdueTaskTree, todayCount, archivedCount, taskCounts, hasActiveFilters,
+  } = useTaskFiltering()
 
-  // 桌面通知：每 60 秒检查提醒
-  useEffect(() => {
-    // 请求通知权限
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
+  // Ref for incompleteTaskTree (reorder handler needs latest value without re-creating callback)
+  const incompleteTaskTreeRef = useRef(incompleteTaskTree)
+  incompleteTaskTreeRef.current = incompleteTaskTree
 
-    function checkReminders() {
-      const now = new Date()
-      tasks.forEach(task => {
-        if (
-          task.reminder &&
-          !task.completed &&
-          !notifiedTaskIds.current.has(task.id) &&
-          new Date(task.reminder) <= now
-        ) {
-          // 发送通知
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('滴答清单提醒', {
-              body: task.title,
-              icon: '/icon.png',
-            })
-          } else {
-            // 降级为 Toast 通知
-            toast.info(`提醒: ${task.title}`)
-          }
-          notifiedTaskIds.current.add(task.id)
-        }
-      })
-    }
+  const actions = useTaskActions(toast, incompleteTaskTreeRef)
 
-    const interval = setInterval(checkReminders, 60000)
-    // 首次立即检查
-    checkReminders()
-    return () => clearInterval(interval)
-  }, [tasks, toast])
-
-  // 键盘快捷键
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Ctrl+N: 新建任务
-      if (e.ctrlKey && e.key === 'n') {
-        e.preventDefault()
-        newTaskInputRef.current?.focus()
-      }
-      // Ctrl+F: 搜索
-      if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
-      // Esc: 关闭详情或清空搜索
-      if (e.key === 'Escape') {
-        if (selectedTaskId !== null) {
-          setSelectedTaskId(null)
-        } else if (searchQuery) {
-          setSearchQuery('')
-        }
-      }
-      // Ctrl+1: 全部任务
-      if (e.ctrlKey && e.key === '1') {
-        e.preventDefault()
-        setCurrentView('tasks')
-        setSelectedListId(null)
-        setSelectedTagId(null)
-      }
-      // Ctrl+2: 今日任务
-      if (e.ctrlKey && e.key === '2') {
-        e.preventDefault()
-        setCurrentView('today')
-        setSelectedListId(null)
-        setSelectedTagId(null)
-      }
-      // Ctrl+3: 日历
-      if (e.ctrlKey && e.key === '3') {
-        e.preventDefault()
-        setCurrentView('calendar')
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTaskId, searchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setSearchQuery])
-
-  // ===== Memoized computations =====
-  // 今日未完成任务数
-  const todayCount = useMemo(() => {
-    return tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date))).length
-  }, [tasks])
-
-  // 归档任务数
-  const archivedCount = useMemo(() => {
-    return tasks.filter((t) => t.archived).length
-  }, [tasks])
-
-  // 是否有激活的筛选条件
-  const hasActiveFilters = filters.priority !== null || filters.dateRange !== 'all' || filters.tagId !== null || filters.listId !== null
-
-  // 排序：未完成在前，按优先级→截止日期→创建时间排序
-  const filteredTasks = useMemo(() => {
-    let filtered: Task[]
-
-    // 归档视图：只显示已归档任务
-    if (currentView === 'archived') {
-      filtered = tasks.filter((t) => t.archived)
-    } else if (searchQuery.trim()) {
-      // 搜索模式：全局搜索，忽略视图/清单/标签筛选，但排除归档任务
-      const q = searchQuery.trim().toLowerCase()
-      filtered = tasks.filter(t =>
-        !t.archived && (
-          t.title.toLowerCase().includes(q) ||
-          (t.notes && t.notes.toLowerCase().includes(q))
-        )
-      )
-    } else if (currentView === 'today') {
-      // 今日任务：截止日期是今天的未完成任务
-      filtered = tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date)))
-    } else if (selectedTagId !== null) {
-      // 按标签筛选
-      filtered = tasks.filter((t) => !t.archived && t.tag_ids?.includes(selectedTagId))
-    } else if (selectedListId !== null) {
-      filtered = tasks.filter((t) => !t.archived && t.list_id === selectedListId)
-    } else {
-      // 全部任务视图：排除归档任务
-      filtered = tasks.filter((t) => !t.archived)
-    }
-
-    // 组合筛选（在视图筛选基础上叠加）
-    if (hasActiveFilters && currentView !== 'archived') {
-      filtered = filtered.filter((t) => {
-        if (filters.priority !== null && t.priority !== filters.priority) return false
-        if (filters.tagId !== null && !(t.tag_ids?.includes(filters.tagId))) return false
-        if (filters.listId !== null && t.list_id !== filters.listId) return false
-        if (filters.dateRange !== 'all') {
-          if (filters.dateRange === 'none') {
-            if (t.due_date) return false
-          } else if (filters.dateRange === 'overdue') {
-            if (!t.due_date || t.completed) return false
-            if (!dateFnsIsBefore(new Date(t.due_date), dateFnsStartOfDay(new Date()))) return false
-          } else {
-            if (!t.due_date) return false
-            const dueDate = new Date(t.due_date)
-            if (filters.dateRange === 'today' && !dateFnsIsToday(dueDate)) return false
-            if (filters.dateRange === 'week' && !isThisWeek(dueDate, { weekStartsOn: 1 })) return false
-            if (filters.dateRange === 'month' && !isThisMonth(dueDate)) return false
-          }
-        }
-        return true
-      })
-    }
-
-    return filtered.sort((a, b) => {
-      // 置顶优先
-      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
-      // 未完成在前
-      if (a.completed !== b.completed) return a.completed ? 1 : -1
-      // 归档视图/搜索/今日模式/激活筛选按优先级→截止日期排序；其他模式按 sort_order 排序
-      const isSmartView = currentView === 'archived' || searchQuery.trim() || currentView === 'today' || hasActiveFilters
-      if (!isSmartView) {
-        return (a.sort_order || 0) - (b.sort_order || 0)
-      }
-      // 优先级排序（1=高 > 2=中 > 3=低 > 0=无）
-      const pa = a.priority === 0 ? 4 : a.priority
-      const pb = b.priority === 0 ? 4 : b.priority
-      if (pa !== pb) return pa - pb
-      // 有截止日期的在前
-      if (a.due_date && !b.due_date) return -1
-      if (!a.due_date && b.due_date) return 1
-      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
-      // 创建时间降序
-      return b.created_at.localeCompare(a.created_at)
-    })
-  }, [tasks, selectedListId, selectedTagId, currentView, searchQuery, filters, hasActiveFilters])
-
-  // 组装任务树：只显示顶层任务（无 parent_id），子任务挂载到 subtasks（Map-based O(n)）
-  const taskTree = useMemo(() => {
-    const subtaskMap = new Map<number, Task[]>()
-    const topLevel: Task[] = []
-    for (const task of filteredTasks) {
-      if (task.parent_id) {
-        const arr = subtaskMap.get(task.parent_id)
-        if (arr) arr.push(task)
-        else subtaskMap.set(task.parent_id, [task])
-      } else {
-        topLevel.push(task)
-      }
-    }
-    return topLevel.map((task) => ({
-      ...task,
-      subtasks: subtaskMap.get(task.id) || [],
-    }))
-  }, [filteredTasks])
-
-  const completedTaskTree = useMemo(() => {
-    return taskTree.filter(t => t.completed)
-  }, [taskTree])
-
-  const incompleteTaskTree = useMemo(() => {
-    return taskTree.filter(t => !t.completed)
-  }, [taskTree])
-
-  // 今日视图：已过期任务（截止日期早于今天且未完成）
-  const overdueTaskTree = useMemo(() => {
-    if (currentView !== 'today') return []
-    const todayStart = dateFnsStartOfDay(new Date())
-    return tasks.filter(t => {
-      if (!t.due_date || t.completed) return false
-      return dateFnsIsBefore(new Date(t.due_date), todayStart)
-    }).sort((a, b) => {
-      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
-      const pa = a.priority === 0 ? 4 : a.priority
-      const pb = b.priority === 0 ? 4 : b.priority
-      if (pa !== pb) return pa - pb
-      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
-      return b.created_at.localeCompare(a.created_at)
-    })
-  }, [tasks, currentView])
-
-  const taskCounts = useMemo(() => {
-    const counts: Record<number, number> = {}
-    tasks.forEach((t) => {
-      if (!t.completed) {
-        counts[t.list_id] = (counts[t.list_id] || 0) + 1
-      }
-    })
-    return counts
-  }, [tasks])
-
+  // ===== Selected task =====
   const selectedTask = useMemo(() => {
-    return tasks.find((t) => t.id === selectedTaskId) || null
+    return tasks.find(t => t.id === selectedTaskId) || null
   }, [tasks, selectedTaskId])
 
-  // ===== Handler functions =====
+  // ===== Local wrapper: create task (needs newTaskTitle local state) =====
   async function handleCreateTask() {
     if (!newTaskTitle.trim()) return
-
-    // AI 模式：解析自然语言
-    if (aiMode) {
-      await handleCreateTaskWithAI()
-      return
-    }
-
-    // 智能日期识别（本地解析，无需 AI）
-    const smartResult = parseSmartDate(newTaskTitle.trim())
-    const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-    const newTask = await useTaskStore.getState().createTask({
-      title: smartResult.cleanedTitle,
-      list_id: listId,
-      due_date: smartResult.dueDate || undefined,
-      priority: smartResult.priority ?? 0,
-      repeat_rule: smartResult.repeatRule || undefined,
-    })
-    if (newTask) {
-      setNewTaskTitle('')
-      const extras: string[] = []
-      if (smartResult.dueDate) {
-        const d = new Date(smartResult.dueDate)
-        extras.push(`时间: ${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
-      }
-      if (smartResult.priority && smartResult.priority > 0) {
-        const pLabel = smartResult.priority === 1 ? '高' : smartResult.priority === 2 ? '中' : '低'
-        extras.push(`优先级: ${pLabel}`)
-      }
-      if (smartResult.repeatRule) {
-        extras.push('已设重复')
-      }
-      toast.success(`任务已创建${extras.length ? '（' + extras.join('，') + '）' : ''}`)
-    } else {
-      toast.error('创建任务失败')
-    }
+    await actions.handleCreateTask(newTaskTitle, selectedListId, aiMode)
+    setNewTaskTitle('')
   }
 
-  // AI 自然语言创建任务
-  async function handleCreateTaskWithAI() {
-    if (!newTaskTitle.trim()) return
-    if (!getLLMConfig()) {
-      toast.error('请先在设置中配置大模型 API')
-      return
-    }
-    setAiParsing(true)
-    try {
-      const parsed = await parseNaturalLanguageTask(newTaskTitle.trim())
-      const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-      const newTask = await useTaskStore.getState().createTask({
-        title: parsed.title,
-        list_id: listId,
-        due_date: parsed.due_date || undefined,
-        priority: parsed.priority ?? 0,
-        notes: parsed.notes || undefined,
-      })
-      if (newTask) {
-        setNewTaskTitle('')
-        const extras: string[] = []
-        if (parsed.due_date) extras.push(`时间: ${new Date(parsed.due_date).toLocaleString('zh-CN')}`)
-        if (parsed.priority && parsed.priority > 0) {
-          const pLabel = parsed.priority === 1 ? '高' : parsed.priority === 2 ? '中' : '低'
-          extras.push(`优先级: ${pLabel}`)
-        }
-        toast.success(`AI 已创建任务${extras.length ? '（' + extras.join('，') + '）' : ''}`)
-      } else {
-        toast.error('创建任务失败')
-      }
-    } catch (error: any) {
-      console.error('AI parse failed:', error)
-      toast.error(`AI 解析失败: ${error.message || error}`)
-    } finally {
-      setAiParsing(false)
-    }
-  }
-
-  async function handleToggleTask(task: Task) {
-    const result = await useTaskStore.getState().toggleTask(task)
-    if (!result.success) {
-      toast.error('更新任务失败')
-    } else if (!task.completed && task.repeat_rule) {
-      // Was completing a repeat task
-      if (result.newTaskGenerated) {
-        toast.success('重复任务已生成下一周期')
-      } else {
-        toast.success('任务已完成')
-      }
-    }
-  }
-
-  async function handleUpdateTask(id: number, updates: Partial<Task>) {
-    const success = await useTaskStore.getState().updateTask(id, updates)
-    if (!success) {
-      toast.error('更新任务失败')
-    }
-  }
-
-  async function handleDeleteTask(id: number) {
-    const success = await useTaskStore.getState().deleteTask(id)
-    if (success) {
-      setSelectedTaskId(null)
-      toast.success('任务已删除')
-    } else {
-      toast.error('删除任务失败')
-    }
-  }
-
-  async function handleCreateList(name: string, color?: string) {
-    const newList = await useListStore.getState().createList({ name, color })
-    if (newList) {
-      toast.success('清单已创建')
-    } else {
-      toast.error('创建清单失败')
-    }
-  }
-
-  async function handleUpdateList(id: number, updates: { name?: string; color?: string }) {
-    const success = await useListStore.getState().updateList(id, updates)
-    if (success) {
-      toast.success('清单已更新')
-    } else {
-      toast.error('更新清单失败')
-    }
-  }
-
-  async function handleDeleteList(id: number) {
-    // Get default list ID before deleting
-    const allLists = useListStore.getState().lists
-    const defaultList = allLists.find((l) => l.is_default)
-    const defaultId = defaultList?.id ?? allLists[0]?.id ?? 1
-
-    const success = await useListStore.getState().deleteList(id)
-    if (success) {
-      // 将被删清单的任务移到默认清单
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) => (t.list_id === id ? { ...t, list_id: defaultId } : t))
-      }))
-      if (selectedListId === id) setSelectedListId(null)
-      toast.success('清单已删除')
-    } else {
-      toast.error('删除清单失败')
-    }
-  }
-
-  async function handleMoveTask(taskId: number, newDate: string) {
-    const success = await useTaskStore.getState().moveTask(taskId, newDate)
-    if (!success) {
-      toast.error('移动任务失败')
-    }
-  }
-
-  async function handleCreateTag(name: string, color?: string, parentId?: number | null) {
-    const newTag = await useTagStore.getState().createTag({ name, color, parent_id: parentId || undefined })
-    if (newTag) {
-      toast.success('标签已创建')
-    } else {
-      toast.error('创建标签失败')
-    }
-  }
-
-  async function handleDeleteTag(id: number) {
-    const success = await useTagStore.getState().deleteTag(id)
-    if (success) {
-      // 从所有任务中移除该标签
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) => ({
-          ...t,
-          tag_ids: t.tag_ids?.filter(tid => tid !== id)
-        }))
-      }))
-      if (selectedTagId === id) setSelectedTagId(null)
-      toast.success('标签已删除')
-    } else {
-      toast.error('删除标签失败')
-    }
-  }
-
-  async function handleAddTagToTask(taskId: number, tagId: number) {
-    const success = await useTagStore.getState().addTagToTask(taskId, tagId)
-    if (success) {
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t
-        )
-      }))
-    } else {
-      toast.error('添加标签失败')
-    }
-  }
-
-  async function handleRemoveTagFromTask(taskId: number, tagId: number) {
-    const success = await useTagStore.getState().removeTagFromTask(taskId, tagId)
-    if (success) {
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, tag_ids: t.tag_ids?.filter(tid => tid !== tagId) } : t
-        )
-      }))
-    } else {
-      toast.error('移除标签失败')
-    }
-  }
-
-  async function handleCreateSubtask(parentId: number, title: string) {
-    if (!title.trim()) return
-    const parentTask = tasks.find(t => t.id === parentId)
-    const listId = parentTask?.list_id ?? (lists.length > 0 ? lists[0].id : 1)
-    const newTask = await useTaskStore.getState().createTask({
-      title: title.trim(),
-      list_id: listId,
-      parent_id: parentId,
-    })
-    if (newTask) {
-      // 手动更新父任务的 subtasks 字段，使详情页立即显示新子任务
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === parentId
-            ? { ...t, subtasks: [...(t.subtasks || []), newTask] }
-            : t
-        ),
-      }))
-      setSubtaskInput(parentId, '')
-      // 自动展开父任务
-      const uiState = useUIStore.getState()
-      if (!uiState.expandedTasks.has(parentId)) {
-        uiState.toggleTaskExpand(parentId)
-      }
-    } else {
-      toast.error('创建子任务失败')
-    }
-  }
-
-  // 拖拽排序
-  async function handleReorderTasks(draggedId: number, targetId: number) {
-    if (draggedId === targetId) return
-    // 找到拖拽任务和目标任务在列表中的位置
-    const draggedIndex = incompleteTaskTree.findIndex(t => t.id === draggedId)
-    const targetIndex = incompleteTaskTree.findIndex(t => t.id === targetId)
-    if (draggedIndex === -1 || targetIndex === -1) return
-
-    // 重新排列
-    const newOrder = [...incompleteTaskTree]
-    const [moved] = newOrder.splice(draggedIndex, 1)
-    newOrder.splice(targetIndex, 0, moved)
-
-    // 重新计算 sort_order：使用相邻任务的中间值
-    const reorderItems: ReorderItem[] = newOrder.map((task, index) => ({
-      id: task.id,
-      sort_order: index,
-    }))
-
-    // 乐观更新 UI
-    const sortOrderMap = new Map(reorderItems.map(item => [item.id, item.sort_order]))
-    useTaskStore.setState((state) => ({
-      tasks: state.tasks.map(t => sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t)
-    }))
-
-    const success = await useTaskStore.getState().reorderTasks(reorderItems)
-    if (!success) {
-      toast.error('排序失败')
-    }
-  }
-
-  async function handleCreateTaskOnDate(date: string, title?: string) {
-    const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
-    const newTask = await useTaskStore.getState().createTask({
-      title: title || '新任务',
-      list_id: listId,
-      due_date: date,
-    })
-    if (newTask) {
-      setSelectedTaskId(newTask.id)
-      toast.success('任务已创建')
-    } else {
-      toast.error('创建任务失败')
-    }
-  }
-
-  async function handleCreateTaskOnRange(data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) {
-    try {
-      const [year, month, day] = data.dateKey.split('-').map(Number)
-      const dueDate = new Date(year, month - 1, day, data.startHour, data.startMin)
-      const endDate = new Date(year, month - 1, day, data.endHour, data.endMin)
-      const reminder = new Date(year, month - 1, day, data.startHour, data.startMin)
-      const newTask = await useTaskStore.getState().createTask({
-        title: data.title,
-        notes: data.notes,
-        priority: data.priority,
-        list_id: data.listId,
-        due_date: dueDate.toISOString(),
-        end_date: endDate.toISOString(),
-        reminder: reminder.toISOString(),
-      })
-      if (newTask) {
-        setSelectedTaskId(newTask.id)
-        toast.success('任务已创建')
-      } else {
-        toast.error('创建任务失败')
-      }
-    } catch (error) {
-      console.error('Failed to create task:', error)
-      toast.error('创建任务失败')
-    }
-  }
-
-  // ============ 批量操作 ============
+  // ===== Select all tasks =====
   function selectAllTasks() {
     selectAllTasksAction(incompleteTaskTree.map(t => t.id))
   }
 
-  async function handleBatchComplete() {
-    const ids = Array.from(selectedTaskIds)
-    if (ids.length === 0) return
-    try {
-      await Promise.all(ids.map(id => api.updateTask(id, { completed: true })))
-      await useTaskStore.getState().loadTasks()
-      toast.success(`已完成 ${ids.length} 个任务`)
-      clearSelection()
-    } catch (error) {
-      console.error('Batch complete failed:', error)
-      toast.error('批量完成失败')
-      await useTaskStore.getState().loadTasks()
-    }
-  }
-
-  async function handleBatchDelete() {
-    const ids = Array.from(selectedTaskIds)
-    if (ids.length === 0) return
-    if (!confirm(`确定批量删除 ${ids.length} 个任务吗？`)) return
-    try {
-      await Promise.all(ids.map(id => api.deleteTask(id)))
-      await useTaskStore.getState().loadTasks()
-      toast.success(`已删除 ${ids.length} 个任务`)
-      clearSelection()
-    } catch (error) {
-      console.error('Batch delete failed:', error)
-      toast.error('批量删除失败')
-      await useTaskStore.getState().loadTasks()
-    }
-  }
-
-  async function handleBatchPriority(priority: number) {
-    const ids = Array.from(selectedTaskIds)
-    if (ids.length === 0) return
-    try {
-      await Promise.all(ids.map(id => api.updateTask(id, { priority })))
-      await useTaskStore.getState().loadTasks()
-      toast.success(`已设置 ${ids.length} 个任务的优先级`)
-      clearSelection()
-    } catch (error) {
-      console.error('Batch priority failed:', error)
-      toast.error('批量设置优先级失败')
-      await useTaskStore.getState().loadTasks()
-    }
-  }
-
-  async function handleBatchMoveList(listId: number) {
-    const ids = Array.from(selectedTaskIds)
-    if (ids.length === 0) return
-    try {
-      await Promise.all(ids.map(id => api.updateTask(id, { list_id: listId })))
-      await useTaskStore.getState().loadTasks()
-      toast.success(`已移动 ${ids.length} 个任务`)
-      clearSelection()
-    } catch (error) {
-      console.error('Batch move failed:', error)
-      toast.error('批量移动失败')
-      await useTaskStore.getState().loadTasks()
-    }
-  }
-
-  async function handleBatchArchive() {
-    const ids = Array.from(selectedTaskIds)
-    if (ids.length === 0) return
-    try {
-      await Promise.all(ids.map(id => api.updateTask(id, { archived: true })))
-      await useTaskStore.getState().loadTasks()
-      toast.success(`已归档 ${ids.length} 个任务`)
-      clearSelection()
-    } catch (error) {
-      console.error('Batch archive failed:', error)
-      toast.error('批量归档失败')
-      await useTaskStore.getState().loadTasks()
-    }
-  }
-
-  // ============ 快速编辑 ============
-  async function handleInlineEdit(id: number, title: string) {
-    const trimmed = title.trim()
-    if (!trimmed) return
-    await handleUpdateTask(id, { title: trimmed })
-  }
-
-  // ============ 归档/恢复 ============
-  async function handleArchiveTask(id: number) {
-    const success = await useTaskStore.getState().updateTask(id, { archived: true })
-    if (success) {
-      toast.success('任务已归档')
-      if (selectedTaskId === id) setSelectedTaskId(null)
-    } else {
-      toast.error('归档失败')
-    }
-  }
-
-  async function handleUnarchiveTask(id: number) {
-    const success = await useTaskStore.getState().updateTask(id, { archived: false })
-    if (success) {
-      toast.success('任务已恢复')
-    } else {
-      toast.error('恢复失败')
-    }
-  }
-
-  // ============ 右键菜单快捷操作 ============
-  async function handleSetDate(taskId: number, date: string | null) {
-    // 使用空字符串代替 null/undefined，确保 Tauri 序列化后 Rust 端能收到 Some("") 从而更新字段
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? '' })
-    if (!success) {
-      toast.error('设置日期失败')
-    }
-  }
-
-  async function handleSetPriority(taskId: number, priority: number) {
-    const success = await useTaskStore.getState().updateTask(taskId, { priority })
-    if (!success) {
-      toast.error('设置优先级失败')
-    }
-  }
-
-  async function handleTogglePin(taskId: number) {
-    const success = await useTaskStore.getState().togglePin(taskId)
-    if (!success) {
-      toast.error('置顶操作失败')
-    }
-  }
-
-  async function handleToggleTag(taskId: number, tagId: number) {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return
-    if (task.tag_ids?.includes(tagId)) {
-      await handleRemoveTagFromTask(taskId, tagId)
-    } else {
-      await handleAddTagToTask(taskId, tagId)
-    }
-  }
-
-  async function handleDuplicateTask(taskId: number) {
-    const newTask = await useTaskStore.getState().duplicateTask(taskId)
-    if (newTask) {
-      toast.success('已创建副本')
-    } else {
-      toast.error('创建副本失败')
-    }
-  }
-
-  async function handleCreateNewTagFromMenu(name: string) {
-    const colors = ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899']
-    const color = colors[Math.floor(Math.random() * colors.length)]
-    await handleCreateTag(name, color)
-  }
-
-  // ============ 拖拽到日历（设置截止日期）============
-  async function handleDropToCalendarDate(taskId: number, dateKey: string) {
-    const [year, month, day] = dateKey.split('-').map(Number)
-    const dueDate = new Date(year, month - 1, day, 9, 0)
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: dueDate.toISOString() })
-    if (success) {
-      toast.success(`已设置截止日期为 ${month}月${day}日`)
-    } else {
-      toast.error('设置截止日期失败')
-    }
-  }
-
-  function handleDragStartGlobal() {
-    setIsDraggingTask(true)
-  }
-
-  function handleDragEndGlobal() {
-    setIsDraggingTask(false)
-    setDragOverCalendarDate(null)
-  }
+  // ===== Context value for TaskItem (stable via useMemo) =====
+  const taskActionValue: TaskActionContextValue = useMemo(() => ({
+    tags,
+    lists,
+    batchMode,
+    isArchivedView: currentView === 'archived',
+    onToggle: actions.handleToggleTask,
+    onToggleSubtask: actions.handleToggleSubtask,
+    onClick: (taskId: number) => setSelectedTaskId(taskId),
+    onReorder: actions.handleReorderTasks,
+    onDelete: actions.handleDeleteTask,
+    onArchive: actions.handleArchiveTask,
+    onUnarchive: actions.handleUnarchiveTask,
+    onSetDate: actions.handleSetDate,
+    onSetPriority: actions.handleSetPriority,
+    onTogglePin: actions.handleTogglePin,
+    onToggleTag: actions.handleToggleTag,
+    onDuplicate: actions.handleDuplicateTask,
+    onCreateNewTag: actions.handleCreateNewTagFromMenu,
+    onInlineEdit: actions.handleInlineEdit,
+    onDragStartGlobal: actions.handleDragStartGlobal,
+    onDragEndGlobal: actions.handleDragEndGlobal,
+    onCreateSubtask: actions.handleCreateSubtask,
+    onToggleExpand: (taskId: number) => toggleTaskExpand(taskId),
+    onToggleSelect: (taskId: number) => toggleTaskSelection(taskId),
+    onSubtaskInputChange: (taskId: number, val: string) => setSubtaskInput(taskId, val),
+  }), [actions, tags, lists, batchMode, currentView, setSelectedTaskId, toggleTaskExpand, toggleTaskSelection, setSubtaskInput])
 
   if (loading) {
     return (
@@ -866,11 +174,11 @@ function App() {
         onSelectList={(id) => setSelectedListId(id)}
         onSelectTag={(id) => setSelectedTagId(id)}
         onViewChange={setCurrentView}
-        onCreateList={handleCreateList}
-        onUpdateList={handleUpdateList}
-        onDeleteList={handleDeleteList}
-        onCreateTag={handleCreateTag}
-        onDeleteTag={handleDeleteTag}
+        onCreateList={actions.handleCreateList}
+        onUpdateList={actions.handleUpdateList}
+        onDeleteList={actions.handleDeleteList}
+        onCreateTag={actions.handleCreateTag}
+        onDeleteTag={actions.handleDeleteTag}
         taskCounts={taskCounts}
         todayCount={todayCount}
         archivedCount={archivedCount}
@@ -883,11 +191,11 @@ function App() {
               tasks={tasks}
               lists={lists}
               onTaskClick={(id) => setSelectedTaskId(id)}
-              onToggleTask={(id) => handleToggleTask(tasks.find(t => t.id === id)!)}
-              onMoveTask={handleMoveTask}
-              onCreateTask={handleCreateTaskOnDate}
-              onCreateTaskOnRange={handleCreateTaskOnRange}
-              onUpdateTask={handleUpdateTask}
+              onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
+              onMoveTask={actions.handleMoveTask}
+              onCreateTask={actions.handleCreateTaskOnDate}
+              onCreateTaskOnRange={actions.handleCreateTaskOnRange}
+              onUpdateTask={actions.handleUpdateTask}
             />
           </div>
           {selectedTask && (
@@ -895,12 +203,12 @@ function App() {
               task={selectedTask}
               tags={tags}
               lists={lists}
-              onUpdate={handleUpdateTask}
-              onDelete={handleDeleteTask}
+              onUpdate={actions.handleUpdateTask}
+              onDelete={actions.handleDeleteTask}
               onClose={() => setSelectedTaskId(null)}
-              onAddTag={handleAddTagToTask}
-              onRemoveTag={handleRemoveTagFromTask}
-              onCreateSubtask={handleCreateSubtask}
+              onAddTag={actions.handleAddTagToTask}
+              onRemoveTag={actions.handleRemoveTagFromTask}
+              onCreateSubtask={actions.handleCreateSubtask}
             />
           )}
         </main>
@@ -916,8 +224,8 @@ function App() {
             <QuadrantView
               tasks={tasks.filter(t => !t.archived)}
               onTaskClick={(id) => setSelectedTaskId(id)}
-              onToggleTask={(id) => handleToggleTask(tasks.find(t => t.id === id)!)}
-              onUpdateTaskPriority={(id, priority) => handleUpdateTask(id, { priority })}
+              onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
+              onUpdateTaskPriority={(id, priority) => actions.handleUpdateTask(id, { priority })}
             />
           </div>
           {selectedTask && (
@@ -925,12 +233,12 @@ function App() {
               task={selectedTask}
               tags={tags}
               lists={lists}
-              onUpdate={handleUpdateTask}
-              onDelete={handleDeleteTask}
+              onUpdate={actions.handleUpdateTask}
+              onDelete={actions.handleDeleteTask}
               onClose={() => setSelectedTaskId(null)}
-              onAddTag={handleAddTagToTask}
-              onRemoveTag={handleRemoveTagFromTask}
-              onCreateSubtask={handleCreateSubtask}
+              onAddTag={actions.handleAddTagToTask}
+              onRemoveTag={actions.handleRemoveTagFromTask}
+              onCreateSubtask={actions.handleCreateSubtask}
             />
           )}
         </main>
@@ -938,7 +246,7 @@ function App() {
         <PomodoroView
           tasks={tasks.filter(t => !t.completed && !t.archived)}
           onTaskClick={(id) => setSelectedTaskId(id)}
-          onToggleTask={(id) => handleToggleTask(tasks.find(t => t.id === id)!)}
+          onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
         />
       ) : currentView === 'habit' ? (
         <HabitView />
@@ -1081,7 +389,7 @@ function App() {
                 <button onClick={clearSelection} className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">取消</button>
                 <div className="h-4 w-px bg-gray-200 mx-1" />
                 <button
-                  onClick={handleBatchComplete}
+                  onClick={actions.handleBatchComplete}
                   disabled={selectedTaskIds.size === 0}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-100 rounded disabled:opacity-40"
                 >
@@ -1089,7 +397,7 @@ function App() {
                   完成
                 </button>
                 <button
-                  onClick={handleBatchArchive}
+                  onClick={actions.handleBatchArchive}
                   disabled={selectedTaskIds.size === 0}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40"
                 >
@@ -1098,7 +406,7 @@ function App() {
                 </button>
                 <select
                   onChange={(e) => {
-                    if (e.target.value) handleBatchPriority(Number(e.target.value))
+                    if (e.target.value) actions.handleBatchPriority(Number(e.target.value))
                     e.target.value = ''
                   }}
                   disabled={selectedTaskIds.size === 0}
@@ -1113,7 +421,7 @@ function App() {
                 </select>
                 <select
                   onChange={(e) => {
-                    if (e.target.value) handleBatchMoveList(Number(e.target.value))
+                    if (e.target.value) actions.handleBatchMoveList(Number(e.target.value))
                     e.target.value = ''
                   }}
                   disabled={selectedTaskIds.size === 0}
@@ -1127,7 +435,7 @@ function App() {
                 </select>
                 <div className="flex-1" />
                 <button
-                  onClick={handleBatchDelete}
+                  onClick={actions.handleBatchDelete}
                   disabled={selectedTaskIds.size === 0}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-100 rounded disabled:opacity-40"
                 >
@@ -1144,8 +452,8 @@ function App() {
               currentDate={miniCalendarDate}
               onPrevMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() - 1, 1))}
               onNextMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 1))}
-              onDropDate={handleDropToCalendarDate}
-              onClose={handleDragEndGlobal}
+              onDropDate={actions.handleDropToCalendarDate}
+              onClose={actions.handleDragEndGlobal}
               dragOverDate={dragOverCalendarDate}
               setDragOverDate={setDragOverCalendarDate}
             />
@@ -1240,6 +548,7 @@ function App() {
             </div>
           )}
 
+          <TaskActionProvider value={taskActionValue}>
           <div className="flex-1 overflow-y-auto p-4">
             {/* 归档视图：直接显示所有归档任务 */}
             {currentView === 'archived' ? (
@@ -1255,22 +564,10 @@ function App() {
                     <TaskItem
                       key={task.id}
                       task={task}
-                      tags={tags}
-                      lists={lists}
                       isSelected={selectedTaskId === task.id}
                       isExpanded={expandedTasks.has(task.id)}
-                      onToggleExpand={() => toggleTaskExpand(task.id)}
                       subtaskInput={subtaskInputs[task.id] || ''}
-                      onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
-                      onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
-                      onToggle={() => handleToggleTask(task)}
-                      onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
-                      onClick={() => setSelectedTaskId(task.id)}
                       onReorder={() => {}}
-                      onDelete={handleDeleteTask}
-                      isArchivedView={true}
-                      onUnarchive={handleUnarchiveTask}
-                      onInlineEdit={handleInlineEdit}
                     />
                   ))}
                 </ul>
@@ -1298,32 +595,11 @@ function App() {
                           <TaskItem
                             key={task.id}
                             task={task}
-                            tags={tags}
-                            lists={lists}
                             isSelected={selectedTaskId === task.id}
                             isExpanded={expandedTasks.has(task.id)}
-                            onToggleExpand={() => toggleTaskExpand(task.id)}
                             subtaskInput={subtaskInputs[task.id] || ''}
-                            onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
-                            onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
-                            onToggle={() => handleToggleTask(task)}
-                            onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
-                            onClick={() => setSelectedTaskId(task.id)}
-                            onReorder={() => {}}
-                            onDelete={handleDeleteTask}
-                            batchMode={batchMode}
                             isSelectedForBatch={selectedTaskIds.has(task.id)}
-                            onToggleSelect={() => toggleTaskSelection(task.id)}
-                            onInlineEdit={handleInlineEdit}
-                            onArchive={handleArchiveTask}
-                            onDragStartGlobal={handleDragStartGlobal}
-                            onDragEndGlobal={handleDragEndGlobal}
-                            onSetDate={handleSetDate}
-                            onSetPriority={handleSetPriority}
-                            onTogglePin={handleTogglePin}
-                            onToggleTag={handleToggleTag}
-                            onDuplicate={handleDuplicateTask}
-                            onCreateNewTag={handleCreateNewTagFromMenu}
+                            onReorder={() => {}}
                           />
                         ))}
                       </ul>
@@ -1343,32 +619,10 @@ function App() {
                         <TaskItem
                           key={task.id}
                           task={task}
-                          tags={tags}
-                          lists={lists}
                           isSelected={selectedTaskId === task.id}
                           isExpanded={expandedTasks.has(task.id)}
-                          onToggleExpand={() => toggleTaskExpand(task.id)}
                           subtaskInput={subtaskInputs[task.id] || ''}
-                          onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
-                          onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
-                          onToggle={() => handleToggleTask(task)}
-                          onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
-                          onClick={() => setSelectedTaskId(task.id)}
-                          onReorder={handleReorderTasks}
-                          onDelete={handleDeleteTask}
-                          batchMode={batchMode}
                           isSelectedForBatch={selectedTaskIds.has(task.id)}
-                          onToggleSelect={() => toggleTaskSelection(task.id)}
-                          onInlineEdit={handleInlineEdit}
-                          onArchive={handleArchiveTask}
-                          onDragStartGlobal={handleDragStartGlobal}
-                          onDragEndGlobal={handleDragEndGlobal}
-                          onSetDate={handleSetDate}
-                          onSetPriority={handleSetPriority}
-                          onTogglePin={handleTogglePin}
-                          onToggleTag={handleToggleTag}
-                          onDuplicate={handleDuplicateTask}
-                          onCreateNewTag={handleCreateNewTagFromMenu}
                         />
                       ))}
                     </ul>
@@ -1390,32 +644,11 @@ function App() {
                               <TaskItem
                                 key={task.id}
                                 task={task}
-                                tags={tags}
-                                lists={lists}
                                 isSelected={selectedTaskId === task.id}
                                 isExpanded={expandedTasks.has(task.id)}
-                                onToggleExpand={() => toggleTaskExpand(task.id)}
                                 subtaskInput={subtaskInputs[task.id] || ''}
-                                onSubtaskInputChange={(val) => setSubtaskInput(task.id, val)}
-                                onCreateSubtask={(title) => handleCreateSubtask(task.id, title)}
-                                onToggle={() => handleToggleTask(task)}
-                                onToggleSubtask={(subtaskId, completed) => handleUpdateTask(subtaskId, { completed })}
-                                onClick={() => setSelectedTaskId(task.id)}
-                                onReorder={() => {}}
-                                onDelete={handleDeleteTask}
-                                batchMode={batchMode}
                                 isSelectedForBatch={selectedTaskIds.has(task.id)}
-                                onToggleSelect={() => toggleTaskSelection(task.id)}
-                                onInlineEdit={handleInlineEdit}
-                                onArchive={handleArchiveTask}
-                                onDragStartGlobal={handleDragStartGlobal}
-                                onDragEndGlobal={handleDragEndGlobal}
-                                onSetDate={handleSetDate}
-                                onSetPriority={handleSetPriority}
-                                onTogglePin={handleTogglePin}
-                                onToggleTag={handleToggleTag}
-                                onDuplicate={handleDuplicateTask}
-                                onCreateNewTag={handleCreateNewTagFromMenu}
+                                onReorder={() => {}}
                               />
                             ))}
                           </ul>
@@ -1427,6 +660,7 @@ function App() {
               </>
             )}
           </div>
+          </TaskActionProvider>
         </main>
       )}
 
@@ -1435,12 +669,12 @@ function App() {
           task={selectedTask}
           tags={tags}
           lists={lists}
-          onUpdate={handleUpdateTask}
-          onDelete={handleDeleteTask}
+          onUpdate={actions.handleUpdateTask}
+          onDelete={actions.handleDeleteTask}
           onClose={() => setSelectedTaskId(null)}
-          onAddTag={handleAddTagToTask}
-          onRemoveTag={handleRemoveTagFromTask}
-          onCreateSubtask={handleCreateSubtask}
+          onAddTag={actions.handleAddTagToTask}
+          onRemoveTag={actions.handleRemoveTagFromTask}
+          onCreateSubtask={actions.handleCreateSubtask}
         />
       )}
     </div>

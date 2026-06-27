@@ -8,12 +8,14 @@ interface ToastItem {
   type: ToastType
 }
 
+export type ToastApi = {
+  success: (message: string) => void
+  error: (message: string) => void
+  info: (message: string) => void
+}
+
 interface ToastContextValue {
-  toast: {
-    success: (message: string) => void
-    error: (message: string) => void
-    info: (message: string) => void
-  }
+  toast: ToastApi
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)

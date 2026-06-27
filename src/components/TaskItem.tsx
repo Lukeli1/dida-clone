@@ -1,40 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Task, Tag, List } from '../types'
+import type { Task } from '../types'
 import { hexWithAlpha, getTaskColor } from '../utils/priority'
+import { useTaskActionContext } from '../contexts/TaskActionContext'
 
 export interface TaskItemProps {
   task: Task
-  tags: Tag[]
-  lists?: List[]
   isSelected: boolean
   isExpanded: boolean
-  onToggleExpand: () => void
   subtaskInput: string
-  onSubtaskInputChange: (val: string) => void
-  onCreateSubtask: (title: string) => void
-  onToggle: () => void
-  onToggleSubtask?: (subtaskId: number, completed: boolean) => void
-  onClick: () => void
-  onReorder: (draggedId: number, targetId: number) => void
-  onDelete: (taskId: number) => void
-  batchMode?: boolean
   isSelectedForBatch?: boolean
-  onToggleSelect?: () => void
-  onInlineEdit?: (id: number, title: string) => void
-  onArchive?: (id: number) => void
-  onUnarchive?: (id: number) => void
-  isArchivedView?: boolean
-  onDragStartGlobal?: () => void
-  onDragEndGlobal?: () => void
-  onSetDate?: (taskId: number, date: string | null) => void
-  onSetPriority?: (taskId: number, priority: number) => void
-  onTogglePin?: (taskId: number) => void
-  onToggleTag?: (taskId: number, tagId: number) => void
-  onDuplicate?: (taskId: number) => void
-  onCreateNewTag?: (name: string) => void
+  onReorder?: (draggedId: number, targetId: number) => void
 }
 
-export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onToggleSubtask, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal, onSetDate, onSetPriority, onTogglePin, onToggleTag, onDuplicate, onCreateNewTag }: TaskItemProps) {
+export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelectedForBatch, onReorder }: TaskItemProps) {
+  const ctx = useTaskActionContext()
+  const { tags, lists, batchMode, isArchivedView } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -54,7 +34,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(task.id))
-    onDragStartGlobal?.()
+    ctx.onDragStartGlobal()
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -71,14 +51,14 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     const draggedId = Number(e.dataTransfer.getData('text/plain'))
-    if (draggedId && draggedId !== task.id) {
+    if (draggedId && draggedId !== task.id && onReorder) {
       onReorder(draggedId, task.id)
     }
     setDragOverPos(null)
   }
 
   function handleDragEnd() {
-    onDragEndGlobal?.()
+    ctx.onDragEndGlobal()
   }
 
   function handleContextMenu(e: React.MouseEvent) {
@@ -91,15 +71,15 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
 
   function handleDoubleClick(e: React.MouseEvent) {
     e.stopPropagation()
-    if (onInlineEdit && !batchMode) {
+    if (!batchMode) {
       setEditTitle(task.title)
       setIsEditing(true)
     }
   }
 
   function handleEditSave() {
-    if (onInlineEdit) {
-      onInlineEdit(task.id, editTitle)
+    {
+      ctx.onInlineEdit(task.id, editTitle)
     }
     setIsEditing(false)
   }
@@ -123,46 +103,46 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
   }
 
   function handleQuickDate(offsetDays: number) {
-    if (onSetDate) {
-      onSetDate(task.id, getDateString(offsetDays))
+    {
+      ctx.onSetDate(task.id, getDateString(offsetDays))
     }
     setContextMenu(null)
   }
 
   function handleClearDate() {
-    if (onSetDate) {
-      onSetDate(task.id, null)
+    {
+      ctx.onSetDate(task.id, null)
     }
     setContextMenu(null)
   }
 
   function handleCustomDate() {
-    if (customDate && onSetDate) {
+    if (customDate) {
       const d = new Date(customDate)
       d.setHours(23, 59, 0, 0)
-      onSetDate(task.id, d.toISOString())
+      ctx.onSetDate(task.id, d.toISOString())
     }
     setShowCustomDate(false)
     setContextMenu(null)
   }
 
   function handlePriority(priority: number) {
-    if (onSetPriority) {
-      onSetPriority(task.id, priority)
+    {
+      ctx.onSetPriority(task.id, priority)
     }
     setContextMenu(null)
   }
 
   function handlePin() {
-    if (onTogglePin) {
-      onTogglePin(task.id)
+    {
+      ctx.onTogglePin(task.id)
     }
     setContextMenu(null)
   }
 
   function handleDuplicate() {
-    if (onDuplicate) {
-      onDuplicate(task.id)
+    {
+      ctx.onDuplicate(task.id)
     }
     setContextMenu(null)
   }
@@ -172,20 +152,20 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
   }
 
   function handleDeleteConfirm() {
-    onDelete(task.id)
+    ctx.onDelete(task.id)
     setContextMenu(null)
     setShowDeleteConfirm(false)
   }
 
   function handleToggleTag(tagId: number) {
-    if (onToggleTag) {
-      onToggleTag(task.id, tagId)
+    {
+      ctx.onToggleTag(task.id, tagId)
     }
   }
 
   function handleCreateNewTag() {
-    if (newTagName.trim() && onCreateNewTag) {
-      onCreateNewTag(newTagName.trim())
+    if (newTagName.trim()) {
+      ctx.onCreateNewTag(newTagName.trim())
       setNewTagName('')
       setShowNewTagInput(false)
     }
@@ -246,11 +226,11 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
     >
       <div
         onClick={(e) => {
-          if (batchMode && onToggleSelect) {
+          if (batchMode) {
             e.stopPropagation()
-            onToggleSelect()
+            ctx.onToggleSelect(task.id)
           } else if (!isEditing) {
-            onClick()
+            ctx.onClick(task.id)
           }
         }}
         onDoubleClick={handleDoubleClick}
@@ -261,7 +241,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
       >
         {hasSubtasks ? (
           <button
-            onClick={(e) => { e.stopPropagation(); onToggleExpand() }}
+            onClick={(e) => { e.stopPropagation(); ctx.onToggleExpand(task.id) }}
             className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600"
             aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
           >
@@ -276,7 +256,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           <input
             type="checkbox"
             checked={isSelectedForBatch || false}
-            onChange={(e) => { e.stopPropagation(); onToggleSelect?.() }}
+            onChange={(e) => { e.stopPropagation(); ctx.onToggleSelect(task.id) }}
             onClick={(e) => e.stopPropagation()}
             className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
           />
@@ -284,7 +264,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           <input
             type="checkbox"
             checked={task.completed}
-            onChange={(e) => { e.stopPropagation(); onToggle() }}
+            onChange={(e) => { e.stopPropagation(); ctx.onToggle(task) }}
             onClick={(e) => e.stopPropagation()}
             className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
           />
@@ -372,7 +352,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           {task.subtasks!.map(subtask => (
             <div
               key={subtask.id}
-              onClick={() => onClick()}
+              onClick={() => ctx.onClick(task.id)}
               className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
                 isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50/60'
               } ${subtask.completed ? 'opacity-60' : ''}`}
@@ -383,8 +363,8 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
                 onChange={(e) => {
                   e.stopPropagation()
                   e.preventDefault()
-                  if (onToggleSubtask) {
-                    onToggleSubtask(subtask.id, !subtask.completed)
+                  {
+                    ctx.onToggleSubtask(subtask.id, !subtask.completed)
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
@@ -403,10 +383,10 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
             <input
               type="text"
               value={subtaskInput}
-              onChange={(e) => onSubtaskInputChange(e.target.value)}
+              onChange={(e) => ctx.onSubtaskInputChange(task.id, e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') onCreateSubtask(subtaskInput)
-                if (e.key === 'Escape') onSubtaskInputChange('')
+                if (e.key === 'Enter') ctx.onCreateSubtask(task.id, subtaskInput)
+                if (e.key === 'Escape') ctx.onSubtaskInputChange(task.id, '')
               }}
               placeholder="添加子任务..."
               className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -425,7 +405,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           onContextMenu={(e) => e.preventDefault()}
         >
           {/* 重命名 */}
-          {!isArchivedView && onInlineEdit && (
+          {!isArchivedView && (
             <button
               onClick={() => {
                 setContextMenu(null)
@@ -442,9 +422,9 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 归档/恢复 */}
-          {isArchivedView && onUnarchive ? (
+          {isArchivedView ? (
             <button
-              onClick={() => { onUnarchive(task.id); setContextMenu(null) }}
+              onClick={() => { ctx.onUnarchive(task.id); setContextMenu(null) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,9 +432,9 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
               </svg>
               恢复任务
             </button>
-          ) : onArchive && (
+          ) : (
             <button
-              onClick={() => { onArchive(task.id); setContextMenu(null) }}
+              onClick={() => { ctx.onArchive(task.id); setContextMenu(null) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -465,7 +445,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 日期快捷设置 */}
-          {onSetDate && !isArchivedView && (
+          {!isArchivedView && (
             <>
               <div className="border-t border-gray-100 my-1" />
               <div className="px-3 py-1 text-xs text-gray-400 font-medium">日期</div>
@@ -533,7 +513,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 优先级快捷设置 */}
-          {onSetPriority && !isArchivedView && (
+          {!isArchivedView && (
             <>
               <div className="border-t border-gray-100 my-1" />
               <div className="px-3 py-1 text-xs text-gray-400 font-medium">优先级</div>
@@ -575,7 +555,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 置顶 */}
-          {onTogglePin && !isArchivedView && (
+          {!isArchivedView && (
             <>
               <div className="border-t border-gray-100 my-1" />
               <button
@@ -591,7 +571,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 标签子菜单 */}
-          {onToggleTag && !isArchivedView && (
+          {!isArchivedView && (
             <>
               <div className="border-t border-gray-100 my-1" />
               <div
@@ -677,7 +657,7 @@ export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleEx
           )}
 
           {/* 创建副本 */}
-          {onDuplicate && !isArchivedView && (
+          {!isArchivedView && (
             <button
               onClick={handleDuplicate}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"

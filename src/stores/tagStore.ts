@@ -53,6 +53,15 @@ export const useTagStore = create<TagState>((set) => ({
   addTagToTask: async (taskId, tagId) => {
     try {
       await api.addTagToTask(taskId, tagId)
+      // 本地同步更新 taskStore 中的 tag_ids，无需手动 reloadTasks
+      const { useTaskStore } = await import('./taskStore')
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] }
+            : t
+        ),
+      }))
       return true
     } catch (error) {
       console.error('Failed to add tag to task:', error)
@@ -63,6 +72,15 @@ export const useTagStore = create<TagState>((set) => ({
   removeTagFromTask: async (taskId, tagId) => {
     try {
       await api.removeTagFromTask(taskId, tagId)
+      // 本地同步更新 taskStore 中的 tag_ids，无需手动 reloadTasks
+      const { useTaskStore } = await import('./taskStore')
+      useTaskStore.setState((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, tag_ids: t.tag_ids?.filter((tid) => tid !== tagId) || [] }
+            : t
+        ),
+      }))
       return true
     } catch (error) {
       console.error('Failed to remove tag from task:', error)
