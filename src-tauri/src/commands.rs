@@ -17,6 +17,8 @@ pub struct Task {
     pub completed: bool,
     #[serde(default)]
     pub archived: bool,
+    #[serde(default)]
+    pub pinned: bool,
     pub list_id: i64,
     pub parent_id: Option<i64>,
     pub repeat_rule: Option<String>,
@@ -73,6 +75,7 @@ pub struct UpdateTaskRequest {
     pub reminder: Option<String>,
     pub completed: Option<bool>,
     pub archived: Option<bool>,
+    pub pinned: Option<bool>,
     pub list_id: Option<i64>,
     pub parent_id: Option<i64>,
     pub repeat_rule: Option<String>,
@@ -100,7 +103,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().unwrap();
 
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<Task> = stmt
@@ -115,12 +118,13 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
                 reminder: row.get(6)?,
                 completed: row.get(7)?,
                 archived: row.get::<_, i64>(8)? != 0,
-                list_id: row.get(9)?,
-                parent_id: row.get(10)?,
-                repeat_rule: row.get(11)?,
-                sort_order: row.get(12)?,
-                created_at: row.get(13)?,
-                updated_at: row.get(14)?,
+                pinned: row.get::<_, i64>(9)? != 0,
+                list_id: row.get(10)?,
+                parent_id: row.get(11)?,
+                repeat_rule: row.get(12)?,
+                sort_order: row.get(13)?,
+                created_at: row.get(14)?,
+                updated_at: row.get(15)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -185,6 +189,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         reminder: req.reminder,
         completed: false,
         archived: false,
+        pinned: false,
         list_id: req.list_id,
         parent_id: req.parent_id,
         repeat_rule: req.repeat_rule,
@@ -236,6 +241,10 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
         set_clauses.push("archived = ?".to_string());
         params_vec.push(Box::new(archived));
     }
+    if let Some(pinned) = updates.pinned {
+        set_clauses.push("pinned = ?".to_string());
+        params_vec.push(Box::new(pinned));
+    }
     if let Some(list_id) = updates.list_id {
         set_clauses.push("list_id = ?".to_string());
         params_vec.push(Box::new(list_id));
@@ -286,6 +295,69 @@ pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
     conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
+    let conn = state.0.lock().unwrap();
+    let now = chrono::Local::now().to_rfc3339();
+    let sort_order = chrono::Local::now().timestamp_millis() as f64;
+
+    // 查询原任务所有字段
+    let task: (String, Option<String>, i64, Option<String>, Option<String>, Option<String>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = conn
+        .query_row(
+            "SELECT title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let (title, notes, priority, due_date, end_date, reminder, _completed, _archived, _pinned, list_id, parent_id, repeat_rule, _sort_order) = task;
+
+    // 插入副本：completed=false, archived=false, pinned=false
+    conn.execute(
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, now, now],
+    ).map_err(|e| e.to_string())?;
+
+    let new_id = conn.last_insert_rowid();
+
+    // 复制标签关联
+    let tag_ids: Vec<i64> = conn
+        .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
+        .map_err(|e| e.to_string())?
+        .query_map(params![id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    for tag_id in &tag_ids {
+        conn.execute(
+            "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
+            params![new_id, tag_id],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    Ok(Task {
+        id: new_id,
+        title,
+        notes,
+        priority,
+        due_date,
+        end_date,
+        reminder,
+        completed: false,
+        archived: false,
+        pinned: false,
+        list_id,
+        parent_id,
+        repeat_rule,
+        sort_order,
+        created_at: now.clone(),
+        updated_at: now,
+        tag_ids,
+    })
 }
 
 #[tauri::command]

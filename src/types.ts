@@ -8,6 +8,7 @@ export interface Task {
   reminder?: string
   completed: boolean
   archived?: boolean
+  pinned?: boolean
   list_id: number
   parent_id?: number
   repeat_rule?: string
@@ -78,6 +79,7 @@ export interface UpdateTaskRequest {
   reminder?: string
   completed?: boolean
   archived?: boolean
+  pinned?: boolean
   list_id?: number
   parent_id?: number
   repeat_rule?: string

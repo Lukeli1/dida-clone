@@ -10,6 +10,8 @@ interface TaskState {
   createTask: (req: CreateTaskRequest) => Promise<Task | null>
   updateTask: (id: number, updates: Partial<Task>) => Promise<boolean>
   deleteTask: (id: number) => Promise<boolean>
+  duplicateTask: (id: number) => Promise<Task | null>
+  togglePin: (id: number) => Promise<boolean>
   toggleTask: (task: Task) => Promise<{ success: boolean; newTaskGenerated: boolean }>
   reorderTasks: (items: { id: number; sort_order: number }[]) => Promise<boolean>
   moveTask: (taskId: number, newDate: string) => Promise<boolean>
@@ -89,6 +91,35 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       return true
     } catch (error) {
       console.error('Failed to delete task:', error)
+      return false
+    }
+  },
+
+  duplicateTask: async (id) => {
+    try {
+      const newTask = await api.duplicateTask(id)
+      set((state) => ({ tasks: [newTask, ...state.tasks] }))
+      return newTask
+    } catch (error) {
+      console.error('Failed to duplicate task:', error)
+      return null
+    }
+  },
+
+  togglePin: async (id) => {
+    try {
+      const task = get().tasks.find((t) => t.id === id)
+      if (!task) return false
+      const newPinned = !task.pinned
+      await api.updateTask(id, { pinned: newPinned })
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === id ? { ...t, pinned: newPinned, updated_at: new Date().toISOString() } : t
+        ),
+      }))
+      return true
+    } catch (error) {
+      console.error('Failed to toggle pin:', error)
       return false
     }
   },

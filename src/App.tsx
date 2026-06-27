@@ -268,6 +268,8 @@ function App() {
     }
 
     return filtered.sort((a, b) => {
+      // 置顶优先
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
       // 未完成在前
       if (a.completed !== b.completed) return a.completed ? 1 : -1
       // 归档视图/搜索/今日模式/激活筛选按优先级→截止日期排序；其他模式按 sort_order 排序
@@ -323,6 +325,7 @@ function App() {
       if (!t.due_date || t.completed) return false
       return dateFnsIsBefore(new Date(t.due_date), todayStart)
     }).sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
       const pa = a.priority === 0 ? 4 : a.priority
       const pb = b.priority === 0 ? 4 : b.priority
       if (pa !== pb) return pa - pb
@@ -758,6 +761,54 @@ function App() {
     } else {
       toast.error('恢复失败')
     }
+  }
+
+  // ============ 右键菜单快捷操作 ============
+  async function handleSetDate(taskId: number, date: string | null) {
+    // 使用空字符串代替 null/undefined，确保 Tauri 序列化后 Rust 端能收到 Some("") 从而更新字段
+    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? '' })
+    if (!success) {
+      toast.error('设置日期失败')
+    }
+  }
+
+  async function handleSetPriority(taskId: number, priority: number) {
+    const success = await useTaskStore.getState().updateTask(taskId, { priority })
+    if (!success) {
+      toast.error('设置优先级失败')
+    }
+  }
+
+  async function handleTogglePin(taskId: number) {
+    const success = await useTaskStore.getState().togglePin(taskId)
+    if (!success) {
+      toast.error('置顶操作失败')
+    }
+  }
+
+  async function handleToggleTag(taskId: number, tagId: number) {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    if (task.tag_ids?.includes(tagId)) {
+      await handleRemoveTagFromTask(taskId, tagId)
+    } else {
+      await handleAddTagToTask(taskId, tagId)
+    }
+  }
+
+  async function handleDuplicateTask(taskId: number) {
+    const newTask = await useTaskStore.getState().duplicateTask(taskId)
+    if (newTask) {
+      toast.success('已创建副本')
+    } else {
+      toast.error('创建副本失败')
+    }
+  }
+
+  async function handleCreateNewTagFromMenu(name: string) {
+    const colors = ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899']
+    const color = colors[Math.floor(Math.random() * colors.length)]
+    await handleCreateTag(name, color)
   }
 
   // ============ 拖拽到日历（设置截止日期）============
@@ -1257,6 +1308,12 @@ function App() {
                             onArchive={handleArchiveTask}
                             onDragStartGlobal={handleDragStartGlobal}
                             onDragEndGlobal={handleDragEndGlobal}
+                            onSetDate={handleSetDate}
+                            onSetPriority={handleSetPriority}
+                            onTogglePin={handleTogglePin}
+                            onToggleTag={handleToggleTag}
+                            onDuplicate={handleDuplicateTask}
+                            onCreateNewTag={handleCreateNewTagFromMenu}
                           />
                         ))}
                       </ul>
@@ -1295,6 +1352,12 @@ function App() {
                           onArchive={handleArchiveTask}
                           onDragStartGlobal={handleDragStartGlobal}
                           onDragEndGlobal={handleDragEndGlobal}
+                          onSetDate={handleSetDate}
+                          onSetPriority={handleSetPriority}
+                          onTogglePin={handleTogglePin}
+                          onToggleTag={handleToggleTag}
+                          onDuplicate={handleDuplicateTask}
+                          onCreateNewTag={handleCreateNewTagFromMenu}
                         />
                       ))}
                     </ul>
@@ -1335,6 +1398,12 @@ function App() {
                                 onArchive={handleArchiveTask}
                                 onDragStartGlobal={handleDragStartGlobal}
                                 onDragEndGlobal={handleDragEndGlobal}
+                                onSetDate={handleSetDate}
+                                onSetPriority={handleSetPriority}
+                                onTogglePin={handleTogglePin}
+                                onToggleTag={handleToggleTag}
+                                onDuplicate={handleDuplicateTask}
+                                onCreateNewTag={handleCreateNewTagFromMenu}
                               />
                             ))}
                           </ul>

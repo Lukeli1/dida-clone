@@ -192,6 +192,33 @@ export const api = {
     await invoke('remove_tag_from_task', { taskId, tagId })
   },
 
+  // ===== 复制任务 =====
+
+  duplicateTask: async (id: number): Promise<Task> => {
+    if (!isTauri) {
+      const source = mockTasks.find(t => t.id === id)
+      if (!source) throw new Error('Task not found')
+      const now = new Date().toISOString()
+      const task: Task = {
+        ...source,
+        id: nextTaskId++,
+        completed: false,
+        archived: false,
+        pinned: false,
+        sort_order: Date.now(),
+        created_at: now,
+        updated_at: now,
+      }
+      mockTasks.unshift(task)
+      // 复制标签关联
+      if (mockTaskTags[id]) {
+        mockTaskTags[task.id] = [...mockTaskTags[id]]
+      }
+      return Promise.resolve(task)
+    }
+    return await invoke<Task>('duplicate_task', { id })
+  },
+
   // ===== 排序与完成 =====
 
   reorderTasks: async (items: ReorderItem[]): Promise<void> => {

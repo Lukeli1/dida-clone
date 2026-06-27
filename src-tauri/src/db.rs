@@ -99,6 +99,16 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         conn.execute("ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0", [])?;
     }
 
+    // 兼容已有数据库：如果 tasks 表没有 pinned 列，则添加
+    let has_pinned: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
+        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
+        cols.iter().any(|c| c == "pinned")
+    };
+    if !has_pinned {
+        conn.execute("ALTER TABLE tasks ADD COLUMN pinned INTEGER DEFAULT 0", [])?;
+    }
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

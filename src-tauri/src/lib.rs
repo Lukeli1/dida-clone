@@ -76,6 +76,7 @@ pub fn run() {
             commands::create_task,
             commands::update_task,
             commands::delete_task,
+            commands::duplicate_task,
             commands::get_lists,
             commands::create_list,
             commands::update_list,
