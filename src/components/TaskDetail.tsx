@@ -171,6 +171,16 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
     }
   }
 
+  // 计算延期天数（未完成且已过期）
+  function getOverdueDays(): number {
+    if (!dueDate || task.completed) return 0
+    const d = new Date(dueDate)
+    if (isNaN(d.getTime())) return 0
+    const now = new Date()
+    if (d >= now) return 0
+    return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
   // 添加检查事项（子任务）
   function handleAddSubtask() {
     const t = newSubtaskTitle.trim()
@@ -225,11 +235,16 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             onClick={() => setShowScheduleEdit(v => !v)}
             className="mt-2 flex items-center gap-1.5 text-sm hover:text-[#378ADD] transition-colors"
           >
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-red-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {dueDate ? (
-              <span className="text-[#6B7280]">{formatScheduleText()}</span>
+              <span className={getOverdueDays() > 0 ? 'text-red-500 font-medium' : 'text-[#6B7280]'}>
+                {formatScheduleText()}
+                {getOverdueDays() > 0 && (
+                  <span className="text-red-500">，延期{getOverdueDays()}天</span>
+                )}
+              </span>
             ) : (
               <span className="text-gray-400">设置日期</span>
             )}
