@@ -15,9 +15,9 @@ const mockLists: List[] = [
   },
 ]
 const mockTags: Tag[] = [
-  { id: 1, name: '工作', color: '#3B82F6', created_at: new Date().toISOString() },
-  { id: 2, name: '生活', color: '#10B981', created_at: new Date().toISOString() },
-  { id: 3, name: '重要', color: '#EF4444', created_at: new Date().toISOString() },
+  { id: 1, name: '工作', color: '#3B82F6', parent_id: undefined, created_at: new Date().toISOString() },
+  { id: 2, name: '生活', color: '#10B981', parent_id: undefined, created_at: new Date().toISOString() },
+  { id: 3, name: '重要', color: '#EF4444', parent_id: undefined, created_at: new Date().toISOString() },
 ]
 const mockTaskTags: Record<number, number[]> = {}
 
@@ -147,6 +147,7 @@ export const api = {
         id: nextTagId++,
         name: req.name,
         color: req.color,
+        parent_id: req.parent_id,
         created_at: new Date().toISOString(),
       }
       mockTags.push(tag)

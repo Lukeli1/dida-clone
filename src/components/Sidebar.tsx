@@ -20,7 +20,7 @@ interface SidebarProps {
   onCreateList: (name: string, color?: string) => void
   onUpdateList: (id: number, updates: { name?: string; color?: string }) => void
   onDeleteList: (id: number) => void
-  onCreateTag: (name: string, color?: string) => void
+  onCreateTag: (name: string, color?: string, parentId?: number | null) => void
   onDeleteTag: (id: number) => void
   taskCounts: Record<number, number>
   todayCount: number
@@ -38,6 +38,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
   const [isCreatingTag, setIsCreatingTag] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#6B7280')
+  const [newTagParentId, setNewTagParentId] = useState<number | null>(null)
   const [tagContextMenu, setTagContextMenu] = useState<{ tagId: number; x: number; y: number } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const tagContextMenuRef = useRef<HTMLDivElement>(null)
@@ -107,9 +108,10 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       setIsCreatingTag(false)
       return
     }
-    onCreateTag(name, newTagColor)
+    onCreateTag(name, newTagColor, newTagParentId)
     setNewTagName('')
     setNewTagColor('#6B7280')
+    setNewTagParentId(null)
     setIsCreatingTag(false)
   }
 
@@ -430,6 +432,19 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                 placeholder="标签名称"
                 className="w-full px-2 py-1.5 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
+              {/* 父标签选择（可选） */}
+              {tags.length > 0 && (
+                <select
+                  value={newTagParentId || ''}
+                  onChange={(e) => setNewTagParentId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-400 text-gray-600"
+                >
+                  <option value="">顶级标签</option>
+                  {tags.filter(t => !t.parent_id).map(tag => (
+                    <option key={tag.id} value={tag.id}>隶属于: {tag.name}</option>
+                  ))}
+                </select>
+              )}
               <div className="flex gap-1.5 flex-wrap">
                 {PRESET_COLORS.map((c) => (
                   <button
@@ -442,13 +457,16 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
               </div>
               <div className="flex gap-2">
                 <button onClick={handleCreateTag} className="px-3 py-1 text-xs bg-[#378ADD] text-white rounded-md hover:bg-[#185FA5]">创建</button>
-                <button onClick={() => { setIsCreatingTag(false); setNewTagName('') }} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">取消</button>
+                <button onClick={() => { setIsCreatingTag(false); setNewTagName(''); setNewTagParentId(null) }} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">取消</button>
               </div>
             </div>
           )}
 
           <ul className="space-y-0.5">
-            {tags.map((tag) => (
+            {/* 一级标签（无 parent_id） */}
+            {tags.filter(t => !t.parent_id).map((tag) => {
+              const childTags = tags.filter(t => t.parent_id === tag.id)
+              return (
               <li key={tag.id}>
                 <button
                   onClick={() => { onViewChange('tasks'); onSelectTag(tag.id); onSelectList(null) }}
@@ -459,15 +477,39 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                       : 'text-gray-700 hover:bg-gray-50/60'
                   }`}
                 >
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" style={{ color: tag.color || '#6B7280' }}>
-                    <path d="M5.5 7A1.5 1.5 0 014 5.5 1.5 1.5 0 015.5 4 1.5 1.5 0 017 5.5 1.5 1.5 0 015.5 7zm15.5 5l-7-7H4v10h10l7-7-7 7z" opacity="0.8"/>
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82l-0.01 0.01z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                    <circle cx="5.5" cy="5.5" r="1.5"/>
-                  </svg>
+                  <span
+                    className="w-3 h-3 rounded-full flex-shrink-0 border border-white/50"
+                    style={{ backgroundColor: tag.color || '#6B7280' }}
+                  />
                   <span className="truncate">{tag.name}</span>
                 </button>
+                {/* 二级标签 */}
+                {childTags.length > 0 && (
+                  <ul className="ml-4 border-l border-gray-100 pl-1 mt-0.5 space-y-0.5">
+                    {childTags.map(child => (
+                      <li key={child.id}>
+                        <button
+                          onClick={() => { onViewChange('tasks'); onSelectTag(child.id); onSelectList(null) }}
+                          onContextMenu={(e) => handleTagContextMenu(e, child.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                            selectedTagId === child.id
+                              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
+                              : 'text-gray-500 hover:bg-gray-50/60'
+                          }`}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: child.color || tag.color || '#6B7280' }}
+                          />
+                          <span className="truncate text-[13px]">{child.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
       </div>

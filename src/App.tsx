@@ -20,6 +20,7 @@ import { HabitView } from './components/HabitView'
 import { EmptyState } from './components/EmptyState'
 import { useToast } from './components/Toast'
 import { getLLMConfig, parseNaturalLanguageTask } from './utils/llm'
+import { parseSmartDate } from './utils/smartDate'
 import { useTaskStore } from './stores/taskStore'
 import { useListStore } from './stores/listStore'
 import { useTagStore } from './stores/tagStore'
@@ -354,14 +355,31 @@ function App() {
       return
     }
 
+    // 智能日期识别（本地解析，无需 AI）
+    const smartResult = parseSmartDate(newTaskTitle.trim())
     const listId = selectedListId ?? (lists.length > 0 ? lists[0].id : 1)
     const newTask = await useTaskStore.getState().createTask({
-      title: newTaskTitle,
+      title: smartResult.cleanedTitle,
       list_id: listId,
+      due_date: smartResult.dueDate || undefined,
+      priority: smartResult.priority ?? 0,
+      repeat_rule: smartResult.repeatRule || undefined,
     })
     if (newTask) {
       setNewTaskTitle('')
-      toast.success('任务已创建')
+      const extras: string[] = []
+      if (smartResult.dueDate) {
+        const d = new Date(smartResult.dueDate)
+        extras.push(`时间: ${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
+      }
+      if (smartResult.priority && smartResult.priority > 0) {
+        const pLabel = smartResult.priority === 1 ? '高' : smartResult.priority === 2 ? '中' : '低'
+        extras.push(`优先级: ${pLabel}`)
+      }
+      if (smartResult.repeatRule) {
+        extras.push('已设重复')
+      }
+      toast.success(`任务已创建${extras.length ? '（' + extras.join('，') + '）' : ''}`)
     } else {
       toast.error('创建任务失败')
     }
@@ -480,8 +498,8 @@ function App() {
     }
   }
 
-  async function handleCreateTag(name: string, color?: string) {
-    const newTag = await useTagStore.getState().createTag({ name, color })
+  async function handleCreateTag(name: string, color?: string, parentId?: number | null) {
+    const newTag = await useTagStore.getState().createTag({ name, color, parent_id: parentId || undefined })
     if (newTag) {
       toast.success('标签已创建')
     } else {
@@ -1085,7 +1103,7 @@ function App() {
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !aiParsing && handleCreateTask()}
                     disabled={aiParsing}
-                    placeholder={aiMode ? '试试输入：明天下午3点开会，优先级高' : '添加新任务...'}
+                    placeholder={aiMode ? '试试输入：明天下午3点开会，优先级高' : '添加新任务... (试试：明天下午3点开会)'}
                     className={`w-full pl-4 pr-24 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-60 ${
                       aiMode ? 'border-purple-300 bg-purple-50/30' : 'border-gray-300'
                     }`}
@@ -1110,6 +1128,31 @@ function App() {
                     )}
                     AI
                   </button>
+                  {/* 智能日期识别预览 */}
+                  {!aiMode && newTaskTitle.trim() && (() => {
+                    const preview = parseSmartDate(newTaskTitle.trim())
+                    const hasParsed = preview.dueDate || (preview.priority !== undefined && preview.priority > 0) || preview.repeatRule
+                    if (!hasParsed) return null
+                    return (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs text-blue-700 flex items-center gap-3 z-10 shadow-sm">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          智能识别
+                        </span>
+                        {preview.dueDate && (
+                          <span className="flex items-center gap-0.5">
+                            📅 {new Date(preview.dueDate).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {preview.priority !== undefined && preview.priority > 0 && (
+                          <span>🔥 {preview.priority === 1 ? '高优先级' : preview.priority === 2 ? '中优先级' : '低优先级'}</span>
+                        )}
+                        {preview.repeatRule && (
+                          <span>🔁 重复</span>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
                 <button
                   onClick={handleCreateTask}

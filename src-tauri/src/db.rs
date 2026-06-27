@@ -104,10 +104,22 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             color TEXT,
-            created_at TEXT NOT NULL
+            parent_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (parent_id) REFERENCES tags(id)
         )",
         [],
     )?;
+
+    // 兼容已有数据库：如果 tags 表没有 parent_id 列，则添加
+    let has_tag_parent_id: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(tags)")?;
+        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
+        cols.iter().any(|c| c == "parent_id")
+    };
+    if !has_tag_parent_id {
+        conn.execute("ALTER TABLE tags ADD COLUMN parent_id INTEGER", [])?;
+    }
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS task_tags (

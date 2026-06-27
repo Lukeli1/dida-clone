@@ -258,6 +258,7 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
                 checked={subtask.completed}
                 onChange={(e) => {
                   e.stopPropagation()
+                  e.preventDefault()
                   if (onToggleSubtask) {
                     onToggleSubtask(subtask.id, !subtask.completed)
                   }

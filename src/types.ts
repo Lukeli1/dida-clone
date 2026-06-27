@@ -31,6 +31,7 @@ export interface Tag {
   id: number
   name: string
   color?: string
+  parent_id?: number
   created_at: string
 }
 
@@ -60,6 +61,7 @@ export interface UpdateListRequest {
 export interface CreateTagRequest {
   name: string
   color?: string
+  parent_id?: number
 }
 
 export interface ReorderItem {

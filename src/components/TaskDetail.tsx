@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Task, Tag } from '../types'
 import { hexWithAlpha } from '../utils/priority'
 import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../utils/llm'
@@ -49,14 +51,17 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showSubtaskInput, setShowSubtaskInput] = useState(false)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [notesPreviewMode, setNotesPreviewMode] = useState(false)
+  const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null)
+  const [editSubtaskTitle, setEditSubtaskTitle] = useState('')
 
   const titleRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     setTitle(task.title)
     setNotes(task.notes || '')
-    setDueDate(task.due_date ? task.due_date.slice(0, 16) : '')
-    setReminder(task.reminder ? task.reminder.slice(0, 16) : '')
+    setDueDate(task.due_date || '')
+    setReminder(task.reminder || '')
     setPriority(task.priority)
   }, [task])
 
@@ -262,7 +267,11 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                 <span className="block text-xs text-gray-500 mb-1">重复</span>
                 <select
                   value={task.repeat_rule || ''}
-                  onChange={(e) => onUpdate(task.id, { repeat_rule: e.target.value || undefined })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '__custom') return
+                    onUpdate(task.id, { repeat_rule: value || undefined })
+                  }}
                   className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
                 >
                   <option value="">不重复</option>
@@ -270,6 +279,16 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                   <option value="weekly">每周</option>
                   <option value="monthly">每月</option>
                   <option value="weekdays">工作日</option>
+                  <option value={JSON.stringify({ type: 'weekly', interval: 1, days: [1, 3, 5] })}>每周一三五</option>
+                  <option value={JSON.stringify({ type: 'weekly', interval: 1, days: [2, 4] })}>每周二四</option>
+                  <option value={JSON.stringify({ type: 'weekly', interval: 2 })}>每两周</option>
+                  <option value={JSON.stringify({ type: 'daily', interval: 2 })}>每两天</option>
+                  <option value={JSON.stringify({ type: 'daily', interval: 3 })}>每三天</option>
+                  <option value={JSON.stringify({ type: 'monthly', day: 1 })}>每月1号</option>
+                  <option value={JSON.stringify({ type: 'monthly', day: 15 })}>每月15号</option>
+                  <option value={JSON.stringify({ type: 'monthly', interval: 3, day: 1 })}>每季度1号</option>
+                  <option value={JSON.stringify({ type: 'yearly' })}>每年</option>
+                  <option value="__custom">自定义...</option>
                 </select>
               </div>
             </div>
@@ -290,15 +309,43 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
 
       {/* ===== Middle zone (scrollable) ===== */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
-        {/* 备注：内联 */}
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={handleSave}
-          rows={3}
-          placeholder="添加备注..."
-          className="w-full text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none resize-none bg-transparent"
-        />
+        {/* 备注：Markdown 编辑/预览切换 */}
+        <div className="relative">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-400">备注</span>
+            <button
+              onClick={() => setNotesPreviewMode(!notesPreviewMode)}
+              className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                notesPreviewMode
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+              title={notesPreviewMode ? '切换到编辑模式' : '切换到预览模式'}
+            >
+              {notesPreviewMode ? '✏️ 编辑' : '👁️ 预览'}
+            </button>
+          </div>
+          {notesPreviewMode ? (
+            <div className="min-h-[60px] text-sm text-gray-700 prose prose-sm max-w-none">
+              {notes.trim() ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {notes}
+                </ReactMarkdown>
+              ) : (
+                <span className="text-gray-300 italic">暂无备注内容</span>
+              )}
+            </div>
+          ) : (
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={handleSave}
+              rows={3}
+              placeholder="添加备注... 支持 Markdown 语法"
+              className="w-full text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none resize-none bg-transparent border-b border-transparent focus:border-[#378ADD]/30"
+            />
+          )}
+        </div>
 
         {/* 子任务列表（点击标题旁按钮后展开） */}
         {showSubtaskInput && (
@@ -322,13 +369,45 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                         </svg>
                       )}
                     </button>
-                    <span className={`flex-1 text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                      {subtask.title}
-                    </span>
+                    {editingSubtaskId === subtask.id ? (
+                      <input
+                        type="text"
+                        value={editSubtaskTitle}
+                        onChange={(e) => setEditSubtaskTitle(e.target.value)}
+                        onBlur={() => {
+                          if (editSubtaskTitle.trim()) {
+                            onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
+                          }
+                          setEditingSubtaskId(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (editSubtaskTitle.trim()) {
+                              onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
+                            }
+                            setEditingSubtaskId(null)
+                          }
+                          if (e.key === 'Escape') setEditingSubtaskId(null)
+                        }}
+                        className="flex-1 text-sm px-1 py-0.5 border border-[#378ADD] rounded outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className={`flex-1 text-sm cursor-text ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}
+                        onDoubleClick={() => {
+                          setEditingSubtaskId(subtask.id)
+                          setEditSubtaskTitle(subtask.title)
+                        }}
+                      >
+                        {subtask.title}
+                      </span>
+                    )}
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => onDelete(subtask.id)}
                       className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                      title="删除子任务"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -336,6 +415,12 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+            {/* 子任务进度统计 */}
+            {subtasks.length > 0 && (
+              <div className="text-xs text-gray-400 px-1">
+                {subtasks.filter(s => s.completed).length}/{subtasks.length} 已完成
               </div>
             )}
             {/* 添加子任务输入框 */}
@@ -400,26 +485,48 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
             </button>
           </div>
 
-          {/* 标签选择浮层 */}
+          {/* 标签选择浮层 - 支持二级分组 */}
           {showTagPicker && (
-            <div className="absolute z-20 mt-1 bg-white rounded-lg shadow-md border border-gray-100 p-2 w-52">
-              {availableTags.length > 0 ? (
-                availableTags.map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => {
-                      onAddTag(task.id, tag.id)
-                      setShowTagPicker(false)
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-left"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: tag.color || '#6B7280' }}
-                    />
-                    <span className="text-sm text-gray-700">{tag.name}</span>
-                  </button>
-                ))
+            <div className="absolute z-20 mt-1 bg-white rounded-lg shadow-md border border-gray-100 p-2 w-56 max-h-64 overflow-y-auto">
+              {/* 一级标签（无 parent_id） */}
+              {availableTags.filter(t => !t.parent_id).length > 0 ? (
+                availableTags.filter(t => !t.parent_id).map(tag => {
+                  const childTags = availableTags.filter(t => t.parent_id === tag.id)
+                  return (
+                    <div key={tag.id}>
+                      <button
+                        onClick={() => {
+                          onAddTag(task.id, tag.id)
+                          setShowTagPicker(false)
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-left"
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: tag.color || '#6B7280' }}
+                        />
+                        <span className="text-sm text-gray-700">{tag.name}</span>
+                      </button>
+                      {/* 二级标签 */}
+                      {childTags.map(child => (
+                        <button
+                          key={child.id}
+                          onClick={() => {
+                            onAddTag(task.id, child.id)
+                            setShowTagPicker(false)
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-1.5 rounded hover:bg-gray-50 text-left"
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: child.color || tag.color || '#6B7280' }}
+                          />
+                          <span className="text-sm text-gray-500">{child.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })
               ) : (
                 <p className="text-xs text-gray-400 px-2 py-1">没有可添加的标签</p>
               )}
