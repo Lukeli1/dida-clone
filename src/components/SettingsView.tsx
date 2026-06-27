@@ -13,6 +13,7 @@ import {
   type FontSizeLevel, type SidebarDensity, type AppearanceSetting,
 } from '../utils/appearance'
 import { api, isTauri } from '../api'
+import packageJson from '../../package.json'
 
 interface SettingsViewProps {
   onClose: () => void
@@ -610,7 +611,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">滴答清单</p>
-                <p className="text-xs text-gray-500">版本 1.1.0</p>
+                <p className="text-xs text-gray-500">版本 {packageJson.version}</p>
               </div>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">

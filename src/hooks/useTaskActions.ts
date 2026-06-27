@@ -395,17 +395,24 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     }
     const smartResult = parseSmartDate(title.trim())
     const listId = selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
+
+    // 今日视图下创建任务：若未识别到日期，自动设为今天
+    let dueDate = smartResult.dueDate
+    if (!dueDate && useUIStore.getState().currentView === 'today') {
+      dueDate = new Date().toISOString()
+    }
+
     const newTask = await useTaskStore.getState().createTask({
       title: smartResult.cleanedTitle,
       list_id: listId,
-      due_date: smartResult.dueDate || undefined,
+      due_date: dueDate || undefined,
       priority: smartResult.priority ?? 0,
       repeat_rule: smartResult.repeatRule || undefined,
     })
     if (newTask) {
       const extras: string[] = []
-      if (smartResult.dueDate) {
-        const d = new Date(smartResult.dueDate)
+      if (dueDate) {
+        const d = new Date(dueDate)
         extras.push(`时间: ${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
       }
       if (smartResult.priority && smartResult.priority > 0) {
