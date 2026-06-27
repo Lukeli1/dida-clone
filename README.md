@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.16.0-blue)
+![版本](https://img.shields.io/badge/version-1.17.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,15 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.17.0（2026-06-27）
+
+#### 新增功能
+- **自定义 HTML 标题栏**：隐藏原生 Windows 标题栏，替换为与界面风格统一的 HTML 自定义标题栏；左侧显示应用名称和图标，右侧三个窗口控制按钮（最小化/最大化/关闭）；深色模式灰蓝底色、浅色模式浅灰底色，关闭按钮 hover 变红
+- **新增 Rust 窗口控制命令**：`window_minimize`/`window_maximize`/`window_unmaximize`/`window_toggle_maximize`/`window_is_maximized`/`window_close`
+
+#### 改进
+- 顶部标题栏与主界面风格统一，消除原生白色标题栏的割裂感
 
 ### v1.16.0（2026-06-27）
 
