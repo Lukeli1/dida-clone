@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.11.0-blue)
+![版本](https://img.shields.io/badge/version-1.12.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -76,7 +76,7 @@
 - 思考模式开关：支持推理模型的 reasoning_effort 参数（低/中/高三档）
 
 ### 设置模块
-- **通用**：显示字体（7 种预设 + 自定义输入）、主题（浅色/深色/跟随系统）、一周起始日、删除确认
+- **通用**：显示字体（7 种预设 + 系统字体选择器）、主题（浅色/深色/跟随系统）、一周起始日、删除确认
 - **通知**：桌面通知、提醒声音
 - **大模型 API**：配置、测试连接、模型选择、厂商管理、思考模式
 - **系统**：开机自启、数据导出
@@ -182,6 +182,11 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.12.0（2026-06-27）
+
+#### 新增功能
+- **系统字体选择器**：设置 → 通用「显示字体」新增「更多字体」按钮，点击弹出系统已安装字体列表弹窗，支持搜索过滤，每项用该字体渲染名称（所见即所得）；通过 Rust 后端 `font-loader` crate 枚举系统字体，跨平台支持；选中后即时应用并持久化到 `localStorage`
 
 ### v1.11.0（2026-06-27）
 

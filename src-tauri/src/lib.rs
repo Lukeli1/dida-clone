@@ -1,6 +1,7 @@
 pub mod db;
 pub mod commands;
 pub mod llm;
+pub mod fonts;
 
 use db::DbState;
 use tauri::{
@@ -90,6 +91,7 @@ pub fn run() {
             commands::complete_task,
             llm::test_llm_connection,
             llm::llm_chat,
+            fonts::list_system_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -261,4 +261,12 @@ export const api = {
     }
     return await invoke<CompleteResult>('complete_task', { id })
   },
+
+  // 枚举系统已安装字体（仅 Tauri 环境可用）
+  listSystemFonts: async (): Promise<string[]> => {
+    if (!isTauri) {
+      return Promise.resolve([])
+    }
+    return await invoke<string[]>('list_system_fonts')
+  },
 }

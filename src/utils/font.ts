@@ -1,4 +1,4 @@
-// 字体切换工具：预设列表、持久化、应用
+// 字体切换工具：预设列表、系统字体、持久化、应用
 
 export interface PresetFont {
   key: string
@@ -47,7 +47,7 @@ export const PRESET_FONTS: PresetFont[] = [
 
 export type AppFontSetting =
   | { type: 'preset'; key: string }
-  | { type: 'custom'; value: string }
+  | { type: 'system'; name: string }
 
 const STORAGE_KEY = 'appFont'
 
@@ -67,7 +67,7 @@ export function getFontSetting(): AppFontSetting {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { type: 'preset', key: 'system' }
     const parsed = JSON.parse(raw) as AppFontSetting
-    if (parsed.type === 'preset' || parsed.type === 'custom') return parsed
+    if (parsed.type === 'preset' || parsed.type === 'system') return parsed
   } catch {
     // 解析失败，回退默认
   }
@@ -83,18 +83,6 @@ export function saveFontSetting(setting: AppFontSetting): void {
 export function applyFont(setting: AppFontSetting): void {
   const fontValue = setting.type === 'preset'
     ? getFontCSSValue(setting.key)
-    : setting.value
+    : `"${setting.name}", sans-serif`
   document.documentElement.style.setProperty('--app-font-family', fontValue)
-}
-
-// 将用户输入的原始字体名规范化为合法 font-family 字符串
-// "Noto Serif SC" -> '"Noto Serif SC", sans-serif'
-// 已包含逗号则视为完整声明，原样返回
-export function normalizeCustomFont(raw: string): string {
-  const trimmed = raw.trim()
-  if (!trimmed) return ''
-  // 用户已输入完整 font-family 栈（含逗号）
-  if (trimmed.includes(',')) return trimmed
-  // 单字体名：加引号 + 回退
-  return `"${trimmed}", sans-serif`
 }
