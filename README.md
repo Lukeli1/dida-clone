@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.14.1-blue)
+![版本](https://img.shields.io/badge/version-1.15.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,14 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.15.0（2026-06-27）
+
+#### 新增功能
+- **设置中心左右分栏改造**：设置页从单列滚动布局重构为左侧分类导航栏 + 右侧内容区，6 个分类（外观/通用/提醒与通知/大模型 API/系统/关于），每项带 SVG 图标；选中分类蓝色高亮 + 右侧蓝色竖线标识；所有设置项、状态逻辑、useEffect/handler 完全保持不变，纯 UI 重构
+
+#### 改进
+- 设置页视觉更接近滴答清单原版，分类清晰，导航效率提升
 
 ### v1.14.1（2026-06-27）
 
