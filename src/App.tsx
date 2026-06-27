@@ -27,6 +27,7 @@ import { useTagStore } from './stores/tagStore'
 import { useFilterStore, type FilterState } from './stores/filterStore'
 import { useUIStore } from './stores/uiStore'
 import { getFontSetting, applyFont } from './utils/font'
+import { getAppearance, applyAppearance } from './utils/appearance'
 
 function App() {
   const toast = useToast()
@@ -104,6 +105,8 @@ function App() {
     }
     // 启动时恢复保存的字体设置
     applyFont(getFontSetting())
+    // 启动时恢复外观设置（字体大小、侧边栏密度）
+    applyAppearance(getAppearance())
   }, [])
 
   useEffect(() => {

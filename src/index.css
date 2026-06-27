@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============ CSS 变量：外观设置 ============ */
+:root {
+  --app-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --sidebar-py: 8px;
+}
+
+/* ============ 侧边栏密度覆盖 ============ */
+/* 使用更高特异性覆盖 Tailwind 的 py-2 */
+.sidebar-nav-item {
+  padding-top: var(--sidebar-py, 8px) !important;
+  padding-bottom: var(--sidebar-py, 8px) !important;
+}
+
 @keyframes slide-in {
   from {
     transform: translateX(100%);

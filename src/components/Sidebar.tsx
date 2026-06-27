@@ -142,7 +142,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
           </p>
           <button
             onClick={() => { onViewChange('tasks'); onSelectList(null) }}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'tasks' && selectedListId === null
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -159,7 +159,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
           <button
             onClick={() => { onViewChange('today'); onSelectList(null) }}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'today'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -176,7 +176,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
           <button
             onClick={() => { onViewChange('archived'); onSelectList(null); onSelectTag(null) }}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'archived'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -193,7 +193,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
           <button
             onClick={() => onViewChange('calendar')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'calendar'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -209,7 +209,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
           <button
             onClick={() => onViewChange('stats')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'stats'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -225,7 +225,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
 
           <button
             onClick={() => onViewChange('ai')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'ai'
                 ? 'bg-purple-50/60 text-purple-600 font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -246,7 +246,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
           </p>
           <button
             onClick={() => onViewChange('quadrant')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'quadrant'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -261,7 +261,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
           </button>
           <button
             onClick={() => onViewChange('pomodoro')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'pomodoro'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -276,7 +276,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
           </button>
           <button
             onClick={() => onViewChange('habit')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
               currentView === 'habit'
                 ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                 : 'text-gray-700 hover:bg-gray-50/60'
@@ -360,7 +360,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                   <button
                     onClick={() => { onViewChange('tasks'); onSelectList(list.id) }}
                     onContextMenu={(e) => handleContextMenu(e, list.id)}
-                    className={`relative w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors group ${
+                    className={`relative w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors group ${
                       currentView === 'tasks' && selectedListId === list.id
                         ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                         : 'text-gray-700 hover:bg-gray-50/60'
@@ -471,7 +471,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                 <button
                   onClick={() => { onViewChange('tasks'); onSelectTag(tag.id); onSelectList(null) }}
                   onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  className={`w-full flex items-center gap-2 sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
                     selectedTagId === tag.id
                       ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                       : 'text-gray-700 hover:bg-gray-50/60'
@@ -491,7 +491,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
                         <button
                           onClick={() => { onViewChange('tasks'); onSelectTag(child.id); onSelectList(null) }}
                           onContextMenu={(e) => handleTagContextMenu(e, child.id)}
-                          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          className={`w-full flex items-center gap-2 sidebar-nav-item px-3 py-1.5 rounded-lg text-sm transition-colors ${
                             selectedTagId === child.id
                               ? 'bg-blue-50/60 text-[#378ADD] font-medium'
                               : 'text-gray-500 hover:bg-gray-50/60'
@@ -518,7 +518,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       <div className="border-t border-gray-200 p-3 flex items-center gap-2">
         <button
           onClick={() => onViewChange('settings')}
-          className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+          className={`flex-1 flex items-center gap-2 sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'settings'
               ? 'bg-blue-50/60 text-[#378ADD] font-medium'
               : 'text-gray-700 hover:bg-gray-50/60'

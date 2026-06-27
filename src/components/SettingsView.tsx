@@ -8,6 +8,10 @@ import {
   PRESET_FONTS, getFontSetting, saveFontSetting, applyFont,
   type AppFontSetting,
 } from '../utils/font'
+import {
+  getAppearance, saveAppearance, applyAppearance,
+  type FontSizeLevel, type SidebarDensity, type AppearanceSetting,
+} from '../utils/appearance'
 import { api, isTauri } from '../api'
 
 interface SettingsViewProps {
@@ -31,6 +35,9 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [fontSearch, setFontSearch] = useState('')
   const [loadingFonts, setLoadingFonts] = useState(false)
+
+  // 外观设置（字体大小、侧边栏密度）
+  const [appearance, setAppearance] = useState<AppearanceSetting>(() => getAppearance())
 
   // 大模型 API 配置
   const existingConfig = getLLMConfig()
@@ -98,6 +105,22 @@ export function SettingsView({ onClose }: SettingsViewProps) {
     saveFontSetting(setting)
     applyFont(setting)
     setShowFontPicker(false)
+  }
+
+  // 字体大小切换
+  function handleFontSizeChange(level: FontSizeLevel) {
+    const next = { ...appearance, fontSize: level }
+    setAppearance(next)
+    saveAppearance(next)
+    applyAppearance(next)
+  }
+
+  // 侧边栏密度切换
+  function handleSidebarDensityChange(density: SidebarDensity) {
+    const next = { ...appearance, sidebarDensity: density }
+    setAppearance(next)
+    saveAppearance(next)
+    applyAppearance(next)
   }
 
   async function handleExportData() {
@@ -199,9 +222,9 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 max-w-2xl mx-auto w-full">
-        {/* 通用 */}
+        {/* 外观 */}
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">通用</h3>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">外观</h3>
           <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             {/* 显示字体 */}
             <div className="px-4 py-3.5">
@@ -245,6 +268,62 @@ export function SettingsView({ onClose }: SettingsViewProps) {
               </p>
             </div>
 
+            {/* 字体大小 */}
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div>
+                <p className="text-sm font-medium text-gray-900">字体大小</p>
+                <p className="text-xs text-gray-500 mt-0.5">全局字号按比例缩放</p>
+              </div>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {([
+                  { key: 'normal', label: '正常' },
+                  { key: 'large', label: '大' },
+                  { key: 'xlarge', label: '超大' },
+                ] as const).map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => handleFontSizeChange(item.key)}
+                    className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                      appearance.fontSize === item.key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 侧边栏密度 */}
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div>
+                <p className="text-sm font-medium text-gray-900">侧边栏密度</p>
+                <p className="text-xs text-gray-500 mt-0.5">调整侧边栏列表项间距</p>
+              </div>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {([
+                  { key: 'compact', label: '紧凑' },
+                  { key: 'comfortable', label: '舒适' },
+                  { key: 'spacious', label: '宽松' },
+                ] as const).map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => handleSidebarDensityChange(item.key)}
+                    className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                      appearance.sidebarDensity === item.key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 通用 */}
+        <section className="mb-8">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">通用</h3>
+          <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             {/* 主题 */}
             <div className="flex items-center justify-between px-4 py-3.5">
               <div>
