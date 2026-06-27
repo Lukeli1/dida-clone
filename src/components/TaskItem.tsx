@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Task, Tag } from '../types'
-import { getPriorityStyle, hexWithAlpha } from '../utils/priority'
+import type { Task, Tag, List } from '../types'
+import { hexWithAlpha, getTaskColor } from '../utils/priority'
 
 export interface TaskItemProps {
   task: Task
   tags: Tag[]
+  lists?: List[]
   isSelected: boolean
   isExpanded: boolean
   onToggleExpand: () => void
@@ -33,7 +34,7 @@ export interface TaskItemProps {
   onCreateNewTag?: (name: string) => void
 }
 
-export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onToggleSubtask, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal, onSetDate, onSetPriority, onTogglePin, onToggleTag, onDuplicate, onCreateNewTag }: TaskItemProps) {
+export function TaskItem({ task, tags, lists, isSelected, isExpanded, onToggleExpand, subtaskInput, onSubtaskInputChange, onCreateSubtask, onToggle, onToggleSubtask, onClick, onReorder, onDelete, batchMode, isSelectedForBatch, onToggleSelect, onInlineEdit, onArchive, onUnarchive, isArchivedView, onDragStartGlobal, onDragEndGlobal, onSetDate, onSetPriority, onTogglePin, onToggleTag, onDuplicate, onCreateNewTag }: TaskItemProps) {
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -48,7 +49,7 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
   const hasSubtasks = task.subtasks && task.subtasks.length > 0
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
   const totalSubtasks = task.subtasks?.length || 0
-  const priorityStyle = getPriorityStyle(task.priority)
+  const taskColor = getTaskColor(task, lists)
 
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.effectAllowed = 'move'
@@ -255,7 +256,8 @@ export function TaskItem({ task, tags, isSelected, isExpanded, onToggleExpand, s
         onDoubleClick={handleDoubleClick}
         className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 border border-gray-100 ${
           isSelected ? 'bg-blue-50/60 border-gray-200' : task.pinned ? 'bg-orange-50/30 hover:border-gray-200 hover:bg-orange-50/50' : 'hover:border-gray-200 hover:bg-gray-50/60'
-        } ${batchMode && isSelectedForBatch ? 'bg-blue-50/60' : ''} ${task.completed ? 'opacity-60' : ''} ${priorityStyle.borderLeft}`}
+        } ${batchMode && isSelectedForBatch ? 'bg-blue-50/60' : ''} ${task.completed ? 'opacity-60' : ''}`}
+        style={{ borderLeftColor: taskColor }}
       >
         {hasSubtasks ? (
           <button

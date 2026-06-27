@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Task, Tag } from '../types'
-import { hexWithAlpha } from '../utils/priority'
+import type { Task, Tag, List } from '../types'
+import { hexWithAlpha, getTaskColor } from '../utils/priority'
 import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../utils/llm'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -10,6 +10,7 @@ import { zhCN } from 'date-fns/locale'
 interface TaskDetailProps {
   task: Task
   tags: Tag[]
+  lists?: List[]
   onUpdate: (id: number, updates: Partial<Task>) => void
   onDelete: (id: number) => void
   onClose: () => void
@@ -34,7 +35,7 @@ const REPEAT_LABELS: Record<string, string> = {
   weekdays: '工作日',
 }
 
-export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
+export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes || '')
   const [dueDate, setDueDate] = useState(task.due_date || '')
@@ -638,12 +639,21 @@ export function TaskDetail({ task, tags, onUpdate, onDelete, onClose, onAddTag, 
 
       {/* ===== Bottom zone (fixed toolbar) ===== */}
       <div className="h-12 border-t border-gray-100 flex items-center justify-between px-4 relative shrink-0">
-        {/* 左侧：清单标识 */}
+        {/* 左侧：清单标识（带颜色圆点） */}
         <div className="flex items-center gap-1.5">
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          <span className="text-sm text-[#6B7280]">清单</span>
+          {(() => {
+            const list = lists?.find(l => l.id === task.list_id)
+            const color = getTaskColor(task, lists)
+            return (
+              <>
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-sm text-[#6B7280]">{list?.name || '清单'}</span>
+              </>
+            )
+          })()}
         </div>
 
         {/* 右侧按钮组 */}

@@ -4,6 +4,10 @@ import {
   getProviders, saveProvider, deleteProvider, deriveProviderName,
   type LLMProvider,
 } from '../utils/llm'
+import {
+  PRESET_FONTS, getFontSetting, saveFontSetting, applyFont, normalizeCustomFont,
+  type AppFontSetting,
+} from '../utils/font'
 
 interface SettingsViewProps {
   onClose: () => void
@@ -18,6 +22,14 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   const [reminderSound, setReminderSound] = useState(() => localStorage.getItem('reminderSound') !== 'false')
   const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() => localStorage.getItem('weekStart') === 'monday' ? 'monday' : 'sunday')
   const [confirmDelete, setConfirmDelete] = useState(() => localStorage.getItem('confirmDelete') !== 'false')
+
+  // 字体设置
+  const [fontSetting, setFontSetting] = useState<AppFontSetting>(() => getFontSetting())
+  const [showCustomFont, setShowCustomFont] = useState(() => getFontSetting().type === 'custom')
+  const [customFontInput, setCustomFontInput] = useState(() => {
+    const s = getFontSetting()
+    return s.type === 'custom' ? s.value : ''
+  })
 
   // 大模型 API 配置
   const existingConfig = getLLMConfig()
@@ -51,6 +63,30 @@ export function SettingsView({ onClose }: SettingsViewProps) {
     } else {
       root.classList.remove('dark')
     }
+  }
+
+  // 选择预设字体
+  function handleFontPresetSelect(key: string) {
+    const setting: AppFontSetting = { type: 'preset', key }
+    setFontSetting(setting)
+    saveFontSetting(setting)
+    applyFont(setting)
+    setShowCustomFont(false)
+  }
+
+  // 切换到自定义字体输入模式
+  function handleSelectCustom() {
+    setShowCustomFont(true)
+  }
+
+  // 确认自定义字体
+  function handleCustomFontConfirm() {
+    const normalized = normalizeCustomFont(customFontInput)
+    if (!normalized) return
+    const setting: AppFontSetting = { type: 'custom', value: normalized }
+    setFontSetting(setting)
+    saveFontSetting(setting)
+    applyFont(setting)
   }
 
   async function handleExportData() {
@@ -156,6 +192,55 @@ export function SettingsView({ onClose }: SettingsViewProps) {
         <section className="mb-8">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">通用</h3>
           <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            {/* 显示字体 */}
+            <div className="px-4 py-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">显示字体</p>
+                  <p className="text-xs text-gray-500 mt-0.5">选择应用的全局显示字体</p>
+                </div>
+                <select
+                  value={fontSetting.type === 'preset' ? fontSetting.key : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      handleSelectCustom()
+                    } else {
+                      handleFontPresetSelect(e.target.value)
+                    }
+                  }}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  {PRESET_FONTS.map(f => (
+                    <option key={f.key} value={f.key}>{f.displayName}</option>
+                  ))}
+                  <option value="custom">自定义...</option>
+                </select>
+              </div>
+              {showCustomFont && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={customFontInput}
+                    onChange={(e) => setCustomFontInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCustomFontConfirm()
+                    }}
+                    placeholder="输入字体名称，如 Noto Serif SC"
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleCustomFontConfirm}
+                    className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    应用
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1.5" style={{ fontFamily: fontSetting.type === 'preset' ? undefined : fontSetting.value }}>
+                滴答清单 · ABC abc 123
+              </p>
+            </div>
+
             {/* 主题 */}
             <div className="flex items-center justify-between px-4 py-3.5">
               <div>

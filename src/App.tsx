@@ -26,6 +26,7 @@ import { useListStore } from './stores/listStore'
 import { useTagStore } from './stores/tagStore'
 import { useFilterStore, type FilterState } from './stores/filterStore'
 import { useUIStore } from './stores/uiStore'
+import { getFontSetting, applyFont } from './utils/font'
 
 function App() {
   const toast = useToast()
@@ -101,6 +102,8 @@ function App() {
     } else {
       root.classList.remove('dark')
     }
+    // 启动时恢复保存的字体设置
+    applyFont(getFontSetting())
   }, [])
 
   useEffect(() => {
@@ -888,6 +891,7 @@ function App() {
             <TaskDetail
               task={selectedTask}
               tags={tags}
+              lists={lists}
               onUpdate={handleUpdateTask}
               onDelete={handleDeleteTask}
               onClose={() => setSelectedTaskId(null)}
@@ -917,6 +921,7 @@ function App() {
             <TaskDetail
               task={selectedTask}
               tags={tags}
+              lists={lists}
               onUpdate={handleUpdateTask}
               onDelete={handleDeleteTask}
               onClose={() => setSelectedTaskId(null)}
@@ -1248,6 +1253,7 @@ function App() {
                       key={task.id}
                       task={task}
                       tags={tags}
+                      lists={lists}
                       isSelected={selectedTaskId === task.id}
                       isExpanded={expandedTasks.has(task.id)}
                       onToggleExpand={() => toggleTaskExpand(task.id)}
@@ -1290,6 +1296,7 @@ function App() {
                             key={task.id}
                             task={task}
                             tags={tags}
+                            lists={lists}
                             isSelected={selectedTaskId === task.id}
                             isExpanded={expandedTasks.has(task.id)}
                             onToggleExpand={() => toggleTaskExpand(task.id)}
@@ -1334,6 +1341,7 @@ function App() {
                           key={task.id}
                           task={task}
                           tags={tags}
+                          lists={lists}
                           isSelected={selectedTaskId === task.id}
                           isExpanded={expandedTasks.has(task.id)}
                           onToggleExpand={() => toggleTaskExpand(task.id)}
@@ -1380,6 +1388,7 @@ function App() {
                                 key={task.id}
                                 task={task}
                                 tags={tags}
+                                lists={lists}
                                 isSelected={selectedTaskId === task.id}
                                 isExpanded={expandedTasks.has(task.id)}
                                 onToggleExpand={() => toggleTaskExpand(task.id)}
@@ -1422,6 +1431,7 @@ function App() {
         <TaskDetail
           task={selectedTask}
           tags={tags}
+          lists={lists}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
           onClose={() => setSelectedTaskId(null)}

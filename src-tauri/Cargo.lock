@@ -564,7 +564,7 @@ dependencies = [
 
 [[package]]
 name = "dida-clone"
-version = "1.9.0"
+version = "1.11.0"
 dependencies = [
  "chrono",
  "reqwest 0.12.28",

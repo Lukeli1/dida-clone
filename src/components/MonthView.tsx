@@ -5,6 +5,7 @@ import {
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
+import { getTaskColor } from '../utils/priority'
 
 interface MonthViewProps {
   currentDate: Date
@@ -21,19 +22,10 @@ interface MonthViewProps {
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
 }
 
-// 任务条带颜色映射 - 基于清单颜色，无清单色时回退到优先级色
-const FALLBACK_COLORS = ['#378ADD', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899', '#6B7280']
-
+// 任务条带颜色映射 - 优先使用清单颜色，无清单色时回退到优先级色
+// 高=红、中=黄、低=蓝、无=灰
 function getTaskBarColor(task: Task, lists: List[]): string {
-  // 优先使用清单颜色
-  const list = lists.find(l => l.id === task.list_id)
-  if (list?.color) return list.color
-  // 回退到优先级色
-  if (task.priority === 1) return '#EF4444'
-  if (task.priority === 2) return '#F59E0B'
-  if (task.priority === 3) return '#378ADD'
-  // 默认使用回退色数组中的颜色（基于 list_id 取模）
-  return FALLBACK_COLORS[task.list_id % FALLBACK_COLORS.length]
+  return getTaskColor(task, lists)
 }
 
 // 计算农历日期文本（简版：使用 date-fns 的中文本地化格式）

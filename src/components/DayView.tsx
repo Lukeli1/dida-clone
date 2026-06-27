@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { format, isToday, getHours, getMinutes } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
+import { getTaskColor, hexToRgba } from '../utils/priority'
 
 interface DayViewProps {
   currentDate: Date
@@ -318,14 +319,20 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
                   <div key={task.id} data-task
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none ${
+                    className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none border-l-2 ${
                       task.completed
                         ? 'bg-gray-200 text-gray-400 line-through'
-                        : task.priority === 1 ? 'bg-red-100 text-red-700 border-l-2 border-red-400'
-                        : task.priority === 2 ? 'bg-yellow-100 text-yellow-700 border-l-2 border-yellow-400'
-                        : 'bg-blue-100 text-blue-700 border-l-2 border-blue-400'
+                        : ''
                     } ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
-                    style={{ top: `${top}px`, height: `${height}px` }}>
+                    style={{
+                      top: `${top}px`,
+                      height: `${height}px`,
+                      ...(task.completed ? {} : {
+                        backgroundColor: hexToRgba(getTaskColor(task, lists), 0.15),
+                        color: getTaskColor(task, lists),
+                        borderLeftColor: getTaskColor(task, lists),
+                      })
+                    }}>
                     <input type="checkbox" checked={task.completed}
                       onChange={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
                       onClick={(e) => e.stopPropagation()}
