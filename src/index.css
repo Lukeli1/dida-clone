@@ -84,6 +84,33 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ============ 自定义标题栏 ============ */
+:root {
+  --titlebar-bg: #1e293b;
+  --titlebar-fg: #94a3b8;
+}
+
+/* 浅色模式下标题栏颜色 */
+:root:not(.dark) {
+  --titlebar-bg: #f8fafc;
+  --titlebar-fg: #64748b;
+}
+
+/* 标题栏按钮 hover 效果 */
+[data-tauri-drag-region] button:hover:not(:last-child) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root:not(.dark) [data-tauri-drag-region] button:hover:not(:last-child) {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 关闭按钮 */
+[data-tauri-drag-region] button:last-child:hover {
+  background-color: rgba(239, 68, 68, 0.7) !important;
+  color: #fff !important;
+}
+
 /* ============ 卡片组件样式 ============ */
 @layer components {
   .task-card {

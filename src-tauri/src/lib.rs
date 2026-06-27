@@ -92,6 +92,12 @@ pub fn run() {
             llm::test_llm_connection,
             llm::llm_chat,
             fonts::list_system_fonts,
+            commands::window_minimize,
+            commands::window_maximize,
+            commands::window_unmaximize,
+            commands::window_toggle_maximize,
+            commands::window_is_maximized,
+            commands::window_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

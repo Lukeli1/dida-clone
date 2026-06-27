@@ -4,6 +4,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskItem } from './components/TaskItem'
@@ -164,7 +165,9 @@ function App() {
       : lists.find((l) => l.id === selectedListId)?.name || '未知清单'
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <TitleBar />
+      <div className="flex flex-1 overflow-hidden">
       <Sidebar
         lists={lists}
         tags={tags}
@@ -677,6 +680,7 @@ function App() {
           onCreateSubtask={actions.handleCreateSubtask}
         />
       )}
+      </div>
     </div>
   )
 }
