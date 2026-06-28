@@ -542,7 +542,6 @@ export function HabitView(_props: HabitViewProps) {
   const [editColor, setEditColor] = useState('')
   const [editGoal, setEditGoal] = useState(1)
   const [editUnit, setEditUnit] = useState('')
-  const [editCustomIcon, setEditCustomIcon] = useState('')
 
   // 专注计时器
   const [focusTimer, setFocusTimer] = useState<{ habitId: string; seconds: number; targetSeconds: number } | null>(null)
@@ -695,7 +694,6 @@ export function HabitView(_props: HabitViewProps) {
     setEditColor(habit.color)
     setEditGoal(habit.goal)
     setEditUnit(habit.unit ?? '')
-    setEditCustomIcon('')
     setContextMenu(null)
   }
 
@@ -929,70 +927,96 @@ export function HabitView(_props: HabitViewProps) {
           const canSaveEdit = editName.trim().length > 0
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={() => setEditingId(null)}>
-              <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">编辑习惯</h3>
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">编辑习惯</h3>
                 <div className="space-y-4">
-                  {/* 名称 */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">习惯名称</label>
+                  {/* 图标 + 名称（并排） */}
+                  <div className="flex items-center gap-4">
+                    {/* 图标预览 */}
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center text-3xl"
+                        style={{ backgroundColor: hexWithAlpha(editColor, 0.2) }}
+                      >
+                        {editIcon}
+                      </div>
+                      {/* 编辑图标的小铅笔 */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIndex = (PRESET_EMOJIS.indexOf(editIcon) + 1) % PRESET_EMOJIS.length
+                          setEditIcon(PRESET_EMOJIS[nextIndex])
+                        }}
+                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full shadow flex items-center justify-center text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                    {/* 名称输入框 */}
                     <input
                       type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && canSaveEdit) saveEdit() }}
                       autoFocus
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                      className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>
-                  {/* 图标 */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">图标</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {PRESET_EMOJIS.map(em => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => { setEditIcon(em); setEditCustomIcon('') }}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${
-                            editIcon === em ? 'ring-2 ring-blue-400 bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
-                          }`}
-                        >
-                          {em}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
+
+                  {/* 频率 */}
+                  <div className="flex items-center gap-4">
+                    <label className="w-16 text-base text-gray-700 flex-shrink-0">频率</label>
+                    <select className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl bg-white focus:outline-none focus:border-blue-500">
+                      <option>每天</option>
+                      <option>每周</option>
+                      <option>工作日</option>
+                      <option>周末</option>
+                    </select>
+                  </div>
+
+                  {/* 目标 */}
+                  <div className="flex items-center gap-4">
+                    <label className="w-16 text-base text-gray-700 flex-shrink-0">目标</label>
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={editGoal}
+                        onChange={e => setEditGoal(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+                        className="w-20 px-3 py-3 text-base border border-gray-300 rounded-xl text-center focus:outline-none focus:border-blue-500"
+                      />
                       <input
                         type="text"
-                        value={editCustomIcon}
-                        onChange={e => setEditCustomIcon(e.target.value)}
-                        onBlur={() => { const t = editCustomIcon.trim(); if (t) setEditIcon(t) }}
-                        onKeyDown={e => { if (e.key === 'Enter') { const t = editCustomIcon.trim(); if (t) setEditIcon(t) } }}
-                        placeholder="输入任意 emoji"
-                        maxLength={4}
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                        value={editUnit}
+                        onChange={e => setEditUnit(e.target.value)}
+                        placeholder="次/杯/分钟"
+                        className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
                       />
-                      <button
-                        type="button"
-                        onClick={() => { const t = editCustomIcon.trim(); if (t) setEditIcon(t) }}
-                        className="px-3 py-2 text-xs font-medium text-white rounded-lg transition-colors"
-                        style={{ backgroundColor: BRAND_COLOR }}
-                      >
-                        使用
-                      </button>
                     </div>
                   </div>
-                  {/* 颜色 */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">颜色</label>
-                    <div className="flex flex-wrap gap-2">
+
+                  {/* 开始日期 */}
+                  <div className="flex items-center gap-4">
+                    <label className="w-16 text-base text-gray-700 flex-shrink-0">开始日期</label>
+                    <input
+                      type="date"
+                      className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* 颜色选择 */}
+                  <div className="flex items-center gap-4">
+                    <label className="w-16 text-base text-gray-700 flex-shrink-0">颜色</label>
+                    <div className="flex-1 flex items-center gap-2 flex-wrap">
                       {PRESET_COLORS.map(c => (
                         <button
                           key={c}
                           type="button"
                           onClick={() => setEditColor(c)}
                           className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
-                            editColor === c ? 'ring-2 ring-blue-400 scale-110' : 'hover:scale-110'
+                            editColor === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : 'hover:scale-110'
                           }`}
                           style={{ backgroundColor: c }}
                         >
@@ -1005,36 +1029,14 @@ export function HabitView(_props: HabitViewProps) {
                       ))}
                     </div>
                   </div>
-                  {/* 目标 + 单位 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1.5">每日目标</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editGoal}
-                        onChange={e => setEditGoal(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1.5">单位（可选）</label>
-                      <input
-                        type="text"
-                        value={editUnit}
-                        onChange={e => setEditUnit(e.target.value)}
-                        placeholder="例如：杯、次、分钟"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
-                      />
-                    </div>
-                  </div>
                 </div>
+
                 {/* 操作按钮 */}
-                <div className="flex items-center justify-end gap-2 mt-5">
+                <div className="flex items-center justify-center gap-3 mt-8">
                   <button
                     type="button"
                     onClick={() => setEditingId(null)}
-                    className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="px-8 py-2.5 text-base text-gray-600 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
                   >
                     取消
                   </button>
@@ -1042,8 +1044,8 @@ export function HabitView(_props: HabitViewProps) {
                     type="button"
                     onClick={saveEdit}
                     disabled={!canSaveEdit}
-                    className="px-4 py-2 text-sm text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: BRAND_COLOR }}
+                    className="px-12 py-2.5 text-base text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: '#4F7DF3' }}
                   >
                     保存
                   </button>
