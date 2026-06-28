@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format, subDays, startOfWeek, eachDayOfInterval, isSameDay, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { hexWithAlpha } from '../utils/priority'
@@ -27,6 +27,54 @@ const PRESET_EMOJIS = ['💧', '🏃', '📖', '🧘', '💊', '🌅', '💪', '
 const PRESET_COLORS = ['#378ADD', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#6B7280']
 const STORAGE_KEY = 'habits_data'
 const BRAND_COLOR = '#378ADD'
+
+/** 图标库预设：{ emoji, bgColor } */
+const ICON_PRESETS = [
+  { emoji: '💧', color: '#378ADD' },
+  { emoji: '🏃', color: '#10B981' },
+  { emoji: '📖', color: '#8B5CF6' },
+  { emoji: '🧘', color: '#F59E0B' },
+  { emoji: '💊', color: '#EC4899' },
+  { emoji: '🌅', color: '#F59E0B' },
+  { emoji: '💪', color: '#EF4444' },
+  { emoji: '🥗', color: '#10B981' },
+  { emoji: '🎯', color: '#EF4444' },
+  { emoji: '☀️', color: '#F59E0B' },
+  { emoji: '🧹', color: '#6B7280' },
+  { emoji: '🎵', color: '#8B5CF6' },
+  { emoji: '💰', color: '#F59E0B' },
+  { emoji: '🐾', color: '#06B6D4' },
+  { emoji: '✍️', color: '#6B7280' },
+  { emoji: '💡', color: '#F59E0B' },
+  { emoji: '⏰', color: '#EF4444' },
+  { emoji: '📝', color: '#378ADD' },
+  { emoji: '🚰', color: '#06B6D4' },
+  { emoji: '💤', color: '#6B7280' },
+  { emoji: '🚶', color: '#10B981' },
+  { emoji: '🎨', color: '#EC4899' },
+  { emoji: '🌙', color: '#8B5CF6' },
+  { emoji: '🎂', color: '#EC4899' },
+  { emoji: '🏠', color: '#378ADD' },
+  { emoji: '🥤', color: '#F59E0B' },
+  { emoji: '🗂️', color: '#6B7280' },
+  { emoji: '📅', color: '#378ADD' },
+  { emoji: '🔔', color: '#F59E0B' },
+  { emoji: '🌳', color: '#10B981' },
+  { emoji: '🥛', color: '#06B6D4' },
+  { emoji: '🧠', color: '#EC4899' },
+  { emoji: '🏊', color: '#06B6D4' },
+  { emoji: '🚴', color: '#EF4444' },
+  { emoji: '📱', color: '#378ADD' },
+  { emoji: '💻', color: '#6B7280' },
+  { emoji: '🍎', color: '#EF4444' },
+  { emoji: '🍌', color: '#F59E0B' },
+  { emoji: '😊', color: '#F59E0B' },
+  { emoji: '⭐', color: '#F59E0B' },
+  { emoji: '❤️', color: '#EF4444' },
+  { emoji: '💙', color: '#378ADD' },
+  { emoji: '💜', color: '#8B5CF6' },
+  { emoji: '💚', color: '#10B981' },
+] as const
 
 /* ============ 工具函数 ============ */
 
@@ -186,6 +234,10 @@ function CreateHabitForm(props: CreateHabitFormProps) {
   const { name, setName, icon, setIcon, color, setColor, goal, setGoal, unit, setUnit, onSave, onCancel } = props
   const canSave = name.trim().length > 0
   const [customIcon, setCustomIcon] = useState('')
+  const [showFormPicker, setShowFormPicker] = useState(false)
+  const [showFormTextInput, setShowFormTextInput] = useState(false)
+  const [formTextInput, setFormTextInput] = useState('')
+  const composingRef = useRef(false)
 
   function applyCustomIcon() {
     const trimmed = customIcon.trim()
@@ -209,23 +261,42 @@ function CreateHabitForm(props: CreateHabitFormProps) {
           />
         </div>
 
-        {/* 图标选择：预设 + 自定义 */}
+        {/* 图标选择：预览 + 快速预设 + 更多 */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">图标</label>
-          <div className="flex flex-wrap gap-2 mb-2">
+          <label className="block text-xs font-medium text-gray-500 mb-2">图标</label>
+          {/* 当前选中预览 + 快速预设 */}
+          <div className="flex items-center gap-2 mb-2">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 border-2 border-blue-300"
+              style={{ backgroundColor: hexWithAlpha(color, 0.15) }}
+            >
+              {icon}
+            </div>
             {PRESET_EMOJIS.map(em => (
               <button
                 key={em}
                 type="button"
                 onClick={() => { setIcon(em); setCustomIcon('') }}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${
-                  icon === em ? 'ring-2 ring-blue-400 bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-lg transition-all ${
+                  icon === em ? 'ring-2 ring-blue-400 scale-110' : 'bg-gray-50 hover:bg-gray-100'
                 }`}
+                style={icon === em ? { backgroundColor: hexWithAlpha(color, 0.2) } : undefined}
               >
                 {em}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowFormPicker(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              title="更多图标"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+              </svg>
+            </button>
           </div>
+          {/* 自定义 emoji 输入 */}
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -240,13 +311,131 @@ function CreateHabitForm(props: CreateHabitFormProps) {
             <button
               type="button"
               onClick={applyCustomIcon}
-              className="px-3 py-2 text-xs font-medium text-white rounded-lg transition-colors"
+              className="px-3 py-2 text-xs font-medium text-white rounded-lg transition-colors hover:opacity-90"
               style={{ backgroundColor: BRAND_COLOR }}
             >
               使用
             </button>
           </div>
         </div>
+
+        {/* 图标选择器弹窗 */}
+        {showFormPicker && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onClick={() => { setShowFormPicker(false); setShowFormTextInput(false) }}>
+            <div
+              className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-5 w-full max-w-sm mx-4 max-h-[75vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {showFormTextInput ? (
+                /* ---- 文字图标模式 ---- */
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 text-center mb-5">自定义图标</h4>
+                  <div className="flex justify-center mb-6">
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold"
+                      style={{ backgroundColor: hexWithAlpha(color, 0.2), color }}
+                    >
+                      {formTextInput || '?'}
+                    </div>
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-xs font-medium text-gray-500 mb-2 text-center">输入文字（1-2个字符）</label>
+                    <input
+                      type="text"
+                      value={formTextInput}
+                      onChange={e => { if (!composingRef.current) setFormTextInput(e.target.value.slice(0, 2)); else setFormTextInput(e.target.value) }}
+                      onCompositionStart={() => { composingRef.current = true }}
+                      onCompositionEnd={e => { composingRef.current = false; setFormTextInput((e.target as HTMLInputElement).value.slice(0, 2)) }}
+                      placeholder="如：早、水、阅"
+                      className="w-full px-4 py-3 text-center text-lg font-medium border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="mb-6">
+                    <label className="block text-xs font-medium text-gray-500 mb-2 text-center">选择颜色</label>
+                    <div className="flex justify-center gap-3">
+                      {PRESET_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setColor(c)}
+                          className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
+                            color === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : 'hover:scale-110'
+                          }`}
+                        >
+                          <span className="w-full h-full rounded-full" style={{ backgroundColor: c }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowFormTextInput(false); setFormTextInput('') }}
+                      className="flex-1 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (formTextInput.trim()) {
+                          setIcon(formTextInput.trim())
+                          setShowFormPicker(false)
+                          setShowFormTextInput(false)
+                          setFormTextInput('')
+                        }
+                      }}
+                      disabled={!formTextInput.trim()}
+                      className="flex-1 py-3 text-sm font-semibold text-white rounded-xl transition-opacity"
+                      style={{ backgroundColor: '#4F7DF3', opacity: formTextInput.trim() ? 1 : 0.5 }}
+                    >
+                      确定
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">选择图标</h4>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowFormTextInput(true)}
+                        className="px-2.5 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                        title="自定义文字图标"
+                      >
+                        文
+                      </button>
+                      <button onClick={() => setShowFormPicker(false)} className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2 overflow-y-auto">
+                    {ICON_PRESETS.map(preset => (
+                      <button
+                        key={preset.emoji}
+                        type="button"
+                        onClick={() => { setIcon(preset.emoji); setCustomIcon(''); setShowFormPicker(false) }}
+                        className={`w-full aspect-square rounded-full flex items-center justify-center text-lg transition-all ${
+                          icon === preset.emoji
+                            ? 'ring-2 ring-blue-500 ring-offset-2 scale-110'
+                            : 'hover:scale-110 active:scale-95'
+                        }`}
+                        style={{ backgroundColor: hexWithAlpha(preset.color, 0.18) }}
+                      >
+                        {preset.emoji}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 颜色选择 */}
         <div>
@@ -542,6 +731,10 @@ export function HabitView(_props: HabitViewProps) {
   const [editColor, setEditColor] = useState('')
   const [editGoal, setEditGoal] = useState(1)
   const [editUnit, setEditUnit] = useState('')
+  const [showIconPicker, setShowIconPicker] = useState(false)
+  const [showTextInput, setShowTextInput] = useState(false)
+  const [customText, setCustomText] = useState('')
+  const editComposingRef = useRef(false)
 
   // 专注计时器
   const [focusTimer, setFocusTimer] = useState<{ habitId: string; seconds: number; targetSeconds: number } | null>(null)
@@ -943,10 +1136,7 @@ export function HabitView(_props: HabitViewProps) {
                       {/* 编辑图标的小铅笔 */}
                       <button
                         type="button"
-                        onClick={() => {
-                          const nextIndex = (PRESET_EMOJIS.indexOf(editIcon) + 1) % PRESET_EMOJIS.length
-                          setEditIcon(PRESET_EMOJIS[nextIndex])
-                        }}
+                        onClick={() => setShowIconPicker(true)}
                         className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full shadow flex items-center justify-center text-gray-400 hover:text-gray-600"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1054,6 +1244,132 @@ export function HabitView(_props: HabitViewProps) {
             </div>
           )
         })()}
+
+        {/* ---- 图标选择器 ---- */}
+        {showIconPicker && (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30" onClick={() => { setShowIconPicker(false); setShowTextInput(false) }}>
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {showTextInput ? (
+                /* ---- 文字图标模式 ---- */
+                <div className="p-5">
+                  <h4 className="text-sm font-semibold text-gray-900 text-center mb-5">自定义图标</h4>
+                  {/* 预览 */}
+                  <div className="flex justify-center mb-6">
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold"
+                      style={{ backgroundColor: hexWithAlpha(editColor, 0.2), color: editColor }}
+                    >
+                      {customText || '?'}
+                    </div>
+                  </div>
+                  {/* 文字输入 */}
+                  <div className="mb-5">
+                    <label className="block text-xs font-medium text-gray-500 mb-2 text-center">输入文字（1-2个字符）</label>
+                    <input
+                      type="text"
+                      value={customText}
+                      onChange={e => { if (!editComposingRef.current) setCustomText(e.target.value.slice(0, 2)); else setCustomText(e.target.value) }}
+                      onCompositionStart={() => { editComposingRef.current = true }}
+                      onCompositionEnd={e => { editComposingRef.current = false; setCustomText((e.target as HTMLInputElement).value.slice(0, 2)) }}
+                      placeholder="如：早、水、阅"
+                      className="w-full px-4 py-3 text-center text-lg font-medium border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                      autoFocus
+                    />
+                  </div>
+                  {/* 颜色选择 */}
+                  <div className="mb-6">
+                    <label className="block text-xs font-medium text-gray-500 mb-2 text-center">选择颜色</label>
+                    <div className="flex justify-center gap-3">
+                      {PRESET_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setEditColor(c)}
+                          className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
+                            editColor === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : 'hover:scale-110'
+                          }`}
+                        >
+                          <span className="w-full h-full rounded-full" style={{ backgroundColor: c }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* 按钮 */}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowTextInput(false); setCustomText('') }}
+                      className="flex-1 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (customText.trim()) {
+                          setEditIcon(customText.trim())
+                          setShowIconPicker(false)
+                          setShowTextInput(false)
+                          setCustomText('')
+                        }
+                      }}
+                      disabled={!customText.trim()}
+                      className="flex-1 py-3 text-sm font-semibold text-white rounded-xl transition-opacity"
+                      style={{ backgroundColor: '#4F7DF3', opacity: customText.trim() ? 1 : 0.5 }}
+                    >
+                      确定
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* 当前选中 + 文字图标按钮 */}
+                  <div className="p-5 pb-4 border-b border-gray-100 flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl" style={{ backgroundColor: hexWithAlpha(editColor, 0.15) }}>
+                      {editIcon}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowTextInput(true); setCustomText(editIcon.length <= 2 ? editIcon : '') }}
+                      className={`w-14 h-14 rounded-full border-2 flex items-center justify-center transition-all ${
+                        editIcon.length <= 2 && !PRESET_EMOJIS.includes(editIcon)
+                          ? 'border-blue-500 text-blue-600 bg-blue-50'
+                          : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
+                      }`}
+                      title="自定义文字图标"
+                    >
+                      <span className="text-xs font-bold">文</span>
+                    </button>
+                  </div>
+                  {/* 图标网格 */}
+                  <div className="px-5 py-5 grid grid-cols-10 gap-y-4 gap-x-1 overflow-y-auto max-h-[55vh]">
+                    {ICON_PRESETS.map(preset => (
+                      <button
+                        key={preset.emoji}
+                        type="button"
+                        onClick={() => {
+                          setEditIcon(preset.emoji)
+                          setShowIconPicker(false)
+                        }}
+                        className={`w-full aspect-square rounded-full flex items-center justify-center text-xl transition-all ${
+                          editIcon === preset.emoji
+                            ? 'ring-2 ring-blue-500 ring-offset-2 scale-110'
+                            : 'hover:scale-110 active:scale-95'
+                        }`}
+                        style={{ backgroundColor: hexWithAlpha(preset.color, 0.18) }}
+                      >
+                        {preset.emoji}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ---- 专注计时器 ---- */}
         {focusTimer && (() => {
