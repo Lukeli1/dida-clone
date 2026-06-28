@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.21.1-blue)
+![版本](https://img.shields.io/badge/version-1.22.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,18 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.22.0（2026-06-28）
+
+#### 架构重构 — Phase 2
+将 6 个超大文件拆分为模块化结构，零功能变更：
+
+- **llm.ts（492→293 行）**：提取 10 个 prompt 模板到 `prompts/` 目录，核心调用逻辑保留在 llm.ts
+- **useTaskActions.ts（467→133 行）**：拆分为 5 个子 hook（CRUD/Reorder/Batch/Subtask/InlineEdit）+ 聚合层
+- **HabitView.tsx（1439→274 行）**：拆分为 `habit/` 目录下 8 个文件（constants/Card/Editor/IconPicker/FocusTimer/CreateForm/DayCell）
+- **SettingsView.tsx（842→133 行）**：拆分为 `settings/` 目录下 8 个文件（Appearance/General/Notification/LLMApi/System/About/Toggle）
+- **TaskDetail.tsx（712→197 行）**：拆分为 `detail/` 目录下 4 个文件（SubtaskList/TaskNotes/TaskMetaPanel）
+- **App.tsx（740→175 行）**：提取 TaskListPanel/DetailPanel/CalendarPanel 三个子组件 + useTaskListState hook
 
 ### v1.21.1（2026-06-28）
 
