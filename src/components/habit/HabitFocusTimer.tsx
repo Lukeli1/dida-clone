@@ -17,10 +17,14 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
   const sec = remaining % 60
   const pct = (seconds / targetSeconds) * 100
 
+  // 兼容后端可选字段：color / icon 缺省时回退默认值
+  const color = habit.color ?? '#6B7280'
+  const icon = habit.icon ?? '🎯'
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onStop}>
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-sm mx-4 text-center" onClick={e => e.stopPropagation()}>
-        <div className="text-5xl mb-3">{habit.icon}</div>
+        <div className="text-5xl mb-3">{icon}</div>
         <p className="text-gray-900 font-semibold mb-1">{habit.name}</p>
         <p className="text-sm text-gray-500 mb-6">专注中...</p>
         {/* 环形进度 */}
@@ -30,7 +34,7 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
             <circle
               cx="50" cy="50" r="42"
               fill="none"
-              stroke={habit.color}
+              stroke={color}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={`${2 * Math.PI * 42}`}
@@ -54,7 +58,7 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
               className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
                 targetSeconds === t * 60 ? 'text-white' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
               }`}
-              style={targetSeconds === t * 60 ? { backgroundColor: habit.color } : undefined}
+              style={targetSeconds === t * 60 ? { backgroundColor: color } : undefined}
             >
               {t}分钟
             </button>

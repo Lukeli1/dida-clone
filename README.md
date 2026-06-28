@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.22.0-blue)
+![版本](https://img.shields.io/badge/version-1.23.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,30 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.23.0（2026-06-29）
+
+#### Phase 3 — 深度优化
+
+**方向 A：完成剩余大文件拆分**
+- `Sidebar.tsx`（722→66 行）→ `sidebar/` 目录 6 个文件
+- `TaskItem.tsx`（707→227 行）→ `task-item/` 目录 4 个文件
+- `TaskListPanel.tsx`（628→294 行）→ `task-list/` 目录 5 个文件
+- `PomodoroView.tsx`（572→247 行）→ `pomodoro/` 目录 5 个文件
+- `commands.rs`（857→27 行）→ `commands/` 目录 5 个子模块
+
+**方向 B：习惯数据迁移到 SQLite**
+- 新建 `habits` + `habit_records` 表（含索引和外键约束）
+- 实现 8 个 Tauri command（CRUD + 打卡记录 + 归档）
+- 前端习惯模块从 localStorage 切换到 SQLite
+- 旧数据自动迁移脚本（保留 7 天备份）
+
+**方向 C：引入单元测试**
+- 配置 vitest 测试环境（jsdom + @testing-library）
+- 工具函数测试：smartDate/priority/appearance/avatar（64 用例）
+- Store 测试：taskStore/filterStore/uiStore（37 用例）
+- LLM 测试：llm.ts + prompts/（50 用例）
+- **总计 151 个测试用例全部通过**
 
 ### v1.22.0（2026-06-28）
 

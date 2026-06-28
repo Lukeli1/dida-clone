@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef, useCallback, useEffect } from 'react'
 import type { Task } from '../types'
-import { TaskItem } from './TaskItem'
+import { TaskItem } from './task-item/TaskItem'
 import { TaskActionProvider, type TaskActionContextValue } from '../contexts/TaskActionContext'
 
 interface TaskListProps {

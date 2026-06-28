@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format, isSameDay } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { hexWithAlpha } from '../../utils/priority'
+import { habitApi } from '../../api'
 import { Habit, dateKey, getCount, getStreak, isFutureDay } from './constants'
 import { DayCell } from './DayCell'
 import { HabitFocusTimer } from './HabitFocusTimer'
@@ -14,22 +15,29 @@ export interface HabitCardProps {
   todayStr: string
   weekDays: Date[]
   today: Date
-  onToggle: (id: string) => void
-  onIncrement: (id: string) => void
-  onDecrement: (id: string) => void
-  onDelete: (id: string) => void
-  onDayClick?: (habitId: string, dateKeyStr: string) => void
+  onToggle: (id: number) => void
+  onDelete: (id: number) => void
   onEdit?: (habit: Habit) => void
-  onArchive?: (habitId: string) => void
+  onArchive?: (habitId: number) => void
+  /**
+   * 打卡记录变更回调：count 为新值，null 表示该日记录已删除。
+   * 由 HabitCard 在 habitApi.upsertRecord / deleteRecord 返回后调用，
+   * 父组件据此更新本地 records 映射。
+   */
+  onRecordChange?: (habitId: number, date: string, count: number | null) => void
 }
 
 /** 单个习惯卡片：展示 + 打卡 + 7 天日历，包含右键菜单与专注计时器 */
-export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onIncrement, onDecrement, onDelete, onDayClick, onEdit, onArchive }: HabitCardProps) {
+export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onDelete, onEdit, onArchive, onRecordChange }: HabitCardProps) {
   const todayCount = getCount(habit, todayStr)
-  const goal = habit.goal
+  const goal = habit.target_count
   const pct = goal > 0 ? Math.min((todayCount / goal) * 100, 100) : 0
   const streak = getStreak(habit)
   const completed = todayCount >= goal
+
+  // 兼容后端可选字段：color / icon 缺省时回退默认值，保持 UI 不变
+  const color = habit.color ?? '#6B7280'
+  const icon = habit.icon ?? '🎯'
 
   // 右键菜单
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
@@ -37,6 +45,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
   // 专注计时器
   const [focusTimer, setFocusTimer] = useState<{ seconds: number; targetSeconds: number } | null>(null)
   const [focusInterval, setFocusInterval] = useState<ReturnType<typeof setInterval> | null>(null)
+
+  // 打卡操作进行中标志：避免并发点击导致计数错乱（等待 API 返回后再更新本地状态）
+  const busyRef = useRef(false)
 
   function closeContextMenu() {
     setContextMenu(null)
@@ -84,6 +95,73 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
     return undefined
   }, [focusTimer !== null])
 
+  /* ---- 打卡操作：直接调用 habitApi，等待返回后通过 onRecordChange 更新本地状态 ---- */
+
+  // 今日 +1
+  async function handleIncrement(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (busyRef.current) return
+    busyRef.current = true
+    try {
+      const cur = getCount(habit, todayStr)
+      const rec = await habitApi.upsertRecord(habit.id, todayStr, cur + 1)
+      onRecordChange?.(habit.id, todayStr, rec.count)
+    } catch (err) {
+      console.error('增加打卡失败:', err)
+    } finally {
+      busyRef.current = false
+    }
+  }
+
+  // 今日 -1
+  async function handleDecrement(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (busyRef.current) return
+    busyRef.current = true
+    try {
+      const cur = getCount(habit, todayStr)
+      if (cur <= 0) return
+      const next = cur - 1
+      if (next <= 0) {
+        await habitApi.deleteRecord(habit.id, todayStr)
+        onRecordChange?.(habit.id, todayStr, null)
+      } else {
+        const rec = await habitApi.upsertRecord(habit.id, todayStr, next)
+        onRecordChange?.(habit.id, todayStr, rec.count)
+      }
+    } catch (err) {
+      console.error('减少打卡失败:', err)
+    } finally {
+      busyRef.current = false
+    }
+  }
+
+  // 某天格子点击：在 0 / 目标值 之间切换（与原 toggleDay 逻辑一致）
+  async function handleDayClick(dateKeyStr: string, isFuture: boolean) {
+    if (isFuture || busyRef.current) return
+    busyRef.current = true
+    try {
+      const cur = getCount(habit, dateKeyStr)
+      if (cur <= 0) {
+        // 未打卡 -> 打满
+        const rec = await habitApi.upsertRecord(habit.id, dateKeyStr, goal)
+        onRecordChange?.(habit.id, dateKeyStr, rec.count)
+      } else if (cur >= goal) {
+        // 已满 -> 取消打卡
+        await habitApi.deleteRecord(habit.id, dateKeyStr)
+        onRecordChange?.(habit.id, dateKeyStr, null)
+      } else {
+        // 部分打卡 -> 补满
+        const rec = await habitApi.upsertRecord(habit.id, dateKeyStr, goal)
+        onRecordChange?.(habit.id, dateKeyStr, rec.count)
+      }
+    } catch (err) {
+      console.error('打卡操作失败:', err)
+    } finally {
+      busyRef.current = false
+    }
+  }
+
   return (
     <>
       <div
@@ -95,9 +173,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           {/* 图标 */}
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center text-2xl flex-shrink-0"
-            style={{ backgroundColor: hexWithAlpha(habit.color, 0.15) }}
+            style={{ backgroundColor: hexWithAlpha(color, 0.15) }}
           >
-            {habit.icon}
+            {icon}
           </div>
 
           {/* 名称 + 今日进度 + 进度条 */}
@@ -120,7 +198,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
             <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: habit.color }}
+                style={{ width: `${pct}%`, backgroundColor: color }}
               />
             </div>
           </div>
@@ -129,17 +207,16 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           <div className="grid grid-cols-7 gap-1 flex-shrink-0">
             {weekDays.map(day => {
               const key = dateKey(day)
-              const handleClick = onDayClick ? () => onDayClick(habit.id, key) : undefined
               return (
                 <DayCell
                   key={key}
                   count={getCount(habit, key)}
                   goal={goal}
-                  color={habit.color}
+                  color={color}
                   isFuture={isFutureDay(day)}
                   isToday={isSameDay(day, today)}
                   size="w-7 h-7"
-                  onClick={handleClick}
+                  onClick={() => handleDayClick(key, isFutureDay(day))}
                 />
               )
             })}
@@ -148,9 +225,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           {/* 今日 +1 */}
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); onIncrement(habit.id) }}
+            onClick={handleIncrement}
             className="w-8 h-8 rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity flex-shrink-0"
-            style={{ backgroundColor: habit.color }}
+            style={{ backgroundColor: color }}
             title="今日 +1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,19 +256,18 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
               {weekDays.map(day => {
                 const key = dateKey(day)
                 const count = getCount(habit, key)
-                const handleDayClick = onDayClick ? () => onDayClick(habit.id, key) : undefined
                 return (
                   <div key={key} className="flex flex-col items-center gap-1.5">
                     <span className="text-xs text-gray-400">{format(day, 'EEEEE', { locale: zhCN })}</span>
                     <DayCell
                       count={count}
                       goal={goal}
-                      color={habit.color}
+                      color={color}
                       isFuture={isFutureDay(day)}
                       isToday={isSameDay(day, today)}
                       size="w-9 h-9"
                       showCount
-                      onClick={handleDayClick}
+                      onClick={() => handleDayClick(key, isFutureDay(day))}
                     />
                     <span className={`text-xs ${isSameDay(day, today) ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                       {format(day, 'd')}
@@ -217,7 +293,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={e => { e.stopPropagation(); onDecrement(habit.id) }}
+                  onClick={handleDecrement}
                   className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
                   title="今日 -1"
                 >
@@ -227,9 +303,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 </button>
                 <button
                   type="button"
-                  onClick={e => { e.stopPropagation(); onIncrement(habit.id) }}
+                  onClick={handleIncrement}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: habit.color }}
+                  style={{ backgroundColor: color }}
                   title="今日 +1"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

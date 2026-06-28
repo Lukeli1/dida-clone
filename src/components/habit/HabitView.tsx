@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, STORAGE_KEY, BRAND_COLOR, genId, dateKey, getWeekDays } from './constants'
+import { habitApi } from '../../api'
+import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, BRAND_COLOR, dateKey, getWeekDays } from './constants'
 import { HabitCard } from './HabitCard'
 import { HabitEditor } from './HabitEditor'
 import { CreateHabitForm } from './CreateHabitForm'
@@ -19,23 +20,29 @@ function EmptyState() {
   )
 }
 
+/* ============ 加载状态 ============ */
+
+function LoadingState() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div
+        className="w-8 h-8 rounded-full animate-spin"
+        style={{ border: '3px solid #E5E7EB', borderTopColor: BRAND_COLOR }}
+      />
+    </div>
+  )
+}
+
 /* ============ 主组件 ============ */
 
 export function HabitView(_props: HabitViewProps) {
-  const [habits, setHabits] = useState<Habit[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) return JSON.parse(raw) as Habit[]
-    } catch (e) {
-      console.error('加载习惯数据失败:', e)
-    }
-    return []
-  })
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   // 编辑模式
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [editIcon, setEditIcon] = useState('')
   const [editColor, setEditColor] = useState('')
@@ -52,18 +59,38 @@ export function HabitView(_props: HabitViewProps) {
   const [formGoal, setFormGoal] = useState(1)
   const [formUnit, setFormUnit] = useState('')
 
-  // 持久化
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(habits))
-    } catch (e) {
-      console.error('保存习惯数据失败:', e)
-    }
-  }, [habits])
-
   const today = new Date()
   const weekDays = getWeekDays()
   const todayStr = dateKey(today)
+
+  // ===== 异步加载习惯 + 打卡记录 =====
+  const loadHabits = useCallback(async () => {
+    try {
+      setLoading(true)
+      // 始终加载全部（含已归档），客户端过滤以保持 archivedCount 计数
+      const list = await habitApi.getHabits(true)
+      // 为每个习惯加载全部打卡记录（getStreak 最多回溯 366 天）
+      const withRecords = await Promise.all(
+        list.map(async h => {
+          const records = await habitApi.getRecords(h.id)
+          const recordMap: Record<string, number> = {}
+          for (const r of records) {
+            recordMap[r.date] = r.count
+          }
+          return { ...h, records: recordMap } as Habit
+        }),
+      )
+      setHabits(withRecords)
+    } catch (e) {
+      console.error('加载习惯数据失败:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadHabits()
+  }, [loadHabits])
 
   // 过滤：默认隐藏已归档
   const visibleHabits = showArchived ? habits : habits.filter(h => !h.archived)
@@ -77,23 +104,26 @@ export function HabitView(_props: HabitViewProps) {
     setFormUnit('')
   }
 
-  function handleCreate() {
+  // ===== 创建习惯 =====
+  async function handleCreate() {
     const name = formName.trim()
     if (!name) return
-    const goal = Math.max(1, Math.floor(Number(formGoal)) || 1)
-    const newHabit: Habit = {
-      id: genId(),
-      name,
-      icon: formIcon,
-      color: formColor,
-      goal,
-      unit: formUnit.trim() || undefined,
-      createdAt: new Date().toISOString(),
-      records: {},
+    const target_count = Math.max(1, Math.floor(Number(formGoal)) || 1)
+    try {
+      const created = await habitApi.createHabit({
+        name,
+        icon: formIcon,
+        color: formColor,
+        target_count,
+        unit: formUnit.trim() || undefined,
+      })
+      // 新习惯无打卡记录，records 初始化为空
+      setHabits(prev => [...prev, { ...created, records: {} }])
+      resetForm()
+      setShowCreateForm(false)
+    } catch (e) {
+      console.error('创建习惯失败:', e)
     }
-    setHabits(prev => [...prev, newHabit])
-    resetForm()
-    setShowCreateForm(false)
   }
 
   function handleCancel() {
@@ -101,82 +131,78 @@ export function HabitView(_props: HabitViewProps) {
     setShowCreateForm(false)
   }
 
-  function toggleDay(habitId: string, dateKeyStr: string) {
-    setHabits(prev => prev.map(h => {
-      if (h.id !== habitId) return h
-      const cur = h.records[dateKeyStr] ?? 0
-      if (cur <= 0) {
-        return { ...h, records: { ...h.records, [dateKeyStr]: h.goal } }
-      }
-      if (cur >= h.goal) {
-        return { ...h, records: { ...h.records, [dateKeyStr]: 0 } }
-      }
-      return { ...h, records: { ...h.records, [dateKeyStr]: h.goal } }
-    }))
-  }
-
-  function increment(id: string) {
-    setHabits(prev => prev.map(h => {
-      if (h.id !== id) return h
-      const cur = h.records[todayStr] ?? 0
-      return { ...h, records: { ...h.records, [todayStr]: cur + 1 } }
-    }))
-  }
-
-  function decrement(id: string) {
-    setHabits(prev => prev.map(h => {
-      if (h.id !== id) return h
-      const cur = h.records[todayStr] ?? 0
-      if (cur <= 0) return h
-      return { ...h, records: { ...h.records, [todayStr]: cur - 1 } }
-    }))
-  }
-
-  function handleDelete(id: string) {
+  function handleDelete(id: number) {
     if (!window.confirm('确定删除这个习惯吗？所有打卡记录将被清除。')) return
-    setHabits(prev => prev.filter(h => h.id !== id))
-    if (expandedId === id) setExpandedId(null)
+    habitApi
+      .deleteHabit(id)
+      .then(() => {
+        setHabits(prev => prev.filter(h => h.id !== id))
+        if (expandedId === id) setExpandedId(null)
+      })
+      .catch(e => console.error('删除习惯失败:', e))
   }
 
-  function toggleExpand(id: string) {
+  function toggleExpand(id: number) {
     setExpandedId(prev => (prev === id ? null : id))
   }
 
-  // ---- 编辑 ----
+  // ===== 编辑 =====
   function startEditing(habit: Habit) {
     setEditingId(habit.id)
     setEditName(habit.name)
-    setEditIcon(habit.icon)
-    setEditColor(habit.color)
-    setEditGoal(habit.goal)
+    setEditIcon(habit.icon ?? '')
+    setEditColor(habit.color ?? PRESET_COLORS[0])
+    setEditGoal(habit.target_count)
     setEditUnit(habit.unit ?? '')
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!editingId) return
     const name = editName.trim()
     if (!name) return
-    setHabits(prev => prev.map(h => {
-      if (h.id !== editingId) return h
-      return {
-        ...h,
+    try {
+      const updated = await habitApi.updateHabit(editingId, {
         name,
         icon: editIcon,
         color: editColor,
-        goal: Math.max(1, Math.floor(editGoal) || 1),
+        target_count: Math.max(1, Math.floor(editGoal) || 1),
         unit: editUnit.trim() || undefined,
-      }
-    }))
-    setEditingId(null)
+      })
+      setHabits(prev => prev.map(h => (h.id === editingId ? { ...h, ...updated } : h)))
+      setEditingId(null)
+    } catch (e) {
+      console.error('更新习惯失败:', e)
+    }
   }
 
-  // ---- 归档 ----
-  function toggleArchive(habitId: string) {
-    setHabits(prev => prev.map(h => {
-      if (h.id !== habitId) return h
-      return { ...h, archived: !h.archived }
-    }))
-    if (expandedId === habitId) setExpandedId(null)
+  // ===== 归档 =====
+  async function toggleArchive(habitId: number) {
+    const habit = habits.find(h => h.id === habitId)
+    if (!habit) return
+    const newArchived = !habit.archived
+    try {
+      await habitApi.archiveHabit(habitId, newArchived)
+      setHabits(prev => prev.map(h => (h.id === habitId ? { ...h, archived: newArchived } : h)))
+      if (expandedId === habitId) setExpandedId(null)
+    } catch (e) {
+      console.error('归档习惯失败:', e)
+    }
+  }
+
+  // ===== 打卡记录变更：由 HabitCard 在 habitApi 返回后回调，更新本地 records 映射 =====
+  function handleRecordChange(habitId: number, date: string, count: number | null) {
+    setHabits(prev =>
+      prev.map(h => {
+        if (h.id !== habitId) return h
+        const newRecords = { ...h.records }
+        if (count === null) {
+          delete newRecords[date]
+        } else {
+          newRecords[date] = count
+        }
+        return { ...h, records: newRecords }
+      }),
+    )
   }
 
   return (
@@ -219,8 +245,10 @@ export function HabitView(_props: HabitViewProps) {
           />
         )}
 
-        {/* 习惯列表 / 空状态 */}
-        {habits.length === 0 && !showCreateForm ? (
+        {/* 加载中 */}
+        {loading ? (
+          <LoadingState />
+        ) : habits.length === 0 && !showCreateForm ? (
           <EmptyState />
         ) : visibleHabits.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -250,12 +278,10 @@ export function HabitView(_props: HabitViewProps) {
                   weekDays={weekDays}
                   today={today}
                   onToggle={toggleExpand}
-                  onIncrement={() => increment(habit.id)}
-                  onDecrement={() => decrement(habit.id)}
                   onDelete={handleDelete}
-                  onDayClick={toggleDay}
                   onEdit={startEditing}
                   onArchive={toggleArchive}
+                  onRecordChange={handleRecordChange}
                 />
               ))}
             </div>

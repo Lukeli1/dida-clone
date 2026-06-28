@@ -7,7 +7,7 @@ export interface FilterState {
   listId: number | null
 }
 
-interface FilterStore extends FilterState {
+export interface FilterStore extends FilterState {
   setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void
   resetFilters: () => void
 }

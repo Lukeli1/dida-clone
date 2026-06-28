@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ViewType } from '../components/Sidebar'
+import type { ViewType } from '../components/sidebar/types'
 
 interface UIState {
   // 视图与导航

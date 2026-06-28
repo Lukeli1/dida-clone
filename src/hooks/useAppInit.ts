@@ -5,6 +5,7 @@ import { useListStore } from '../stores/listStore'
 import { useTagStore } from '../stores/tagStore'
 import { getFontSetting, applyFont } from '../utils/font'
 import { getAppearance, applyAppearance } from '../utils/appearance'
+import { migrateHabits, cleanupOldHabitBackup } from '../utils/migrateHabits'
 import type { ToastApi } from '../components/Toast'
 
 /**
@@ -31,6 +32,11 @@ export function useAppInit(toast: ToastApi) {
     }
     applyFont(getFontSetting())
     applyAppearance(getAppearance())
+
+    // 习惯数据迁移：localStorage -> SQLite（幂等，失败不阻塞启动）
+    migrateHabits().finally(() => {
+      cleanupOldHabitBackup()
+    })
   }, [])
 
   // ===== 自动归档：已完成超过 7 天的任务 =====

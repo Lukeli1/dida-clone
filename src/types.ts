@@ -89,3 +89,61 @@ export interface UpdateTaskRequest {
 export interface CompleteResult {
   new_task_id: number | null
 }
+
+/* ============ 习惯打卡（Habit）相关类型 ============ */
+
+/** 习惯（与后端 db.rs 中的 Habit 结构体对齐，蛇形命名） */
+export interface Habit {
+  id: number
+  name: string
+  icon?: string
+  icon_color?: string
+  frequency?: string
+  frequency_days?: string
+  target_count: number
+  unit?: string
+  start_date?: string
+  color?: string
+  sort_order: number
+  archived: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** 习惯打卡记录（与后端 HabitRecord 结构体对齐） */
+export interface HabitRecord {
+  id: number
+  habit_id: number
+  date: string
+  count: number
+  note?: string
+  created_at: string
+}
+
+/** 创建习惯请求体 */
+export interface CreateHabitRequest {
+  name: string
+  icon?: string
+  icon_color?: string
+  frequency?: string
+  frequency_days?: string
+  target_count?: number
+  unit?: string
+  start_date?: string
+  color?: string
+  sort_order?: number
+}
+
+/** 更新习惯请求体（所有字段可选） */
+export interface UpdateHabitRequest {
+  name?: string
+  icon?: string
+  icon_color?: string
+  frequency?: string
+  frequency_days?: string
+  target_count?: number
+  unit?: string
+  start_date?: string
+  color?: string
+  sort_order?: number
+}

@@ -1,28 +1,27 @@
 import { format, subDays, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
+import type { Habit as HabitDTO } from '../../types'
 
 /* ============ 类型定义 ============ */
 
-export interface Habit {
-  id: string
-  name: string
-  icon: string        // emoji
-  color: string       // hex 颜色
-  goal: number        // 每日目标次数（例如 5 杯水）
-  unit?: string       // 单位，例如 "杯"、"次"
-  createdAt: string
+/**
+ * 习惯视图模型：后端 Habit 结构 + 内存中的打卡记录映射。
+ *
+ * 后端（SQLite）将打卡记录拆分到 habit_records 表，前端为方便展示与
+ * 连续天数计算，在加载时把 HabitRecord[] 折叠成 records: Record<date, count>。
+ * 该字段不入库，仅存在于前端 state。
+ */
+export interface Habit extends HabitDTO {
   records: Record<string, number>  // 日期字符串(YYYY-MM-DD) -> 打卡次数
-  archived?: boolean
 }
 
 export interface HabitViewProps {
-  // 无需 props，习惯数据自包含于 localStorage
+  // 无需 props，习惯数据通过 habitApi 异步加载
 }
 
 /* ============ 预设数据 ============ */
 
 export const PRESET_EMOJIS = ['💧', '🏃', '📖', '🧘', '💊', '🌅', '💪', '🥗']
 export const PRESET_COLORS = ['#378ADD', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#6B7280']
-export const STORAGE_KEY = 'habits_data'
 export const BRAND_COLOR = '#378ADD'
 
 /** 图标库预设：{ emoji, bgColor } */
@@ -75,14 +74,6 @@ export const ICON_PRESETS = [
 
 /* ============ 工具函数 ============ */
 
-/** 生成唯一 ID */
-export function genId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-}
-
 /** 日期 -> YYYY-MM-DD */
 export function dateKey(date: Date): string {
   return format(date, 'yyyy-MM-dd')
@@ -110,12 +101,13 @@ export function isFutureDay(day: Date): boolean {
 /**
  * 连续打卡天数
  * 规则：从今天往回数连续达标的天数；若今天尚未达标，则从昨天开始计算（不打断已有记录）。
+ * 达标判定使用后端 target_count（每日目标次数）。
  */
 export function getStreak(habit: Habit): number {
   // 解析所有记录日期，筛选出已达标的日子
   const completedKeys = new Set<string>()
   for (const [key, count] of Object.entries(habit.records)) {
-    if (count >= habit.goal) {
+    if (count >= habit.target_count) {
       const d = parseISO(key)
       if (!Number.isNaN(d.getTime())) {
         completedKeys.add(format(d, 'yyyy-MM-dd'))

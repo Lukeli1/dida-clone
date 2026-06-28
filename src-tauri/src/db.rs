@@ -28,6 +28,36 @@ pub struct Task {
     pub tag_ids: Vec<i64>,
 }
 
+/// 习惯结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Habit {
+    pub id: i64,
+    pub name: String,
+    pub icon: Option<String>,
+    pub icon_color: Option<String>,
+    pub frequency: Option<String>,
+    pub frequency_days: Option<String>,
+    pub target_count: i64,
+    pub unit: Option<String>,
+    pub start_date: Option<String>,
+    pub color: Option<String>,
+    pub sort_order: f64,
+    pub archived: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 习惯打卡记录结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HabitRecord {
+    pub id: i64,
+    pub habit_id: i64,
+    pub date: String,
+    pub count: i64,
+    pub note: Option<String>,
+    pub created_at: String,
+}
+
 /// 辅助函数：检查列是否存在，不存在则添加（消除重复 PRAGMA table_info 代码）
 fn add_column_if_not_exists(conn: &Connection, table: &str, column: &str, definition: &str) -> Result<()> {
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
@@ -161,6 +191,48 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
             rusqlite::params!["重要", "#EF4444", now],
         )?;
     }
+
+    // P3-06: habits 习惯表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS habits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            icon TEXT,
+            icon_color TEXT,
+            frequency TEXT,
+            frequency_days TEXT,
+            target_count INTEGER DEFAULT 1,
+            unit TEXT,
+            start_date TEXT,
+            color TEXT,
+            sort_order REAL DEFAULT 0,
+            archived INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    // P3-06: habit_records 习惯打卡记录表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS habit_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            habit_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            count INTEGER DEFAULT 1,
+            note TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE,
+            UNIQUE(habit_id, date)
+        )",
+        [],
+    )?;
+
+    // P3-06: 习惯记录索引，提升查询性能
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_habit_records_habit_id ON habit_records(habit_id);
+         CREATE INDEX IF NOT EXISTS idx_habit_records_date ON habit_records(date);"
+    )?;
 
     Ok(conn)
 }
