@@ -1,4 +1,5 @@
 import { useMemo, type RefObject } from 'react'
+import { endOfDay } from 'date-fns'
 import { api } from '../api'
 import type { Task, ReorderItem } from '../types'
 import { useTaskStore } from '../stores/taskStore'
@@ -396,10 +397,10 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     const smartResult = parseSmartDate(title.trim())
     const listId = selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
 
-    // 今日视图下创建任务：若未识别到日期，自动设为今天
+    // 若未识别到日期，默认截止到当天 23:59:59（避免当前时刻写入导致立刻过期变红）
     let dueDate = smartResult.dueDate
-    if (!dueDate && useUIStore.getState().currentView === 'today') {
-      dueDate = new Date().toISOString()
+    if (!dueDate) {
+      dueDate = endOfDay(new Date()).toISOString()
     }
 
     const newTask = await useTaskStore.getState().createTask({

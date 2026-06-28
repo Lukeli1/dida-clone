@@ -104,12 +104,16 @@ interface DayCellProps {
   isToday: boolean
   size: string
   showCount?: boolean
+  onClick?: () => void
 }
 
 /** 单日打卡格子：满=实心，部分=半透明描边，未打卡=灰色，未来=浅灰 */
-function DayCell({ count, goal, color, isFuture, isToday, size, showCount = false }: DayCellProps) {
+function DayCell({ count, goal, color, isFuture, isToday, size, showCount = false, onClick }: DayCellProps) {
   const ratio = goal > 0 ? Math.min(count / goal, 1) : 0
   const todayRing = isToday ? 'ring-2 ring-blue-400' : ''
+  const clickable = !isFuture && !!onClick
+  const cursor = clickable ? 'cursor-pointer' : ''
+  const hover = clickable ? 'hover:scale-110 active:scale-95' : ''
 
   if (isFuture) {
     return <div className={`${size} rounded-full bg-gray-100 ${todayRing}`} title="未来日期" />
@@ -117,9 +121,13 @@ function DayCell({ count, goal, color, isFuture, isToday, size, showCount = fals
   if (ratio >= 1) {
     return (
       <div
-        className={`${size} rounded-full flex items-center justify-center text-white text-xs font-semibold ${todayRing}`}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+        className={`${size} rounded-full flex items-center justify-center text-white text-xs font-semibold ${todayRing} ${cursor} ${hover} transition-transform`}
         style={{ backgroundColor: color }}
-        title={`已完成 ${count}/${goal}`}
+        title={`已完成 ${count}/${goal}，点击切换`}
       >
         {showCount ? count : ''}
       </div>
@@ -128,19 +136,32 @@ function DayCell({ count, goal, color, isFuture, isToday, size, showCount = fals
   if (ratio > 0) {
     return (
       <div
-        className={`${size} rounded-full flex items-center justify-center text-xs font-semibold ${todayRing}`}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+        className={`${size} rounded-full flex items-center justify-center text-xs font-semibold ${todayRing} ${cursor} ${hover} transition-transform`}
         style={{
           backgroundColor: hexWithAlpha(color, 0.25),
           color,
           border: `1.5px solid ${hexWithAlpha(color, 0.5)}`,
         }}
-        title={`进行中 ${count}/${goal}`}
+        title={`进行中 ${count}/${goal}，点击切换`}
       >
         {showCount ? count : ''}
       </div>
     )
   }
-  return <div className={`${size} rounded-full bg-gray-100 ${todayRing}`} title="未打卡" />
+  return (
+    <div
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      className={`${size} rounded-full bg-gray-100 ${todayRing} ${cursor} ${hover} transition-transform`}
+      title="未打卡，点击打卡"
+    />
+  )
 }
 
 /* ============ 新建习惯表单 ============ */
@@ -163,6 +184,13 @@ interface CreateHabitFormProps {
 function CreateHabitForm(props: CreateHabitFormProps) {
   const { name, setName, icon, setIcon, color, setColor, goal, setGoal, unit, setUnit, onSave, onCancel } = props
   const canSave = name.trim().length > 0
+  const [customIcon, setCustomIcon] = useState('')
+  const hasCustomIcon = customIcon.trim().length > 0
+
+  function applyCustomIcon() {
+    const trimmed = customIcon.trim()
+    if (trimmed) setIcon(trimmed)
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 animate-slide-in-top">
@@ -181,15 +209,15 @@ function CreateHabitForm(props: CreateHabitFormProps) {
           />
         </div>
 
-        {/* 图标选择 */}
+        {/* 图标选择：预设 + 自定义 */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">图标</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-2">
             {PRESET_EMOJIS.map(em => (
               <button
                 key={em}
                 type="button"
-                onClick={() => setIcon(em)}
+                onClick={() => { setIcon(em); setCustomIcon('') }}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${
                   icon === em ? 'ring-2 ring-blue-400 bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
                 }`}
@@ -197,6 +225,26 @@ function CreateHabitForm(props: CreateHabitFormProps) {
                 {em}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={customIcon}
+              onChange={e => setCustomIcon(e.target.value)}
+              onBlur={applyCustomIcon}
+              onKeyDown={e => { if (e.key === 'Enter') applyCustomIcon() }}
+              placeholder="输入任意 emoji"
+              maxLength={4}
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              type="button"
+              onClick={applyCustomIcon}
+              className="px-3 py-2 text-xs font-medium text-white rounded-lg transition-colors"
+              style={{ backgroundColor: BRAND_COLOR }}
+            >
+              使用
+            </button>
           </div>
         </div>
 
@@ -284,9 +332,12 @@ interface HabitCardProps {
   onIncrement: (id: string) => void
   onDecrement: (id: string) => void
   onDelete: (id: string) => void
+  onDayClick?: (habitId: string, dateKeyStr: string) => void
+  onDayIncrement?: (habitId: string, dateKeyStr: string) => void
+  onDayDecrement?: (habitId: string, dateKeyStr: string) => void
 }
 
-function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onIncrement, onDecrement, onDelete }: HabitCardProps) {
+function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onIncrement, onDecrement, onDelete, onDayClick, onDayIncrement, onDayDecrement }: HabitCardProps) {
   const todayCount = getCount(habit, todayStr)
   const goal = habit.goal
   const pct = goal > 0 ? Math.min((todayCount / goal) * 100, 100) : 0
@@ -337,6 +388,7 @@ function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onInc
         <div className="grid grid-cols-7 gap-1 flex-shrink-0">
           {weekDays.map(day => {
             const key = dateKey(day)
+            const handleClick = onDayClick ? () => onDayClick(habit.id, key) : undefined
             return (
               <DayCell
                 key={key}
@@ -346,6 +398,7 @@ function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onInc
                 isFuture={isFutureDay(day)}
                 isToday={isSameDay(day, today)}
                 size="w-7 h-7"
+                onClick={handleClick}
               />
             )
           })}
@@ -385,6 +438,7 @@ function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onInc
             {weekDays.map(day => {
               const key = dateKey(day)
               const count = getCount(habit, key)
+              const handleDayClick = onDayClick ? () => onDayClick(habit.id, key) : undefined
               return (
                 <div key={key} className="flex flex-col items-center gap-1.5">
                   <span className="text-xs text-gray-400">{format(day, 'EEEEE', { locale: zhCN })}</span>
@@ -396,6 +450,7 @@ function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onInc
                     isToday={isSameDay(day, today)}
                     size="w-9 h-9"
                     showCount
+                    onClick={handleDayClick}
                   />
                   <span className={`text-xs ${isSameDay(day, today) ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                     {format(day, 'd')}
@@ -482,6 +537,37 @@ export function HabitView(_props: HabitViewProps) {
   const [formColor, setFormColor] = useState(PRESET_COLORS[0])
   const [formGoal, setFormGoal] = useState(1)
   const [formUnit, setFormUnit] = useState('')
+
+  function toggleDay(habitId: string, dateKeyStr: string) {
+    setHabits(prev => prev.map(h => {
+      if (h.id !== habitId) return h
+      const cur = h.records[dateKeyStr] ?? 0
+      if (cur <= 0) {
+        return { ...h, records: { ...h.records, [dateKeyStr]: h.goal } }
+      }
+      if (cur >= h.goal) {
+        return { ...h, records: { ...h.records, [dateKeyStr]: 0 } }
+      }
+      return { ...h, records: { ...h.records, [dateKeyStr]: h.goal } }
+    }))
+  }
+
+  function incrementAt(habitId: string, dateKeyStr: string) {
+    setHabits(prev => prev.map(h => {
+      if (h.id !== habitId) return h
+      const cur = h.records[dateKeyStr] ?? 0
+      return { ...h, records: { ...h.records, [dateKeyStr]: cur + 1 } }
+    }))
+  }
+
+  function decrementAt(habitId: string, dateKeyStr: string) {
+    setHabits(prev => prev.map(h => {
+      if (h.id !== habitId) return h
+      const cur = h.records[dateKeyStr] ?? 0
+      if (cur <= 0) return h
+      return { ...h, records: { ...h.records, [dateKeyStr]: cur - 1 } }
+    }))
+  }
 
   // 持久化
   useEffect(() => {
@@ -609,9 +695,12 @@ export function HabitView(_props: HabitViewProps) {
                 weekDays={weekDays}
                 today={today}
                 onToggle={toggleExpand}
-                onIncrement={increment}
-                onDecrement={decrement}
+                onIncrement={() => increment(habit.id)}
+                onDecrement={() => decrement(habit.id)}
                 onDelete={handleDelete}
+                onDayClick={toggleDay}
+                onDayIncrement={incrementAt}
+                onDayDecrement={decrementAt}
               />
             ))}
           </div>

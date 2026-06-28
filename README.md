@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.17.0-blue)
+![版本](https://img.shields.io/badge/version-1.18.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,15 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.18.0（2026-06-28）
+
+#### 新增功能
+- **日历点击打卡**：习惯打卡模块的迷你 7 天视图和展开日历格子均可直接点击完成/取消打卡，未来日期不可点击
+- **自定义习惯图标**：新建习惯时支持输入任意 emoji 作为图标，除 8 个预设图标外可自由扩展
+
+#### 改进
+- 习惯打卡交互更接近滴答清单原版，减少对 `+1`/`-1` 按钮的依赖
 
 ### v1.17.0（2026-06-27）
 
