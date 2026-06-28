@@ -1,6 +1,6 @@
 [package]
 name = "dida-clone"
-version = "1.16.0"
+version = "1.17.1"
 description = "滴答清单本地复刻"
 authors = ["you"]
 edition = "2021"
@@ -17,3 +17,4 @@ rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
 chrono = "0.4"
 reqwest = { version = "0.12", features = ["json"] }
 font-loader = "0.11"
+tauri-plugin-autostart = "2"

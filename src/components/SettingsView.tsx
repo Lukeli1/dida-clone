@@ -13,6 +13,7 @@ import {
   type FontSizeLevel, type SidebarDensity, type AppearanceSetting,
 } from '../utils/appearance'
 import { api, isTauri } from '../api'
+import { isEnabled, enable, disable } from '@tauri-apps/plugin-autostart'
 import packageJson from '../../package.json'
 
 interface SettingsViewProps {
@@ -75,6 +76,13 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   useEffect(() => { localStorage.setItem('reminderSound', String(reminderSound)) }, [reminderSound])
   useEffect(() => { localStorage.setItem('weekStart', weekStart) }, [weekStart])
   useEffect(() => { localStorage.setItem('confirmDelete', String(confirmDelete)) }, [confirmDelete])
+
+  // 初始化开机自启状态
+  useEffect(() => {
+    if (isTauri) {
+      isEnabled().then(setAutoStart).catch(() => setAutoStart(false))
+    }
+  }, [])
 
   // === Handlers（与改造前完全一致） ===
   function applyTheme(t: 'light' | 'dark' | 'system') {
@@ -633,7 +641,12 @@ export function SettingsView({ onClose }: SettingsViewProps) {
               <p className="text-sm font-medium text-gray-900">开机自启</p>
               <p className="text-xs text-gray-500 mt-0.5">系统启动时自动打开应用</p>
             </div>
-            <Toggle checked={autoStart} onChange={setAutoStart} />
+            <Toggle checked={autoStart} onChange={(v) => {
+              setAutoStart(v)
+              if (isTauri) {
+                if (v) { enable() } else { disable() }
+              }
+            }} />
           </div>
           <button
             onClick={handleExportData}

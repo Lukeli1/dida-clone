@@ -12,6 +12,7 @@ use tauri::{
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .on_window_event(|window, event| {
             // 拦截关闭事件：改为隐藏窗口，不退出应用
             if let WindowEvent::CloseRequested { api, .. } = event {
