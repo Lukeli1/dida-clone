@@ -2,31 +2,13 @@ use rusqlite::{Result, params};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use chrono::{Datelike, TimeZone};
+use std::collections::HashMap;
 
-use crate::db::DbState;
+use crate::db::{DbState, Task};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Task {
-    pub id: i64,
-    pub title: String,
-    pub notes: Option<String>,
-    pub priority: i64,
-    pub due_date: Option<String>,
-    pub end_date: Option<String>,
-    pub reminder: Option<String>,
-    pub completed: bool,
-    #[serde(default)]
-    pub archived: bool,
-    #[serde(default)]
-    pub pinned: bool,
-    pub list_id: i64,
-    pub parent_id: Option<i64>,
-    pub repeat_rule: Option<String>,
-    pub sort_order: f64,
-    pub created_at: String,
-    pub updated_at: String,
-    #[serde(default)]
-    pub tag_ids: Vec<i64>,
+/// 辅助函数：获取当前时间的 RFC3339 字符串（消除重复 chrono::Local::now().to_rfc3339()）
+fn now_rfc3339() -> String {
+    chrono::Local::now().to_rfc3339()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -100,7 +82,7 @@ pub struct CreateTagRequest {
 
 #[tauri::command]
 pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
@@ -132,7 +114,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // 批量查询所有 task_tags 关联
+    // P3-2: 优化 tag 合并 — 使用 HashMap 代替 O(N*M) 线性查找
     let mut tag_stmt = conn
         .prepare("SELECT task_id, tag_id FROM task_tags")
         .map_err(|e| e.to_string())?;
@@ -142,10 +124,15 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
         .filter_map(|r| r.ok())
         .collect();
 
-    // 将 tag_ids 合并到对应的 task
+    // 构建 task_id -> Vec<tag_id> 映射
+    let mut tag_map: HashMap<i64, Vec<i64>> = HashMap::new();
     for (task_id, tag_id) in tag_rows {
-        if let Some(task) = tasks.iter_mut().find(|t| t.id == task_id) {
-            task.tag_ids.push(tag_id);
+        tag_map.entry(task_id).or_default().push(tag_id);
+    }
+    // 一次性赋值，O(N) 完成
+    for task in &mut tasks {
+        if let Some(tags) = tag_map.remove(&task.id) {
+            task.tag_ids = tags;
         }
     }
 
@@ -154,8 +141,8 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
 
 #[tauri::command]
 pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task, String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
     conn.execute(
@@ -202,8 +189,8 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
 
 #[tauri::command]
 pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
 
     // 动态构建 UPDATE 语句
     let mut set_clauses: Vec<String> = Vec::new();
@@ -278,33 +265,39 @@ pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -
 
 #[tauri::command]
 pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    // P3-3: 事务包裹，确保级联删除的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
     // 先删除关联的 task_tags，避免外键约束失败
-    conn.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
+    tx.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     // 删除子任务的 task_tags
-    conn.execute(
+    tx.execute(
         "DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE parent_id = ?1)",
         params![id],
     )
     .map_err(|e| e.to_string())?;
     // 删除子任务
-    conn.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
+    tx.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     // 最后删除任务本身
-    conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
+    tx.execute("DELETE FROM tasks WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
+    // P3-3: 事务包裹，确保复制 + 标签关联的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
     // 查询原任务所有字段
-    let task: (String, Option<String>, i64, Option<String>, Option<String>, Option<String>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = conn
+    let task: (String, Option<String>, i64, Option<String>, Option<String>, Option<String>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = tx
         .query_row(
             "SELECT title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
             params![id],
@@ -315,16 +308,16 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
     let (title, notes, priority, due_date, end_date, reminder, _completed, _archived, _pinned, list_id, parent_id, repeat_rule, _sort_order) = task;
 
     // 插入副本：completed=false, archived=false, pinned=false
-    conn.execute(
+    tx.execute(
         "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, now, now],
     ).map_err(|e| e.to_string())?;
 
-    let new_id = conn.last_insert_rowid();
+    let new_id = tx.last_insert_rowid();
 
     // 复制标签关联
-    let tag_ids: Vec<i64> = conn
+    let tag_ids: Vec<i64> = tx
         .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
         .map_err(|e| e.to_string())?
         .query_map(params![id], |row| row.get(0))
@@ -333,11 +326,13 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         .collect();
 
     for tag_id in &tag_ids {
-        conn.execute(
+        tx.execute(
             "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
             params![new_id, tag_id],
         ).map_err(|e| e.to_string())?;
     }
+
+    tx.commit().map_err(|e| e.to_string())?;
 
     Ok(Task {
         id: new_id,
@@ -362,7 +357,7 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
 
 #[tauri::command]
 pub fn get_lists(state: State<DbState>) -> Result<Vec<List>, String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare("SELECT id, name, color, is_default, created_at, updated_at FROM lists ORDER BY is_default DESC, created_at ASC")
@@ -388,8 +383,8 @@ pub fn get_lists(state: State<DbState>) -> Result<Vec<List>, String> {
 
 #[tauri::command]
 pub fn create_list(state: State<DbState>, req: CreateListRequest) -> Result<List, String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
     let color = req.color.unwrap_or_else(|| "#6B7280".to_string());
 
     conn.execute(
@@ -411,8 +406,8 @@ pub fn create_list(state: State<DbState>, req: CreateListRequest) -> Result<List
 
 #[tauri::command]
 pub fn update_list(state: State<DbState>, id: i64, updates: UpdateListRequest) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
 
     let mut set_clauses: Vec<String> = Vec::new();
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -446,7 +441,7 @@ pub fn update_list(state: State<DbState>, id: i64, updates: UpdateListRequest) -
 
 #[tauri::command]
 pub fn delete_list(state: State<DbState>, id: i64) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     // 不允许删除默认清单
     let is_default: bool = conn
@@ -474,7 +469,7 @@ pub fn delete_list(state: State<DbState>, id: i64) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_tags(state: State<DbState>) -> Result<Vec<Tag>, String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare("SELECT id, name, color, parent_id, created_at FROM tags ORDER BY created_at ASC")
@@ -499,8 +494,8 @@ pub fn get_tags(state: State<DbState>) -> Result<Vec<Tag>, String> {
 
 #[tauri::command]
 pub fn create_tag(state: State<DbState>, req: CreateTagRequest) -> Result<Tag, String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
 
     conn.execute(
         "INSERT INTO tags (name, color, parent_id, created_at) VALUES (?1, ?2, ?3, ?4)",
@@ -520,7 +515,7 @@ pub fn create_tag(state: State<DbState>, req: CreateTagRequest) -> Result<Tag, S
 
 #[tauri::command]
 pub fn delete_tag(state: State<DbState>, id: i64) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
     // 先删除关联的 task_tags
     conn.execute("DELETE FROM task_tags WHERE tag_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
@@ -531,7 +526,7 @@ pub fn delete_tag(state: State<DbState>, id: i64) -> Result<(), String> {
 
 #[tauri::command]
 pub fn add_tag_to_task(state: State<DbState>, task_id: i64, tag_id: i64) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
         params![task_id, tag_id],
@@ -541,7 +536,7 @@ pub fn add_tag_to_task(state: State<DbState>, task_id: i64, tag_id: i64) -> Resu
 
 #[tauri::command]
 pub fn remove_tag_from_task(state: State<DbState>, task_id: i64, tag_id: i64) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM task_tags WHERE task_id = ?1 AND tag_id = ?2",
         params![task_id, tag_id],
@@ -559,14 +554,17 @@ pub struct ReorderItem {
 
 #[tauri::command]
 pub fn reorder_tasks(state: State<DbState>, items: Vec<ReorderItem>) -> Result<(), String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
+    // P3-3: 事务包裹，确保批量排序的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
     for item in &items {
-        conn.execute(
+        tx.execute(
             "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
             params![item.sort_order, now, item.id],
         ).map_err(|e| e.to_string())?;
     }
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -579,11 +577,14 @@ pub struct CompleteResult {
 
 #[tauri::command]
 pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, String> {
-    let conn = state.0.lock().unwrap();
-    let now = chrono::Local::now().to_rfc3339();
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let now = now_rfc3339();
+
+    // P3-3: 事务包裹，确保完成 + 创建下一周期 + 复制标签的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // 查询任务详情
-    let task: (String, Option<String>, i64, Option<String>, Option<String>, i64, Option<String>, f64) = conn
+    let task: (String, Option<String>, i64, Option<String>, Option<String>, i64, Option<String>, f64) = tx
         .query_row(
             "SELECT title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
             params![id],
@@ -594,7 +595,7 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
     let (title, notes, priority, due_date, reminder, list_id, repeat_rule, _sort_order) = task;
 
     // 标记当前任务为已完成
-    conn.execute(
+    tx.execute(
         "UPDATE tasks SET completed = 1, updated_at = ?1 WHERE id = ?2",
         params![now, id],
     ).map_err(|e| e.to_string())?;
@@ -608,16 +609,16 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
 
             let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
 
-            conn.execute(
+            tx.execute(
                 "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![title, notes, priority, next_due, reminder, list_id, repeat_rule, next_sort_order, now, now],
             ).map_err(|e| e.to_string())?;
 
-            let new_id = conn.last_insert_rowid();
+            let new_id = tx.last_insert_rowid();
 
             // 复制标签关联
-            let tag_ids: Vec<i64> = conn
+            let tag_ids: Vec<i64> = tx
                 .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
                 .map_err(|e| e.to_string())?
                 .query_map(params![id], |row| row.get(0))
@@ -626,16 +627,18 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
                 .collect();
 
             for tag_id in tag_ids {
-                conn.execute(
+                tx.execute(
                     "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
                     params![new_id, tag_id],
                 ).map_err(|e| e.to_string())?;
             }
 
+            tx.commit().map_err(|e| e.to_string())?;
             return Ok(CompleteResult { new_task_id: Some(new_id) });
         }
     }
 
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(CompleteResult { new_task_id: None })
 }
 

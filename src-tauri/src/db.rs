@@ -1,10 +1,11 @@
 use rusqlite::{Connection, Result};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::sync::Mutex;
 
 pub struct DbState(pub Mutex<Connection>);
 
-#[derive(Serialize)]
+/// 统一的 Task 结构体（commands.rs 通过 use crate::db::Task 引用）
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Task {
     pub id: i64,
     pub title: String,
@@ -20,11 +21,31 @@ pub struct Task {
     pub repeat_rule: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub pinned: bool,
+    pub sort_order: f64,
+    #[serde(default)]
+    pub tag_ids: Vec<i64>,
+}
+
+/// 辅助函数：检查列是否存在，不存在则添加（消除重复 PRAGMA table_info 代码）
+fn add_column_if_not_exists(conn: &Connection, table: &str, column: &str, definition: &str) -> Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
+    let exists = stmt.query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|c| c.ok())
+        .any(|name| name == column);
+    if !exists {
+        conn.execute(&format!("ALTER TABLE {} ADD COLUMN {} {}", table, column, definition), [])?;
+    }
+    Ok(())
 }
 
 pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     let db_path = std::path::Path::new(app_data_dir).join("dida.db");
     let conn = Connection::open(db_path)?;
+
+    // P0-1: 启用外键约束和 WAL 模式
+    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS lists (
@@ -38,15 +59,8 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         [],
     )?;
 
-    // 兼容已有数据库：如果 lists 表没有 color 列，则添加
-    let has_color: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(lists)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "color")
-    };
-    if !has_color {
-        conn.execute("ALTER TABLE lists ADD COLUMN color TEXT DEFAULT '#6B7280'", [])?;
-    }
+    // 兼容已有数据库：使用辅助函数检查并添加缺失列
+    add_column_if_not_exists(&conn, "lists", "color", "TEXT DEFAULT '#6B7280'")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tasks (
@@ -69,45 +83,11 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         [],
     )?;
 
-    // 兼容已有数据库：如果 tasks 表没有 sort_order 列，则添加
-    let has_sort_order: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "sort_order")
-    };
-    if !has_sort_order {
-        conn.execute("ALTER TABLE tasks ADD COLUMN sort_order REAL DEFAULT 0", [])?;
-    }
-
-    // 兼容已有数据库：如果 tasks 表没有 end_date 列，则添加
-    let has_end_date: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "end_date")
-    };
-    if !has_end_date {
-        conn.execute("ALTER TABLE tasks ADD COLUMN end_date TEXT", [])?;
-    }
-
-    // 兼容已有数据库：如果 tasks 表没有 archived 列，则添加
-    let has_archived: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "archived")
-    };
-    if !has_archived {
-        conn.execute("ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0", [])?;
-    }
-
-    // 兼容已有数据库：如果 tasks 表没有 pinned 列，则添加
-    let has_pinned: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(tasks)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "pinned")
-    };
-    if !has_pinned {
-        conn.execute("ALTER TABLE tasks ADD COLUMN pinned INTEGER DEFAULT 0", [])?;
-    }
+    // 兼容已有数据库：使用辅助函数检查并添加缺失列
+    add_column_if_not_exists(&conn, "tasks", "sort_order", "REAL DEFAULT 0")?;
+    add_column_if_not_exists(&conn, "tasks", "end_date", "TEXT")?;
+    add_column_if_not_exists(&conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
+    add_column_if_not_exists(&conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -121,15 +101,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         [],
     )?;
 
-    // 兼容已有数据库：如果 tags 表没有 parent_id 列，则添加
-    let has_tag_parent_id: bool = {
-        let mut stmt = conn.prepare("PRAGMA table_info(tags)")?;
-        let cols: Vec<String> = stmt.query_map([], |row| row.get(1))?.filter_map(|c| c.ok()).collect();
-        cols.iter().any(|c| c == "parent_id")
-    };
-    if !has_tag_parent_id {
-        conn.execute("ALTER TABLE tags ADD COLUMN parent_id INTEGER", [])?;
-    }
+    add_column_if_not_exists(&conn, "tags", "parent_id", "INTEGER")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS task_tags (
@@ -140,6 +112,18 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
             FOREIGN KEY (tag_id) REFERENCES tags(id)
         )",
         [],
+    )?;
+
+    // P0-4: 创建索引，提升查询性能
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_tasks_list_id ON tasks(list_id);
+         CREATE INDEX IF NOT EXISTS idx_tasks_parent_id ON tasks(parent_id);
+         CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+         CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived);
+         CREATE INDEX IF NOT EXISTS idx_tasks_pinned ON tasks(pinned);
+         CREATE INDEX IF NOT EXISTS idx_tasks_sort_order ON tasks(pinned DESC, sort_order ASC, created_at DESC);
+         CREATE INDEX IF NOT EXISTS idx_task_tags_task_id ON task_tags(task_id);
+         CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);"
     )?;
 
     // 如果没有默认清单，创建一个"收件箱"

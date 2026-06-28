@@ -3,6 +3,7 @@ import { isToday, isThisMonth, subDays, format, isSameDay, parseISO } from 'date
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
 import { getLLMConfig, generateSummary } from '../utils/llm'
+import { useToast } from './Toast'
 
 interface StatsViewProps {
   tasks: Task[]
@@ -10,6 +11,7 @@ interface StatsViewProps {
 }
 
 export function StatsView({ tasks, lists }: StatsViewProps) {
+  const toast = useToast()
   const [aiSummary, setAiSummary] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const stats = useMemo(() => {
@@ -80,7 +82,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
 
   async function handleAISummary() {
     if (!getLLMConfig()) {
-      alert('请先在设置中配置大模型 API')
+      toast.error('请先在设置中配置大模型 API')
       return
     }
     setAiLoading(true)
@@ -91,7 +93,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
       const summary = await generateSummary(todayTasks.length > 0 ? todayTasks : tasks.slice(0, 20))
       setAiSummary(summary)
     } catch (e: any) {
-      alert(`AI 摘要生成失败: ${e.message || e}`)
+      toast.error(`AI 摘要生成失败: ${e.message || e}`)
     } finally {
       setAiLoading(false)
     }

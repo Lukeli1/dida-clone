@@ -185,7 +185,6 @@ function CreateHabitForm(props: CreateHabitFormProps) {
   const { name, setName, icon, setIcon, color, setColor, goal, setGoal, unit, setUnit, onSave, onCancel } = props
   const canSave = name.trim().length > 0
   const [customIcon, setCustomIcon] = useState('')
-  const hasCustomIcon = customIcon.trim().length > 0
 
   function applyCustomIcon() {
     const trimmed = customIcon.trim()
@@ -337,7 +336,7 @@ interface HabitCardProps {
   onDayDecrement?: (habitId: string, dateKeyStr: string) => void
 }
 
-function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onIncrement, onDecrement, onDelete, onDayClick, onDayIncrement, onDayDecrement }: HabitCardProps) {
+function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onIncrement, onDecrement, onDelete, onDayClick }: HabitCardProps) {
   const todayCount = getCount(habit, todayStr)
   const goal = habit.goal
   const pct = goal > 0 ? Math.min((todayCount / goal) * 100, 100) : 0

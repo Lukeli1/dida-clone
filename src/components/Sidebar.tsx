@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { List, Tag } from '../types'
 import { getAvatar, setAvatar, removeAvatar, fileToAvatar } from '../utils/avatar'
+import { useToast } from './Toast'
 
 export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit'
 
@@ -29,6 +30,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentView, onSelectList, onSelectTag, onViewChange, onCreateList, onUpdateList, onDeleteList, onCreateTag, onDeleteTag, taskCounts, todayCount, archivedCount }: SidebarProps) {
+  const toast = useToast()
   const [isCreating, setIsCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [newListColor, setNewListColor] = useState('#6B7280')
@@ -71,7 +73,7 @@ export function Sidebar({ lists, tags, selectedListId, selectedTagId, currentVie
       setAvatarState(dataUrl)
       setAvatarMenuOpen(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '上传失败')
+      toast.error(err instanceof Error ? err.message : '上传失败')
     }
     // 重置 input，允许重复选择同一文件
     e.target.value = ''

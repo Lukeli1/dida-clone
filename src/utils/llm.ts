@@ -119,16 +119,26 @@ export async function testConnection(baseUrl: string, apiKey: string): Promise<s
   if (isTauri) {
     return await invoke<string[]>('test_llm_connection', { baseUrl, apiKey })
   }
-  // 浏览器降级：直接 fetch
+  // 浏览器降级：直接 fetch（带 30 秒超时）
   const url = buildUrl(baseUrl, '/models')
-  const resp = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${apiKey}` }
-  })
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-  const body = await resp.json()
-  const models: string[] = (body.data || []).map((m: any) => m.id).filter(Boolean)
-  if (models.length === 0) throw new Error('未找到可用模型')
-  return models
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30000)
+  try {
+    const resp = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const body = await resp.json()
+    const models: string[] = (body.data || []).map((m: any) => m.id).filter(Boolean)
+    if (models.length === 0) throw new Error('未找到可用模型')
+    return models
+  } catch (err: any) {
+    clearTimeout(timeout)
+    if (err.name === 'AbortError') throw new Error('请求超时（30秒）')
+    throw err
+  }
 }
 
 /** 对话消息（多轮对话历史） */
@@ -157,7 +167,7 @@ export async function chat(
       history: history || [],
     })
   }
-  // 浏览器降级
+  // 浏览器降级（带 60 秒超时，AI 生成需要更长时间）
   const url = buildUrl(config.baseUrl, '/chat/completions')
   const messages: any[] = [
     { role: 'system', content: systemPrompt },
@@ -170,17 +180,27 @@ export async function chat(
   } else {
     payload.temperature = 0.3
   }
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  })
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-  const body = await resp.json()
-  return body.choices?.[0]?.message?.content || ''
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 60000)
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const body = await resp.json()
+    return body.choices?.[0]?.message?.content || ''
+  } catch (err: any) {
+    clearTimeout(timeout)
+    if (err.name === 'AbortError') throw new Error('AI 响应超时（60秒）')
+    throw err
+  }
 }
 
 /** 将任务列表格式化为 AI 可读的文本上下文 */

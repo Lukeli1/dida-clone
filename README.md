@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.18.0-blue)
+![版本](https://img.shields.io/badge/version-1.19.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,25 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.19.0（2026-06-28）
+
+#### 安全加固
+- **SQLite WAL + 外键约束**：启用 WAL 模式提升并发性能，开启外键约束保障数据完整性
+- **CSP 安全策略**：设置内容安全策略，限制脚本/样式/图片/连接来源
+- **数据库索引**：新增 8 个索引（list_id/parent_id/completed/archived/pinned/sort_order/task_tags），提升查询性能
+
+#### 架构优化
+- **Rust 代码重构**：消除重复 Task 结构体定义，提取 `add_column_if_not_exists` 和 `now_rfc3339` 辅助函数，16 处 `.lock().unwrap()` 改为 `.map_err()` 错误处理
+- **get_tasks 性能优化**：标签合并从 O(N*M) 线性查找改为 HashMap O(N)
+- **事务原子性**：delete_task/duplicate_task/reorder_tasks/complete_task 4 处操作包裹事务
+- **移除死依赖**：删除未使用的 tauri-plugin-shell
+- **清理死代码**：删除 src/lib/ 下 4 个未使用的 react-query 基础设施文件
+
+#### 前端改进
+- **AI 请求超时**：LLM 请求添加 30 秒（testConnection）/ 60 秒（chat）超时保护
+- **alert 替换为 toast**：8 处 alert() 替换为非阻塞式 toast 通知
+- **Error Boundary**：新增全局错误边界，防止单组件崩溃导致白屏
 
 ### v1.18.0（2026-06-28）
 

@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Task, Tag, List } from '../types'
 import { hexWithAlpha, getTaskColor } from '../utils/priority'
+import { useToast } from './Toast'
 import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../utils/llm'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -36,6 +37,7 @@ const REPEAT_LABELS: Record<string, string> = {
 }
 
 export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
+  const toast = useToast()
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes || '')
   const [dueDate, setDueDate] = useState(task.due_date || '')
@@ -102,7 +104,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   // AI 智能拆解任务
   async function handleAIBreakdown() {
     if (!getLLMConfig()) {
-      alert('请先在设置中配置大模型 API')
+      toast.error('请先在设置中配置大模型 API')
       return
     }
     setAiBreaking(true)
@@ -112,7 +114,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
       const suggestions = await breakdownTask(task.title, task.notes)
       setAiSuggestions(suggestions)
     } catch (e: any) {
-      alert(`AI 拆解失败: ${e.message || e}`)
+      toast.error(`AI 拆解失败: ${e.message || e}`)
     } finally {
       setAiBreaking(false)
     }
@@ -137,7 +139,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   // AI 优先级建议
   async function handleAIPriority() {
     if (!getLLMConfig()) {
-      alert('请先在设置中配置大模型 API')
+      toast.error('请先在设置中配置大模型 API')
       return
     }
     setAiPriorityLoading(true)
@@ -145,9 +147,9 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
       const result = await suggestPriority(task.title, task.notes)
       setPriority(result.priority)
       onUpdate(task.id, { priority: result.priority })
-      alert(`AI 建议优先级：${result.priority === 1 ? '高' : result.priority === 2 ? '中' : '低'}\n原因：${result.reason}`)
+      toast.info(`AI 建议优先级：${result.priority === 1 ? '高' : result.priority === 2 ? '中' : '低'}（${result.reason}）`)
     } catch (e: any) {
-      alert(`AI 建议失败: ${e.message || e}`)
+      toast.error(`AI 建议失败: ${e.message || e}`)
     } finally {
       setAiPriorityLoading(false)
     }
