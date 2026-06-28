@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest, ReorderItem, CompleteResult } from './types'
 
-export const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
+// 桌面应用默认在 Tauri 环境中，不再依赖 window.__TAURI__ 检测
+export const isTauri = true
 
 const mockTasks: Task[] = []
 const mockLists: List[] = [
@@ -26,11 +27,15 @@ let nextListId = 2
 let nextTagId = 4
 
 export const api = {
-  getTasks: async (): Promise<Task[]> => {
+  getTasks: async (filter?: { list_id?: number; include_completed?: boolean; include_archived?: boolean }): Promise<Task[]> => {
     if (!isTauri) {
       return Promise.resolve(mockTasks.map(t => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })))
     }
-    return await invoke<Task[]>('get_tasks')
+    return await invoke<Task[]>('get_tasks', {
+      listId: filter?.list_id ?? null,
+      includeCompleted: filter?.include_completed ?? null,
+      includeArchived: filter?.include_archived ?? null,
+    })
   },
 
   createTask: async (req: CreateTaskRequest): Promise<Task> => {

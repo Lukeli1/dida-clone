@@ -81,15 +81,48 @@ pub struct CreateTagRequest {
 }
 
 #[tauri::command]
-pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
+pub fn get_tasks(
+    state: State<DbState>,
+    list_id: Option<i64>,
+    include_completed: Option<bool>,
+    include_archived: Option<bool>,
+) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
-        .map_err(|e| e.to_string())?;
+    // 动态构建 WHERE 条件：None 表示不过滤，Some 表示按值过滤
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    if let Some(lid) = list_id {
+        conditions.push("list_id = ?".to_string());
+        params_vec.push(Box::new(lid));
+    }
+    if let Some(completed) = include_completed {
+        conditions.push("completed = ?".to_string());
+        params_vec.push(Box::new(completed));
+    }
+    if let Some(archived) = include_archived {
+        conditions.push("archived = ?".to_string());
+        params_vec.push(Box::new(archived));
+    }
+
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC",
+        where_clause
+    );
+
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<Task> = stmt
-        .query_map([], |row| {
+        .query_map(params_refs.as_slice(), |row| {
             Ok(Task {
                 id: row.get(0)?,
                 title: row.get(1)?,
@@ -114,7 +147,7 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // P3-2: 优化 tag 合并 — 使用 HashMap 代替 O(N*M) 线性查找
+    // 标签合并：使用 HashMap 代替 O(N*M) 线性查找
     let mut tag_stmt = conn
         .prepare("SELECT task_id, tag_id FROM task_tags")
         .map_err(|e| e.to_string())?;
@@ -124,12 +157,10 @@ pub fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
         .filter_map(|r| r.ok())
         .collect();
 
-    // 构建 task_id -> Vec<tag_id> 映射
     let mut tag_map: HashMap<i64, Vec<i64>> = HashMap::new();
     for (task_id, tag_id) in tag_rows {
         tag_map.entry(task_id).or_default().push(tag_id);
     }
-    // 一次性赋值，O(N) 完成
     for task in &mut tasks {
         if let Some(tags) = tag_map.remove(&task.id) {
             task.tag_ids = tags;
