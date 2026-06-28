@@ -393,29 +393,29 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
   }, [resizingTaskId, handleResizeMove, handleResizeEnd])
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+    <div className="flex flex-col h-full dark:bg-gray-900">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-2">
-          <button onClick={onPrevWeek} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <button onClick={onPrevWeek} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <h3 className="text-lg font-semibold text-gray-900 min-w-[200px] text-center">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 min-w-[200px] text-center">
             {format(days[0], 'M月d日', { locale: zhCN })} - {format(days[6], 'M月d日', { locale: zhCN })}
           </h3>
-          <button onClick={onNextWeek} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <button onClick={onNextWeek} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
-        <button onClick={onToday} className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">今天</button>
+        <button onClick={onToday} className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">今天</button>
       </div>
 
       <div className="flex-1 overflow-y-auto select-none">
         <div className="flex">
-          <div className="w-16 flex-shrink-0 border-r border-gray-200">
-            <div className="h-12 border-b border-gray-200" />
+          <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-gray-700">
+            <div className="h-12 border-b border-gray-200 dark:border-gray-700" />
             {HOURS.map((hour) => (
-              <div key={hour} className="border-b border-gray-100 flex items-start justify-end pr-2" style={{ height: `${HOUR_HEIGHT}px` }}>
-                <span className="text-xs text-gray-400 -mt-2">{hour === 0 ? '' : `${hour}:00`}</span>
+              <div key={hour} className="border-b border-gray-100 dark:border-gray-700/50 flex items-start justify-end pr-2" style={{ height: `${HOUR_HEIGHT}px` }}>
+                <span className="text-xs text-gray-400 dark:text-gray-500 -mt-2">{hour === 0 ? '' : `${hour}:00`}</span>
               </div>
             ))}
           </div>
@@ -429,17 +429,17 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
               const isSelecting = selection?.dateKey === key
 
               return (
-                <div key={key} className={`border-r border-gray-200 last:border-r-0 ${isDragOver ? 'bg-blue-50' : ''}`}
+                <div key={key} className={`border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                   onDragOver={(e) => handleDragOver(e, key)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, key)}>
-                  <div onClick={() => onDateClick(day)} className={`h-12 border-b border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/50 transition-colors ${today ? 'bg-blue-50' : ''}`}>
-                    <span className="text-xs text-gray-400">{format(day, 'EEE', { locale: zhCN })}</span>
-                    <span className={`text-sm font-medium ${today ? 'w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-full' : 'text-gray-700'}`}>{format(day, 'd')}</span>
+                  <div onClick={() => onDateClick(day)} className={`h-12 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors ${today ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{format(day, 'EEE', { locale: zhCN })}</span>
+                    <span className={`text-sm font-medium ${today ? 'w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-full' : 'text-gray-700 dark:text-gray-200'}`}>{format(day, 'd')}</span>
                   </div>
 
                   <div ref={(el) => { if (el) columnRefs.current.set(key, el) }} className="relative group"
                     onMouseDown={(e) => handleTimeMouseDown(e, key)} onMouseMove={(e) => handleTimeMouseMove(e, key)} onMouseUp={(e) => handleTimeMouseUp(e, key)}>
                     {HOURS.map((hour) => (
-                      <div key={hour} className="border-b border-gray-100 hover:bg-blue-50/20 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
+                      <div key={hour} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
                     ))}
 
                     {/* 悬停提示 */}
@@ -465,7 +465,7 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
                         <div key={task.id} data-task draggable={resizingTaskId === null} onDragStart={(e) => handleDragStart(e, task.id)}
                           className={`absolute left-1 right-1 rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group border-l-2 ${
                             task.completed
-                              ? 'bg-gray-200 text-gray-400 line-through'
+                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 line-through'
                               : ''
                           } ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                           style={{
@@ -514,16 +514,16 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
 
                     {/* 快速添加弹窗（轻量） */}
                     {createPopup?.dateKey === key && createPopup.isQuickAdd && (
-                      <div className="absolute z-20 bg-white rounded-lg shadow-xl border border-blue-200 p-3 w-64"
+                      <div className="absolute z-20 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-blue-200 dark:border-blue-800 p-3 w-64"
                         style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: `${Math.min(createPopup.left, 60)}px` }}
                         onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs text-blue-600 font-medium">
+                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                             {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                           </span>
                           <button
                             onClick={cyclePriority}
-                            className={`ml-auto p-1 rounded hover:bg-gray-100 ${priorityFlags[popupPriority].color}`}
+                            className={`ml-auto p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${priorityFlags[popupPriority].color}`}
                             title={priorityFlags[popupPriority].label}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -534,37 +534,37 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
                         <input ref={popupInputRef} value={popupTitle} onChange={(e) => setPopupTitle(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handlePopupSubmit(); if (e.key === 'Escape') setCreatePopup(null) }}
                           placeholder="任务标题，回车保存"
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
                       </div>
                     )}
 
                     {/* 详细创建弹窗（拖选后） */}
                     {createPopup?.dateKey === key && !createPopup.isQuickAdd && (
-                      <div className="absolute z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-72"
+                      <div className="absolute z-20 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 w-72"
                         style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: `${Math.min(createPopup.left, 80)}px` }}
                         onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 mb-3">
                           <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                             {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                           </span>
                         </div>
 
                         <input ref={popupInputRef} value={popupTitle} onChange={(e) => setPopupTitle(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handlePopupSubmit(); if (e.key === 'Escape') setCreatePopup(null) }}
-                          placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-2" />
+                          placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-2" />
 
                         <textarea value={popupNotes} onChange={(e) => setPopupNotes(e.target.value)}
                           placeholder="备注（可选）" rows={2}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-3 resize-none" />
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-3 resize-none" />
 
                         <div className="mb-3">
-                          <label className="block text-xs text-gray-500 mb-1.5">优先级</label>
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">优先级</label>
                           <div className="flex gap-1.5">
                             {priorityOptions.map((opt) => (
                               <button key={opt.value} onClick={() => setPopupPriority(opt.value)}
                                 className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                                  popupPriority === opt.value ? `${opt.color} border-current font-medium bg-gray-50` : 'text-gray-400 border-gray-200 hover:border-gray-300'
+                                  popupPriority === opt.value ? `${opt.color} border-current font-medium bg-gray-50 dark:bg-gray-700` : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                                 }`}>
                                 {opt.label}
                               </button>
@@ -574,9 +574,9 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
 
                         {lists.length > 1 && (
                           <div className="mb-3">
-                            <label className="block text-xs text-gray-500 mb-1.5">清单</label>
+                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">清单</label>
                             <select value={popupListId || defaultListId} onChange={(e) => setPopupListId(Number(e.target.value))}
-                              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                              className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                               {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                             </select>
                           </div>
@@ -584,7 +584,7 @@ export function WeekView({ currentDate, tasks, lists, onDateClick, onTaskClick, 
 
                         <div className="flex gap-2">
                           <button onClick={handlePopupSubmit} className="flex-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">创建任务</button>
-                          <button onClick={() => setCreatePopup(null)} className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">取消</button>
+                          <button onClick={() => setCreatePopup(null)} className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
                         </div>
                       </div>
                     )}
