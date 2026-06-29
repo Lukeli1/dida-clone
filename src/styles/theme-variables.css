@@ -1,74 +1,121 @@
 /* ============ 语义化 CSS 变量主题体系 ============ */
 /* 浅色模式（默认） */
 :root {
-  /* 基础色 */
+  /* 基础色 - 更温暖的白色调 */
   --color-bg: #ffffff;
-  --color-bg-secondary: #f9fafb;
-  --color-bg-tertiary: #f3f4f6;
+  --color-bg-secondary: #f8f9fb;
+  --color-bg-tertiary: #f0f1f5;
   --color-surface: #ffffff;
-  --color-border: #e5e7eb;
-  --color-border-light: #f3f4f6;
+  --color-surface-hover: #f5f6f8;
+  --color-border: #e8eaed;
+  --color-border-light: #f0f1f5;
+  --color-border-focus: #c7cdd6;
+
   /* 文字色 */
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-text-tertiary: #9ca3af;
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #5f6368;
+  --color-text-tertiary: #9aa0a6;
   --color-text-inverse: #ffffff;
-  /* 强调色 */
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-light: #dbeafe;
-  --color-accent-text: #1d4ed8;
-  /* 语义色 */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-text-muted: #b4b8bc;
+
+  /* 强调色 - 更现代的蓝色 */
+  --color-accent: #4f86f7;
+  --color-accent-hover: #3a75e6;
+  --color-accent-light: #e8f0fe;
+  --color-accent-text: #1a5fd1;
+  --color-accent-soft: rgba(79, 134, 247, 0.08);
+
+  /* 语义色 - 更柔和 */
+  --color-success: #34a853;
+  --color-success-light: #e6f4ea;
+  --color-warning: #f9ab00;
+  --color-warning-light: #fef3e8;
+  --color-danger: #ea4335;
+  --color-danger-light: #fce8e6;
+  --color-info: #4f86f7;
+  --color-info-light: #e8f0fe;
+
   /* 优先级色 */
-  --color-priority-high: #ef4444;
-  --color-priority-medium: #f59e0b;
-  --color-priority-low: #3b82f6;
-  --color-priority-none: #6b7280;
+  --color-priority-high: #ea4335;
+  --color-priority-medium: #f9ab00;
+  --color-priority-low: #4f86f7;
+  --color-priority-none: #9aa0a6;
+
   /* 标题栏 */
-  --color-titlebar-bg: #f8fafc;
-  --color-titlebar-fg: #64748b;
+  --color-titlebar-bg: #f8f9fb;
+  --color-titlebar-fg: #5f6368;
+
   /* 滚动条 */
-  --color-scrollbar: rgba(0, 0, 0, 0.15);
-  --color-scrollbar-hover: rgba(0, 0, 0, 0.25);
+  --color-scrollbar: rgba(0, 0, 0, 0.12);
+  --color-scrollbar-hover: rgba(0, 0, 0, 0.22);
+
+  /* 阴影层级 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
 }
 
-/* 深色模式覆盖 */
+/* 深色模式覆盖 - 更精致的深色 */
 .dark {
   /* 基础色 */
-  --color-bg: #1a1a2e;
-  --color-bg-secondary: #16213e;
-  --color-bg-tertiary: #0f3460;
-  --color-surface: #1e293b;
-  --color-border: #334155;
-  --color-border-light: #1e293b;
+  --color-bg: #0f1115;
+  --color-bg-secondary: #16181d;
+  --color-bg-tertiary: #1c1f26;
+  --color-surface: #1a1d23;
+  --color-surface-hover: #22262e;
+  --color-border: #2c3038;
+  --color-border-light: #1e2128;
+  --color-border-focus: #3a3f4a;
+
   /* 文字色 */
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-tertiary: #64748b;
-  --color-text-inverse: #0f172a;
-  /* 强调色 */
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
-  --color-accent-light: #1e3a5f;
-  --color-accent-text: #93c5fd;
+  --color-text-primary: #e8eaed;
+  --color-text-secondary: #9aa0a6;
+  --color-text-tertiary: #5f6368;
+  --color-text-inverse: #0f1115;
+  --color-text-muted: #4a4e56;
+
+  /* 强调色 - 在深色下更明亮 */
+  --color-accent: #5c9cfc;
+  --color-accent-hover: #7aadfd;
+  --color-accent-light: rgba(92, 156, 252, 0.15);
+  --color-accent-text: #8abbfd;
+  --color-accent-soft: rgba(92, 156, 252, 0.1);
+
   /* 语义色 */
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-  --color-info: #60a5fa;
+  --color-success: #5bb974;
+  --color-success-light: rgba(91, 185, 116, 0.15);
+  --color-warning: #fbc85c;
+  --color-warning-light: rgba(251, 200, 92, 0.15);
+  --color-danger: #f28b82;
+  --color-danger-light: rgba(242, 139, 130, 0.15);
+  --color-info: #5c9cfc;
+  --color-info-light: rgba(92, 156, 252, 0.15);
+
   /* 优先级色 */
-  --color-priority-high: #f87171;
-  --color-priority-medium: #fbbf24;
-  --color-priority-low: #60a5fa;
-  --color-priority-none: #64748b;
+  --color-priority-high: #f28b82;
+  --color-priority-medium: #fbc85c;
+  --color-priority-low: #5c9cfc;
+  --color-priority-none: #5f6368;
+
   /* 标题栏 */
-  --color-titlebar-bg: #0f172a;
-  --color-titlebar-fg: #64748b;
+  --color-titlebar-bg: #16181d;
+  --color-titlebar-fg: #5f6368;
+
   /* 滚动条 */
-  --color-scrollbar: rgba(255, 255, 255, 0.15);
-  --color-scrollbar-hover: rgba(255, 255, 255, 0.25);
+  --color-scrollbar: rgba(255, 255, 255, 0.12);
+  --color-scrollbar-hover: rgba(255, 255, 255, 0.22);
+
+  /* 阴影层级 - 深色下更柔和 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.3);
 }

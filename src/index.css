@@ -8,15 +8,46 @@
 :root {
   --app-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --sidebar-py: 8px;
+
+  /* 精致阴影层级 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+  --shadow-focus: 0 0 0 3px var(--color-accent-light);
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* 过渡 */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ============ 侧边栏密度覆盖 ============ */
-/* 使用更高特异性覆盖 Tailwind 的 py-2 */
 .sidebar-nav-item {
   padding-top: var(--sidebar-py, 8px) !important;
   padding-bottom: var(--sidebar-py, 8px) !important;
 }
 
+/* ============ 全局过渡优化 ============ */
+* {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--transition-fast);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 排除不需要过渡的元素 */
+svg, path, circle, rect, line, polyline {
+  transition: none;
+}
+
+/* ============ 滑入动画 ============ */
 @keyframes slide-in {
   from {
     transform: translateX(100%);
@@ -29,25 +60,48 @@
 }
 
 .animate-slide-in {
-  animation: slide-in 0.2s ease-out;
+  animation: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 打勾弹跳动画 */
+/* ============ 打勾弹跳动画 ============ */
 @keyframes check-bounce {
   0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+  40% { transform: scale(1.25); }
+  70% { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 
 .checkbox-bounce:checked {
-  animation: check-bounce 0.3s ease;
+  animation: check-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* 任务进入动画 */
+/* ============ 任务进入动画 ============ */
 @keyframes task-enter {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.task-enter {
+  animation: task-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============ 脉冲微光动画 ============ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ============ 悬浮提升动画 ============ */
+@keyframes float-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -55,14 +109,30 @@
   }
 }
 
-.task-enter {
-  animation: task-enter 0.2s ease-out;
+.animate-float-up {
+  animation: float-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 细滚动条样式 */
+/* ============ 缩放弹出动画 ============ */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============ 细滚动条样式 ============ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -71,7 +141,7 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-scrollbar);
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -84,6 +154,8 @@ body {
     'Helvetica Neue', Arial, 'Noto Sans', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
 }
 
 /* ============ 自定义标题栏 ============ */
@@ -92,7 +164,6 @@ body {
   --titlebar-fg: var(--color-titlebar-fg);
 }
 
-/* 浅色模式下标题栏颜色 */
 :root:not(.dark) {
   --titlebar-bg: var(--color-titlebar-bg);
   --titlebar-fg: var(--color-titlebar-fg);
@@ -100,27 +171,46 @@ body {
 
 /* 标题栏按钮 hover 效果 */
 [data-tauri-drag-region] button:hover:not(:last-child) {
-  background-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 :root:not(.dark) [data-tauri-drag-region] button:hover:not(:last-child) {
-  background-color: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(0, 0, 0, 0.07) !important;
 }
 
 /* 关闭按钮 */
 [data-tauri-drag-region] button:last-child:hover {
-  background-color: rgba(239, 68, 68, 0.7) !important;
+  background-color: rgba(239, 68, 68, 0.8) !important;
   color: #fff !important;
 }
 
 /* ============ 卡片组件样式 ============ */
 @layer components {
   .task-card {
-    @apply bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors;
+    @apply rounded-xl border transition-all duration-200;
+    background-color: var(--color-surface);
+    border-color: var(--color-border-light);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .task-card:hover {
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  .glass-surface {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .glass-surface {
+    background: rgba(30, 41, 59, 0.7);
   }
 }
 
-/* 任务创建滑入动画 */
+/* ============ 任务创建滑入动画 ============ */
 @keyframes slide-in-top {
   from {
     opacity: 0;
@@ -133,14 +223,15 @@ body {
 }
 
 .animate-slide-in-top {
-  animation: slide-in-top 0.2s ease-out;
+  animation: slide-in-top 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 拖拽半透明效果 */
+/* ============ 拖拽半透明效果 ============ */
 .dragging {
-  opacity: 0.5;
-  transform: scale(1.02);
+  opacity: 0.6;
+  transform: scale(1.02) rotate(1deg);
   transition: all 0.15s ease;
+  box-shadow: var(--shadow-lg);
 }
 
 /* ============ AI 流式打字机光标 ============ */
@@ -149,7 +240,6 @@ body {
   50%, 100% { opacity: 0; }
 }
 
-/* 流式生成中显示在回复末尾的闪烁竖条光标 */
 .ai-cursor {
   display: inline-block;
   width: 2px;
@@ -160,35 +250,113 @@ body {
   animation: ai-cursor-blink 1s step-end infinite;
 }
 
-/* ============ 深色模式全局覆盖 ============ */
-/* 通过 CSS 选择器在 .dark 下覆盖常见的 Tailwind 颜色类，避免逐一修改组件 */
+/* ============ 按钮基础样式优化 ============ */
+button {
+  cursor: pointer;
+  user-select: none;
+}
 
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============ 输入框焦点光环 ============ */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+textarea,
+select {
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-accent-light);
+}
+
+/* ============ 复选框样式优化 ============ */
+input[type="checkbox"] {
+  cursor: pointer;
+  border-radius: 5px;
+  transition: all var(--transition-fast);
+}
+
+input[type="checkbox"]:hover {
+  transform: scale(1.05);
+}
+
+/* ============ 下拉菜单动画 ============ */
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dropdown-menu {
+  animation: dropdown-enter 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+}
+
+/* ============ 标签样式优化 ============ */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.tag-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+}
+
+/* ============ 深色模式全局覆盖 ============ */
 .dark {
   color-scheme: dark;
 }
 
 /* 背景色覆盖：white → 深色 */
-.dark .bg-white { background-color: #1f2937 !important; }       /* gray-800 */
-.dark .bg-gray-50 { background-color: #111827 !important; }    /* gray-900 */
-.dark .bg-gray-100 { background-color: #1f2937 !important; }   /* gray-800 */
-.dark .bg-gray-200 { background-color: #374151 !important; }   /* gray-700 */
+.dark .bg-white { background-color: #1f2937 !important; }
+.dark .bg-gray-50 { background-color: #111827 !important; }
+.dark .bg-gray-100 { background-color: #1f2937 !important; }
+.dark .bg-gray-200 { background-color: #374151 !important; }
 
 /* 文字色覆盖 */
-.dark .text-gray-900 { color: #f3f4f6 !important; }           /* gray-100 */
-.dark .text-gray-800 { color: #e5e7eb !important; }           /* gray-200 */
-.dark .text-gray-700 { color: #d1d5db !important; }           /* gray-300 */
-.dark .text-gray-600 { color: #9ca3af !important; }           /* gray-400 */
-.dark .text-gray-500 { color: #9ca3af !important; }           /* gray-400 */
-.dark .text-gray-400 { color: #6b7280 !important; }           /* gray-500 */
+.dark .text-gray-900 { color: #f3f4f6 !important; }
+.dark .text-gray-800 { color: #e5e7eb !important; }
+.dark .text-gray-700 { color: #d1d5db !important; }
+.dark .text-gray-600 { color: #9ca3af !important; }
+.dark .text-gray-500 { color: #9ca3af !important; }
+.dark .text-gray-400 { color: #6b7280 !important; }
 
 /* 边框覆盖 */
-.dark .border-gray-200 { border-color: #374151 !important; }  /* gray-700 */
-.dark .border-gray-100 { border-color: #1f2937 !important; }   /* gray-800 */
+.dark .border-gray-200 { border-color: #374151 !important; }
+.dark .border-gray-100 { border-color: #1f2937 !important; }
 .dark .divide-gray-100 > * { border-color: #1f2937 !important; }
 
 /* 悬停背景覆盖 */
-.dark .hover\:bg-gray-50:hover { background-color: #1f2937 !important; }    /* gray-800 */
-.dark .hover\:bg-gray-100:hover { background-color: #374151 !important; }   /* gray-700 */
+.dark .hover\:bg-gray-50:hover { background-color: #1f2937 !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #374151 !important; }
 
 /* 输入框/选择框背景 */
 .dark input[type="text"],
@@ -197,13 +365,13 @@ body {
 .dark input[type="number"],
 .dark textarea,
 .dark select {
-  background-color: #111827 !important;   /* gray-900 */
-  color: #f3f4f6 !important;             /* gray-100 */
-  border-color: #374151 !important;      /* gray-700 */
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
 }
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #6b7280 !important;              /* gray-500 */
+  color: #6b7280 !important;
 }
 
 /* 滚动条深色 */
@@ -216,7 +384,7 @@ body {
 
 /* 蓝色主题色微调（使用品牌色 #378ADD） */
 .dark .bg-blue-50 { background-color: rgba(55, 138, 221, 0.15) !important; }
-.dark .text-blue-600 { color: #60a5fa !important; }           /* blue-400 */
+.dark .text-blue-600 { color: #60a5fa !important; }
 .dark .border-blue-200 { border-color: rgba(55, 138, 221, 0.3) !important; }
 .dark .border-blue-300 { border-color: rgba(55, 138, 221, 0.5) !important; }
 .dark .border-blue-400 { border-color: #60a5fa !important; }
@@ -242,4 +410,3 @@ body {
 /* 半透明遮罩在深色下加深 */
 .dark .opacity-60 { opacity: 0.5 !important; }
 .dark .opacity-70 { opacity: 0.6 !important; }
-
