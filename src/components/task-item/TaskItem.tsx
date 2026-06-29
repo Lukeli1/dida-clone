@@ -121,7 +121,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
-      className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-blue-400' : dragOverPos === 'after' ? 'border-b-2 border-blue-400' : ''}`}
+      className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-[var(--color-accent)]' : dragOverPos === 'after' ? 'border-b-2 border-[var(--color-accent)]' : ''}`}
     >
       <div
         onClick={(e) => {
@@ -133,15 +133,15 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
           }
         }}
         onDoubleClick={handleDoubleClick}
-        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 border border-gray-100 ${
-          isSelected ? 'bg-blue-50/60 border-gray-200' : task.pinned ? 'bg-orange-50/30 hover:border-gray-200 hover:bg-orange-50/50' : 'hover:border-gray-200 hover:bg-gray-50/60'
-        } ${batchMode && isSelectedForBatch ? 'bg-blue-50/60' : ''} ${task.completed ? 'opacity-60' : ''}`}
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-lg cursor-pointer transition-colors border-l-4 border border-[var(--color-border-light)] ${
+          isSelected ? 'bg-[var(--color-accent-light)]/60 border-[var(--color-border)]' : task.pinned ? 'bg-orange-50/30 hover:border-[var(--color-border)] hover:bg-orange-50/50' : 'hover:border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]/60'
+        } ${batchMode && isSelectedForBatch ? 'bg-[var(--color-accent-light)]/60' : ''} ${task.completed ? 'opacity-60' : ''}`}
         style={{ borderLeftColor: taskColor }}
       >
         {hasSubtasks ? (
           <button
             onClick={(e) => { e.stopPropagation(); ctx.onToggleExpand(task.id) }}
-            className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600"
+            className="flex-shrink-0 p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
             aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
           >
             <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +157,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
             checked={isSelectedForBatch || false}
             onChange={(e) => { e.stopPropagation(); ctx.onToggleSelect(task.id) }}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+            className="checkbox-bounce w-5 h-5 text-[var(--color-accent)] rounded border-[var(--color-border)] focus:ring-[var(--color-accent)] cursor-pointer"
           />
         ) : (
           <input
@@ -165,7 +165,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
             checked={task.completed}
             onChange={(e) => { e.stopPropagation(); ctx.onToggle(task) }}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+            className="checkbox-bounce w-5 h-5 text-[var(--color-accent)] rounded border-[var(--color-border)] focus:ring-[var(--color-accent)] cursor-pointer"
           />
         )}
         <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
               onCancel={handleEditCancel}
             />
           ) : (
-            <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'} flex items-center gap-1`}>
+            <p className={`text-[15px] font-medium ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'} flex items-center gap-1`}>
               {task.pinned && (
                 <svg className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14 4l6 6-2 2-3-1-4 4 1 3-2 2-3-4-4 4-2-2 4-4-4-3 1-2 2 6 6z" />
@@ -185,7 +185,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
               )}
               {task.title}
               {isArchivedView && (
-                <span className="ml-2 text-xs text-gray-400 font-normal">(已归档)</span>
+                <span className="ml-2 text-xs text-[var(--color-text-tertiary)] font-normal">(已归档)</span>
               )}
               {/* 搜索匹配来源标签：标题命中不显示；备注/子任务命中显示对应小标签 */}
               {!isArchivedView && matchSource === 'notes' && (
@@ -203,26 +203,26 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
               const isOverdue = !task.completed && dueDate < now
               const overdueDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
               return (
-                <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-tertiary)]'}`}>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   {dueDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
                   {isOverdue && overdueDays > 0 && (
-                    <span className="text-red-500">（延期{overdueDays}天）</span>
+                    <span className="text-[var(--color-danger)]">（延期{overdueDays}天）</span>
                   )}
                 </span>
               )
             })()}
             {task.notes && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs text-[var(--color-text-tertiary)] flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </span>
             )}
             {hasSubtasks && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-[var(--color-text-tertiary)]">
                 {completedSubtasks}/{totalSubtasks}
               </span>
             )}

@@ -68,7 +68,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => invoke('window_close')}
-          className="h-full px-3 hover:bg-red-500/80 transition-colors flex items-center"
+          className="h-full px-3 hover:bg-[var(--color-danger)]/80 transition-colors flex items-center"
           style={{ color: 'var(--titlebar-fg, #94a3b8)' }}
           aria-label="关闭"
         >

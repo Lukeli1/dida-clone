@@ -106,22 +106,22 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask
   const totalCount = tasks.filter(t => !t.archived).length
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 工具栏 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">任务看板</h3>
-          <p className="text-xs text-gray-500 mt-0.5">拖拽任务卡片在列之间移动，共 {totalCount} 个任务</p>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">任务看板</h3>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">拖拽任务卡片在列之间移动，共 {totalCount} 个任务</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-gray-400" />待处理 {tasksByColumn.todo.length}
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />进行中 {tasksByColumn.inprogress.length}
+            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />进行中 {tasksByColumn.inprogress.length}
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500" />已完成 {tasksByColumn.done.length}
+            <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />已完成 {tasksByColumn.done.length}
           </span>
         </div>
       </div>
@@ -140,24 +140,24 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask
                 onDrop={(e) => handleDrop(e, column.key)}
                 className={`flex flex-col w-80 rounded-xl border-2 transition-colors ${
                   isDragOver
-                    ? 'border-blue-400 bg-blue-50/50'
-                    : 'border-gray-200 bg-white'
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)]/50'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface)]'
                 }`}
               >
                 {/* 列标题 */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-light)]">
                   <div className="flex items-center gap-2">
                     <span
                       className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: column.color }}
                     />
-                    <span className="text-sm font-semibold text-gray-900">{column.title}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                    <span className="text-sm font-semibold text-[var(--color-text-primary)]">{column.title}</span>
+                    <span className="text-xs text-[var(--color-text-tertiary)] bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded-full">
                       {columnTasks.length}
                     </span>
                   </div>
                 </div>
-                <p className="px-4 py-1 text-[11px] text-gray-400">{column.description}</p>
+                <p className="px-4 py-1 text-[11px] text-[var(--color-text-tertiary)]">{column.description}</p>
 
                 {/* 任务卡片列表 */}
                 <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
@@ -180,7 +180,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask
                           onDragStart={(e) => handleDragStart(e, task.id)}
                           onDragEnd={handleDragEnd}
                           onClick={() => onTaskClick(task.id)}
-                          className={`group bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all ${
+                          className={`group bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] p-3 cursor-pointer hover:shadow-md hover:border-[var(--color-border)] transition-all ${
                             draggedTaskId === task.id ? 'opacity-40' : ''
                           } ${task.completed ? 'opacity-70' : ''}`}
                         >
@@ -201,11 +201,11 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask
                             )}
                           </div>
                           {/* 标题 */}
-                          <p className={`text-sm font-medium mb-2 ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                          <p className={`text-sm font-medium mb-2 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
                             {task.title}
                           </p>
                           {/* 底部：截止日期 + 子任务数 */}
-                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
                             {task.due_date && (
                               <span className="flex items-center gap-1">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

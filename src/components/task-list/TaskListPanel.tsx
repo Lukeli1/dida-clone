@@ -100,13 +100,13 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">
               {currentView === 'archived' ? '归档' : searchQuery.trim() ? '搜索结果' : currentListName}
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
               {currentView === 'archived'
                 ? `${taskTree.length} 个已归档`
                 : `${incompleteTaskTree.length} 个未完成 / ${taskTree.length} 个总计`}
@@ -119,8 +119,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 onClick={() => toggleBatchMode()}
                 className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
                   batchMode
-                    ? 'bg-[#378ADD] text-white border-[#378ADD]'
-                    : 'text-gray-600 border-gray-200 hover:bg-gray-50/60'
+                    ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+                    : 'text-[var(--color-text-secondary)] border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]/60'
                 }`}
                 title={batchMode ? '退出批量模式' : '进入批量模式'}
               >
@@ -135,8 +135,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
               onClick={() => toggleFilters()}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors relative ${
                 hasActiveFilters
-                  ? 'bg-blue-50 text-blue-600 border-blue-300'
-                  : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] border-[var(--color-accent)]'
+                  : 'text-[var(--color-text-secondary)] border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
               }`}
               title="组合筛选"
             >
@@ -145,11 +145,11 @@ export function TaskListPanel(props: TaskListPanelProps) {
               </svg>
               筛选
               {hasActiveFilters && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#378ADD] rounded-full" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--color-accent)] rounded-full" />
               )}
             </button>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -158,7 +158,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索标题、备注、子任务... (Ctrl+F)"
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
+                className="pl-9 pr-4 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] w-64"
               />
             </div>
           </div>
@@ -230,7 +230,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
               <div className="mb-4">
                 <button
                   onClick={() => setShowOverdue(!showOverdue)}
-                  className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-2 transition-colors font-medium"
+                  className="flex items-center gap-2 text-sm text-[var(--color-danger)] hover:text-[var(--color-danger)] mb-2 transition-colors font-medium"
                 >
                   <svg className={`w-4 h-4 transition-transform ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -267,7 +267,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                   <div className="mt-4">
                     <button
                       onClick={() => setShowCompleted(!showCompleted)}
-                      className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+                      className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)] mb-2 transition-colors"
                     >
                       <svg className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

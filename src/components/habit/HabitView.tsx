@@ -12,10 +12,10 @@ import { CreateHabitForm } from './CreateHabitForm'
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-3xl mb-4">
+      <div className="w-16 h-16 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-3xl mb-4">
         🎯
       </div>
-      <p className="text-gray-500">还没有习惯，点击新建开始打卡吧！</p>
+      <p className="text-[var(--color-text-secondary)]">还没有习惯，点击新建开始打卡吧！</p>
     </div>
   )
 }
@@ -206,13 +206,13 @@ export function HabitView(_props: HabitViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] p-6">
       <div className="max-w-4xl mx-auto">
         {/* 头部 */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">习惯打卡</h2>
-            <p className="text-sm text-gray-500 mt-1">{format(today, 'yyyy年M月d日 EEEE', { locale: zhCN })}</p>
+            <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">习惯打卡</h2>
+            <p className="text-sm text-[var(--color-text-secondary)] mt-1">{format(today, 'yyyy年M月d日 EEEE', { locale: zhCN })}</p>
           </div>
           <button
             type="button"
@@ -252,15 +252,15 @@ export function HabitView(_props: HabitViewProps) {
           <EmptyState />
         ) : visibleHabits.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-3xl mb-4">
+            <div className="w-16 h-16 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-3xl mb-4">
               📦
             </div>
-            <p className="text-gray-500">没有活跃的习惯</p>
+            <p className="text-[var(--color-text-secondary)]">没有活跃的习惯</p>
             {archivedCount > 0 && (
               <button
                 type="button"
                 onClick={() => setShowArchived(true)}
-                className="mt-3 text-sm text-blue-500 hover:text-blue-600"
+                className="mt-3 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent)]"
               >
                 查看 {archivedCount} 个已归档习惯
               </button>
@@ -291,7 +291,7 @@ export function HabitView(_props: HabitViewProps) {
                 <button
                   type="button"
                   onClick={() => setShowArchived(!showArchived)}
-                  className={`text-sm ${showArchived ? 'text-blue-500 hover:text-blue-600' : 'text-gray-400 hover:text-gray-500'} transition-colors`}
+                  className={`text-sm ${showArchived ? 'text-[var(--color-accent)] hover:text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'} transition-colors`}
                 >
                   {showArchived ? '隐藏已归档' : `显示已归档 (${archivedCount})`}
                 </button>

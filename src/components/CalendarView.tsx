@@ -37,7 +37,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
   // 工具栏按钮组（视图切换 + 侧边栏按钮 + 更多选项），所有视图共用
   function renderToolbar() {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <ViewToggle mode={viewMode} onChange={setViewMode} />
         <div className="flex-1" />
         {/* 任务侧边栏切换按钮 */}
@@ -45,8 +45,8 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className={`p-1.5 rounded-lg transition-colors ${
             sidebarOpen
-              ? 'bg-blue-50/60 text-[#378ADD]'
-              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50/60 dark:hover:bg-gray-700/60 hover:text-gray-700 dark:hover:text-gray-200'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)]'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60 hover:text-[var(--color-text-secondary)]'
           }`}
           title={sidebarOpen ? '隐藏任务列表' : '显示任务列表'}
           aria-label="任务列表侧边栏"
@@ -182,13 +182,13 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
   return (
-    <div className="flex bg-gray-100/60 dark:bg-gray-700/60 rounded-lg p-0.5">
+    <div className="flex bg-[var(--color-bg-tertiary)] rounded-lg p-0.5">
       <button
         onClick={() => onChange('month')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'month'
-            ? 'bg-white dark:bg-gray-600 text-[#378ADD] shadow-sm font-medium'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
+            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
         }`}
       >
         月
@@ -197,8 +197,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange('week')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'week'
-            ? 'bg-white dark:bg-gray-600 text-[#378ADD] shadow-sm font-medium'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
+            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
         }`}
       >
         周
@@ -207,8 +207,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange('day')}
         className={`px-3 py-1 text-sm rounded-md transition-colors ${
           mode === 'day'
-            ? 'bg-white dark:bg-gray-600 text-[#378ADD] shadow-sm font-medium'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
+            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
         }`}
       >
         日
@@ -253,7 +253,7 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
       <button
         ref={buttonRef}
         onClick={() => setOpen(!open)}
-        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+        className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
         title="更多选项"
         aria-label="更多选项"
       >
@@ -267,18 +267,18 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-100 dark:border-gray-600 w-56 py-1"
+          className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] w-56 py-1"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="px-3 py-1.5 text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">视图切换</p>
+          <p className="px-3 py-1.5 text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">视图切换</p>
           {viewOptions.map(v => (
             <button
               key={v.key}
               onClick={() => { onChangeView(v.key); setOpen(false) }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                 viewMode === v.key
-                  ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50/60 dark:hover:bg-gray-700/60'
+                  ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
               }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,18 +360,18 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
     <>
       {/* 侧边栏本体 */}
       <div
-        className={`flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col transition-all duration-200 overflow-hidden ${
+        className={`flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col transition-all duration-200 overflow-hidden ${
           open ? 'w-72' : 'w-0'
         }`}
       >
         {open && (
           <div className="w-72 flex flex-col h-full">
             {/* 标题栏 */}
-            <div className="px-3 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">任务列表</span>
+            <div className="px-3 py-2.5 border-b border-[var(--color-border-light)] flex items-center justify-between">
+              <span className="text-sm font-medium text-[var(--color-text-secondary)]">任务列表</span>
               <button
                 onClick={onClose}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] p-0.5 rounded hover:bg-[var(--color-bg-tertiary)]"
                 aria-label="关闭侧边栏"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,9 +381,9 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
             </div>
 
             {/* 搜索框 */}
-            <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="p-2 border-b border-[var(--color-border-light)]">
               <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -391,13 +391,13 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索任务..."
-                  className="w-full pl-8 pr-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-8 pr-2 py-1.5 text-xs border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
                 />
               </div>
             </div>
 
             {/* 提示 */}
-            <div className="px-3 py-1.5 bg-blue-50/50 dark:bg-blue-900/20 text-[11px] text-blue-500 dark:text-blue-400 flex items-center gap-1 border-b border-blue-100 dark:border-blue-900/40">
+            <div className="px-3 py-1.5 bg-[var(--color-accent-light)]/50 text-[11px] text-[var(--color-accent)] flex items-center gap-1 border-b border-[var(--color-accent-light)]">
               <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -407,9 +407,9 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
             {/* 清单列表 */}
             <div className="flex-1 overflow-y-auto">
               {lists.length === 0 ? (
-                <div className="px-3 py-6 text-center text-xs text-gray-400">暂无清单</div>
+                <div className="px-3 py-6 text-center text-xs text-[var(--color-text-tertiary)]">暂无清单</div>
               ) : displayData.size === 0 ? (
-                <div className="px-3 py-6 text-center text-xs text-gray-400">
+                <div className="px-3 py-6 text-center text-xs text-[var(--color-text-tertiary)]">
                   {q ? '没有匹配的任务' : '暂无未完成任务'}
                 </div>
               ) : (
@@ -419,17 +419,17 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
                   const isExpanded = q ? true : expandedLists.has(list.id)
                   const totalCount = tasksByList.get(list.id)?.length || 0
                   return (
-                    <div key={list.id} className="border-b border-gray-50 dark:border-gray-700 last:border-b-0">
+                    <div key={list.id} className="border-b border-[var(--color-border-light)] last:border-b-0">
                       <button
                         onClick={() => toggleList(list.id)}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-bg-secondary)] transition-colors"
                       >
-                        <svg className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-3 h-3 text-[var(--color-text-tertiary)] transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: list.color || '#6B7280' }} />
-                        <span className="text-sm text-gray-700 dark:text-gray-200 flex-1 text-left truncate">{list.name}</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">{totalCount}</span>
+                        <span className="text-sm text-[var(--color-text-secondary)] flex-1 text-left truncate">{list.name}</span>
+                        <span className="text-xs text-[var(--color-text-tertiary)]">{totalCount}</span>
                       </button>
                       {isExpanded && listTasks.length > 0 && (
                         <div className="pb-1">
@@ -439,13 +439,13 @@ function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: {
                               draggable
                               onDragStart={(e) => handleDragStart(e, task.id)}
                               onClick={() => onTaskClick(task.id)}
-                              className="flex items-center gap-2 px-3 pl-8 py-1.5 mx-1 rounded-md cursor-grab hover:bg-blue-50 dark:hover:bg-blue-900/20 active:cursor-grabbing transition-colors group select-none"
+                              className="flex items-center gap-2 px-3 pl-8 py-1.5 mx-1 rounded-md cursor-grab hover:bg-[var(--color-accent-light)] active:cursor-grabbing transition-colors group select-none"
                               title="拖拽到日历或点击查看详情"
                             >
-                              <svg className="w-3 h-3 text-gray-300 group-hover:text-blue-400 flex-shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3 h-3 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] flex-shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
                               </svg>
-                              <span className={`text-xs flex-1 truncate pointer-events-none ${task.due_date ? 'text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400'}`}>
+                              <span className={`text-xs flex-1 truncate pointer-events-none ${task.due_date ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-secondary)]'}`}>
                                 {task.title}
                               </span>
                               {task.priority > 0 && (

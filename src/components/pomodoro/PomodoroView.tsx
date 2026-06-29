@@ -154,18 +154,18 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)]">
       <div className="min-h-full flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-2xl flex flex-col items-center">
           {/* 标题栏 */}
           <div className="w-full flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">番茄钟</h2>
+            <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">番茄钟</h2>
             <button
               onClick={() => setShowSettings((v) => !v)}
               className={`p-2 rounded-lg transition-colors ${
                 showSettings
-                  ? 'text-[#378ADD] bg-blue-50'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
+                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
               }`}
               aria-label="设置"
               title="设置"
@@ -184,12 +184,12 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
 
           {/* 轻提示通知 */}
           {notification && (
-            <div className="mb-4 px-4 py-2.5 rounded-lg bg-white border border-gray-200 shadow-sm animate-slide-in-top flex items-center gap-2 max-w-full">
+            <div className="mb-4 px-4 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm animate-slide-in-top flex items-center gap-2 max-w-full">
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ backgroundColor: ringColor }}
               />
-              <span className="text-sm text-gray-700">{notification}</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">{notification}</span>
             </div>
           )}
 
@@ -207,12 +207,12 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
           />
 
           {/* 任务选择器 */}
-          <div className="w-full bg-white rounded-lg border border-gray-100 p-3 mb-4">
-            <label className="block text-xs font-medium text-gray-500 mb-2">专注任务</label>
+          <div className="w-full bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] p-3 mb-4">
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2">专注任务</label>
             <select
               value={selectedTaskId ?? ''}
               onChange={(e) => handleTaskSelect(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+              className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
             >
               <option value="">选择一个任务…</option>
               {incompleteTasks.map((t) => (
@@ -222,16 +222,16 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
               ))}
             </select>
             {selectedTask && (
-              <div className="mt-3 flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+              <div className="mt-3 flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[var(--color-bg-secondary)] transition-colors">
                 <input
                   type="checkbox"
                   checked={selectedTask.completed}
                   onChange={() => onToggleTask(selectedTask.id)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#378ADD] focus:ring-[#378ADD] cursor-pointer"
+                  className="w-4 h-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] cursor-pointer"
                 />
                 <button
                   onClick={() => onTaskClick(selectedTask.id)}
-                  className="flex-1 text-left text-sm text-gray-700 truncate hover:text-[#378ADD] transition-colors"
+                  className="flex-1 text-left text-sm text-[var(--color-text-secondary)] truncate hover:text-[var(--color-accent)] transition-colors"
                   title={selectedTask.title}
                 >
                   {selectedTask.title}
@@ -253,7 +253,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
               </div>
             )}
             {incompleteTasks.length === 0 && (
-              <p className="mt-2 text-xs text-gray-400">暂未完成专注任务，先去添加一个吧</p>
+              <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">暂未完成专注任务，先去添加一个吧</p>
             )}
           </div>
 

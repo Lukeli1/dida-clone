@@ -3,7 +3,7 @@ import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { StatsView } from './components/StatsView'
 import { SettingsView } from './components/settings/SettingsView'
-import { AIAssistant } from './components/AIAssistant'
+import { AIAssistant } from './components/ai/AIAssistant'
 import { QuadrantView } from './components/QuadrantView'
 import { PomodoroView } from './components/pomodoro/PomodoroView'
 import { HabitView } from './components/habit/HabitView'
@@ -91,14 +91,14 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">加载中...</p>
+      <div className="min-h-screen bg-[var(--color-bg-secondary)] flex items-center justify-center">
+        <p className="text-[var(--color-text-secondary)]">加载中...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--color-bg-secondary)] overflow-hidden">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar

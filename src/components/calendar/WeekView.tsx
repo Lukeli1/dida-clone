@@ -118,29 +118,29 @@ export function WeekView({
   }
 
   return (
-    <div className="flex flex-col h-full dark:bg-gray-900">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-2">
-          <button onClick={onPrevWeek} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <button onClick={onPrevWeek} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 min-w-[200px] text-center">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] min-w-[200px] text-center">
             {format(days[0], 'M月d日', { locale: zhCN })} - {format(days[6], 'M月d日', { locale: zhCN })}
           </h3>
-          <button onClick={onNextWeek} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <button onClick={onNextWeek} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
-        <button onClick={onToday} className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">今天</button>
+        <button onClick={onToday} className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors">今天</button>
       </div>
 
       <div className="flex-1 overflow-y-auto select-none">
         <div className="flex">
-          <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-gray-700">
-            <div className="h-12 border-b border-gray-200 dark:border-gray-700" />
+          <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)]">
+            <div className="h-12 border-b border-[var(--color-border)]" />
             {HOURS.map((hour) => (
-              <div key={hour} className="border-b border-gray-100 dark:border-gray-700/50 flex items-start justify-end pr-2" style={{ height: `${HOUR_HEIGHT}px` }}>
-                <span className="text-xs text-gray-400 dark:text-gray-500 -mt-2">{hour === 0 ? '' : `${hour}:00`}</span>
+              <div key={hour} className="border-b border-[var(--color-border-light)] flex items-start justify-end pr-2" style={{ height: `${HOUR_HEIGHT}px` }}>
+                <span className="text-xs text-[var(--color-text-tertiary)] -mt-2">{hour === 0 ? '' : `${hour}:00`}</span>
               </div>
             ))}
           </div>
@@ -154,26 +154,26 @@ export function WeekView({
               const isSelecting = sel.selection?.dateKey === key
 
               return (
-                <div key={key} className={`border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                <div key={key} className={`border-r border-[var(--color-border)] last:border-r-0 ${isDragOver ? 'bg-[var(--color-accent-light)]' : ''}`}
                   onDragOver={(e) => handleDragOver(e, key)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, key)}>
-                  <div onClick={() => onDateClick(day)} className={`h-12 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors ${today ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{format(day, 'EEE', { locale: zhCN })}</span>
-                    <span className={`text-sm font-medium ${today ? 'w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-full' : 'text-gray-700 dark:text-gray-200'}`}>{format(day, 'd')}</span>
+                  <div onClick={() => onDateClick(day)} className={`h-12 border-b border-[var(--color-border)] flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--color-accent-light)]/50 transition-colors ${today ? 'bg-[var(--color-accent-light)]' : ''}`}>
+                    <span className="text-xs text-[var(--color-text-tertiary)]">{format(day, 'EEE', { locale: zhCN })}</span>
+                    <span className={`text-sm font-medium ${today ? 'w-6 h-6 flex items-center justify-center bg-[var(--color-accent)] text-white rounded-full' : 'text-[var(--color-text-secondary)]'}`}>{format(day, 'd')}</span>
                   </div>
 
                   <div ref={(el) => { if (el) columnRefs.current.set(key, el) }} className="relative group"
                     onMouseDown={(e) => sel.handleTimeMouseDown(e, key)} onMouseMove={(e) => sel.handleTimeMouseMove(e, key)} onMouseUp={(e) => sel.handleTimeMouseUp(e, key)}>
                     {HOURS.map((hour) => (
-                      <div key={hour} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
+                      <div key={hour} className="border-b border-[var(--color-border-light)] hover:bg-[var(--color-accent-light)]/20 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
                     ))}
 
                     {/* 悬停提示 */}
-                    <div className="absolute top-0 right-1 opacity-0 group-hover:opacity-30 pointer-events-none text-xs text-blue-500 font-medium">点击添加</div>
+                    <div className="absolute top-0 right-1 opacity-0 group-hover:opacity-30 pointer-events-none text-xs text-[var(--color-accent)] font-medium">点击添加</div>
 
                     {isSelecting && sel.selection && (
-                      <div className="absolute left-0 right-0 bg-blue-100 border border-blue-300 rounded-sm pointer-events-none z-10"
+                      <div className="absolute left-0 right-0 bg-[var(--color-accent-light)] border border-[var(--color-accent)] rounded-sm pointer-events-none z-10"
                         style={{ top: `${(sel.selection.startMinute / 60) * HOUR_HEIGHT}px`, height: `${((sel.selection.endMinute - sel.selection.startMinute) / 60) * HOUR_HEIGHT}px` }}>
-                        <span className="absolute -top-5 left-1 text-xs text-blue-600 font-medium whitespace-nowrap">{sel.formatMinute(sel.selection.startMinute)} - {sel.formatMinute(sel.selection.endMinute)}</span>
+                        <span className="absolute -top-5 left-1 text-xs text-[var(--color-accent)] font-medium whitespace-nowrap">{sel.formatMinute(sel.selection.startMinute)} - {sel.formatMinute(sel.selection.endMinute)}</span>
                       </div>
                     )}
 

@@ -6,7 +6,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, subtitle }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+    <div className="flex flex-col items-center justify-center h-full text-[var(--color-text-tertiary)] py-16">
       <div className="w-16 h-16 mb-4 opacity-40">
         {icon || (
           <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -14,8 +14,8 @@ export function EmptyState({ icon, title, subtitle }: EmptyStateProps) {
           </svg>
         )}
       </div>
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+      <p className="text-sm font-medium text-[var(--color-text-secondary)]">{title}</p>
+      {subtitle && <p className="text-xs text-[var(--color-text-tertiary)] mt-1">{subtitle}</p>}
     </div>
   )
 }

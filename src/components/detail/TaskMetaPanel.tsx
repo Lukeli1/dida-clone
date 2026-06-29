@@ -70,23 +70,23 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
       {/* 日程行：折叠的日期/时间 */}
       <button
         onClick={() => setShowScheduleEdit(v => !v)}
-        className="mt-2 flex items-center gap-1.5 text-sm hover:text-[#378ADD] transition-colors"
+        className="mt-2 flex items-center gap-1.5 text-sm hover:text-[var(--color-accent)] transition-colors"
       >
-        <svg className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-red-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         {dueDate ? (
-          <span className={getOverdueDays() > 0 ? 'text-red-500 font-medium' : 'text-[#6B7280]'}>
+          <span className={getOverdueDays() > 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-secondary)]'}>
             {formatScheduleText()}
             {getOverdueDays() > 0 && (
-              <span className="text-red-500">，延期{getOverdueDays()}天</span>
+              <span className="text-[var(--color-danger)]">，延期{getOverdueDays()}天</span>
             )}
           </span>
         ) : (
-          <span className="text-gray-400">设置日期</span>
+          <span className="text-[var(--color-text-tertiary)]">设置日期</span>
         )}
         {task.repeat_rule && REPEAT_LABELS[task.repeat_rule] && (
-          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600">
+          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
             {REPEAT_LABELS[task.repeat_rule]}
           </span>
         )}
@@ -94,29 +94,29 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
 
       {/* 内联日程编辑面板 */}
       {showScheduleEdit && (
-        <div className="mt-2 space-y-2 bg-gray-50 rounded-lg p-3">
+        <div className="mt-2 space-y-2 bg-[var(--color-bg-secondary)] rounded-lg p-3">
           <div>
-            <span className="block text-xs text-gray-500 mb-1">截止时间</span>
+            <span className="block text-xs text-[var(--color-text-secondary)] mb-1">截止时间</span>
             <input
               type="datetime-local"
               value={toLocalInputValue(dueDate)}
               onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
               onBlur={handleScheduleSave}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
             />
           </div>
           <div>
-            <span className="block text-xs text-gray-500 mb-1">提醒时间</span>
+            <span className="block text-xs text-[var(--color-text-secondary)] mb-1">提醒时间</span>
             <input
               type="datetime-local"
               value={toLocalInputValue(reminder)}
               onChange={(e) => setReminder(e.target.value ? new Date(e.target.value).toISOString() : '')}
               onBlur={handleScheduleSave}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
             />
           </div>
           <div>
-            <span className="block text-xs text-gray-500 mb-1">重复</span>
+            <span className="block text-xs text-[var(--color-text-secondary)] mb-1">重复</span>
             <select
               value={task.repeat_rule || ''}
               onChange={(e) => {
@@ -124,7 +124,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                 if (value === '__custom') return
                 onUpdate(task.id, { repeat_rule: value || undefined })
               }}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-[#378ADD]"
+              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
             >
               <option value="">不重复</option>
               <option value="daily">每天</option>
@@ -193,7 +193,7 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
         {/* 添加标签按钮 */}
         <button
           onClick={() => setShowTagPicker(v => !v)}
-          className="w-5 h-5 flex items-center justify-center rounded-full border border-gray-200 hover:border-[#378ADD] text-gray-400 hover:text-[#378ADD] transition-colors"
+          className="w-5 h-5 flex items-center justify-center rounded-full border border-[var(--color-border)] hover:border-[var(--color-accent)] text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
           title="添加标签"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,7 +204,7 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
 
       {/* 标签选择浮层 - 支持二级分组 */}
       {showTagPicker && (
-        <div className="absolute z-20 mt-1 bg-white rounded-lg shadow-md border border-gray-100 p-2 w-56 max-h-64 overflow-y-auto">
+        <div className="absolute z-20 mt-1 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] p-2 w-56 max-h-64 overflow-y-auto">
           {/* 一级标签（无 parent_id） */}
           {availableTags.filter(t => !t.parent_id).length > 0 ? (
             availableTags.filter(t => !t.parent_id).map(tag => {
@@ -216,13 +216,13 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
                       onAddTag(task.id, tag.id)
                       setShowTagPicker(false)
                     }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-left"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
                   >
                     <span
                       className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: tag.color || '#6B7280' }}
                     />
-                    <span className="text-sm text-gray-700">{tag.name}</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">{tag.name}</span>
                   </button>
                   {/* 二级标签 */}
                   {childTags.map(child => (
@@ -232,20 +232,20 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
                         onAddTag(task.id, child.id)
                         setShowTagPicker(false)
                       }}
-                      className="w-full flex items-center gap-2 px-4 py-1.5 rounded hover:bg-gray-50 text-left"
+                      className="w-full flex items-center gap-2 px-4 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
                     >
                       <span
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: child.color || tag.color || '#6B7280' }}
                       />
-                      <span className="text-sm text-gray-500">{child.name}</span>
+                      <span className="text-sm text-[var(--color-text-secondary)]">{child.name}</span>
                     </button>
                   ))}
                 </div>
               )
             })
           ) : (
-            <p className="text-xs text-gray-400 px-2 py-1">没有可添加的标签</p>
+            <p className="text-xs text-[var(--color-text-tertiary)] px-2 py-1">没有可添加的标签</p>
           )}
         </div>
       )}

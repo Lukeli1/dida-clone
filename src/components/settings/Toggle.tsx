@@ -8,7 +8,7 @@ export function Toggle({ checked, onChange }: ToggleProps) {
     <button
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? 'bg-blue-500' : 'bg-gray-300'
+        checked ? 'bg-[var(--color-accent)]' : 'bg-gray-300'
       }`}
     >
       <span

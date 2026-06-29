@@ -14,7 +14,7 @@ interface TaskInputBarProps {
 /** 新建任务输入栏（含 AI 模式切换 + 智能日期识别预览），原样从 TaskListPanel 搬迁，未改逻辑 */
 export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, aiMode, aiParsing, setAiMode, handleCreateTask }: TaskInputBarProps) {
   return (
-    <div className="p-4 border-b border-gray-200 bg-white">
+    <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <input
@@ -25,7 +25,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
             onKeyDown={(e) => e.key === 'Enter' && !aiParsing && handleCreateTask()}
             disabled={aiParsing}
             placeholder={aiMode ? '试试输入：明天下午3点开会，优先级高' : '添加新任务... (试试：明天下午3点开会)'}
-            className={`w-full pl-4 pr-24 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-60 ${aiMode ? 'border-purple-300 bg-purple-50/30' : 'border-gray-300'}`}
+            className={`w-full pl-4 pr-24 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] disabled:opacity-60 ${aiMode ? 'border-purple-300 bg-purple-50/30' : 'border-[var(--color-border)]'}`}
           />
           <button
             onClick={() => { setAiMode(!aiMode); newTaskInputRef.current?.focus() }}
@@ -45,7 +45,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
             const hasParsed = preview.dueDate || (preview.priority !== undefined && preview.priority > 0) || preview.repeatRule
             if (!hasParsed) return null
             return (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs text-blue-700 flex items-center gap-3 z-10 shadow-sm">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-accent-light)] border border-[var(--color-accent-light)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-accent-text)] flex items-center gap-3 z-10 shadow-sm">
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   智能识别
@@ -64,7 +64,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
         <button
           onClick={handleCreateTask}
           disabled={aiParsing}
-          className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${aiMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-[#378ADD] hover:bg-[#185FA5]'}`}
+          className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${aiMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)]'}`}
         >
           {aiParsing && (
             <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">

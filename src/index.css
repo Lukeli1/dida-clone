@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './styles/theme-variables.css';
+
 /* ============ CSS 变量：外观设置 ============ */
 :root {
   --app-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
@@ -68,12 +70,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--color-scrollbar);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-scrollbar-hover);
 }
 
 body {
@@ -86,14 +88,14 @@ body {
 
 /* ============ 自定义标题栏 ============ */
 :root {
-  --titlebar-bg: #1e293b;
-  --titlebar-fg: #94a3b8;
+  --titlebar-bg: var(--color-titlebar-bg);
+  --titlebar-fg: var(--color-titlebar-fg);
 }
 
 /* 浅色模式下标题栏颜色 */
 :root:not(.dark) {
-  --titlebar-bg: #f8fafc;
-  --titlebar-fg: #64748b;
+  --titlebar-bg: var(--color-titlebar-bg);
+  --titlebar-fg: var(--color-titlebar-fg);
 }
 
 /* 标题栏按钮 hover 效果 */
@@ -206,10 +208,10 @@ body {
 
 /* 滚动条深色 */
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-scrollbar);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--color-scrollbar-hover);
 }
 
 /* 蓝色主题色微调（使用品牌色 #378ADD） */

@@ -10,20 +10,20 @@ export function GeneralPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border-light)]">
         {/* 一周开始 */}
         <div className="flex items-center justify-between px-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-gray-900">一周开始于</p>
-            <p className="text-xs text-gray-500 mt-0.5">日历视图的起始日</p>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">一周开始于</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">日历视图的起始日</p>
           </div>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
             {(['sunday', 'monday'] as const).map(d => (
               <button
                 key={d}
                 onClick={() => setWeekStart(d)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  weekStart === d ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  weekStart === d ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
                 }`}
               >
                 {d === 'sunday' ? '周日' : '周一'}
@@ -35,8 +35,8 @@ export function GeneralPanel() {
         {/* 删除确认 */}
         <div className="flex items-center justify-between px-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-gray-900">删除前确认</p>
-            <p className="text-xs text-gray-500 mt-0.5">删除任务时弹出确认对话框</p>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">删除前确认</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">删除任务时弹出确认对话框</p>
           </div>
           <Toggle checked={confirmDelete} onChange={setConfirmDelete} />
         </div>

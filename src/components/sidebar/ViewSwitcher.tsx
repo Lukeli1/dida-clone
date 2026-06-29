@@ -13,15 +13,15 @@ export function ViewSwitcher({
   return (
     <>
       <div className="mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+        <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-2 px-2">
           智能清单
         </p>
         <button
           onClick={() => { onViewChange('tasks'); onSelectList(null) }}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'tasks' && selectedListId === null
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -30,15 +30,15 @@ export function ViewSwitcher({
             </svg>
             全部任务
           </span>
-          <span className="text-xs text-gray-400">{totalTasks}</span>
+          <span className="text-xs text-[var(--color-text-tertiary)]">{totalTasks}</span>
         </button>
 
         <button
           onClick={() => { onViewChange('today'); onSelectList(null) }}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'today'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -47,15 +47,15 @@ export function ViewSwitcher({
             </svg>
             今日任务
           </span>
-          <span className="text-xs text-gray-400">{todayCount}</span>
+          <span className="text-xs text-[var(--color-text-tertiary)]">{todayCount}</span>
         </button>
 
         <button
           onClick={() => { onViewChange('archived'); onSelectList(null); onSelectTag(null) }}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'archived'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -64,15 +64,15 @@ export function ViewSwitcher({
             </svg>
             归档
           </span>
-          <span className="text-xs text-gray-400">{archivedCount}</span>
+          <span className="text-xs text-[var(--color-text-tertiary)]">{archivedCount}</span>
         </button>
 
         <button
           onClick={() => onViewChange('calendar')}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'calendar'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -87,8 +87,8 @@ export function ViewSwitcher({
           onClick={() => onViewChange('stats')}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'stats'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export function ViewSwitcher({
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'ai'
               ? 'bg-purple-50/60 text-purple-600 font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -117,15 +117,15 @@ export function ViewSwitcher({
       </div>
 
       <div className="mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+        <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-2 px-2">
           高级视图
         </p>
         <button
           onClick={() => onViewChange('quadrant')}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'quadrant'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -139,8 +139,8 @@ export function ViewSwitcher({
           onClick={() => onViewChange('pomodoro')}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'pomodoro'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -154,8 +154,8 @@ export function ViewSwitcher({
           onClick={() => onViewChange('habit')}
           className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
             currentView === 'habit'
-              ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-              : 'text-gray-700 hover:bg-gray-50/60'
+              ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
           }`}
         >
           <span className="flex items-center gap-2">

@@ -93,13 +93,13 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   const activeLabel = categories.find(c => c.key === activeCategory)?.label || ''
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-bg-secondary)]">
       {/* 顶部标题栏 */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
-        <h2 className="text-xl font-semibold text-gray-900">设置</h2>
+      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4 flex items-center justify-between shrink-0">
+        <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">设置</h2>
         <button
           onClick={onClose}
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
           aria-label="关闭设置"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,18 +111,18 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       {/* 主体：左侧导航 + 右侧内容 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 左侧导航栏 */}
-        <nav className="w-52 shrink-0 bg-white border-r border-gray-200 overflow-y-auto py-4">
+        <nav className="w-52 shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-border)] overflow-y-auto py-4">
           {categories.map(cat => (
             <button
               key={cat.key}
               onClick={() => setActiveCategory(cat.key)}
               className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
                 activeCategory === cat.key
-                  ? 'bg-blue-50 text-blue-600 font-medium border-r-2 border-blue-500'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium border-r-2 border-[var(--color-accent)]'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
             >
-              <span className={activeCategory === cat.key ? 'text-blue-500' : 'text-gray-400'}>
+              <span className={activeCategory === cat.key ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)]'}>
                 {cat.icon}
               </span>
               {cat.label}
@@ -133,7 +133,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
         {/* 右侧内容区 */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-8 py-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-5">{activeLabel}</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-5">{activeLabel}</h3>
             {renderContent()}
           </div>
         </div>

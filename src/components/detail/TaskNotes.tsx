@@ -24,13 +24,13 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
   return (
     <div className="relative">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-gray-400">备注</span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">备注</span>
         <button
           onClick={() => setNotesPreviewMode(!notesPreviewMode)}
           className={`text-xs px-2 py-0.5 rounded transition-colors ${
             notesPreviewMode
-              ? 'bg-blue-100 text-blue-600'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
           }`}
           title={notesPreviewMode ? '切换到编辑模式' : '切换到预览模式'}
         >
@@ -38,13 +38,13 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
         </button>
       </div>
       {notesPreviewMode ? (
-        <div className="min-h-[60px] text-sm text-gray-700 prose prose-sm max-w-none">
+        <div className="min-h-[60px] text-sm text-[var(--color-text-secondary)] prose prose-sm max-w-none">
           {notes.trim() ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {notes}
             </ReactMarkdown>
           ) : (
-            <span className="text-gray-300 italic">暂无备注内容</span>
+            <span className="text-[var(--color-text-tertiary)] italic">暂无备注内容</span>
           )}
         </div>
       ) : (
@@ -54,7 +54,7 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
           onBlur={handleSave}
           rows={3}
           placeholder="添加备注... 支持 Markdown 语法"
-          className="w-full text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none resize-none bg-transparent border-b border-transparent focus:border-[#378ADD]/30"
+          className="w-full text-sm text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b border-transparent focus:border-[var(--color-accent)]/30"
         />
       )}
     </div>

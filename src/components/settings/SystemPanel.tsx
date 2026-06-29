@@ -148,11 +148,11 @@ export function SystemPanel() {
   return (
     <div className="space-y-6">
       {/* ===== 开机自启 ===== */}
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
         <div className="flex items-center justify-between px-4 py-3.5">
           <div>
-            <p className="text-sm font-medium text-gray-900">开机自启</p>
-            <p className="text-xs text-gray-500 mt-0.5">系统启动时自动打开应用</p>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">开机自启</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">系统启动时自动打开应用</p>
           </div>
           <Toggle
             checked={autoStart}
@@ -171,10 +171,10 @@ export function SystemPanel() {
       </div>
 
       {/* ===== 数据导出 ===== */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-4 py-3.5 border-b border-gray-100">
-          <p className="text-sm font-medium text-gray-900">数据导出</p>
-          <p className="text-xs text-gray-500 mt-0.5">选择格式将所有数据导出到文件</p>
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+        <div className="px-4 py-3.5 border-b border-[var(--color-border-light)]">
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">数据导出</p>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">选择格式将所有数据导出到文件</p>
         </div>
         <div className="p-4 grid grid-cols-3 gap-3">
           {EXPORT_OPTIONS.map(({ format, label, desc, ext }) => (
@@ -182,28 +182,28 @@ export function SystemPanel() {
               key={format}
               onClick={() => handleExport(format)}
               disabled={exporting !== null}
-              className="flex flex-col items-center gap-1.5 px-3 py-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center gap-1.5 px-3 py-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="text-xs font-mono font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+              <span className="text-xs font-mono font-semibold text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2 py-0.5 rounded">
                 {ext}
               </span>
-              <span className="text-sm font-medium text-gray-900">{label}</span>
-              <span className="text-xs text-gray-400">{exporting === format ? '导出中...' : desc}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">{label}</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">{exporting === format ? '导出中...' : desc}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* ===== 数据导入 ===== */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-4 py-3.5 border-b border-gray-100">
-          <p className="text-sm font-medium text-gray-900">数据导入</p>
-          <p className="text-xs text-gray-500 mt-0.5">从 JSON 备份文件导入数据</p>
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+        <div className="px-4 py-3.5 border-b border-[var(--color-border-light)]">
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">数据导入</p>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">从 JSON 备份文件导入数据</p>
         </div>
         <div className="px-4 py-3.5">
           <button
             onClick={handleSelectFile}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm font-medium text-gray-700"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors text-sm font-medium text-[var(--color-text-secondary)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -220,16 +220,16 @@ export function SystemPanel() {
           onClick={closeImportModal}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-[440px] max-w-[90vw]"
+            className="bg-[var(--color-surface)] rounded-xl shadow-xl w-[440px] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900">导入数据</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-light)]">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">导入数据</h3>
               <button
                 onClick={closeImportModal}
                 disabled={importing}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] disabled:opacity-50"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -240,16 +240,16 @@ export function SystemPanel() {
             {/* Body */}
             <div className="px-5 py-4 space-y-4">
               {/* 文件信息 */}
-              <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg">
-                <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-3 px-3 py-2.5 bg-[var(--color-bg-secondary)] rounded-lg">
+                <svg className="w-5 h-5 text-[var(--color-accent)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="text-sm text-gray-700 truncate">{importModal.fileName}</span>
+                <span className="text-sm text-[var(--color-text-secondary)] truncate">{importModal.fileName}</span>
               </div>
 
               {/* 模式选择 */}
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">导入模式</p>
+                <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">导入模式</p>
                 <div className="space-y-2">
                   {/* 合并 */}
                   <button
@@ -257,13 +257,13 @@ export function SystemPanel() {
                     disabled={importing}
                     className={`w-full flex items-start gap-3 px-3 py-3 rounded-lg border text-left transition-colors ${
                       importModal.mode === 'merge'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)]'
+                        : 'border-[var(--color-border)] hover:border-[var(--color-border)]'
                     }`}
                   >
                     <div
                       className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${
-                        importModal.mode === 'merge' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                        importModal.mode === 'merge' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]' : 'border-gray-300'
                       }`}
                     >
                       {importModal.mode === 'merge' && (
@@ -273,8 +273,8 @@ export function SystemPanel() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">合并</p>
-                      <p className="text-xs text-gray-500 mt-0.5">将导入数据添加到现有数据中，不会删除现有内容</p>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)]">合并</p>
+                      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">将导入数据添加到现有数据中，不会删除现有内容</p>
                     </div>
                   </button>
 
@@ -284,13 +284,13 @@ export function SystemPanel() {
                     disabled={importing}
                     className={`w-full flex items-start gap-3 px-3 py-3 rounded-lg border text-left transition-colors ${
                       importModal.mode === 'replace'
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[var(--color-danger)] bg-[var(--color-danger)]/10'
+                        : 'border-[var(--color-border)] hover:border-[var(--color-border)]'
                     }`}
                   >
                     <div
                       className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${
-                        importModal.mode === 'replace' ? 'border-red-500 bg-red-500' : 'border-gray-300'
+                        importModal.mode === 'replace' ? 'border-[var(--color-danger)] bg-[var(--color-danger)]' : 'border-gray-300'
                       }`}
                     >
                       {importModal.mode === 'replace' && (
@@ -300,8 +300,8 @@ export function SystemPanel() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">替换</p>
-                      <p className="text-xs text-gray-500 mt-0.5">清空所有现有数据，然后导入新数据</p>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)]">替换</p>
+                      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">清空所有现有数据，然后导入新数据</p>
                     </div>
                   </button>
                 </div>
@@ -309,21 +309,21 @@ export function SystemPanel() {
 
               {/* 替换模式警告 */}
               {importModal.mode === 'replace' && (
-                <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
-                  <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/30 rounded-lg">
+                  <svg className="w-4 h-4 text-[var(--color-danger)] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <p className="text-xs text-red-600">替换将清空所有现有数据，此操作不可恢复，请谨慎操作。</p>
+                  <p className="text-xs text-[var(--color-danger)]">替换将清空所有现有数据，此操作不可恢复，请谨慎操作。</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-[var(--color-border-light)]">
               <button
                 onClick={closeImportModal}
                 disabled={importing}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
               >
                 取消
               </button>
@@ -331,7 +331,7 @@ export function SystemPanel() {
                 onClick={handleConfirmImport}
                 disabled={importing}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${
-                  importModal.mode === 'replace' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                  importModal.mode === 'replace' ? 'bg-[var(--color-danger)] hover:bg-[var(--color-danger)]' : 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)]'
                 }`}
               >
                 {importing ? '导入中...' : '确认导入'}

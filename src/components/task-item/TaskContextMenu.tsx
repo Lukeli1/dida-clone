@@ -136,7 +136,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-52"
+      className="fixed z-50 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 w-52"
       style={{ left: position.x, top: position.y }}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
@@ -148,7 +148,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
             onClose()
             onRename()
           }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -161,7 +161,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {isArchivedView ? (
         <button
           onClick={() => { ctx.onUnarchive(task.id); onClose() }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-success)] hover:bg-[var(--color-success)]/10 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -171,7 +171,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       ) : (
         <button
           onClick={() => { ctx.onArchive(task.id); onClose() }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -183,20 +183,20 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {/* 日期快捷设置 */}
       {!isArchivedView && (
         <>
-          <div className="border-t border-gray-100 my-1" />
-          <div className="px-3 py-1 text-xs text-gray-400 font-medium">日期</div>
+          <div className="border-t border-[var(--color-border-light)] my-1" />
+          <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">日期</div>
           {showCustomDate ? (
             <div className="px-3 py-2 flex items-center gap-2">
               <input
                 type="date"
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
-                className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
                 autoFocus
               />
               <button
                 onClick={handleCustomDate}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent)] font-medium"
               >
                 确定
               </button>
@@ -209,7 +209,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 title="今天"
               >
                 <span className="text-base">☀️</span>
-                <span className="text-[10px] text-gray-500">今天</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">今天</span>
               </button>
               <button
                 onClick={() => handleQuickDate(1)}
@@ -217,15 +217,15 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 title="明天"
               >
                 <span className="text-base">🌅</span>
-                <span className="text-[10px] text-gray-500">明天</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">明天</span>
               </button>
               <button
                 onClick={() => handleQuickDate(7)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-blue-50 transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-accent-light)] transition-colors"
                 title="7天后"
               >
                 <span className="text-base">📅</span>
-                <span className="text-[10px] text-gray-500">7天后</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">7天后</span>
               </button>
               <button
                 onClick={() => { setShowCustomDate(true); setCustomDate(task.due_date ? new Date(task.due_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)) }}
@@ -233,15 +233,15 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 title="自定义"
               >
                 <span className="text-base">✏️</span>
-                <span className="text-[10px] text-gray-500">自定义</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">自定义</span>
               </button>
               <button
                 onClick={handleClearDate}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-bg-tertiary)] transition-colors"
                 title="清除日期"
               >
                 <span className="text-base">✕</span>
-                <span className="text-[10px] text-gray-500">清除</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">清除</span>
               </button>
             </div>
           )}
@@ -251,40 +251,40 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {/* 优先级快捷设置 */}
       {!isArchivedView && (
         <>
-          <div className="border-t border-gray-100 my-1" />
-          <div className="px-3 py-1 text-xs text-gray-400 font-medium">优先级</div>
+          <div className="border-t border-[var(--color-border-light)] my-1" />
+          <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">优先级</div>
           <div className="flex items-center gap-1 px-3 py-1.5">
             <button
               onClick={() => handlePriority(1)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 1 ? 'bg-red-50 ring-1 ring-red-200' : 'hover:bg-red-50'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 1 ? 'bg-[var(--color-priority-high)]/10 ring-1 ring-[var(--color-priority-high)]/20' : 'hover:bg-[var(--color-priority-high)]/10'}`}
               title="高"
             >
               <span className="text-base">🔴</span>
-              <span className="text-[10px] text-gray-500">高</span>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">高</span>
             </button>
             <button
               onClick={() => handlePriority(2)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 2 ? 'bg-yellow-50 ring-1 ring-yellow-200' : 'hover:bg-yellow-50'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 2 ? 'bg-[var(--color-warning)]/10 ring-1 ring-[var(--color-warning)]/20' : 'hover:bg-[var(--color-warning)]/10'}`}
               title="中"
             >
               <span className="text-base">🟡</span>
-              <span className="text-[10px] text-gray-500">中</span>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">中</span>
             </button>
             <button
               onClick={() => handlePriority(3)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 3 ? 'bg-blue-50 ring-1 ring-blue-200' : 'hover:bg-blue-50'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 3 ? 'bg-[var(--color-accent-light)] ring-1 ring-[var(--color-accent-light)]' : 'hover:bg-[var(--color-accent-light)]'}`}
               title="低"
             >
               <span className="text-base">🔵</span>
-              <span className="text-[10px] text-gray-500">低</span>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">低</span>
             </button>
             <button
               onClick={() => handlePriority(0)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 0 ? 'bg-gray-100 ring-1 ring-gray-300' : 'hover:bg-gray-100'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 0 ? 'bg-[var(--color-bg-tertiary)] ring-1 ring-[var(--color-border)]' : 'hover:bg-[var(--color-bg-tertiary)]'}`}
               title="无"
             >
               <span className="text-base">⬜</span>
-              <span className="text-[10px] text-gray-500">无</span>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">无</span>
             </button>
           </div>
         </>
@@ -293,10 +293,10 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {/* 置顶 */}
       {!isArchivedView && (
         <>
-          <div className="border-t border-gray-100 my-1" />
+          <div className="border-t border-[var(--color-border-light)] my-1" />
           <button
             onClick={handlePin}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${task.pinned ? 'text-orange-600 bg-orange-50/50' : 'text-gray-700 hover:bg-gray-50'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${task.pinned ? 'text-orange-600 bg-orange-50/50' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'}`}
           >
             <svg className="w-4 h-4" fill={task.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -309,14 +309,14 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {/* 标签子菜单 */}
       {!isArchivedView && (
         <>
-          <div className="border-t border-gray-100 my-1" />
+          <div className="border-t border-[var(--color-border-light)] my-1" />
           <div
             onMouseEnter={() => setShowTagSubmenu(true)}
             onMouseLeave={() => { setShowTagSubmenu(false); setShowNewTagInput(false) }}
             className="relative"
           >
             <button
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -327,9 +327,9 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
               </svg>
             </button>
             {showTagSubmenu && (
-              <div className="absolute left-full top-0 ml-0.5 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-44">
+              <div className="absolute left-full top-0 ml-0.5 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 w-44">
                 {tags.length === 0 && !showNewTagInput && (
-                  <div className="px-3 py-2 text-xs text-gray-400">暂无标签</div>
+                  <div className="px-3 py-2 text-xs text-[var(--color-text-tertiary)]">暂无标签</div>
                 )}
                 {tags.map(tag => {
                   const isSelected = task.tag_ids?.includes(tag.id)
@@ -337,7 +337,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                     <button
                       key={tag.id}
                       onClick={() => handleToggleTag(tag.id)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-[var(--color-bg-secondary)] transition-colors"
                     >
                       <span
                         className="w-3 h-3 rounded-full flex-shrink-0 flex items-center justify-center"
@@ -349,11 +349,11 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                           </svg>
                         )}
                       </span>
-                      <span className={`truncate ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{tag.name}</span>
+                      <span className={`truncate ${isSelected ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>{tag.name}</span>
                     </button>
                   )
                 })}
-                <div className="border-t border-gray-100 my-1" />
+                <div className="border-t border-[var(--color-border-light)] my-1" />
                 {showNewTagInput ? (
                   <div className="px-3 py-2 flex items-center gap-2">
                     <input
@@ -365,12 +365,12 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                         if (e.key === 'Escape') { setShowNewTagInput(false); setNewTagName('') }
                       }}
                       placeholder="标签名称"
-                      className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
                       autoFocus
                     />
                     <button
                       onClick={handleCreateNewTag}
-                      className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                      className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent)] font-medium"
                     >
                       添加
                     </button>
@@ -378,7 +378,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 ) : (
                   <button
                     onClick={() => setShowNewTagInput(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-blue-500 hover:bg-blue-50 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -396,7 +396,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       {!isArchivedView && (
         <button
           onClick={handleDuplicate}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -406,20 +406,20 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       )}
 
       {/* 删除（带确认） */}
-      <div className="border-t border-gray-100 my-1" />
+      <div className="border-t border-[var(--color-border-light)] my-1" />
       {showDeleteConfirm ? (
         <div className="px-3 py-2">
-          <div className="text-xs text-gray-500 mb-2">确定删除此任务？</div>
+          <div className="text-xs text-[var(--color-text-secondary)] mb-2">确定删除此任务？</div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleDeleteConfirm}
-              className="flex-1 text-xs text-white bg-red-500 hover:bg-red-600 rounded py-1.5 transition-colors"
+              className="flex-1 text-xs text-white bg-[var(--color-danger)] hover:bg-[var(--color-danger)] rounded py-1.5 transition-colors"
             >
               删除
             </button>
             <button
               onClick={() => { setShowDeleteConfirm(false); onClose() }}
-              className="flex-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded py-1.5 transition-colors"
+              className="flex-1 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)] rounded py-1.5 transition-colors"
             >
               取消
             </button>
@@ -428,7 +428,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
       ) : (
         <button
           onClick={handleDeleteClick}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

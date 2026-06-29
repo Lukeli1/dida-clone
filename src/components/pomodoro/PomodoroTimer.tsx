@@ -58,7 +58,7 @@ export function PomodoroTimer({
   return (
     <>
       {/* 模式切换 */}
-      <div className="flex bg-gray-100 rounded-lg p-1 mb-8">
+      <div className="flex bg-[var(--color-bg-tertiary)] rounded-lg p-1 mb-8">
         {MODE_ORDER.map((m) => {
           const active = m === mode
           return (
@@ -67,8 +67,8 @@ export function PomodoroTimer({
               onClick={() => onModeChange(m)}
               className={`px-5 py-1.5 text-sm rounded-md transition-all ${
                 active
-                  ? 'bg-white shadow-sm text-gray-900 font-medium'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-[var(--color-surface)] shadow-sm text-[var(--color-text-primary)] font-medium'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
               {MODE_CONFIG[m].label}
@@ -105,10 +105,10 @@ export function PomodoroTimer({
         </svg>
         {/* 中心文字 */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-6xl font-bold tabular-nums text-gray-900">
+          <span className="text-6xl font-bold tabular-nums text-[var(--color-text-primary)]">
             {formatTime(secondsLeft)}
           </span>
-          <span className="mt-2 text-sm text-gray-500">{MODE_CONFIG[mode].label}中</span>
+          <span className="mt-2 text-sm text-[var(--color-text-secondary)]">{MODE_CONFIG[mode].label}中</span>
         </div>
       </div>
 
@@ -118,8 +118,8 @@ export function PomodoroTimer({
           onClick={onStartPause}
           className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors shadow-sm ${
             isRunning
-              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              : 'bg-[#378ADD] text-white hover:bg-[#185FA5]'
+              ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
+              : 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
           }`}
           aria-label={isRunning ? '暂停' : '开始'}
         >
@@ -135,7 +135,7 @@ export function PomodoroTimer({
         </button>
         <button
           onClick={onReset}
-          className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-2 py-1"
+          className="text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors px-2 py-1"
           aria-label="重置"
         >
           重置
@@ -151,7 +151,7 @@ export function PomodoroTimer({
             style={{ backgroundColor: i < sessionsInCycle ? ringColor : '#D1D5DB' }}
           />
         ))}
-        <span className="ml-2 text-xs text-gray-400">
+        <span className="ml-2 text-xs text-[var(--color-text-tertiary)]">
           {sessionsInCycle}/{longBreakInterval} 至长休息
         </span>
       </div>

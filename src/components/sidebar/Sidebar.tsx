@@ -25,7 +25,7 @@ export function Sidebar({
   const totalTasks = Object.values(taskCounts).reduce((a, b) => a + b, 0)
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+    <aside className="w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-full">
       {/* 顶部头像区域 */}
       <AvatarSection />
 

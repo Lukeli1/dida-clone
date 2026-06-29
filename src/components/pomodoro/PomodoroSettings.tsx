@@ -13,13 +13,13 @@ function SettingInput({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">{label}</label>
       <input
         type="number"
         min={1}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+        className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
       />
     </div>
   )
@@ -39,8 +39,8 @@ export function PomodoroSettingsPanel({
   onResetDefaults,
 }: PomodoroSettingsPanelProps) {
   return (
-    <div className="w-full bg-white rounded-lg border border-gray-100 p-4 mt-4 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-900">自定义时长</h3>
+    <div className="w-full bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] p-4 mt-4 space-y-4">
+      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">自定义时长</h3>
       <div className="grid grid-cols-2 gap-4">
         <SettingInput
           label="专注时长（分钟）"
@@ -65,7 +65,7 @@ export function PomodoroSettingsPanel({
       </div>
       <button
         onClick={onResetDefaults}
-        className="text-xs text-gray-400 hover:text-[#378ADD] transition-colors"
+        className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
       >
         恢复默认设置
       </button>

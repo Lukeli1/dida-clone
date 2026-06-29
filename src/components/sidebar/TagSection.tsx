@@ -59,12 +59,12 @@ export function TagSection({
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-2 px-2">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
           标签
         </p>
         <button
           onClick={() => setIsCreatingTag(true)}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
           title="新建标签"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,14 +85,14 @@ export function TagSection({
             }}
             autoFocus
             placeholder="标签名称"
-            className="w-full px-2 py-1.5 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="w-full px-2 py-1.5 text-sm border border-[var(--color-accent)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
           />
           {/* 父标签选择（可选） */}
           {tags.length > 0 && (
             <select
               value={newTagParentId || ''}
               onChange={(e) => setNewTagParentId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-400 text-gray-600"
+              className="w-full px-2 py-1 text-xs border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] text-[var(--color-text-secondary)]"
             >
               <option value="">顶级标签</option>
               {tags.filter(t => !t.parent_id).map(tag => (
@@ -105,14 +105,14 @@ export function TagSection({
               <button
                 key={c}
                 onClick={() => setNewTagColor(c)}
-                className={`w-5 h-5 rounded-full border-2 transition-transform ${newTagColor === c ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-110'}`}
+                className={`w-5 h-5 rounded-full border-2 transition-transform ${newTagColor === c ? 'border-[var(--color-text-primary)] scale-110' : 'border-transparent hover:scale-110'}`}
                 style={{ backgroundColor: c }}
               />
             ))}
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreateTag} className="px-3 py-1 text-xs bg-[#378ADD] text-white rounded-md hover:bg-[#185FA5]">创建</button>
-            <button onClick={() => { setIsCreatingTag(false); setNewTagName(''); setNewTagParentId(null) }} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">取消</button>
+            <button onClick={handleCreateTag} className="px-3 py-1 text-xs bg-[var(--color-accent)] text-white rounded-md hover:bg-[var(--color-accent-hover)]">创建</button>
+            <button onClick={() => { setIsCreatingTag(false); setNewTagName(''); setNewTagParentId(null) }} className="px-3 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-md">取消</button>
           </div>
         </div>
       )}
@@ -128,8 +128,8 @@ export function TagSection({
               onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
               className={`w-full flex items-center gap-2 sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
                 selectedTagId === tag.id
-                  ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-                  : 'text-gray-700 hover:bg-gray-50/60'
+                  ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
               }`}
             >
               <span
@@ -140,7 +140,7 @@ export function TagSection({
             </button>
             {/* 二级标签 */}
             {childTags.length > 0 && (
-              <ul className="ml-4 border-l border-gray-100 pl-1 mt-0.5 space-y-0.5">
+              <ul className="ml-4 border-l border-[var(--color-border-light)] pl-1 mt-0.5 space-y-0.5">
                 {childTags.map(child => (
                   <li key={child.id}>
                     <button
@@ -148,8 +148,8 @@ export function TagSection({
                       onContextMenu={(e) => handleTagContextMenu(e, child.id)}
                       className={`w-full flex items-center gap-2 sidebar-nav-item px-3 py-1.5 rounded-lg text-sm transition-colors ${
                         selectedTagId === child.id
-                          ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-                          : 'text-gray-500 hover:bg-gray-50/60'
+                          ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
                       }`}
                     >
                       <span
@@ -171,12 +171,12 @@ export function TagSection({
       {tagContextMenu && (
         <div
           ref={tagContextMenuRef}
-          className="fixed z-50 bg-white rounded-lg shadow-md border border-gray-100 py-1 min-w-[120px]"
+          className="fixed z-50 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] py-1 min-w-[120px]"
           style={{ left: tagContextMenu.x, top: tagContextMenu.y }}
         >
           <button
             onClick={() => handleDeleteTag(tagContextMenu.tagId)}
-            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

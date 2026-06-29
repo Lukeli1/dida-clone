@@ -165,7 +165,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
   return (
     <>
       <div
-        className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors p-4 group cursor-pointer"
+        className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] hover:border-[var(--color-border)] transition-colors p-4 group cursor-pointer"
         onClick={() => onToggle(habit.id)}
         onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
       >
@@ -181,7 +181,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           {/* 名称 + 今日进度 + 进度条 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium text-gray-900 truncate">{habit.name}</span>
+              <span className="font-medium text-[var(--color-text-primary)] truncate">{habit.name}</span>
               {streak > 0 && (
                 <span
                   className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
@@ -191,11 +191,11 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] mb-2">
               <span>今日 {todayCount}/{goal}{habit.unit ? ` ${habit.unit}` : ''}</span>
-              {completed && <span className="text-xs text-green-500 font-medium">已完成</span>}
+              {completed && <span className="text-xs text-[var(--color-success)] font-medium">已完成</span>}
             </div>
-            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{ width: `${pct}%`, backgroundColor: color }}
@@ -239,7 +239,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onDelete(habit.id) }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0"
+            className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 flex-shrink-0"
             title="删除习惯"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +250,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
 
         {/* 展开详情 */}
         {expanded && (
-          <div className="mt-4 pt-4 border-t border-gray-100 animate-slide-in-top">
+          <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] animate-slide-in-top">
             {/* 7 天日历视图 */}
             <div className="grid grid-cols-7 gap-2 mb-4">
               {weekDays.map(day => {
@@ -258,7 +258,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 const count = getCount(habit, key)
                 return (
                   <div key={key} className="flex flex-col items-center gap-1.5">
-                    <span className="text-xs text-gray-400">{format(day, 'EEEEE', { locale: zhCN })}</span>
+                    <span className="text-xs text-[var(--color-text-tertiary)]">{format(day, 'EEEEE', { locale: zhCN })}</span>
                     <DayCell
                       count={count}
                       goal={goal}
@@ -269,7 +269,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                       showCount
                       onClick={() => handleDayClick(key, isFutureDay(day))}
                     />
-                    <span className={`text-xs ${isSameDay(day, today) ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                    <span className={`text-xs ${isSameDay(day, today) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
                       {format(day, 'd')}
                     </span>
                   </div>
@@ -286,7 +286,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 >
                   🔥 {streak} 天连续
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-[var(--color-text-secondary)]">
                   今日 {todayCount}/{goal}{habit.unit ? ` ${habit.unit}` : ''}
                 </span>
               </div>
@@ -294,7 +294,7 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 <button
                   type="button"
                   onClick={handleDecrement}
-                  className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
                   title="今日 -1"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,16 +322,16 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
       {contextMenu && (
         <div className="fixed inset-0 z-50" onClick={closeContextMenu}>
           <div
-            className="absolute bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 min-w-[180px]"
+            className="absolute bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--color-border)] py-1.5 min-w-[180px]"
             style={{ left: Math.min(contextMenu.x, window.innerWidth - 190), top: Math.min(contextMenu.y, window.innerHeight - 200) }}
           >
             {/* 编辑 */}
             <button
               type="button"
               onClick={() => { onEdit?.(habit); closeContextMenu() }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               <span>编辑</span>
@@ -340,9 +340,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
             <button
               type="button"
               onClick={() => { startFocus(); closeContextMenu() }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
               </svg>
               <span>开始专注</span>
@@ -351,22 +351,22 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
             <button
               type="button"
               onClick={() => { onArchive?.(habit.id); closeContextMenu() }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
               </svg>
               <span>{habit.archived ? '取消归档' : '归档'}</span>
             </button>
             {/* 分割线 */}
-            <div className="border-t border-gray-100 my-1" />
+            <div className="border-t border-[var(--color-border-light)] my-1" />
             {/* 删除 */}
             <button
               type="button"
               onClick={() => { onDelete(habit.id); closeContextMenu() }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-[var(--color-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
               <span>删除</span>

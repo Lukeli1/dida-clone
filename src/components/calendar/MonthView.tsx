@@ -140,34 +140,34 @@ export function MonthView({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FAFAFA] dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 月份导航栏 */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
-          <button onClick={onPrevMonth} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={onPrevMonth} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 min-w-[100px] text-center">
+          <h3 className="text-xl font-semibold text-[var(--color-text-primary)] min-w-[100px] text-center">
             {format(currentDate, 'M月', { locale: zhCN })}
-            <span className="text-sm font-normal text-gray-400 dark:text-gray-500 ml-1">{format(currentDate, 'yyyy')}</span>
+            <span className="text-sm font-normal text-[var(--color-text-tertiary)] ml-1">{format(currentDate, 'yyyy')}</span>
           </h3>
-          <button onClick={onNextMonth} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={onNextMonth} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
+            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
-        <button onClick={onToday} className="px-3 py-1 text-sm text-[#378ADD] hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors font-medium">
+        <button onClick={onToday} className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors font-medium">
           今天
         </button>
       </div>
 
       {/* 星期标题行 */}
-      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         {weekDays.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-medium text-gray-400 dark:text-gray-500">{day}</div>
+          <div key={day} className="py-2 text-center text-xs font-medium text-[var(--color-text-tertiary)]">{day}</div>
         ))}
       </div>
 
@@ -176,9 +176,9 @@ export function MonthView({
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
           return (
-            <div key={ri} className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700 relative flex-1" style={{ minHeight: '110px' }}>
+            <div key={ri} className="grid grid-cols-7 border-b border-[var(--color-border-light)] relative flex-1" style={{ minHeight: '110px' }}>
               {ri === 0 && (
-                <div className="absolute -left-0 top-0 text-[10px] text-gray-300 px-1 py-0.5 z-10 hidden">{weekNum}周</div>
+                <div className="absolute -left-0 top-0 text-[10px] text-[var(--color-text-tertiary)] px-1 py-0.5 z-10 hidden">{weekNum}周</div>
               )}
               {week.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
@@ -198,12 +198,12 @@ export function MonthView({
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, key)}
-                    className={`group relative border-r border-gray-100 dark:border-gray-700 last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
+                    className={`group relative border-r border-[var(--color-border-light)] last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
                       isDragOver
-                        ? 'bg-blue-50 dark:bg-blue-900/30 ring-2 ring-[#378ADD]/30 ring-inset'
+                        ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
                         : !inMonth
-                        ? 'bg-gray-50/40 dark:bg-gray-800/40'
-                        : 'hover:bg-blue-50/20 dark:hover:bg-blue-900/10'
+                        ? 'bg-[var(--color-bg-secondary)]/40'
+                        : 'hover:bg-[var(--color-accent-light)]/20'
                     }`}
                   >
                     {/* 日期头部：日期数字 + 农历 + 添加按钮 */}
@@ -211,20 +211,20 @@ export function MonthView({
                       <div className="flex flex-col items-start leading-tight">
                         <span className={`flex items-center justify-center text-[15px] font-medium rounded-full transition-colors ${
                           today
-                            ? 'bg-[#378ADD] text-white w-7 h-7'
+                            ? 'bg-[var(--color-accent)] text-white w-7 h-7'
                             : !inMonth
-                            ? 'text-gray-300 dark:text-gray-600 w-7 h-7'
-                            : 'text-gray-700 dark:text-gray-200 w-7 h-7 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'text-[var(--color-text-tertiary)] w-7 h-7'
+                            : 'text-[var(--color-text-secondary)] w-7 h-7 hover:bg-[var(--color-bg-tertiary)]'
                         }`}>
                           {format(day, 'd')}
                         </span>
                         {inMonth && !today && (
-                          <span className="text-[9px] text-gray-400 dark:text-gray-500 ml-1 mt-0.5">{lunarLabel}</span>
+                          <span className="text-[9px] text-[var(--color-text-tertiary)] ml-1 mt-0.5">{lunarLabel}</span>
                         )}
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleQuickAdd(key) }}
-                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-[#378ADD] hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-all"
+                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded transition-all"
                         title="快速添加任务"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,7 +249,7 @@ export function MonthView({
                         />
                       ))}
                       {dayTasks.length > 4 && (
-                        <div className="text-[10px] text-gray-400 px-1.5 py-0.5">+{dayTasks.length - 4} 项</div>
+                        <div className="text-[10px] text-[var(--color-text-tertiary)] px-1.5 py-0.5">+{dayTasks.length - 4} 项</div>
                       )}
                       {isCreating && (
                         <input
@@ -262,7 +262,7 @@ export function MonthView({
                           }}
                           onBlur={() => handleQuickAddSubmit(key)}
                           placeholder="标题..."
-                          className="w-full text-[11px] px-1.5 py-1 border border-[#378ADD] rounded focus:outline-none focus:ring-1 focus:ring-[#378ADD]/30"
+                          className="w-full text-[11px] px-1.5 py-1 border border-[var(--color-accent)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/30"
                           onClick={(e) => e.stopPropagation()}
                         />
                       )}

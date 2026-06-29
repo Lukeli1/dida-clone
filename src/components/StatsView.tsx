@@ -100,9 +100,9 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] p-6">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">统计面板</h2>
+        <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-6">统计面板</h2>
 
         {/* 概览卡片 */}
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -113,10 +113,10 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
         </div>
 
         {/* AI 智能摘要 */}
-        <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-200 p-6 mb-6">
+        <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl border border-[var(--color-accent-light)] p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              <svg className="w-5 h-5 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               AI 智能摘要
@@ -124,7 +124,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
             <button
               onClick={handleAISummary}
               disabled={aiLoading}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {aiLoading ? (
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -140,29 +140,29 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
             </button>
           </div>
           {aiSummary ? (
-            <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-white/60 rounded-lg p-4 border border-purple-100">
+            <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-wrap bg-[var(--color-surface)]/60 rounded-lg p-4 border border-[var(--color-accent-light)]">
               {aiSummary}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">点击"生成摘要"，AI 会根据你的任务情况生成工作总结和建议</p>
+            <p className="text-sm text-[var(--color-text-tertiary)]">点击"生成摘要"，AI 会根据你的任务情况生成工作总结和建议</p>
           )}
         </div>
 
         {/* 本周完成趋势 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">本周完成趋势</h3>
+        <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6 mb-6">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">本周完成趋势</h3>
           <div className="flex items-end justify-between gap-3 h-48">
             {stats.weekData.map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <span className="text-xs text-gray-500 font-medium">{d.count}</span>
-                <div className="w-full bg-gray-100 rounded-t-lg overflow-hidden flex items-end" style={{ height: '120px' }}>
+                <span className="text-xs text-[var(--color-text-secondary)] font-medium">{d.count}</span>
+                <div className="w-full bg-[var(--color-bg-tertiary)] rounded-t-lg overflow-hidden flex items-end" style={{ height: '120px' }}>
                   <div
                     className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all"
                     style={{ height: `${(d.count / maxWeekCount) * 100}%` }}
                   />
                 </div>
-                <span className="text-xs text-gray-400">{format(d.date, 'EEE', { locale: zhCN })}</span>
-                <span className={`text-xs ${isToday(d.date) ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                <span className="text-xs text-[var(--color-text-tertiary)]">{format(d.date, 'EEE', { locale: zhCN })}</span>
+                <span className={`text-xs ${isToday(d.date) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
                   {format(d.date, 'M/d')}
                 </span>
               </div>
@@ -172,22 +172,22 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
 
         <div className="grid grid-cols-2 gap-6">
           {/* 按清单统计 */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">清单分布</h3>
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">清单分布</h3>
             {stats.listStats.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无数据</p>
+              <p className="text-sm text-[var(--color-text-tertiary)]">暂无数据</p>
             ) : (
               <div className="space-y-3">
                 {stats.listStats.map(s => (
                   <div key={s.list.id}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-700 flex items-center gap-2">
+                      <span className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.list.color || '#6B7280' }} />
                         {s.list.name}
                       </span>
-                      <span className="text-xs text-gray-400">{s.completed}/{s.total}</span>
+                      <span className="text-xs text-[var(--color-text-tertiary)]">{s.completed}/{s.total}</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-2 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
@@ -203,21 +203,21 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
           </div>
 
           {/* 按优先级统计 */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">优先级分布（未完成）</h3>
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">优先级分布（未完成）</h3>
             <div className="space-y-3">
               {stats.priorityStats.map(p => {
                 const maxCount = Math.max(...stats.priorityStats.map(s => s.count), 1)
                 return (
                   <div key={p.value}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-700 flex items-center gap-2">
+                      <span className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
                         {p.label}
                       </span>
-                      <span className="text-xs text-gray-400">{p.count}</span>
+                      <span className="text-xs text-[var(--color-text-tertiary)]">{p.count}</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-2 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{

@@ -16,13 +16,13 @@ export interface DayCellProps {
 /** 单日打卡格子：满=实心，部分=半透明描边，未打卡=灰色，未来=浅灰 */
 export function DayCell({ count, goal, color, isFuture, isToday, size, showCount = false, onClick }: DayCellProps) {
   const ratio = goal > 0 ? Math.min(count / goal, 1) : 0
-  const todayRing = isToday ? 'ring-2 ring-blue-400' : ''
+  const todayRing = isToday ? 'ring-2 ring-[var(--color-accent)]' : ''
   const clickable = !isFuture && !!onClick
   const cursor = clickable ? 'cursor-pointer' : ''
   const hover = clickable ? 'hover:scale-110 active:scale-95' : ''
 
   if (isFuture) {
-    return <div className={`${size} rounded-full bg-gray-100 ${todayRing}`} title="未来日期" />
+    return <div className={`${size} rounded-full bg-[var(--color-bg-tertiary)] ${todayRing}`} title="未来日期" />
   }
   if (ratio >= 1) {
     return (
@@ -64,7 +64,7 @@ export function DayCell({ count, goal, color, isFuture, isToday, size, showCount
       tabIndex={clickable ? 0 : undefined}
       onClick={onClick}
       onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
-      className={`${size} rounded-full bg-gray-100 ${todayRing} ${cursor} ${hover} transition-transform`}
+      className={`${size} rounded-full bg-[var(--color-bg-tertiary)] ${todayRing} ${cursor} ${hover} transition-transform`}
       title="未打卡，点击打卡"
     />
   )

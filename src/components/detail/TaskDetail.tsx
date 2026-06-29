@@ -71,7 +71,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   }
 
   return (
-    <aside className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
+    <aside className="w-96 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full">
       {/* ===== Top zone (fixed) ===== */}
       <div className="flex items-start relative shrink-0">
         {/* 优先级色条，点击循环切换 */}
@@ -92,13 +92,13 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
               onBlur={handleSave}
               rows={1}
               placeholder="任务标题"
-              className="flex-1 text-[17px] font-semibold text-[#1F2937] placeholder:text-gray-300 border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[#378ADD] overflow-hidden transition-colors"
+              className="flex-1 text-[17px] font-semibold text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-hidden transition-colors"
             />
             {/* 子任务按钮：列表图标，点击展开子任务区域 */}
             <button
               onClick={() => setShowSubtaskInput(v => !v)}
               className={`shrink-0 p-1 rounded transition-colors mt-0.5 ${
-                showSubtaskInput ? 'text-[#378ADD] bg-blue-50' : 'text-gray-400 hover:text-[#378ADD] hover:bg-gray-50'
+                showSubtaskInput ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)]'
               }`}
               title="添加子任务"
             >
@@ -115,7 +115,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
         {/* 关闭按钮：右上角 */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          className="absolute top-3 right-3 p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] rounded transition-colors"
           title="关闭"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
       </div>
 
       {/* ===== Bottom zone (fixed toolbar) ===== */}
-      <div className="h-12 border-t border-gray-100 flex items-center justify-between px-4 relative shrink-0">
+      <div className="h-12 border-t border-[var(--color-border-light)] flex items-center justify-between px-4 relative shrink-0">
         {/* 左侧：清单标识（带颜色圆点） */}
         <div className="flex items-center gap-1.5">
           {(() => {
@@ -156,7 +156,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-sm text-[#6B7280]">{list?.name || '清单'}</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">{list?.name || '清单'}</span>
               </>
             )
           })()}
@@ -178,7 +178,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
           {/* 更多选项按钮 */}
           <button
             onClick={() => setShowMoreMenu(v => !v)}
-            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
             title="更多"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -191,21 +191,21 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
 
         {/* 更多菜单下拉 */}
         {showMoreMenu && (
-          <div className="absolute bottom-full right-2 mb-1 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-30">
+          <div className="absolute bottom-full right-2 mb-1 w-52 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border-light)] py-1 z-30">
             <button
               onClick={() => {
                 setShowMoreMenu(false)
                 handleDelete()
               }}
-              className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors"
             >
               删除任务
             </button>
-            <div className="my-1 border-t border-gray-100" />
-            <div className="px-3 py-1.5 text-xs text-gray-400">
+            <div className="my-1 border-t border-[var(--color-border-light)]" />
+            <div className="px-3 py-1.5 text-xs text-[var(--color-text-tertiary)]">
               创建于: {new Date(task.created_at).toLocaleString('zh-CN')}
             </div>
-            <div className="px-3 py-1.5 text-xs text-gray-400">
+            <div className="px-3 py-1.5 text-xs text-[var(--color-text-tertiary)]">
               更新于: {new Date(task.updated_at).toLocaleString('zh-CN')}
             </div>
           </div>

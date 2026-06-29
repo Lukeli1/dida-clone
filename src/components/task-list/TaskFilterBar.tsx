@@ -14,13 +14,13 @@ interface TaskFilterBarProps {
  */
 export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFilterBarProps) {
   return (
-    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-wrap items-center gap-3">
-      <span className="text-xs font-medium text-gray-500">筛选条件：</span>
+    <div className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex flex-wrap items-center gap-3">
+      <span className="text-xs font-medium text-[var(--color-text-secondary)]">筛选条件：</span>
       {/* 优先级筛选 */}
       <select
         value={filters.priority === null ? '' : filters.priority}
         onChange={(e) => filters.setFilter('priority', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       >
         <option value="">全部优先级</option>
         <option value="1">高优先级</option>
@@ -32,7 +32,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.dateRange}
         onChange={(e) => filters.setFilter('dateRange', e.target.value as FilterState['dateRange'])}
-        className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       >
         <option value="all">全部日期</option>
         <option value="today">今天</option>
@@ -45,7 +45,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.tagId === null ? '' : filters.tagId}
         onChange={(e) => filters.setFilter('tagId', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       >
         <option value="">全部标签</option>
         {tags.map(tag => (
@@ -56,7 +56,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.listId === null ? '' : filters.listId}
         onChange={(e) => filters.setFilter('listId', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       >
         <option value="">全部清单</option>
         {lists.map(list => (
@@ -66,7 +66,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       {hasActiveFilters && (
         <button
           onClick={() => filters.resetFilters()}
-          className="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded-md"
+          className="px-2 py-1 text-xs text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 rounded-md"
         >
           清除筛选
         </button>

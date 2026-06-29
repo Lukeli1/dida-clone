@@ -40,7 +40,7 @@ export function TaskBar({
         draggable={draggable}
         onDragStart={onDragStart}
         className={`absolute left-1 right-1 rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group border-l-2 ${
-          task.completed ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 line-through' : ''
+          task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through' : ''
         } ${dragged ? 'opacity-40' : ''}`}
         style={{
           ...style,
@@ -84,7 +84,7 @@ export function TaskBar({
         className={`flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${
           task.completed
             ? 'bg-white/30 border-white/50'
-            : light ? 'border-gray-400' : 'border-white/60'
+            : light ? 'border-[var(--color-text-tertiary)]' : 'border-white/60'
         }`}
       >
         {task.completed && (

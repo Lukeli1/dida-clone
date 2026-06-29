@@ -31,11 +31,11 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 animate-slide-in-top">
+    <div className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] p-4 mb-4 animate-slide-in-top">
       <div className="space-y-4">
         {/* 名称 */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">习惯名称</label>
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">习惯名称</label>
           <input
             type="text"
             value={name}
@@ -43,16 +43,16 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
             onKeyDown={e => { if (e.key === 'Enter' && canSave) onSave() }}
             placeholder="例如：喝水、读书、跑步"
             autoFocus
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+            className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
           />
         </div>
 
         {/* 图标选择：预览 + 快速预设 + 更多 */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-2">图标</label>
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2">图标</label>
           <div className="flex items-center gap-2 mb-2">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 border-2 border-blue-300"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 border-2 border-[var(--color-accent)]"
               style={{ backgroundColor: hexWithAlpha(color, 0.15) }}
             >
               {icon}
@@ -63,7 +63,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
                 type="button"
                 onClick={() => { setIcon(em); setCustomIcon('') }}
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-lg transition-all ${
-                  icon === em ? 'ring-2 ring-blue-400 scale-110' : 'bg-gray-50 hover:bg-gray-100'
+                  icon === em ? 'ring-2 ring-[var(--color-accent)] scale-110' : 'bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                 }`}
                 style={icon === em ? { backgroundColor: hexWithAlpha(color, 0.2) } : undefined}
               >
@@ -73,7 +73,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
             <button
               type="button"
               onClick={() => setShowFormPicker(true)}
-              className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
               title="更多图标"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
               onKeyDown={e => { if (e.key === 'Enter') applyCustomIcon() }}
               placeholder="输入任意 emoji"
               maxLength={4}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
             <button
               type="button"
@@ -117,7 +117,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
 
         {/* 颜色选择 */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">颜色</label>
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">颜色</label>
           <div className="flex flex-wrap gap-2">
             {PRESET_COLORS.map(c => (
               <button
@@ -125,7 +125,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
                 type="button"
                 onClick={() => setColor(c)}
                 className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
-                  color === c ? 'ring-2 ring-blue-400 scale-110' : 'hover:scale-110'
+                  color === c ? 'ring-2 ring-[var(--color-accent)] scale-110' : 'hover:scale-110'
                 }`}
                 style={{ backgroundColor: c }}
               >
@@ -142,23 +142,23 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
         {/* 目标 + 单位 */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">每日目标</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">每日目标</label>
             <input
               type="number"
               min={1}
               value={goal}
               onChange={e => setGoal(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">单位（可选）</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">单位（可选）</label>
             <input
               type="text"
               value={unit}
               onChange={e => setUnit(e.target.value)}
               placeholder="例如：杯、次、分钟"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
           </div>
         </div>
@@ -168,7 +168,7 @@ export function CreateHabitForm(props: CreateHabitFormProps) {
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            className="px-4 py-2 text-sm text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
           >
             取消
           </button>

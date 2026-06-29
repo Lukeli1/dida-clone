@@ -133,14 +133,14 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
     tasksByQuadrant.q4.length
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 工具栏 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">四象限</h3>
-          <p className="text-xs text-gray-500 mt-0.5">按重要紧急程度分类，拖拽任务可调整优先级</p>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">四象限</h3>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">按重要紧急程度分类，拖拽任务可调整优先级</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
           {QUADRANTS.map(q => (
             <span key={q.key} className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: q.color }} />
@@ -162,7 +162,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                 onDragOver={(e) => handleDragOver(e, quadrant.key)}
                 onDragLeave={(e) => handleDragLeave(e, quadrant.key)}
                 onDrop={(e) => handleDrop(e, quadrant)}
-                className="bg-gray-50/50 rounded-lg p-3 flex flex-col border-2 border-transparent transition-colors min-h-0"
+                className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-3 flex flex-col border-2 border-transparent transition-colors min-h-0"
                 style={
                   isDragOver
                     ? {
@@ -181,8 +181,8 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: quadrant.color }}
                   />
-                  <span className="text-xs font-semibold text-gray-800">{quadrant.title}</span>
-                  <span className="text-[11px] text-gray-400">{quadrant.subtitle}</span>
+                  <span className="text-xs font-semibold text-[var(--color-text-primary)]">{quadrant.title}</span>
+                  <span className="text-[11px] text-[var(--color-text-tertiary)]">{quadrant.subtitle}</span>
                   <span
                     className="ml-auto text-[11px] font-medium px-1.5 py-0.5 rounded-full"
                     style={{
@@ -197,7 +197,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                 {/* 任务列表区域 */}
                 <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
                   {quadrantTasks.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-xs text-gray-400 select-none">
+                    <div className="flex items-center justify-center h-full text-xs text-[var(--color-text-tertiary)] select-none">
                       拖拽任务到这里
                     </div>
                   ) : (
@@ -208,7 +208,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                         onDragStart={(e) => handleDragStart(e, task.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onTaskClick(task.id)}
-                        className={`group bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-colors px-2.5 py-2 cursor-pointer flex items-center gap-2 ${
+                        className={`group bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] hover:border-[var(--color-border)] transition-colors px-2.5 py-2 cursor-pointer flex items-center gap-2 ${
                           draggedTaskId === task.id ? 'opacity-40' : ''
                         } ${task.completed ? 'opacity-60' : ''}`}
                       >
@@ -220,12 +220,12 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                             onToggleTask(task.id)
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-5 h-5 rounded border-gray-300 checkbox-bounce cursor-pointer flex-shrink-0"
+                          className="w-5 h-5 rounded border-[var(--color-border)] checkbox-bounce cursor-pointer flex-shrink-0"
                           style={{ accentColor: BRAND_BLUE }}
                         />
                         <span
                           className={`flex-1 min-w-0 text-sm truncate ${
-                            task.completed ? 'line-through text-gray-400' : 'text-gray-900'
+                            task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'
                           }`}
                         >
                           {task.title}
@@ -233,7 +233,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                         {task.due_date && (
                           <span
                             className={`flex items-center gap-1 text-[11px] flex-shrink-0 ${
-                              isOverdue(task.due_date, task.completed) ? 'text-red-500' : 'text-gray-400'
+                              isOverdue(task.due_date, task.completed) ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'
                             }`}
                           >
                             <svg

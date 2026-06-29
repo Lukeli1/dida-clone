@@ -30,7 +30,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
   if (!visible) return null
 
   return (
-    <div className="rounded-lg bg-gray-50/60 p-3 space-y-1">
+    <div className="rounded-lg bg-[var(--color-bg-secondary)]/60 p-3 space-y-1">
       {subtasks.length > 0 && (
         <div className="space-y-0.5 mb-1">
           {subtasks.map(subtask => (
@@ -40,8 +40,8 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
                 onClick={() => onUpdate(subtask.id, { completed: !subtask.completed })}
                 className={`w-4 h-4 shrink-0 rounded-sm border-2 flex items-center justify-center transition-colors ${
                   subtask.completed
-                    ? 'bg-[#378ADD] border-[#378ADD]'
-                    : 'border-gray-300 hover:border-[#378ADD]'
+                    ? 'bg-[var(--color-accent)] border-[var(--color-accent)]'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-accent)]'
                 }`}
               >
                 {subtask.completed && (
@@ -70,12 +70,12 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
                     }
                     if (e.key === 'Escape') setEditingSubtaskId(null)
                   }}
-                  className="flex-1 text-sm px-1 py-0.5 border border-[#378ADD] rounded outline-none"
+                  className="flex-1 text-sm px-1 py-0.5 border border-[var(--color-accent)] rounded outline-none"
                   autoFocus
                 />
               ) : (
                 <span
-                  className={`flex-1 text-sm cursor-text ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}
+                  className={`flex-1 text-sm cursor-text ${subtask.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}
                   onDoubleClick={() => {
                     setEditingSubtaskId(subtask.id)
                     setEditSubtaskTitle(subtask.title)
@@ -87,7 +87,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onDelete(subtask.id)}
-                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-opacity"
                 title="删除子任务"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,13 +100,13 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
       )}
       {/* 子任务进度统计 */}
       {subtasks.length > 0 && (
-        <div className="text-xs text-gray-400 px-1">
+        <div className="text-xs text-[var(--color-text-tertiary)] px-1">
           {subtasks.filter(s => s.completed).length}/{subtasks.length} 已完成
         </div>
       )}
       {/* 添加子任务输入框 */}
-      <div className="flex items-center gap-2 py-1 border-t border-gray-200/60 pt-2">
-        <span className="w-4 h-4 shrink-0 rounded-sm border-2 border-gray-200" />
+      <div className="flex items-center gap-2 py-1 border-t border-[var(--color-border)]/60 pt-2">
+        <span className="w-4 h-4 shrink-0 rounded-sm border-2 border-[var(--color-border)]" />
         <input
           type="text"
           value={newSubtaskTitle}
@@ -118,7 +118,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
             }
           }}
           placeholder="回车添加子任务"
-          className="flex-1 text-sm text-gray-700 placeholder:text-gray-300 border-none outline-none bg-transparent border-b border-[#378ADD]/40 focus:border-[#378ADD]"
+          className="flex-1 text-sm text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none bg-transparent border-b border-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
           autoFocus
         />
       </div>
@@ -242,13 +242,13 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
       {aiSuggestions.length > 0 && (
         <div className="space-y-1.5">
           {aiSuggestions.map((s, idx) => (
-            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-purple-100">
-              <span className="flex-1 text-sm text-gray-700">{s.title}</span>
+            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-surface)] border border-purple-100">
+              <span className="flex-1 text-sm text-[var(--color-text-secondary)]">{s.title}</span>
               {s.priority && (
                 <span className={`text-xs px-1.5 py-0.5 rounded ${
-                  s.priority === 1 ? 'bg-red-100 text-red-700' :
-                  s.priority === 2 ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-green-100 text-green-700'
+                  s.priority === 1 ? 'bg-[var(--color-priority-high)]/10 text-[var(--color-priority-high)]' :
+                  s.priority === 2 ? 'bg-[var(--color-priority-medium)]/10 text-[var(--color-priority-medium)]' :
+                  'bg-[var(--color-priority-low)]/10 text-[var(--color-priority-low)]'
                 }`}>
                   {s.priority === 1 ? '高' : s.priority === 2 ? '中' : '低'}
                 </span>
@@ -258,7 +258,7 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
                 disabled={addedSuggestions.has(idx)}
                 className={`text-xs px-2 py-1 rounded transition-colors ${
                   addedSuggestions.has(idx)
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                     : 'bg-purple-500 text-white hover:bg-purple-600'
                 }`}
               >
@@ -277,7 +277,7 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
         </div>
       )}
       {!aiBreaking && aiSuggestions.length === 0 && (
-        <p className="text-xs text-gray-400">让 AI 自动将任务拆解为可执行的子任务</p>
+        <p className="text-xs text-[var(--color-text-tertiary)]">让 AI 自动将任务拆解为可执行的子任务</p>
       )}
     </div>
   )

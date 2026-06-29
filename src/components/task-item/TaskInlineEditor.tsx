@@ -36,7 +36,7 @@ export function TaskInlineEditor({ value, onChange, onSave, onCancel }: TaskInli
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       autoFocus
-      className="w-full text-[15px] font-medium px-1 py-0.5 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+      className="w-full text-[15px] font-medium px-1 py-0.5 border border-[var(--color-accent)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
     />
   )
 }

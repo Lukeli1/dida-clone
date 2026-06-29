@@ -79,7 +79,7 @@ export function AvatarSection() {
         onChange={handleAvatarChange}
       />
       {/* 顶部头像区域 */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-[var(--color-border)]">
         <div className="relative" ref={avatarMenuRef}>
           <button
             onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
@@ -89,31 +89,31 @@ export function AvatarSection() {
               <img
                 src={avatar}
                 alt="头像"
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-400 transition-all"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center ring-2 ring-gray-200 group-hover:ring-blue-400 transition-all">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center ring-2 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
             )}
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">滴答清单</p>
-              <p className="text-xs text-gray-400">点击上传头像</p>
+              <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">滴答清单</p>
+              <p className="text-xs text-[var(--color-text-tertiary)]">点击上传头像</p>
             </div>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${avatarMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 text-[var(--color-text-tertiary)] transition-transform ${avatarMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           {/* 下拉菜单 */}
           {avatarMenuOpen && (
-            <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute top-full left-0 mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 z-50">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
               >
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 {avatar ? '更换头像' : '上传头像'}
@@ -121,7 +121,7 @@ export function AvatarSection() {
               {avatar && (
                 <button
                   onClick={handleRemoveAvatar}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -140,13 +140,13 @@ export function AvatarSection() {
 // 底部固定栏：设置入口
 export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps) {
   return (
-    <div className="border-t border-gray-200 p-3 flex items-center gap-2">
+    <div className="border-t border-[var(--color-border)] p-3 flex items-center gap-2">
       <button
         onClick={() => onViewChange('settings')}
         className={`flex-1 flex items-center gap-2 sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors ${
           currentView === 'settings'
-            ? 'bg-blue-50/60 text-[#378ADD] font-medium'
-            : 'text-gray-700 hover:bg-gray-50/60'
+            ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'
+            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]/60'
         }`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

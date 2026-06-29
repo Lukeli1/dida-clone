@@ -67,38 +67,38 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-[var(--color-surface)]">
       {/* 工具栏 */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)]">
         <button
           onClick={() => setRangeStart(subWeeks(rangeStart, 1))}
-          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
           title="上一周"
         >
-          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <button
           onClick={() => setRangeStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-          className="px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="px-3 py-1 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
         >
           今天
         </button>
         <button
           onClick={() => setRangeStart(addWeeks(rangeStart, 1))}
-          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
           title="下一周"
         >
-          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
-        <span className="text-sm text-gray-500 ml-2">
+        <span className="text-sm text-[var(--color-text-secondary)] ml-2">
           {format(rangeStart, 'yyyy年M月d日', { locale: zhCN })} - {format(addDays(rangeStart, 20), 'M月d日', { locale: zhCN })}
         </span>
         <div className="flex-1" />
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-[var(--color-text-tertiary)]">
           共 {ganttTasks.length} 个任务
         </span>
       </div>
@@ -107,17 +107,17 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
       <div className="flex-1 overflow-auto">
         <div className="flex min-w-max">
           {/* 左侧任务列表 */}
-          <div className="sticky left-0 z-10 bg-white border-r border-gray-200 flex-shrink-0" style={{ width: '240px' }}>
+          <div className="sticky left-0 z-10 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex-shrink-0" style={{ width: '240px' }}>
             {/* 表头 */}
             <div
-              className="flex items-center px-3 text-xs font-medium text-gray-500 border-b border-gray-200 bg-gray-50"
+              className="flex items-center px-3 text-xs font-medium text-[var(--color-text-secondary)] border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
               style={{ height: 48 }}
             >
               任务名称
             </div>
             {/* 任务行 */}
             {ganttTasks.length === 0 ? (
-              <div className="px-3 py-8 text-center text-xs text-gray-400">
+              <div className="px-3 py-8 text-center text-xs text-[var(--color-text-tertiary)]">
                 暂无有截止日期的任务
               </div>
             ) : (
@@ -127,7 +127,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                   <div
                     key={task.id}
                     onClick={() => onTaskClick(task.id)}
-                    className="flex items-center gap-2 px-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100"
+                    className="flex items-center gap-2 px-3 cursor-pointer hover:bg-[var(--color-bg-secondary)] border-b border-[var(--color-border-light)]"
                     style={{ height: ROW_HEIGHT }}
                   >
                     <span
@@ -135,7 +135,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                       style={{ backgroundColor: list?.color || '#6B7280' }}
                       title={list?.name}
                     />
-                    <span className={`text-sm truncate flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                    <span className={`text-sm truncate flex-1 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}>
                       {task.title}
                     </span>
                     {task.priority > 0 && (
@@ -155,22 +155,22 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
           {/* 右侧时间轴 */}
           <div className="flex-shrink-0" style={{ width: days.length * DAY_WIDTH }}>
             {/* 日期表头 */}
-            <div className="flex border-b border-gray-200 bg-gray-50" style={{ height: 48 }}>
+            <div className="flex border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]" style={{ height: 48 }}>
               {days.map(date => {
                 const weekend = date.getDay() === 0 || date.getDay() === 6
                 const today = isToday(date)
                 return (
                   <div
                     key={date.toISOString()}
-                    className={`flex flex-col items-center justify-center border-r border-gray-100 ${
-                      weekend ? 'bg-gray-50' : ''
+                    className={`flex flex-col items-center justify-center border-r border-[var(--color-border-light)] ${
+                      weekend ? 'bg-[var(--color-bg-secondary)]' : ''
                     }`}
                     style={{ width: DAY_WIDTH }}
                   >
-                    <span className={`text-[10px] ${today ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                    <span className={`text-[10px] ${today ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
                       {format(date, 'EEE', { locale: zhCN })}
                     </span>
-                    <span className={`text-xs ${today ? 'bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center font-medium' : 'text-gray-600'}`}>
+                    <span className={`text-xs ${today ? 'bg-[var(--color-accent)] text-white rounded-full w-5 h-5 flex items-center justify-center font-medium' : 'text-[var(--color-text-secondary)]'}`}>
                       {date.getDate()}
                     </span>
                   </div>
@@ -191,9 +191,9 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                       onDragOver={(e) => handleDragOver(e, date)}
                       onDragLeave={() => setDragOverDate(null)}
                       onDrop={(e) => handleDrop(e, date)}
-                      className={`border-r border-b border-gray-100 ${
-                        weekend ? 'bg-gray-50/50' : ''
-                      } ${isDragOver ? 'bg-blue-100' : ''}`}
+                      className={`border-r border-b border-[var(--color-border-light)] ${
+                        weekend ? 'bg-[var(--color-bg-secondary)]/50' : ''
+                      } ${isDragOver ? 'bg-[var(--color-accent-light)]' : ''}`}
                       style={{ width: DAY_WIDTH, height: Math.max(ganttTasks.length * ROW_HEIGHT, 200) }}
                     />
                   )

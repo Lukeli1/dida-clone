@@ -6,6 +6,7 @@ import { useTagStore } from '../stores/tagStore'
 import { getFontSetting, applyFont } from '../utils/font'
 import { getAppearance, applyAppearance } from '../utils/appearance'
 import { migrateHabits, cleanupOldHabitBackup } from '../utils/migrateHabits'
+import { applyThemePreset, applyAccentColor, getCurrentTheme } from '../utils/themeUtils'
 import type { ToastApi } from '../components/Toast'
 
 /**
@@ -30,6 +31,14 @@ export function useAppInit(toast: ToastApi) {
     } else {
       root.classList.remove('dark')
     }
+
+    // 恢复主题预设与自定义强调色
+    const { presetId, accentColor } = getCurrentTheme()
+    applyThemePreset(presetId)
+    if (accentColor) {
+      applyAccentColor(accentColor)
+    }
+
     applyFont(getFontSetting())
     applyAppearance(getAppearance())
 
