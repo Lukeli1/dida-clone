@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.27.1-blue)
+![版本](https://img.shields.io/badge/version-1.28.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -184,6 +184,48 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.28.0（2026-06-29）
+
+#### UI/UX 全面优化
+
+**颜色体系统一**
+- 新增 CSS 变量体系：`--color-ai`、`--color-toggle-off/dot`、`--color-tooltip-bg/text`、`--color-mask` 等，浅色/深色双模式全覆盖
+- 优先级工具函数 `PRIORITY_STYLES` 的 hex 值与 CSS 变量对齐（高`#ea4335`、中`#f9ab00`、低`#4f86f7`、无`#9aa0a6`）
+- 修复 20+ 文件硬编码颜色：AI 助手紫色改用 `--color-ai`，Toggle 开关深色模式可见，TaskDetail/ContextMenu/StatsView/Pomodoro/Quadrant/Habit/ListSection/TagSection/Toast/AppearancePanel 全部统一
+- 右键菜单日期按钮 hover 色统一为语义变量，优先级选中态 ring 统一，置顶色改用 warning 变量
+
+**全局确认对话框**
+- 新建 `ConfirmDialog` 组件，支持 danger/普通模式、ESC 关闭、点击遮罩关闭、缩放动画
+- 替换所有原生 `confirm()`：TaskDetail 删除、ListSection 删除清单、TagSection 删除标签、HabitView 删除习惯、AIAssistant 清空对话、BatchToolbar 批量删除、AppearancePanel 重置默认
+
+**动画体系补全**
+- CSS 新增 5 个动画类：`slideInRight/slideOutRight/fadeIn/slideUp/slideDown`
+- 详情面板滑入/滑出动画、右键菜单/更多菜单 scale-in 入场、Toast 退出动画
+- 可折叠面板平滑展开：SubtaskList/TaskAIPanel/新建清单/新建标签/番茄钟设置面板
+- 设置面板右侧内容切换淡入、AI 技能菜单 scale-in、聊天消息 slide-up 入场
+- 批量工具栏/筛选栏入场动画
+
+**交互反馈增强**
+- 全局按钮按压反馈：`active:scale-[0.97]`，图标按钮 `active:scale-90`
+- Toast 增强：退出动画、hover 暂停自动关闭、最多 5 条、useRef 管理 ID、ARIA 属性
+- 各场景 Toast 反馈：批量操作、习惯 CRUD、四象限拖拽、清单/标签创建
+- 详情面板更多菜单：外部点击关闭 + ESC 关闭
+- 弹出菜单边界检测：TaskContextMenu/ListSection/TagSection 自动调整位置防溢出
+
+**样式规范统一**
+- Checkbox 尺寸统一（任务列表/四象限/番茄钟 18px，日历紧凑 12-14px）
+- 圆角规范：卡片 `rounded-xl`，按钮 `rounded-lg`，小元素 `rounded-md`
+- 批量工具栏尺寸优化：padding 增大、focus ring、disabled 光标
+- 侧边栏选中态统一：ListSection/TagSection/ViewSwitcher 不透明背景 + 左侧彩色指示条
+- 圆点规格统一：清单/标签一级 `w-2.5 h-2.5` + 白边，二级 `w-2 h-2`
+- SettingsView 导航图标颜色统一继承
+- 筛选栏增强：显示匹配任务数、select hover 效果
+
+**功能体验增强**
+- 右键菜单 emoji 全部替换为内联 SVG 图标（太阳/日出/日历/X/优先级圆点）
+- 番茄钟增强：document.title 倒计时显示、Notification API 桌面通知、sessionsInCycle 修复
+- 滚动条样式优化：6px 圆角精致滚动条
 
 ### v1.27.1（2026-06-29）
 
