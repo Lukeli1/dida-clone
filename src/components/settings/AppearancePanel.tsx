@@ -10,9 +10,11 @@ import {
 import { api, isTauri } from '../../api'
 import { useTheme } from '../../hooks/useTheme'
 import { THEME_PRESETS } from '../../styles/themes'
+import { useConfirm } from '../common/ConfirmDialog'
 
 export function AppearancePanel() {
   const { mode: theme, presetId, accentColor, setMode: setTheme, setPreset, setAccentColor, resetTheme } = useTheme()
+  const confirm = useConfirm()
 
   // 字体设置
   const [fontSetting, setFontSetting] = useState<AppFontSetting>(() => getFontSetting())
@@ -128,7 +130,7 @@ export function AppearancePanel() {
                 key={item.key}
                 onClick={() => handleFontSizeChange(item.key)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  appearance.fontSize === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+                  appearance.fontSize === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {item.label}
@@ -153,7 +155,7 @@ export function AppearancePanel() {
                 key={item.key}
                 onClick={() => handleSidebarDensityChange(item.key)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  appearance.sidebarDensity === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+                  appearance.sidebarDensity === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {item.label}
@@ -174,7 +176,7 @@ export function AppearancePanel() {
                 key={t}
                 onClick={() => setTheme(t)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  theme === t ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+                  theme === t ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {t === 'light' ? '浅色' : t === 'dark' ? '深色' : '跟随系统'}
@@ -199,7 +201,7 @@ export function AppearancePanel() {
                   className={`relative px-3 py-2.5 rounded-lg border-2 transition-all text-left ${
                     isSelected
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-border)] bg-[var(--color-surface)]'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/50 bg-[var(--color-surface)]'
                   }`}
                 >
                   <p className="text-xs font-medium text-[var(--color-text-primary)] mb-1.5">{preset.name}</p>
@@ -240,13 +242,13 @@ export function AppearancePanel() {
             <label className="relative cursor-pointer">
               <input
                 type="color"
-                value={accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#3b82f6'}
+                value={accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#4f86f7'}
                 onChange={(e) => setAccentColor(e.target.value)}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
               <span
                 className="block w-10 h-10 rounded-lg border-2 border-[var(--color-border)] shadow-sm"
-                style={{ backgroundColor: accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#3b82f6' }}
+                style={{ backgroundColor: accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#4f86f7' }}
               />
             </label>
             <div className="flex items-center gap-1.5">
@@ -261,7 +263,10 @@ export function AppearancePanel() {
               ))}
             </div>
             <button
-              onClick={() => resetTheme()}
+              onClick={async () => {
+                const ok = await confirm({ title: '重置为默认', message: '确定要将主题和强调色重置为默认设置吗？', confirmText: '重置', cancelText: '取消' })
+                if (ok) resetTheme()
+              }}
               className="ml-auto px-3 py-1.5 text-xs text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors"
             >
               重置为默认
@@ -278,7 +283,7 @@ export function AppearancePanel() {
       {/* 系统字体选择器弹窗 */}
       {showFontPicker && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-mask)]"
           onClick={() => setShowFontPicker(false)}
         >
           <div

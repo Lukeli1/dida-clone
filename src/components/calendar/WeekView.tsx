@@ -204,7 +204,7 @@ export function WeekView({
                           )}
                           {/* resize time tooltip */}
                           {isResizing && resize.resizePreview && (
-                            <div className="absolute -top-6 left-0 bg-gray-800 text-white text-xs px-2 py-0.5 rounded whitespace-nowrap z-30">
+                            <div className="absolute -top-6 left-0 bg-[var(--color-tooltip-bg)] text-[var(--color-tooltip-text)] text-xs px-2 py-0.5 rounded whitespace-nowrap z-30">
                               {sel.formatMinute(resize.resizePreview.top)} - {sel.formatMinute(resize.resizePreview.top + resize.resizePreview.height)}
                             </div>
                           )}

@@ -133,7 +133,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
             >
-              <span className={activeCategory === cat.key ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)]'}>
+              <span>
                 {cat.icon}
               </span>
               {cat.label}
@@ -143,7 +143,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
 
         {/* 右侧内容区 */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-8 py-6">
+          <div key={activeCategory} className="max-w-2xl mx-auto px-8 py-6 animate-fade-in">
             <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-5">{activeLabel}</h3>
             {renderContent()}
           </div>

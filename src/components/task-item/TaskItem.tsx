@@ -153,7 +153,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
         {hasSubtasks ? (
           <button
             onClick={(e) => { e.stopPropagation(); ctx.onToggleExpand(task.id) }}
-            className="flex-shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-all"
+            className="flex-shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-all active:scale-90"
             aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
           >
             <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,7 +170,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
             checked={isSelectedForBatch || false}
             onChange={(e) => { e.stopPropagation(); ctx.onToggleSelect(task.id) }}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all"
+            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
           />
         ) : (
           <input
@@ -178,7 +178,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
             checked={task.completed}
             onChange={(e) => { e.stopPropagation(); ctx.onToggle(task) }}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all"
+            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
           />
         )}
 

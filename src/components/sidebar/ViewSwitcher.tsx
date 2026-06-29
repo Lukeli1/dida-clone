@@ -130,12 +130,12 @@ export function ViewSwitcher({
             <button
               key={item.id}
               onClick={item.action}
-              className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 ${
+              className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
                 item.match
                   ? item.id === 'ai'
                     ? 'bg-purple-50 text-purple-600 shadow-sm'
-                    : 'bg-[var(--color-accent-soft)] text-[var(--color-accent)] shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
+                    : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
             >
               <span className="flex items-center gap-2.5">
@@ -167,10 +167,10 @@ export function ViewSwitcher({
             <button
               key={item.id}
               onClick={item.action}
-              className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 ${
+              className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
                 item.match
-                  ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)] shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
             >
               <span className={item.match ? 'opacity-100' : 'opacity-60'}>

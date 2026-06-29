@@ -23,7 +23,7 @@ export function GeneralPanel() {
                 key={d}
                 onClick={() => setWeekStart(d)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  weekStart === d ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+                  weekStart === d ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {d === 'sunday' ? '周日' : '周一'}

@@ -33,7 +33,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
           />
           <button
             onClick={() => { setAiMode(!aiMode); newTaskInputRef.current?.focus() }}
-            className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${
+            className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 active:scale-95 ${
               aiMode
                 ? 'bg-purple-500 text-white shadow-sm hover:bg-purple-600'
                 : 'bg-purple-50 text-purple-600 hover:bg-purple-100'

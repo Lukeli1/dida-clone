@@ -6,13 +6,14 @@ interface TaskFilterBarProps {
   tags: Tag[]
   lists: List[]
   hasActiveFilters: boolean
+  filteredCount: number
 }
 
 /**
  * 组合筛选面板（优先级 / 日期范围 / 标签 / 清单）
  * 原样从 TaskListPanel 搬迁，未做任何逻辑改动。
  */
-export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFilterBarProps) {
+export function TaskFilterBar({ filters, tags, lists, hasActiveFilters, filteredCount }: TaskFilterBarProps) {
   return (
     <div className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex flex-wrap items-center gap-3">
       <span className="text-xs font-medium text-[var(--color-text-secondary)]">筛选条件：</span>
@@ -20,7 +21,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.priority === null ? '' : filters.priority}
         onChange={(e) => filters.setFilter('priority', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="">全部优先级</option>
         <option value="1">高优先级</option>
@@ -32,7 +33,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.dateRange}
         onChange={(e) => filters.setFilter('dateRange', e.target.value as FilterState['dateRange'])}
-        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="all">全部日期</option>
         <option value="today">今天</option>
@@ -45,7 +46,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.tagId === null ? '' : filters.tagId}
         onChange={(e) => filters.setFilter('tagId', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="">全部标签</option>
         {tags.map(tag => (
@@ -56,7 +57,7 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
       <select
         value={filters.listId === null ? '' : filters.listId}
         onChange={(e) => filters.setFilter('listId', e.target.value === '' ? null : Number(e.target.value))}
-        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+        className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="">全部清单</option>
         {lists.map(list => (
@@ -64,12 +65,15 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters }: TaskFi
         ))}
       </select>
       {hasActiveFilters && (
-        <button
-          onClick={() => filters.resetFilters()}
-          className="px-2 py-1 text-xs text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 rounded-md"
-        >
-          清除筛选
-        </button>
+        <>
+          <span className="text-sm text-[var(--color-text-tertiary)]">匹配 {filteredCount} 个任务</span>
+          <button
+            onClick={() => filters.resetFilters()}
+            className="px-2 py-1 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 rounded-md"
+          >
+            清除筛选
+          </button>
+        </>
       )}
     </div>
   )

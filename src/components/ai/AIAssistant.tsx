@@ -11,6 +11,7 @@ import type { AIAssistantProps, UIMessage } from './types'
 import { stripActionsLive, executeAction } from './ActionParser'
 import { ChatMessageItem } from './ChatMessage'
 import { WelcomeScreen } from './SkillSelector'
+import { useConfirm } from '../common/ConfirmDialog'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
   const [messages, setMessages] = useState<UIMessage[]>([])
@@ -22,6 +23,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null) // 流式取消函数
   const settledRef = useRef(false) // 防止 done/error/stop 重复结算
+  const confirm = useConfirm()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -186,7 +188,9 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  function handleClearChat() {
+  async function handleClearChat() {
+    const ok = await confirm({ title: '清空对话', message: '确定要清空所有对话记录吗？此操作不可撤销。', danger: true, confirmText: '清空', cancelText: '取消' })
+    if (!ok) return
     cleanupRef.current?.()
     cleanupRef.current = null
     settledRef.current = true
@@ -198,14 +202,14 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
-      <header className="bg-gradient-to-r from-purple-500 to-purple-600 px-5 py-3.5 flex items-center justify-between">
+      <header className="bg-[var(--color-ai)] px-5 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
           </div>
           <div>
             <h2 className="text-base font-semibold text-white">AI 助手</h2>
-            <p className="text-xs text-purple-100">
+            <p className="text-xs text-white/80">
               {activeSkill ? `${activeSkill.icon} ${activeSkill.name}` : '智能任务管理助手'}
             </p>
           </div>
@@ -232,7 +236,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
 
       <div className="border-t border-[var(--color-border)] p-3 bg-[var(--color-surface)]">
         {activeSkill && (
-          <div className="flex items-center gap-2 mb-2 px-2 py-1 bg-[var(--color-accent-light)] rounded-lg">
+          <div className="flex items-center gap-2 mb-2 px-2 py-1 bg-[var(--color-accent-light)] rounded-lg animate-slide-down">
             <span className="text-xs text-[var(--color-accent)]">{activeSkill.icon} {activeSkill.name} 模式</span>
             <button onClick={() => { setActiveSkill(null) }} className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] ml-auto">退出 ✕</button>
           </div>
@@ -260,7 +264,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
             {showSkillMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowSkillMenu(false)} />
-                <div className="absolute bottom-full right-0 mb-2 w-64 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="absolute bottom-full right-0 mb-2 w-64 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg z-50 overflow-hidden animate-scale-in origin-bottom-right" style={{boxShadow:'var(--shadow-modal)'}}>
                   <div className="p-2 border-b border-[var(--color-border-light)]">
                     <p className="text-xs font-medium text-[var(--color-text-secondary)]">⚡ 快捷技能</p>
                   </div>
@@ -285,7 +289,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           </div>
 
           {isStreaming ? (
-            <button onClick={handleStop} className="w-10 h-10 flex items-center justify-center bg-[var(--color-danger)] text-white rounded-xl hover:bg-[var(--color-danger)] transition-colors flex-shrink-0" title="停止生成">
+            <button onClick={handleStop} className="w-10 h-10 flex items-center justify-center bg-[var(--color-danger)] text-white rounded-xl hover:brightness-110 transition-all flex-shrink-0" title="停止生成">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
             </button>
           ) : (

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: {
@@ -18,4 +18,4 @@ export default defineConfig(async () => ({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
   },
-}))
+})

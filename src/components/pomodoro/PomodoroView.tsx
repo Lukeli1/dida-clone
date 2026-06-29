@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, getDurationSeconds, getTodayString, loadSettings, loa
 import { MODE_CONFIG, PomodoroTimer } from './PomodoroTimer'
 import { PomodoroSettingsPanel } from './PomodoroSettings'
 import { PomodoroStatsPanel } from './PomodoroStats'
+import { PRIORITY_STYLES } from '../../utils/priority'
 
 interface PomodoroViewProps {
   tasks: Task[]
@@ -32,7 +33,27 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
   const totalSeconds = getDurationSeconds(mode, settings)
   const ringColor = MODE_CONFIG[mode].color
-  const sessionsInCycle = stats.focusCount % settings.longBreakInterval
+  const sessionsInCycle = ((stats.focusCount - 1) % settings.longBreakInterval) + 1
+
+  // 更新 document.title
+  useEffect(() => {
+    function formatTime(sec: number): string {
+      const m = Math.floor(Math.max(0, sec) / 60)
+      const s = Math.max(0, sec) % 60
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    }
+    if (isRunning) {
+      const modeLabel = MODE_CONFIG[mode].label
+      document.title = `「${formatTime(secondsLeft)}」${modeLabel}中 - 滴答清单`
+    } else if (secondsLeft < totalSeconds && secondsLeft > 0) {
+      document.title = '已暂停 - 滴答清单'
+    } else {
+      document.title = '滴答清单'
+    }
+    return () => {
+      document.title = '滴答清单'
+    }
+  }, [isRunning, secondsLeft, totalSeconds, mode])
 
   // 计时器：运行时每秒递减（使用函数式更新避免闭包过期）
   useEffect(() => {
@@ -90,6 +111,20 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
         clearTimeout(notificationTimerRef.current)
       }
       notificationTimerRef.current = setTimeout(() => setNotification(null), 3500)
+    }
+
+    // 发送浏览器通知
+    try {
+      if (typeof Notification !== 'undefined') {
+        if (Notification.permission === 'granted') {
+          const notifBody = mode === 'focus' ? '休息一下吧！' : '继续专注吧！'
+          new Notification('番茄钟完成', { body: notifBody })
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission()
+        }
+      }
+    } catch {
+      // Notification API 不可用时静默忽略
     }
   }, [secondsLeft, isRunning, mode, stats, settings])
 
@@ -240,14 +275,9 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
                   <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{
-                      backgroundColor:
-                        selectedTask.priority === 1
-                          ? '#EF4444'
-                          : selectedTask.priority === 2
-                          ? '#F59E0B'
-                          : '#10B981',
+                      backgroundColor: PRIORITY_STYLES[selectedTask.priority]?.hex || PRIORITY_STYLES[0].hex,
                     }}
-                    title={`优先级：${selectedTask.priority === 1 ? '高' : selectedTask.priority === 2 ? '中' : '低'}`}
+                    title={`优先级：${PRIORITY_STYLES[selectedTask.priority]?.label || '无'}`}
                   />
                 )}
               </div>
@@ -260,14 +290,19 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
           {/* 统计卡片 */}
           <PomodoroStatsPanel stats={stats} />
 
-          {/* 设置面板 */}
-          {showSettings && (
-            <PomodoroSettingsPanel
-              settings={settings}
-              onSettingChange={handleSettingChange}
-              onResetDefaults={handleResetDefaults}
-            />
-          )}
+          {/* 设置面板（展开/收起动画） */}
+          <div
+            className={`w-full grid transition-[grid-template-rows] duration-200 ease-out ${showSettings ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+            aria-hidden={!showSettings}
+          >
+            <div className="overflow-hidden">
+              <PomodoroSettingsPanel
+                settings={settings}
+                onSettingChange={handleSettingChange}
+                onResetDefaults={handleResetDefaults}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

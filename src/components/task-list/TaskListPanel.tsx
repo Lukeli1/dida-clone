@@ -166,7 +166,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
         {/* 筛选面板 */}
         {showFilters && (
-          <TaskFilterBar filters={filters} tags={tags} lists={lists} hasActiveFilters={hasActiveFilters} />
+          <TaskFilterBar filters={filters} tags={tags} lists={lists} hasActiveFilters={hasActiveFilters} filteredCount={filteredTasks.length} />
         )}
 
         {/* 批量操作工具栏 */}

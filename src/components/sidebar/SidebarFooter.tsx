@@ -77,7 +77,7 @@ export function AvatarSection() {
         <div className="relative" ref={avatarMenuRef}>
           <button
             onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
-            className="flex items-center gap-3 w-full group"
+            className="flex items-center gap-3 w-full group active:scale-[0.98] transition-transform"
           >
             {avatar ? (
               <img
@@ -105,7 +105,7 @@ export function AvatarSection() {
             <div className="absolute top-full left-0 mt-2 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg py-1.5 z-50 animate-scale-in">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors rounded-lg mx-1 w-[calc(100%-8px)]"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] active:bg-[var(--color-bg-tertiary)] transition-colors rounded-lg mx-1 w-[calc(100%-8px)]"
               >
                 <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -115,7 +115,7 @@ export function AvatarSection() {
               {avatar && (
                 <button
                   onClick={handleRemoveAvatar}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors rounded-lg mx-1 w-[calc(100%-8px)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 active:bg-[var(--color-danger)]/15 transition-colors rounded-lg mx-1 w-[calc(100%-8px)]"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -137,10 +137,10 @@ export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps)
     <div className="border-t border-[var(--color-border)] p-3">
       <button
         onClick={() => onViewChange('settings')}
-        className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 ${
+        className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
           currentView === 'settings'
-            ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)] shadow-sm'
-            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
+            ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
         }`}
       >
         <svg className={`w-[18px] h-[18px] ${currentView === 'settings' ? 'opacity-100' : 'opacity-60'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>

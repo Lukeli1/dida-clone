@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Task, Tag, List } from '../../types'
-import { getTaskColor } from '../../utils/priority'
+import { getTaskColor, PRIORITY_STYLES } from '../../utils/priority'
 import { TaskNotes } from './TaskNotes'
 import { SubtaskList, TaskAIPanel } from './SubtaskList'
 import { SchedulePanel, TaskMetaPanel } from './TaskMetaPanel'
+import { useConfirm } from '../common/ConfirmDialog'
 
 interface TaskDetailProps {
   task: Task
@@ -17,14 +18,6 @@ interface TaskDetailProps {
   onCreateSubtask: (parentId: number, title: string) => void
 }
 
-// 优先级对应的色条颜色
-const PRIORITY_BAR_COLORS: Record<number, string> = {
-  0: '#D1D5DB',
-  1: '#EF4444',
-  2: '#F59E0B',
-  3: '#378ADD',
-}
-
 // 容器：任务基本信息 + 子组件编排
 export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title)
@@ -33,7 +26,38 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showSubtaskInput, setShowSubtaskInput] = useState(false)
 
+  const confirm = useConfirm()
+
   const titleRef = useRef<HTMLTextAreaElement>(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+  const moreBtnRef = useRef<HTMLButtonElement>(null)
+
+  // 点击外部关闭更多菜单
+  useEffect(() => {
+    if (!showMoreMenu) return
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node) &&
+        moreBtnRef.current && !moreBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowMoreMenu(false)
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowMoreMenu(false)
+        onClose()
+      }
+    }
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEsc)
+    }, 0)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEsc)
+    }
+  }, [showMoreMenu, onClose])
 
   useEffect(() => {
     setTitle(task.title)
@@ -57,8 +81,9 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
     onUpdate(task.id, updates)
   }
 
-  function handleDelete() {
-    if (confirm('确定删除这个任务吗？')) {
+  async function handleDelete() {
+    const ok = await confirm({ title: '删除任务', message: '确定删除这个任务吗？', danger: true, confirmText: '删除', cancelText: '取消' })
+    if (ok) {
       onDelete(task.id)
     }
   }
@@ -78,8 +103,8 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
         <button
           onClick={cyclePriority}
           title="点击切换优先级"
-          style={{ backgroundColor: PRIORITY_BAR_COLORS[priority] ?? PRIORITY_BAR_COLORS[0] }}
-          className="w-1 self-stretch shrink-0 hover:opacity-80 transition-opacity"
+          style={{ backgroundColor: PRIORITY_STYLES[priority]?.hex || PRIORITY_STYLES[0].hex }}
+          className="w-1.5 self-stretch shrink-0 hover:opacity-80 transition-opacity cursor-pointer active:scale-x-125"
         />
 
         <div className="flex-1 px-4 pt-4 pb-3 min-w-0">
@@ -97,7 +122,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
             {/* 子任务按钮：列表图标，点击展开子任务区域 */}
             <button
               onClick={() => setShowSubtaskInput(v => !v)}
-              className={`shrink-0 p-1 rounded transition-colors mt-0.5 ${
+              className={`shrink-0 p-1 rounded transition-all mt-0.5 active:scale-90 ${
                 showSubtaskInput ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)]'
               }`}
               title="添加子任务"
@@ -115,7 +140,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
         {/* 关闭按钮：右上角 */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] rounded transition-colors"
+          className="absolute top-3 right-3 p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] rounded transition-all active:scale-90"
           title="关闭"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +192,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
           {/* AI 魔法棒按钮，切换 AI 面板 */}
           <button
             onClick={() => setShowAIPanel(v => !v)}
-            className={`p-1 transition-colors ${showAIPanel ? 'text-purple-600' : 'text-purple-500 hover:text-purple-600'}`}
+            className={`p-1.5 rounded-lg transition-all active:scale-90 ${showAIPanel ? 'text-[var(--color-ai)] bg-[var(--color-ai-light)]' : 'text-[var(--color-ai)] hover:bg-[var(--color-ai-light)]'}`}
             title="AI 助手"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -177,8 +202,9 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
 
           {/* 更多选项按钮 */}
           <button
+            ref={moreBtnRef}
             onClick={() => setShowMoreMenu(v => !v)}
-            className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-all active:scale-90"
             title="更多"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -191,13 +217,13 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
 
         {/* 更多菜单下拉 */}
         {showMoreMenu && (
-          <div className="absolute bottom-full right-2 mb-1 w-52 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border-light)] py-1 z-30">
+          <div ref={moreMenuRef} className="absolute bottom-full right-2 mb-1 w-52 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 z-30 origin-bottom-right animate-scale-in" style={{boxShadow:'var(--shadow-dropdown)'}}>
             <button
               onClick={() => {
                 setShowMoreMenu(false)
                 handleDelete()
               }}
-              className="w-full text-left px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 active:bg-[var(--color-danger)]/15 transition-colors"
             >
               删除任务
             </button>

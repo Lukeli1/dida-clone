@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Task } from '../../types'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
 
@@ -133,11 +133,30 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
     }
   }, [onClose])
 
+  // 边界检测：防止菜单溢出视口
+  const [adjustedPos, setAdjustedPos] = useState(position)
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    let { x, y } = position
+    const margin = 8
+    if (x + rect.width > window.innerWidth - margin) {
+      x = window.innerWidth - rect.width - margin
+    }
+    if (y + rect.height > window.innerHeight - margin) {
+      y = window.innerHeight - rect.height - margin
+    }
+    if (x < margin) x = margin
+    if (y < margin) y = margin
+    setAdjustedPos({ x, y })
+  }, [position])
+
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 w-52"
-      style={{ left: position.x, top: position.y }}
+      className="fixed z-50 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] py-1 w-52 animate-scale-in origin-top-left"
+      style={{ left: adjustedPos.x, top: adjustedPos.y, boxShadow: 'var(--shadow-dropdown)' }}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -196,7 +215,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
               />
               <button
                 onClick={handleCustomDate}
-                className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent)] font-medium"
+                className="text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 px-2 py-1 rounded font-medium transition-colors"
               >
                 确定
               </button>
@@ -205,18 +224,18 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
             <div className="flex items-center gap-1 px-3 py-1.5">
               <button
                 onClick={() => handleQuickDate(0)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-amber-50 transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-warning)]/10 transition-colors"
                 title="今天"
               >
-                <span className="text-base">☀️</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">今天</span>
               </button>
               <button
                 onClick={() => handleQuickDate(1)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-orange-50 transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-warning)]/10 transition-colors"
                 title="明天"
               >
-                <span className="text-base">🌅</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 18h18v-4a1 1 0 00-1-1H4a1 1 0 00-1 1v5a1 1 0 001 1h16M12 2v4M4.93 9.93l1.41 1.41M7 14l2-2 2 2 2-2 2 2"/></svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">明天</span>
               </button>
               <button
@@ -224,15 +243,15 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-accent-light)] transition-colors"
                 title="7天后"
               >
-                <span className="text-base">📅</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18"/></svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">7天后</span>
               </button>
               <button
                 onClick={() => { setShowCustomDate(true); setCustomDate(task.due_date ? new Date(task.due_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)) }}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-purple-50 transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-ai)]/10 transition-colors"
                 title="自定义"
               >
-                <span className="text-base">✏️</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18"/><path strokeWidth="2" strokeLinecap="round" d="M8 14v.01M12 14v.01M16 14v.01M8 18v.01M12 18v.01M16 18v.01"/></svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">自定义</span>
               </button>
               <button
@@ -240,7 +259,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                 className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-bg-tertiary)] transition-colors"
                 title="清除日期"
               >
-                <span className="text-base">✕</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">清除</span>
               </button>
             </div>
@@ -256,26 +275,26 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
           <div className="flex items-center gap-1 px-3 py-1.5">
             <button
               onClick={() => handlePriority(1)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 1 ? 'bg-[var(--color-priority-high)]/10 ring-1 ring-[var(--color-priority-high)]/20' : 'hover:bg-[var(--color-priority-high)]/10'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 1 ? 'bg-[var(--color-priority-high)]/10 ring-1 ring-[var(--color-priority-high)]/30' : 'hover:bg-[var(--color-priority-high)]/10'}`}
               title="高"
             >
-              <span className="text-base">🔴</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-high)"/></svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">高</span>
             </button>
             <button
               onClick={() => handlePriority(2)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 2 ? 'bg-[var(--color-warning)]/10 ring-1 ring-[var(--color-warning)]/20' : 'hover:bg-[var(--color-warning)]/10'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 2 ? 'bg-[var(--color-priority-medium)]/10 ring-1 ring-[var(--color-priority-medium)]/30' : 'hover:bg-[var(--color-priority-medium)]/10'}`}
               title="中"
             >
-              <span className="text-base">🟡</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-medium)"/></svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">中</span>
             </button>
             <button
               onClick={() => handlePriority(3)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 3 ? 'bg-[var(--color-accent-light)] ring-1 ring-[var(--color-accent-light)]' : 'hover:bg-[var(--color-accent-light)]'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 3 ? 'bg-[var(--color-priority-low)]/10 ring-1 ring-[var(--color-priority-low)]/30' : 'hover:bg-[var(--color-priority-low)]/10'}`}
               title="低"
             >
-              <span className="text-base">🔵</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-low)"/></svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">低</span>
             </button>
             <button
@@ -283,7 +302,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
               className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 0 ? 'bg-[var(--color-bg-tertiary)] ring-1 ring-[var(--color-border)]' : 'hover:bg-[var(--color-bg-tertiary)]'}`}
               title="无"
             >
-              <span className="text-base">⬜</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="var(--color-priority-none)" strokeWidth="2"/></svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">无</span>
             </button>
           </div>
@@ -296,7 +315,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
           <div className="border-t border-[var(--color-border-light)] my-1" />
           <button
             onClick={handlePin}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${task.pinned ? 'text-orange-600 bg-orange-50/50' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${task.pinned ? 'text-[var(--color-warning)] bg-[var(--color-warning)]/10' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'}`}
           >
             <svg className="w-4 h-4" fill={task.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -327,7 +346,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
               </svg>
             </button>
             {showTagSubmenu && (
-              <div className="absolute left-full top-0 ml-0.5 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 w-44">
+              <div className="absolute left-full top-0 ml-0.5 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] py-1 w-44" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
                 {tags.length === 0 && !showNewTagInput && (
                   <div className="px-3 py-2 text-xs text-[var(--color-text-tertiary)]">暂无标签</div>
                 )}
@@ -341,7 +360,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                     >
                       <span
                         className="w-3 h-3 rounded-full flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: tag.color || '#6B7280' }}
+                        style={{ backgroundColor: tag.color || '#9aa0a6' }}
                       >
                         {isSelected && (
                           <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -370,7 +389,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
                     />
                     <button
                       onClick={handleCreateNewTag}
-                      className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent)] font-medium"
+                      className="text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 px-2 py-1 rounded font-medium transition-colors"
                     >
                       添加
                     </button>
@@ -413,13 +432,13 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
           <div className="flex items-center gap-2">
             <button
               onClick={handleDeleteConfirm}
-              className="flex-1 text-xs text-white bg-[var(--color-danger)] hover:bg-[var(--color-danger)] rounded py-1.5 transition-colors"
+              className="flex-1 text-xs text-white bg-[var(--color-danger)] hover:brightness-110 rounded py-1.5 transition-colors"
             >
               删除
             </button>
             <button
               onClick={() => { setShowDeleteConfirm(false); onClose() }}
-              className="flex-1 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)] rounded py-1.5 transition-colors"
+              className="flex-1 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)]/80 rounded py-1.5 transition-colors"
             >
               取消
             </button>

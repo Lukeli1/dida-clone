@@ -11,13 +11,13 @@ interface ChatMessageItemProps {
 /** 单条消息渲染（含打字机光标、操作确认卡片） */
 export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }: ChatMessageItemProps) {
   return (
-    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
       <div className={`flex gap-2.5 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
         {/* 头像 */}
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
           msg.role === 'user'
             ? 'bg-[var(--color-accent)]'
-            : 'bg-gradient-to-br from-purple-400 to-purple-600'
+            : 'bg-[var(--color-ai)]'
         }`}>
           {msg.role === 'user' ? (
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,9 +38,9 @@ export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }:
           {msg.isStreaming && !msg.content ? (
             /* 等待首个 token：三个跳动的点 */
             <div className="flex gap-1 py-1">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           ) : (
             <>
@@ -51,7 +51,7 @@ export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }:
           )}
           {/* 操作确认卡片 */}
           {msg.pendingAction && (
-            <div className="mt-3 p-3 bg-[var(--color-surface)] border border-[var(--color-warning)]/30 rounded-xl shadow-sm">
+            <div className="mt-3 p-3 bg-[var(--color-surface)] border border-[var(--color-warning)]/30 rounded-xl shadow-sm animate-scale-in">
               <div className="flex items-start gap-2 mb-2">
                 <span className="text-[var(--color-warning)] text-base">⚡</span>
                 <div className="flex-1">
@@ -65,13 +65,13 @@ export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }:
               <div className="flex gap-2">
                 <button
                   onClick={() => onExecuteAction(msg.pendingAction!, index)}
-                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--color-success)] text-white rounded-lg hover:bg-[var(--color-success)] transition-colors font-medium"
+                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--color-success)] text-white rounded-lg hover:brightness-110 transition-all font-medium"
                 >
                   ✓ 确认执行
                 </button>
                 <button
                   onClick={() => onRejectAction(index)}
-                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-bg-tertiary)]/80 transition-colors"
                 >
                   ✕ 取消
                 </button>

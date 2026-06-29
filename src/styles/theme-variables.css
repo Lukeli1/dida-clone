@@ -41,6 +41,22 @@
   --color-priority-low: #4f86f7;
   --color-priority-none: #9aa0a6;
 
+  /* AI 主题色 */
+  --color-ai: #8b5cf6;
+  --color-ai-hover: #7c3aed;
+  --color-ai-light: #f3e8ff;
+
+  /* Toggle 开关 */
+  --color-toggle-off: #d1d5db;
+  --color-toggle-dot: #ffffff;
+
+  /* Tooltip */
+  --color-tooltip-bg: #1f2937;
+  --color-tooltip-text: #ffffff;
+
+  /* 模态遮罩 */
+  --color-mask: rgba(0, 0, 0, 0.3);
+
   /* 标题栏 */
   --color-titlebar-bg: #f8f9fb;
   --color-titlebar-fg: #5f6368;
@@ -104,6 +120,22 @@
   --color-priority-medium: #fbc85c;
   --color-priority-low: #5c9cfc;
   --color-priority-none: #5f6368;
+
+  /* AI 主题色 - 深色模式下更柔和 */
+  --color-ai: #a78bfa;
+  --color-ai-hover: #c4b5fd;
+  --color-ai-light: rgba(167, 139, 250, 0.15);
+
+  /* Toggle 开关 - 深色模式 */
+  --color-toggle-off: #40434a;
+  --color-toggle-dot: #c9cdd4;
+
+  /* Tooltip - 深色模式 */
+  --color-tooltip-bg: #3a3f4a;
+  --color-tooltip-text: #e8eaed;
+
+  /* 模态遮罩 - 深色模式更深 */
+  --color-mask: rgba(0, 0, 0, 0.5);
 
   /* 标题栏 */
   --color-titlebar-bg: #16181d;

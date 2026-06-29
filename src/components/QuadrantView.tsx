@@ -7,6 +7,7 @@ import { TaskActionProvider, type TaskActionContextValue } from '../contexts/Tas
 import { useTagStore } from '../stores/tagStore'
 import { useListStore } from '../stores/listStore'
 import type { TaskActions } from '../hooks/useTaskActions'
+import { useToast } from './Toast'
 
 interface QuadrantViewProps {
   tasks: Task[]
@@ -29,13 +30,11 @@ interface QuadrantConfig {
 
 // 艾森豪威尔矩阵四象限配置（顺序对应 2x2 网格：左上、右上、左下、右下）
 const QUADRANTS: QuadrantConfig[] = [
-  { key: 'q1', title: '重要且紧急', subtitle: '立即处理', color: '#EF4444', priority: 1 },
-  { key: 'q2', title: '重要不紧急', subtitle: '计划安排', color: '#378ADD', priority: 2 },
-  { key: 'q3', title: '紧急不重要', subtitle: '委派他人', color: '#F59E0B', priority: 3 },
-  { key: 'q4', title: '不紧急不重要', subtitle: '稍后再做', color: '#9CA3AF', priority: 0 },
+  { key: 'q1', title: '重要且紧急', subtitle: '立即处理', color: '#ea4335', priority: 1 },
+  { key: 'q2', title: '重要不紧急', subtitle: '计划安排', color: '#4f86f7', priority: 2 },
+  { key: 'q3', title: '紧急不重要', subtitle: '委派他人', color: '#f9ab00', priority: 3 },
+  { key: 'q4', title: '不紧急不重要', subtitle: '稍后再做', color: '#9aa0a6', priority: 0 },
 ]
-
-const BRAND_BLUE = '#378ADD'
 
 /**
  * 截止日期是否在 2 天内（含今天）或已逾期 —— 视为「紧急」。
@@ -76,6 +75,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverQuadrant, setDragOverQuadrant] = useState<QuadrantKey | null>(null)
   const [contextMenu, setContextMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
+  const toast = useToast()
 
   const tags = useTagStore(s => s.tags)
   const lists = useListStore(s => s.lists)
@@ -158,6 +158,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
       // 仅在目标优先级与当前不同时才触发更新
       if (task && task.priority !== quadrant.priority) {
         onUpdateTaskPriority(taskId, quadrant.priority)
+        toast.info('任务优先级已更新')
       }
     }
     setDraggedTaskId(null)
@@ -266,7 +267,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                           }}
                           onClick={(e) => e.stopPropagation()}
                           className="w-5 h-5 rounded border-[var(--color-border)] checkbox-bounce cursor-pointer flex-shrink-0"
-                          style={{ accentColor: BRAND_BLUE }}
+                          style={{ accentColor: '#4f86f7' }}
                         />
                         <span
                           className={`flex-1 min-w-0 text-sm truncate ${

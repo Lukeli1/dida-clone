@@ -3,6 +3,7 @@ import { isToday, isThisMonth, subDays, format, isSameDay, parseISO } from 'date
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
 import { getLLMConfig, generateSummary } from '../utils/llm'
+import { PRIORITY_STYLES } from '../utils/priority'
 import { useToast } from './Toast'
 
 interface StatsViewProps {
@@ -51,10 +52,10 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
 
     // 按优先级统计
     const priorityStats = [
-      { label: '高', value: 1, color: '#EF4444', count: tasks.filter(t => t.priority === 1 && !t.completed).length },
-      { label: '中', value: 2, color: '#F59E0B', count: tasks.filter(t => t.priority === 2 && !t.completed).length },
-      { label: '低', value: 3, color: '#10B981', count: tasks.filter(t => t.priority === 3 && !t.completed).length },
-      { label: '无', value: 0, color: '#6B7280', count: tasks.filter(t => t.priority === 0 && !t.completed).length },
+      { label: '高', value: 1, color: PRIORITY_STYLES[1].hex, count: tasks.filter(t => t.priority === 1 && !t.completed).length },
+      { label: '中', value: 2, color: PRIORITY_STYLES[2].hex, count: tasks.filter(t => t.priority === 2 && !t.completed).length },
+      { label: '低', value: 3, color: PRIORITY_STYLES[3].hex, count: tasks.filter(t => t.priority === 3 && !t.completed).length },
+      { label: '无', value: 0, color: PRIORITY_STYLES[0].hex, count: tasks.filter(t => t.priority === 0 && !t.completed).length },
     ]
 
     // 连续完成天数
@@ -113,7 +114,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
         </div>
 
         {/* AI 智能摘要 */}
-        <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl border border-[var(--color-accent-light)] p-6 mb-6">
+        <div className="bg-[var(--color-ai)]/5 border border-[var(--color-ai)]/20 rounded-xl p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
               <svg className="w-5 h-5 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +150,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
         </div>
 
         {/* 本周完成趋势 */}
-        <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6 mb-6">
+        <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6 mb-6" style={{boxShadow:'var(--shadow-card)'}}>
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">本周完成趋势</h3>
           <div className="flex items-end justify-between gap-3 h-48">
             {stats.weekData.map((d, i) => (
@@ -157,7 +158,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                 <span className="text-xs text-[var(--color-text-secondary)] font-medium">{d.count}</span>
                 <div className="w-full bg-[var(--color-bg-tertiary)] rounded-t-lg overflow-hidden flex items-end" style={{ height: '120px' }}>
                   <div
-                    className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all"
+                    className="w-full bg-gradient-to-t from-[var(--color-accent)] to-[var(--color-accent-hover)] rounded-t-lg transition-all"
                     style={{ height: `${(d.count / maxWeekCount) * 100}%` }}
                   />
                 </div>
@@ -172,7 +173,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
 
         <div className="grid grid-cols-2 gap-6">
           {/* 按清单统计 */}
-          <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6">
+          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6" style={{boxShadow:'var(--shadow-card)'}}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">清单分布</h3>
             {stats.listStats.length === 0 ? (
               <p className="text-sm text-[var(--color-text-tertiary)]">暂无数据</p>
@@ -182,7 +183,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                   <div key={s.list.id}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.list.color || '#6B7280' }} />
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.list.color || '#9aa0a6' }} />
                         {s.list.name}
                       </span>
                       <span className="text-xs text-[var(--color-text-tertiary)]">{s.completed}/{s.total}</span>
@@ -192,7 +193,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${(s.total / maxListTotal) * 100}%`,
-                          backgroundColor: s.list.color || '#6B7280',
+                          backgroundColor: s.list.color || '#9aa0a6',
                         }}
                       />
                     </div>
@@ -203,7 +204,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
           </div>
 
           {/* 按优先级统计 */}
-          <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-6">
+          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6" style={{boxShadow:'var(--shadow-card)'}}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">优先级分布（未完成）</h3>
             <div className="space-y-3">
               {stats.priorityStats.map(p => {
@@ -238,17 +239,26 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
 }
 
 function StatCard({ title, value, subtitle, color }: { title: string; value: string | number; subtitle: string; color: 'blue' | 'green' | 'orange' | 'purple' }) {
-  const colorMap = {
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-green-500 to-green-600',
-    orange: 'from-orange-500 to-orange-600',
-    purple: 'from-purple-500 to-purple-600',
+  const dotColorMap = {
+    blue: 'bg-[var(--color-accent)]',
+    green: 'bg-[var(--color-success)]',
+    orange: 'bg-[var(--color-warning)]',
+    purple: 'bg-[var(--color-ai)]',
+  }
+  const textColorMap = {
+    blue: 'text-[var(--color-accent)]',
+    green: 'text-[var(--color-success)]',
+    orange: 'text-[var(--color-warning)]',
+    purple: 'text-[var(--color-ai)]',
   }
   return (
-    <div className={`bg-gradient-to-br ${colorMap[color]} rounded-xl shadow-sm p-4 text-white`}>
-      <p className="text-sm opacity-80">{title}</p>
-      <p className="text-3xl font-bold mt-1">{value}</p>
-      <p className="text-xs opacity-70 mt-1">{subtitle}</p>
+    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4" style={{boxShadow:'var(--shadow-card)'}}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`w-2 h-2 rounded-full ${dotColorMap[color]}`} />
+        <p className="text-xs text-[var(--color-text-secondary)]">{title}</p>
+      </div>
+      <p className={`text-2xl font-bold ${textColorMap[color]}`}>{value}</p>
+      <p className="text-xs text-[var(--color-text-tertiary)] mt-1">{subtitle}</p>
     </div>
   )
 }

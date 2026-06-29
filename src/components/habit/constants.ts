@@ -22,7 +22,7 @@ export interface HabitViewProps {
 
 export const PRESET_EMOJIS = ['💧', '🏃', '📖', '🧘', '💊', '🌅', '💪', '🥗']
 export const PRESET_COLORS = ['#378ADD', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#6B7280']
-export const BRAND_COLOR = '#378ADD'
+export const BRAND_COLOR = '#4f86f7'
 
 /** 图标库预设：{ emoji, bgColor } */
 export const ICON_PRESETS = [

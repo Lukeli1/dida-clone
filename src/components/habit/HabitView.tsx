@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { habitApi } from '../../api'
-import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, BRAND_COLOR, dateKey, getWeekDays } from './constants'
+import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, dateKey, getWeekDays } from './constants'
 import { HabitCard } from './HabitCard'
 import { HabitEditor } from './HabitEditor'
 import { CreateHabitForm } from './CreateHabitForm'
+import { useConfirm } from '../common/ConfirmDialog'
+import { useToast } from '../Toast'
 
 /* ============ 空状态 ============ */
 
@@ -26,8 +28,7 @@ function LoadingState() {
   return (
     <div className="flex items-center justify-center py-20">
       <div
-        className="w-8 h-8 rounded-full animate-spin"
-        style={{ border: '3px solid #E5E7EB', borderTopColor: BRAND_COLOR }}
+        className="w-8 h-8 rounded-full animate-spin border-[3px] border-[var(--color-border)] border-t-[var(--color-accent)]"
       />
     </div>
   )
@@ -58,6 +59,9 @@ export function HabitView(_props: HabitViewProps) {
   const [formColor, setFormColor] = useState(PRESET_COLORS[0])
   const [formGoal, setFormGoal] = useState(1)
   const [formUnit, setFormUnit] = useState('')
+
+  const confirm = useConfirm()
+  const toast = useToast()
 
   const today = new Date()
   const weekDays = getWeekDays()
@@ -121,8 +125,10 @@ export function HabitView(_props: HabitViewProps) {
       setHabits(prev => [...prev, { ...created, records: {} }])
       resetForm()
       setShowCreateForm(false)
+      toast.success('习惯创建成功')
     } catch (e) {
       console.error('创建习惯失败:', e)
+      toast.error('操作失败，请重试')
     }
   }
 
@@ -131,15 +137,18 @@ export function HabitView(_props: HabitViewProps) {
     setShowCreateForm(false)
   }
 
-  function handleDelete(id: number) {
-    if (!window.confirm('确定删除这个习惯吗？所有打卡记录将被清除。')) return
-    habitApi
-      .deleteHabit(id)
-      .then(() => {
-        setHabits(prev => prev.filter(h => h.id !== id))
-        if (expandedId === id) setExpandedId(null)
-      })
-      .catch(e => console.error('删除习惯失败:', e))
+  async function handleDelete(id: number) {
+    const ok = await confirm({ title: '删除习惯', message: '确定删除这个习惯吗？所有打卡记录将被清除。', danger: true, confirmText: '删除', cancelText: '取消' })
+    if (!ok) return
+    try {
+      await habitApi.deleteHabit(id)
+      setHabits(prev => prev.filter(h => h.id !== id))
+      if (expandedId === id) setExpandedId(null)
+      toast.success('习惯已删除')
+    } catch (e) {
+      console.error('删除习惯失败:', e)
+      toast.error('操作失败，请重试')
+    }
   }
 
   function toggleExpand(id: number) {
@@ -172,6 +181,7 @@ export function HabitView(_props: HabitViewProps) {
       setEditingId(null)
     } catch (e) {
       console.error('更新习惯失败:', e)
+      toast.error('操作失败，请重试')
     }
   }
 
@@ -184,8 +194,10 @@ export function HabitView(_props: HabitViewProps) {
       await habitApi.archiveHabit(habitId, newArchived)
       setHabits(prev => prev.map(h => (h.id === habitId ? { ...h, archived: newArchived } : h)))
       if (expandedId === habitId) setExpandedId(null)
+      toast.success(newArchived ? '习惯已归档' : '习惯已恢复')
     } catch (e) {
       console.error('归档习惯失败:', e)
+      toast.error('操作失败，请重试')
     }
   }
 
@@ -217,8 +229,7 @@ export function HabitView(_props: HabitViewProps) {
           <button
             type="button"
             onClick={() => { resetForm(); setShowCreateForm(true) }}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90"
-            style={{ backgroundColor: BRAND_COLOR }}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] rounded-lg transition-colors hover:opacity-90"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -260,7 +271,7 @@ export function HabitView(_props: HabitViewProps) {
               <button
                 type="button"
                 onClick={() => setShowArchived(true)}
-                className="mt-3 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                className="mt-3 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
               >
                 查看 {archivedCount} 个已归档习惯
               </button>
@@ -291,7 +302,7 @@ export function HabitView(_props: HabitViewProps) {
                 <button
                   type="button"
                   onClick={() => setShowArchived(!showArchived)}
-                  className={`text-sm ${showArchived ? 'text-[var(--color-accent)] hover:text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'} transition-colors`}
+                  className={`text-sm transition-colors ${showArchived ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]'}`}
                 >
                   {showArchived ? '隐藏已归档' : `显示已归档 (${archivedCount})`}
                 </button>

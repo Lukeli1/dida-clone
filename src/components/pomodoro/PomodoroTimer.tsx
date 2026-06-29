@@ -3,9 +3,9 @@ import type { TimerMode } from './storage'
 // ============ 常量 ============
 
 export const MODE_CONFIG: Record<TimerMode, { label: string; color: string }> = {
-  focus: { label: '专注', color: '#378ADD' },
-  shortBreak: { label: '短休息', color: '#10B981' },
-  longBreak: { label: '长休息', color: '#8B5CF6' },
+  focus: { label: '专注', color: '#4f86f7' },
+  shortBreak: { label: '短休息', color: '#10b981' },
+  longBreak: { label: '长休息', color: '#8b5cf6' },
 }
 
 export const MODE_ORDER: TimerMode[] = ['focus', 'shortBreak', 'longBreak']
