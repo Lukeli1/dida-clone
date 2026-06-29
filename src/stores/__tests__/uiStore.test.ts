@@ -21,6 +21,7 @@ const initialUIState = {
   dragOverCalendarDate: null as string | null,
   miniCalendarDate: new Date(2026, 0, 1),
   searchQuery: '',
+  shortcutsHelpOpen: false,
 }
 
 describe('uiStore', () => {
@@ -182,5 +183,16 @@ describe('uiStore', () => {
 
     useUIStore.getState().setAiParsing(true)
     expect(useUIStore.getState().aiParsing).toBe(true)
+  })
+
+  // 14. 快捷键帮助面板开关
+  it('setShortcutsHelpOpen 切换快捷键帮助面板', () => {
+    expect(useUIStore.getState().shortcutsHelpOpen).toBe(false)
+
+    useUIStore.getState().setShortcutsHelpOpen(true)
+    expect(useUIStore.getState().shortcutsHelpOpen).toBe(true)
+
+    useUIStore.getState().setShortcutsHelpOpen(false)
+    expect(useUIStore.getState().shortcutsHelpOpen).toBe(false)
   })
 })

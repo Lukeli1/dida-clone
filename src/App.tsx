@@ -19,6 +19,7 @@ import { useTaskActions } from './hooks/useTaskActions'
 import { TaskListPanel } from './components/task-list/TaskListPanel'
 import { CalendarPanel } from './components/CalendarPanel'
 import { DetailPanel } from './components/DetailPanel'
+import { ShortcutsHelp } from './components/ShortcutsHelp'
 
 /**
  * App 根组件（重构后）
@@ -62,6 +63,10 @@ function App() {
   const setSelectedListId = useUIStore(s => s.setSelectedListId)
   const setSelectedTagId = useUIStore(s => s.setSelectedTagId)
   const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+
+  // ===== 快捷键帮助面板（共享状态：TitleBar 按钮 + ? / F1 监听均可触发）=====
+  const shortcutsHelpOpen = useUIStore(s => s.shortcutsHelpOpen)
+  const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
 
   // ===== Refs（键盘快捷键 + TaskListPanel 输入框共享）=====
   const newTaskInputRef = useRef<HTMLInputElement>(null)
@@ -169,6 +174,9 @@ function App() {
           <DetailPanel task={selectedTask} actions={actions} />
         )}
       </div>
+
+      {/* 快捷键帮助面板（fixed 定位，按 ? / F1 或 TitleBar 帮助按钮打开）*/}
+      <ShortcutsHelp open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />
     </div>
   )
 }

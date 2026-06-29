@@ -29,6 +29,9 @@ interface UIState {
   // 搜索
   searchQuery: string
 
+  // 快捷键帮助面板
+  shortcutsHelpOpen: boolean
+
   // Actions
   setCurrentView: (view: ViewType) => void
   setSelectedListId: (id: number | null) => void
@@ -49,6 +52,7 @@ interface UIState {
   setIsDraggingTask: (dragging: boolean) => void
   setDragOverCalendarDate: (date: string | null) => void
   setMiniCalendarDate: (date: Date) => void
+  setShortcutsHelpOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -69,6 +73,7 @@ export const useUIStore = create<UIState>((set) => ({
   dragOverCalendarDate: null,
   miniCalendarDate: new Date(),
   searchQuery: '',
+  shortcutsHelpOpen: false,
 
   setCurrentView: (currentView) => set({ currentView }),
   setSelectedListId: (selectedListId) => set({ selectedListId, selectedTagId: null }),
@@ -110,4 +115,5 @@ export const useUIStore = create<UIState>((set) => ({
   setIsDraggingTask: (isDraggingTask) => set({ isDraggingTask }),
   setDragOverCalendarDate: (dragOverCalendarDate) => set({ dragOverCalendarDate }),
   setMiniCalendarDate: (miniCalendarDate) => set({ miniCalendarDate }),
+  setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
 }))

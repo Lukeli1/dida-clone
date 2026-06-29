@@ -1,18 +1,22 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Task } from '../../types'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
+import { DateMenu } from './menu/DateMenu'
+import { PriorityMenu } from './menu/PriorityMenu'
+import { TagMenu } from './menu/TagMenu'
 
 /**
  * 任务右键菜单。
  *
  * 从 TaskItem 容器中拆出。菜单的「是否显示」由容器决定（通过 position 是否为 null），
- * 本组件仅在 position 存在时挂载。子菜单 / 删除确认 / 自定义日期 / 新建标签等内部展开状态
- * 全部由本组件自管，与原内联实现一致。
+ * 本组件仅在 position 存在时挂载。删除确认等内部展开状态由本组件自管，与原内联实现一致。
  *
  * - onClose:  关闭菜单（容器将 position 置空）
  * - onRename: 触发容器进入内联编辑模式（重命名）
  *
  * 关闭逻辑（点击外部 / Esc / 滚动 / 其它右键 / close-context-menus 事件）原样保留。
+ * 日期 / 优先级 / 标签子菜单已拆分至 ./menu 下的独立组件，子菜单内部展开状态由各子组件自管，
+ * 菜单卸载（onClose 触发）时自动重置。
  */
 interface TaskContextMenuProps {
   task: Task
@@ -23,46 +27,9 @@ interface TaskContextMenuProps {
 
 export function TaskContextMenu({ task, position, onClose, onRename }: TaskContextMenuProps) {
   const ctx = useTaskActionContext()
-  const { tags, isArchivedView } = ctx
-  const [showTagSubmenu, setShowTagSubmenu] = useState(false)
+  const { isArchivedView } = ctx
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showCustomDate, setShowCustomDate] = useState(false)
-  const [customDate, setCustomDate] = useState('')
-  const [newTagName, setNewTagName] = useState('')
-  const [showNewTagInput, setShowNewTagInput] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-
-  function getDateString(offsetDays: number): string {
-    const d = new Date()
-    d.setDate(d.getDate() + offsetDays)
-    d.setHours(23, 59, 0, 0)
-    return d.toISOString()
-  }
-
-  function handleQuickDate(offsetDays: number) {
-    ctx.onSetDate(task.id, getDateString(offsetDays))
-    onClose()
-  }
-
-  function handleClearDate() {
-    ctx.onSetDate(task.id, null)
-    onClose()
-  }
-
-  function handleCustomDate() {
-    if (customDate) {
-      const d = new Date(customDate)
-      d.setHours(23, 59, 0, 0)
-      ctx.onSetDate(task.id, d.toISOString())
-    }
-    setShowCustomDate(false)
-    onClose()
-  }
-
-  function handlePriority(priority: number) {
-    ctx.onSetPriority(task.id, priority)
-    onClose()
-  }
 
   function handlePin() {
     ctx.onTogglePin(task.id)
@@ -84,25 +51,10 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
     setShowDeleteConfirm(false)
   }
 
-  function handleToggleTag(tagId: number) {
-    ctx.onToggleTag(task.id, tagId)
-  }
-
-  function handleCreateNewTag() {
-    if (newTagName.trim()) {
-      ctx.onCreateNewTag(newTagName.trim())
-      setNewTagName('')
-      setShowNewTagInput(false)
-    }
-  }
-
   useEffect(() => {
     function closeMenu() {
       onClose()
-      setShowTagSubmenu(false)
       setShowDeleteConfirm(false)
-      setShowCustomDate(false)
-      setShowNewTagInput(false)
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -201,112 +153,12 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
 
       {/* 日期快捷设置 */}
       {!isArchivedView && (
-        <>
-          <div className="border-t border-[var(--color-border-light)] my-1" />
-          <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">日期</div>
-          {showCustomDate ? (
-            <div className="px-3 py-2 flex items-center gap-2">
-              <input
-                type="date"
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
-                autoFocus
-              />
-              <button
-                onClick={handleCustomDate}
-                className="text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 px-2 py-1 rounded font-medium transition-colors"
-              >
-                确定
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 px-3 py-1.5">
-              <button
-                onClick={() => handleQuickDate(0)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-warning)]/10 transition-colors"
-                title="今天"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">今天</span>
-              </button>
-              <button
-                onClick={() => handleQuickDate(1)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-warning)]/10 transition-colors"
-                title="明天"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 18h18v-4a1 1 0 00-1-1H4a1 1 0 00-1 1v5a1 1 0 001 1h16M12 2v4M4.93 9.93l1.41 1.41M7 14l2-2 2 2 2-2 2 2"/></svg>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">明天</span>
-              </button>
-              <button
-                onClick={() => handleQuickDate(7)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-accent-light)] transition-colors"
-                title="7天后"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18"/></svg>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">7天后</span>
-              </button>
-              <button
-                onClick={() => { setShowCustomDate(true); setCustomDate(task.due_date ? new Date(task.due_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)) }}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-ai)]/10 transition-colors"
-                title="自定义"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/><path strokeWidth="2" strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18"/><path strokeWidth="2" strokeLinecap="round" d="M8 14v.01M12 14v.01M16 14v.01M8 18v.01M12 18v.01M16 18v.01"/></svg>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">自定义</span>
-              </button>
-              <button
-                onClick={handleClearDate}
-                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md hover:bg-[var(--color-bg-tertiary)] transition-colors"
-                title="清除日期"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">清除</span>
-              </button>
-            </div>
-          )}
-        </>
+        <DateMenu task={task} onClose={onClose} />
       )}
 
       {/* 优先级快捷设置 */}
       {!isArchivedView && (
-        <>
-          <div className="border-t border-[var(--color-border-light)] my-1" />
-          <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">优先级</div>
-          <div className="flex items-center gap-1 px-3 py-1.5">
-            <button
-              onClick={() => handlePriority(1)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 1 ? 'bg-[var(--color-priority-high)]/10 ring-1 ring-[var(--color-priority-high)]/30' : 'hover:bg-[var(--color-priority-high)]/10'}`}
-              title="高"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-high)"/></svg>
-              <span className="text-[10px] text-[var(--color-text-secondary)]">高</span>
-            </button>
-            <button
-              onClick={() => handlePriority(2)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 2 ? 'bg-[var(--color-priority-medium)]/10 ring-1 ring-[var(--color-priority-medium)]/30' : 'hover:bg-[var(--color-priority-medium)]/10'}`}
-              title="中"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-medium)"/></svg>
-              <span className="text-[10px] text-[var(--color-text-secondary)]">中</span>
-            </button>
-            <button
-              onClick={() => handlePriority(3)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 3 ? 'bg-[var(--color-priority-low)]/10 ring-1 ring-[var(--color-priority-low)]/30' : 'hover:bg-[var(--color-priority-low)]/10'}`}
-              title="低"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="var(--color-priority-low)"/></svg>
-              <span className="text-[10px] text-[var(--color-text-secondary)]">低</span>
-            </button>
-            <button
-              onClick={() => handlePriority(0)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md transition-colors ${task.priority === 0 ? 'bg-[var(--color-bg-tertiary)] ring-1 ring-[var(--color-border)]' : 'hover:bg-[var(--color-bg-tertiary)]'}`}
-              title="无"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="var(--color-priority-none)" strokeWidth="2"/></svg>
-              <span className="text-[10px] text-[var(--color-text-secondary)]">无</span>
-            </button>
-          </div>
-        </>
+        <PriorityMenu task={task} onClose={onClose} />
       )}
 
       {/* 置顶 */}
@@ -327,88 +179,7 @@ export function TaskContextMenu({ task, position, onClose, onRename }: TaskConte
 
       {/* 标签子菜单 */}
       {!isArchivedView && (
-        <>
-          <div className="border-t border-[var(--color-border-light)] my-1" />
-          <div
-            onMouseEnter={() => setShowTagSubmenu(true)}
-            onMouseLeave={() => { setShowTagSubmenu(false); setShowNewTagInput(false) }}
-            className="relative"
-          >
-            <button
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              标签
-              <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            {showTagSubmenu && (
-              <div className="absolute left-full top-0 ml-0.5 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] py-1 w-44" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
-                {tags.length === 0 && !showNewTagInput && (
-                  <div className="px-3 py-2 text-xs text-[var(--color-text-tertiary)]">暂无标签</div>
-                )}
-                {tags.map(tag => {
-                  const isSelected = task.tag_ids?.includes(tag.id)
-                  return (
-                    <button
-                      key={tag.id}
-                      onClick={() => handleToggleTag(tag.id)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-[var(--color-bg-secondary)] transition-colors"
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: tag.color || '#9aa0a6' }}
-                      >
-                        {isSelected && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className={`truncate ${isSelected ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>{tag.name}</span>
-                    </button>
-                  )
-                })}
-                <div className="border-t border-[var(--color-border-light)] my-1" />
-                {showNewTagInput ? (
-                  <div className="px-3 py-2 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); handleCreateNewTag() }
-                        if (e.key === 'Escape') { setShowNewTagInput(false); setNewTagName('') }
-                      }}
-                      placeholder="标签名称"
-                      className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleCreateNewTag}
-                      className="text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 px-2 py-1 rounded font-medium transition-colors"
-                    >
-                      添加
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowNewTagInput(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    新建标签
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </>
+        <TagMenu task={task} onClose={onClose} />
       )}
 
       {/* 创建副本 */}

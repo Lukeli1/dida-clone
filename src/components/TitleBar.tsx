@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { useUIStore } from '../stores/uiStore'
 
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
+  const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
 
   useEffect(() => {
     invoke<boolean>('window_is_maximized')
@@ -40,6 +42,18 @@ export function TitleBar() {
 
       {/* 右侧：窗口控制按钮 */}
       <div className="flex items-center h-full">
+        {/* 帮助按钮：打开快捷键帮助面板 */}
+        <button
+          onClick={() => setShortcutsHelpOpen(true)}
+          className="h-full px-3 flex items-center justify-center transition-all duration-150 active:scale-90 hover:bg-[var(--color-bg-tertiary)]"
+          style={{ color: 'var(--titlebar-fg, #5f6368)' }}
+          aria-label="快捷键帮助"
+          title="快捷键帮助 (?)"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
         <button
           onClick={() => invoke('window_minimize')}
           className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"

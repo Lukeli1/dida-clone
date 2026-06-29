@@ -3,6 +3,7 @@ import { useUIStore } from '../stores/uiStore'
 
 /**
  * 键盘快捷键：Ctrl+N 新建、Ctrl+F 搜索、Esc 关闭、Ctrl+1/2/3 视图切换
+ * ? / F1 打开快捷键帮助面板
  */
 export function useKeyboardShortcuts(
   newTaskInputRef: RefObject<HTMLInputElement>,
@@ -10,7 +11,26 @@ export function useKeyboardShortcuts(
 ) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const { setSelectedTaskId, setSearchQuery, setCurrentView, setSelectedListId, setSelectedTagId } = useUIStore.getState()
+      const { setSelectedTaskId, setSearchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setShortcutsHelpOpen } = useUIStore.getState()
+
+      // 检查当前焦点是否在输入框/文本域中（用于判断 ? 是否应触发帮助面板）
+      const target = e.target as HTMLElement
+      const isEditing =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+
+      // 快捷键帮助面板：? 或 F1（? = Shift+/，需检测 shiftKey）
+      if (e.key === 'F1') {
+        e.preventDefault()
+        setShortcutsHelpOpen(true)
+        return
+      }
+      if (!isEditing && (e.key === '?' || (e.shiftKey && (e.key === '/' || e.code === 'Slash')))) {
+        e.preventDefault()
+        setShortcutsHelpOpen(true)
+        return
+      }
 
       if (e.ctrlKey && e.key === 'n') {
         e.preventDefault()
