@@ -141,6 +141,23 @@ body {
   transition: all 0.15s ease;
 }
 
+/* ============ AI 流式打字机光标 ============ */
+@keyframes ai-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* 流式生成中显示在回复末尾的闪烁竖条光标 */
+.ai-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: ai-cursor-blink 1s step-end infinite;
+}
+
 /* ============ 深色模式全局覆盖 ============ */
 /* 通过 CSS 选择器在 .dark 下覆盖常见的 Tailwind 颜色类，避免逐一修改组件 */
 

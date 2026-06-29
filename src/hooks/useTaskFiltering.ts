@@ -7,6 +7,7 @@ import type { Task } from '../types'
 import { useTaskStore } from '../stores/taskStore'
 import { useFilterStore } from '../stores/filterStore'
 import { useUIStore } from '../stores/uiStore'
+import { matchTaskBySearch } from '../utils/taskSearch'
 
 /**
  * 统一的任务筛选 + 排序 + 树组装 hook
@@ -29,10 +30,11 @@ export function useTaskFiltering() {
     if (currentView === 'archived') {
       filtered = tasks.filter(t => t.archived)
     } else if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      filtered = tasks.filter(t =>
-        !t.archived && (t.title.toLowerCase().includes(q) || (t.notes && t.notes.toLowerCase().includes(q)))
-      )
+      // 全文搜索：标题 + 备注 + 子任务标题（大小写不敏感）。
+      // 子任务通过 parent_id 关联，matchTaskBySearch 内部会查找 parent_id === task.id 的子任务。
+      // 当某个子任务命中时，其父任务也会命中（通过子任务标题），因此父子任务都会进入 filteredTasks，
+      // taskTree 组装时即可正确把命中的子任务挂回父任务下，避免「孤儿子任务」被丢失。
+      filtered = tasks.filter(t => !t.archived && matchTaskBySearch(t, searchQuery, tasks))
     } else if (currentView === 'today') {
       filtered = tasks.filter(t => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date)))
     } else if (selectedTagId !== null) {

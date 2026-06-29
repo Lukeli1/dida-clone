@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import type { Task } from '../../types'
 import { hexWithAlpha, getTaskColor } from '../../utils/priority'
+import { getSearchMatchSource } from '../../utils/taskSearch'
+import { useUIStore } from '../../stores/uiStore'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
 import { TaskInlineEditor } from './TaskInlineEditor'
 import { TaskSubtaskList } from './TaskSubtaskList'
@@ -36,6 +38,14 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
   const totalSubtasks = task.subtasks?.length || 0
   const taskColor = getTaskColor(task, lists)
+
+  // ===== 搜索匹配来源标签 =====
+  // 仅在「非归档视图」且搜索框有内容、当前任务命中时显示标签：
+  //   - 标题命中 → 不显示标签（默认行为）
+  //   - 备注命中 → 显示「备注命中」
+  //   - 子任务标题命中 → 显示「子任务命中」
+  const searchQuery = useUIStore(s => s.searchQuery)
+  const matchSource = getSearchMatchSource(task, searchQuery, task.subtasks ?? [])
 
   // 稳定化的关闭菜单回调，避免 TaskContextMenu 的 useEffect 反复重跑
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [])
@@ -176,6 +186,13 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
               {task.title}
               {isArchivedView && (
                 <span className="ml-2 text-xs text-gray-400 font-normal">(已归档)</span>
+              )}
+              {/* 搜索匹配来源标签：标题命中不显示；备注/子任务命中显示对应小标签 */}
+              {!isArchivedView && matchSource === 'notes' && (
+                <span className="px-1.5 py-0.5 text-[11px] rounded bg-amber-100 text-amber-700">备注命中</span>
+              )}
+              {!isArchivedView && matchSource === 'subtask' && (
+                <span className="px-1.5 py-0.5 text-[11px] rounded bg-indigo-100 text-indigo-700">子任务命中</span>
               )}
             </p>
           )}

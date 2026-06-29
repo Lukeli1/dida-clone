@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import {
-  chat, AI_SKILLS, formatTasksContext,
+  chat, getLLMConfig, AI_SKILLS, formatTasksContext,
   ACTION_SYSTEM_PROMPT, parseActions,
-  type ChatHistoryMessage, type AISkill, type ActionOp,
+  type AISkill, type ActionOp,
 } from '../utils/llm'
-import { api } from '../api'
-import type { Task } from '../types'
+import { api, llmChatStream } from '../api'
+import type { Task, ChatMessage } from '../types'
 
 interface AIAssistantProps {
   tasks: Task[]
@@ -13,26 +14,39 @@ interface AIAssistantProps {
   onTasksChange?: () => void  // 任务变更后刷新数据
 }
 
-interface ChatMessage {
+interface UIMessage {
   role: 'user' | 'assistant'
   content: string
   skillId?: string
   pendingAction?: ActionOp  // 待确认的操作
+  isStreaming?: boolean      // 当前正在流式生成中（用于打字机光标）
 }
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<UIMessage[]>([])
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [activeSkill, setActiveSkill] = useState<AISkill | null>(null)
   const [showSkills, setShowSkills] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  // llmChatStream 返回的取消函数（unlisten），用于"停止生成"
+  const cleanupRef = useRef<(() => void) | null>(null)
+  // 防止 done/error/stop 重复结算同一条回复
+  const settledRef = useRef(false)
 
   // 滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, isStreaming])
+
+  // 组件卸载时清理流式监听，避免内存泄漏与卸载后 setState
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.()
+      cleanupRef.current = null
+    }
+  }, [])
 
   // 自动调整输入框高度
   useEffect(() => {
@@ -61,55 +75,139 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     }
   }
 
-  async function sendMessage(content: string, skillId?: string) {
-    if (!content.trim() || loading) return
+  /** 流式渲染时隐藏（可能尚未闭合的）操作指令块，避免露出原始 JSON */
+  function stripActionsLive(text: string): string {
+    return text
+      .replace(/\[\[ACTION\]\][\s\S]*?\[\[\/ACTION\]\]/g, '')
+      .replace(/\[\[ACTION\]\][\s\S]*$/, '')   // 流式中尚未闭合的块
+      .replace(/\n{3,}/g, '\n\n')
+  }
 
-    const userMsg: ChatMessage = { role: 'user', content }
+  async function sendMessage(content: string, skillId?: string) {
+    if (!content.trim() || isStreaming) return
+
+    const config = getLLMConfig()
+    if (!config) {
+      setMessages(prev => [...prev,
+        { role: 'user' as const, content },
+        { role: 'assistant' as const, content: '请先在设置中配置大模型 API（Base URL、API Key、Model）后重试。' },
+      ])
+      return
+    }
+
+    const userMsg: UIMessage = { role: 'user', content }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
     setInput('')
-    setLoading(true)
+    setIsStreaming(true)
+    settledRef.current = false
+
+    // 构建 system prompt
+    let systemPrompt = ACTION_SYSTEM_PROMPT
+    // 优先用传入的 skillId 查找技能（避免 setActiveSkill 后闭包内 activeSkill 尚未更新）
+    const skillObj = skillId ? AI_SKILLS.find(s => s.id === skillId) : activeSkill
+    if (skillObj) {
+      systemPrompt += `\n\n当前技能模式：${skillObj.name} - ${skillObj.description}`
+    }
+    // 注入当前准确时间（关键！让 AI 能正确解析"明天""下周三"等相对日期）
+    const now = new Date()
+    const timeZone = 'Asia/Shanghai (UTC+8)'
+    systemPrompt += `\n\n## 当前时间（用于解析相对日期，务必以此为准）`
+    systemPrompt += `\nISO: ${now.toISOString()}`
+    systemPrompt += `\n本地时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} (${timeZone})`
+    systemPrompt += `\n星期: ${['日', '一', '二', '三', '四', '五', '六'][now.getDay()]}`
+    // 始终附带任务上下文（让 AI 能回答任务相关问题）
+    systemPrompt += `\n\n用户当前任务列表：\n${formatTasksContext(tasks)}`
+
+    // 构建历史（排除当前消息）
+    const history = newMessages.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
+
+    // 发送给后端的完整消息（system + history + user）
+    const backendMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content },
+    ]
+
+    const skill = skillId ?? activeSkill?.id ?? null
+
+    // 占位 assistant 消息：流式逐字填充（打字机效果）
+    const assistantIdx = newMessages.length
+    setMessages(prev => [...prev, { role: 'assistant', content: '', skillId, isStreaming: true }])
+
+    let accumulated = ''
+
+    // 流式完成：解析操作指令并定稿
+    const finalize = (full: string) => {
+      if (settledRef.current) return
+      settledRef.current = true
+      const { actions, cleanedText } = parseActions(full)
+      setMessages(prev => prev.map((m, i) =>
+        i === assistantIdx
+          ? { ...m, content: cleanedText || full, skillId, pendingAction: actions[0], isStreaming: false }
+          : m
+      ))
+      setIsStreaming(false)
+      cleanupRef.current = null
+    }
+
+    // 流式失败：在占位消息上显示错误
+    const failWith = (errMsg: string) => {
+      if (settledRef.current) return
+      settledRef.current = true
+      setMessages(prev => prev.map((m, i) =>
+        i === assistantIdx
+          ? { ...m, content: `❌ 出错了：${errMsg}\n\n请检查设置中的大模型 API 配置。`, isStreaming: false }
+          : m
+      ))
+      setIsStreaming(false)
+      cleanupRef.current = null
+    }
+
+    // 流式不可用时回退到非流式 chat
+    const fallback = async () => {
+      try {
+        const reply = await chat(systemPrompt, content, history)
+        finalize(reply)
+      } catch (e: any) {
+        failWith(e.message || String(e))
+      }
+    }
 
     try {
-      // 构建 system prompt
-      let systemPrompt = ACTION_SYSTEM_PROMPT
-      if (activeSkill) {
-        systemPrompt += `\n\n当前技能模式：${activeSkill.name} - ${activeSkill.description}`
-      }
-      // 注入当前准确时间（关键！让 AI 能正确解析"明天""下周三"等相对日期）
-      const now = new Date()
-      const timeZone = 'Asia/Shanghai (UTC+8)'
-      systemPrompt += `\n\n## 当前时间（用于解析相对日期，务必以此为准）`
-      systemPrompt += `\nISO: ${now.toISOString()}`
-      systemPrompt += `\n本地时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} (${timeZone})`
-      systemPrompt += `\n星期: ${['日', '一', '二', '三', '四', '五', '六'][now.getDay()]}`
-      // 始终附带任务上下文（让 AI 能回答任务相关问题）
-      systemPrompt += `\n\n用户当前任务列表：\n${formatTasksContext(tasks)}`
-
-      // 构建历史（排除当前消息）
-      const history: ChatHistoryMessage[] = newMessages.slice(0, -1).map(m => ({
-        role: m.role,
-        content: m.content,
-      }))
-
-      const reply = await chat(systemPrompt, content, history)
-      // 解析操作指令
-      const { actions, cleanedText } = parseActions(reply)
-      const firstAction = actions[0]
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: cleanedText || reply,
-        skillId,
-        pendingAction: firstAction,
-      }])
-    } catch (e: any) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `❌ 出错了：${e.message || String(e)}\n\n请检查设置中的大模型 API 配置。`,
-      }])
-    } finally {
-      setLoading(false)
+      cleanupRef.current = await llmChatStream(
+        config,
+        backendMessages,
+        skill,
+        (delta) => {
+          if (settledRef.current) return
+          accumulated += delta
+          const display = stripActionsLive(accumulated)
+          setMessages(prev => prev.map((m, i) =>
+            i === assistantIdx ? { ...m, content: display } : m
+          ))
+        },
+        (full) => finalize(full),
+        () => fallback(),
+      )
+    } catch {
+      // 监听设置本身异常时，回退到非流式
+      await fallback()
     }
+  }
+
+  // 停止生成：取消监听 + 保留已生成内容
+  function handleStop() {
+    cleanupRef.current?.()
+    cleanupRef.current = null
+    // 通知后端取消（如后端实现了该 command，失败则忽略）
+    invoke('cancel_llm_chat').catch(() => {})
+    // 阻止后续 chunk/done 事件再次结算
+    settledRef.current = true
+    setMessages(prev => prev.map(m =>
+      m.isStreaming ? { ...m, isStreaming: false, content: m.content || '（已停止生成）' } : m
+    ))
+    setIsStreaming(false)
   }
 
   // 执行操作指令
@@ -196,6 +294,11 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
   }
 
   function handleClearChat() {
+    // 若正在生成，先停止
+    cleanupRef.current?.()
+    cleanupRef.current = null
+    settledRef.current = true
+    setIsStreaming(false)
     setMessages([])
     setActiveSkill(null)
     setShowSkills(true)
@@ -324,7 +427,20 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
                   ? 'bg-blue-500 text-white rounded-tr-sm'
                   : 'bg-gray-100 text-gray-800 rounded-tl-sm'
               }`}>
-                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                {msg.isStreaming && !msg.content ? (
+                  /* 等待首个 token：三个跳动的点 */
+                  <div className="flex gap-1 py-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                    {/* 流式生成中的闪烁光标 */}
+                    {msg.isStreaming && <span className="ai-cursor" />}
+                  </>
+                )}
                 {/* 操作确认卡片 */}
                 {msg.pendingAction && (
                   <div className="mt-3 p-3 bg-white border border-amber-200 rounded-xl shadow-sm">
@@ -358,26 +474,6 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
             </div>
           </div>
         ))}
-
-        {/* 加载中 */}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="flex gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div className="px-4 py-3 bg-gray-100 rounded-2xl rounded-tl-sm">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -402,27 +498,34 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={activeSkill ? '请输入...' : '输入问题，或点击技能快捷使用...'}
+            placeholder={isStreaming ? 'AI 正在生成中…' : (activeSkill ? '请输入...' : '输入问题，或点击技能快捷使用...')}
             rows={1}
             className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 resize-none max-h-30"
             style={{ minHeight: '42px' }}
           />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 flex items-center justify-center bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            {loading ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          {isStreaming ? (
+            <button
+              onClick={handleStop}
+              className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors flex-shrink-0"
+              title="停止生成"
+            >
+              {/* 停止图标 */}
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
               </svg>
-            ) : (
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="w-10 h-10 flex items-center justify-center bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              title="发送"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -90,6 +90,17 @@ export interface CompleteResult {
   new_task_id: number | null
 }
 
+/* ============ AI 对话相关类型 ============ */
+
+/**
+ * AI 对话消息（与后端 src-tauri/src/llm.rs 的 ChatMessage 结构体对齐）。
+ * 用于流式对话 llm_chat_stream 的 messages 参数。
+ */
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+}
+
 /* ============ 习惯打卡（Habit）相关类型 ============ */
 
 /** 习惯（与后端 db.rs 中的 Habit 结构体对齐，蛇形命名） */

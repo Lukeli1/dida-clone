@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest, ReorderItem, CompleteResult, Habit, HabitRecord, CreateHabitRequest, UpdateHabitRequest } from './types'
+import { listen } from '@tauri-apps/api/event'
+import type { Task, List, Tag, CreateTaskRequest, CreateListRequest, UpdateListRequest, CreateTagRequest, ReorderItem, CompleteResult, Habit, HabitRecord, CreateHabitRequest, UpdateHabitRequest, ChatMessage } from './types'
+import type { LLMConfig } from './utils/llm'
 
 // 桌面应用默认在 Tauri 环境中，不再依赖 window.__TAURI__ 检测
 export const isTauri = true
@@ -318,4 +320,79 @@ export const habitApi = {
   /** 删除某天打卡记录（取消打卡） */
   deleteRecord: (habitId: number, date: string): Promise<void> =>
     invoke<void>('delete_habit_record', { habitId, date }),
+}
+
+/* ============ AI 流式对话 API ============ */
+
+/**
+ * 流式 AI 对话：监听后端 `llm-chat-chunk` / `llm-chat-done` 事件实现打字机效果。
+ *
+ * 后端 command: `llm_chat_stream(config, messages, skill)`
+ *   - 逐 token 发送 `llm-chat-chunk` 事件（payload 为本次 delta 字符串）
+ *   - 全部输出完成后发送 `llm-chat-done` 事件（payload 为完整内容字符串）
+ *
+ * @returns 一个取消函数（unlisten），调用后停止接收后续事件，用于"停止生成"。
+ *
+ * 注意：这里不 `await invoke(...)`，而是 fire-and-forget + `.catch`，
+ *       这样取消函数能在生成完成前就返回，使"停止生成"按钮可用。
+ */
+export async function llmChatStream(
+  config: LLMConfig,
+  messages: ChatMessage[],
+  skill: string | null,
+  onChunk: (delta: string) => void,
+  onDone: (full: string) => void,
+  onError: (err: string) => void,
+): Promise<() => void> {
+  const unlistenChunk = await listen<string>('llm-chat-chunk', (e) => onChunk(e.payload))
+  const unlistenDone = await listen<string>('llm-chat-done', (e) => {
+    onDone(e.payload)
+    unlistenChunk()
+    unlistenDone()
+  })
+
+  // 触发流式命令；失败时清理监听并回调 onError（回退到非流式）
+  invoke('llm_chat_stream', { config, messages, skill }).catch((err) => {
+    unlistenChunk()
+    unlistenDone()
+    onError(String(err))
+  })
+
+  // 返回取消函数：随时可停止接收事件
+  return () => {
+    unlistenChunk()
+    unlistenDone()
+  }
+}
+
+/* ============ 数据导出/导入 API ============ */
+
+/** 导入结果：后端 import_json command 的返回值 */
+export interface ImportResult {
+  lists_imported: number
+  tasks_imported: number
+  tags_imported: number
+  habits_imported: number
+  habit_records_imported: number
+}
+
+/**
+ * 数据导出/导入 API：封装后端的 export_json / export_csv / export_markdown / import_json 命令。
+ *
+ * - 导出命令返回对应格式的字符串，由前端负责写入用户选择的文件。
+ * - 导入命令接收 JSON 字符串和模式（merge 合并 / replace 替换），返回 ImportResult。
+ */
+export const dataApi = {
+  /** 导出为 JSON 字符串 */
+  exportJson: (): Promise<string> => invoke<string>('export_json'),
+
+  /** 导出为 CSV 字符串 */
+  exportCsv: (): Promise<string> => invoke<string>('export_csv'),
+
+  /** 导出为 Markdown 字符串 */
+  exportMarkdown: (): Promise<string> => invoke<string>('export_markdown'),
+
+  /** 导入 JSON 数据（mode: merge 合并 / replace 替换） */
+  importJson: (json: string, mode: 'merge' | 'replace'): Promise<ImportResult> =>
+    invoke<ImportResult>('import_json', { json, mode }),
 }

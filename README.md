@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.23.0-blue)
+![版本](https://img.shields.io/badge/version-1.24.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,35 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.24.0（2026-06-29）
+
+#### Phase 4 — 功能增强与体验打磨
+
+**方向 A：拆分最后 3 个大文件**
+- `WeekView.tsx`（535→229 行）+ `MonthView.tsx`（490→291 行）→ `calendar/` 目录 10 个文件（含 shared/ 共享组件）
+- `task_commands.rs`（494→10 行）→ `task_crud.rs`（335 行）+ `task_ops.rs`（237 行）
+
+**方向 B：LLM 流式响应（打字机效果）**
+- 后端新增 `llm_chat_stream` command，SSE 流式返回
+- 前端 AI 对话接入流式，打字机逐字显示
+- 支持中途取消生成
+- 保留非流式 `llm_chat` 作为 fallback
+
+**方向 C：数据导出/导入**
+- 后端新增 4 个 command：`export_json` / `export_csv` / `export_markdown` / `import_json`
+- 前端设置页新增导出/导入 UI
+- 支持 JSON（完整备份）/ CSV（Excel 可开）/ Markdown（可读）
+- 导入支持合并和替换两种模式
+
+**方向 D：全文搜索增强**
+- 搜索从仅匹配标题扩展到标题 + 备注 + 子任务标题
+- 搜索结果显示匹配来源标签（"备注命中" / "子任务命中"）
+- 新增 18 个搜索测试用例
+
+**方向 E：CI/CD 基础**
+- GitHub Actions 自动测试流水线（`.github/workflows/ci.yml`）
+- push/PR 自动运行 tsc + vitest + cargo check
 
 ### v1.23.0（2026-06-29）
 

@@ -157,7 +157,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索任务... (Ctrl+F)"
+                placeholder="搜索标题、备注、子任务... (Ctrl+F)"
                 className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
               />
             </div>

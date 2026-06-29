@@ -13,6 +13,8 @@ use tauri::{
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .on_window_event(|window, event| {
             // 拦截关闭事件：改为隐藏窗口，不退出应用
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -98,8 +100,13 @@ pub fn run() {
             commands::get_habit_records,
             commands::upsert_habit_record,
             commands::delete_habit_record,
+            commands::export_json,
+            commands::export_csv,
+            commands::export_markdown,
+            commands::import_json,
             llm::test_llm_connection,
             llm::llm_chat,
+            llm::llm_chat_stream,
             fonts::list_system_fonts,
             commands::window_minimize,
             commands::window_maximize,
