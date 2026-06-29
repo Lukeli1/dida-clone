@@ -2,10 +2,11 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.24.0-blue)
+![版本](https://img.shields.io/badge/version-1.27.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
+![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
 ## 截图
 
@@ -183,6 +184,55 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.27.0（2026-06-29）
+
+#### Phase 7 — Bug 修复与收尾打磨
+
+**Bug 修复**
+- **四象限右键菜单**（P7-01）：四象限视图任务卡片支持右键菜单（删除/归档/置顶/标签/副本等），与任务列表行为一致
+- **习惯模块日历图**（P7-02）：习惯卡片展开后可查看月历历史打卡记录，支持翻月、统计本月/累计打卡天数
+- **AI 技能按钮集成**（P7-03）：AI 助手技能选择从常驻列表改为输入框旁闪电⚡按钮弹出菜单，活跃技能显示状态栏
+
+**架构收尾**
+- `sync.rs`（381→124 行）→ `sync_ops.rs`（215 行）
+- `SyncPanel.tsx`（460→289 行）→ `SyncStatusPanel.tsx`（160 行）
+
+### v1.26.0（2026-06-29）
+
+#### Phase 6 — Git 数据同步与 Rust 文件收尾
+
+**方向 A：Git 数据同步后端**
+- `sync.rs` — git2 crate 实现 clone/pull/push/status/conflict，支持 HTTPS+SSH 认证
+- `sync_commands.rs` — 5 个 Tauri command（get/save config, init repo, sync now, get status）
+- `lib.rs` — 自动同步定时器（启动延迟 10s，按配置间隔循环同步）
+
+**方向 B：同步 UI + 设置入口**
+- `types/sync.ts` + `api.ts` syncApi — 前端 API 封装（5 个方法）
+- `SyncPanel.tsx` — 完整同步设置面板（仓库配置/自动同步/手动同步/冲突处理）
+
+**方向 C：Rust 文件收尾**
+- `data_export.rs`（336→29 行）→ 4 文件（json/csv/markdown 各独立模块）
+- `task_crud.rs`（343→22 行）→ 4 文件（create/update/query 各独立模块）
+
+### v1.25.0（2026-06-29）
+
+#### Phase 5 — 主题系统重构与收尾打磨
+
+**方向 A：主题系统重构**
+- CSS 变量主题体系（30+ 语义化变量，浅色/深色两套）
+- 6 套预设主题（默认蓝/护眼绿/优雅紫/活力橙/玫瑰红/莫兰迪）+ 自定义强调色
+- 全组件颜色迁移到 CSS 变量（~50 个文件）
+- 主题预览面板 + 实时切换
+- 主题持久化 + useTheme hook + 系统主题跟随
+
+**方向 B：拆分最后大文件**
+- `AIAssistant.tsx`（533→264 行）→ `ai/` 目录 5 个文件
+- `data_commands.rs`（574→12 行）→ `data_export.rs` + `data_import.rs`
+
+**方向 C：测试补强**
+- 新增 3 个测试文件（themes/themeUtils/exportImport），19 个用例
+- 总测试数：169 → 188
 
 ### v1.24.0（2026-06-29）
 

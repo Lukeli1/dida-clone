@@ -10,14 +10,14 @@ import type { ChatMessage } from '../../types'
 import type { AIAssistantProps, UIMessage } from './types'
 import { stripActionsLive, executeAction } from './ActionParser'
 import { ChatMessageItem } from './ChatMessage'
-import { SkillSelector, WelcomeScreen } from './SkillSelector'
+import { WelcomeScreen } from './SkillSelector'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeSkill, setActiveSkill] = useState<AISkill | null>(null)
-  const [showSkills, setShowSkills] = useState(true)
+  const [showSkillMenu, setShowSkillMenu] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null) // 流式取消函数
@@ -40,7 +40,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
 
   function handleSelectSkill(skill: AISkill) {
     setActiveSkill(skill)
-    setShowSkills(false)
+    setShowSkillMenu(false)
     const needsTasks = !['task-template', 'breakdown'].includes(skill.id)
     if (needsTasks) {
       sendMessage(skill.buildPrompt(tasks), skill.id)
@@ -193,7 +193,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     setIsStreaming(false)
     setMessages([])
     setActiveSkill(null)
-    setShowSkills(true)
+    setShowSkillMenu(false)
   }
 
   return (
@@ -211,9 +211,6 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowSkills(!showSkills)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="技能列表">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-          </button>
           {messages.length > 0 && (
             <button onClick={handleClearChat} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="清空对话">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -224,8 +221,6 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           </button>
         </div>
       </header>
-
-      <SkillSelector skills={AI_SKILLS} onSelectSkill={handleSelectSkill} visible={showSkills} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && <WelcomeScreen onSendQuickQuestion={(q) => sendMessage(q)} />}
@@ -239,17 +234,56 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
         {activeSkill && (
           <div className="flex items-center gap-2 mb-2 px-2 py-1 bg-[var(--color-accent-light)] rounded-lg">
             <span className="text-xs text-[var(--color-accent)]">{activeSkill.icon} {activeSkill.name} 模式</span>
-            <button onClick={() => { setActiveSkill(null); setShowSkills(true) }} className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] ml-auto">退出 ✕</button>
+            <button onClick={() => { setActiveSkill(null) }} className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] ml-auto">退出 ✕</button>
           </div>
         )}
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? 'AI 正在生成中…' : (activeSkill ? '请输入...' : '输入问题，或点击技能快捷使用...')}
+            placeholder={isStreaming ? 'AI 正在生成中…' : (activeSkill ? '请输入...' : '输入问题，或点击闪电⚡使用技能...')}
             rows={1}
             className="flex-1 px-3.5 py-2.5 text-sm border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] resize-none max-h-30"
             style={{ minHeight: '42px' }}
           />
+
+          {/* 技能按钮 */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowSkillMenu(!showSkillMenu)}
+              disabled={isStreaming}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${showSkillMenu || activeSkill ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}`}
+              title="快捷技能"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </button>
+
+            {showSkillMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSkillMenu(false)} />
+                <div className="absolute bottom-full right-0 mb-2 w-64 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="p-2 border-b border-[var(--color-border-light)]">
+                    <p className="text-xs font-medium text-[var(--color-text-secondary)]">⚡ 快捷技能</p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {AI_SKILLS.map(skill => (
+                      <button
+                        key={skill.id}
+                        onClick={() => handleSelectSkill(skill)}
+                        className="w-full flex items-center gap-3 p-2.5 hover:bg-[var(--color-accent-light)] transition-colors text-left"
+                      >
+                        <span className="text-xl">{skill.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-[var(--color-text-primary)]">{skill.name}</div>
+                          <div className="text-xs text-[var(--color-text-tertiary)] truncate">{skill.description}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {isStreaming ? (
             <button onClick={handleStop} className="w-10 h-10 flex items-center justify-center bg-[var(--color-danger)] text-white rounded-xl hover:bg-[var(--color-danger)] transition-colors flex-shrink-0" title="停止生成">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>

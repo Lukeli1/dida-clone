@@ -2,12 +2,18 @@ import { useMemo, useState } from 'react'
 import { differenceInCalendarDays } from 'date-fns'
 import type { Task } from '../types'
 import { hexWithAlpha } from '../utils/priority'
+import { TaskContextMenu } from './task-item/TaskContextMenu'
+import { TaskActionProvider, type TaskActionContextValue } from '../contexts/TaskActionContext'
+import { useTagStore } from '../stores/tagStore'
+import { useListStore } from '../stores/listStore'
+import type { TaskActions } from '../hooks/useTaskActions'
 
 interface QuadrantViewProps {
   tasks: Task[]
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
   onUpdateTaskPriority: (taskId: number, priority: number) => void
+  actions: TaskActions
 }
 
 type QuadrantKey = 'q1' | 'q2' | 'q3' | 'q4'
@@ -66,9 +72,46 @@ function isOverdue(dueDate: string, completed: boolean): boolean {
  * 四象限（艾森豪威尔矩阵）任务视图。
  * 将任务按重要 / 紧急程度分为 4 个象限展示，支持拖拽改变优先级。
  */
-export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPriority }: QuadrantViewProps) {
+export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPriority, actions }: QuadrantViewProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverQuadrant, setDragOverQuadrant] = useState<QuadrantKey | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
+
+  const tags = useTagStore(s => s.tags)
+  const lists = useListStore(s => s.lists)
+
+  const taskActionValue: TaskActionContextValue = useMemo(() => ({
+    tags,
+    lists,
+    batchMode: false,
+    isArchivedView: false,
+    onToggle: actions.handleToggleTask,
+    onToggleSubtask: actions.handleToggleSubtask,
+    onClick: onTaskClick,
+    onReorder: () => {},
+    onDelete: actions.handleDeleteTask,
+    onArchive: actions.handleArchiveTask,
+    onUnarchive: actions.handleUnarchiveTask,
+    onSetDate: actions.handleSetDate,
+    onSetPriority: actions.handleSetPriority,
+    onTogglePin: actions.handleTogglePin,
+    onToggleTag: actions.handleToggleTag,
+    onDuplicate: actions.handleDuplicateTask,
+    onCreateNewTag: actions.handleCreateTag,
+    onInlineEdit: actions.handleInlineEdit,
+    onDragStartGlobal: actions.handleDragStartGlobal,
+    onDragEndGlobal: actions.handleDragEndGlobal,
+    onCreateSubtask: actions.handleCreateSubtask,
+    onToggleExpand: () => {},
+    onToggleSelect: () => {},
+    onSubtaskInputChange: () => {},
+  }), [tags, lists, actions, onTaskClick])
+
+  function handleContextMenu(e: React.MouseEvent, task: Task) {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ task, x: e.clientX, y: e.clientY })
+  }
 
   // 按象限分组任务（排除已归档），并排序：未完成在前 → 截止日期升序 → 创建时间倒序
   const tasksByQuadrant = useMemo(() => {
@@ -133,6 +176,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
     tasksByQuadrant.q4.length
 
   return (
+    <TaskActionProvider value={taskActionValue}>
     <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 工具栏 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -208,6 +252,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
                         onDragStart={(e) => handleDragStart(e, task.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onTaskClick(task.id)}
+                        onContextMenu={(e) => handleContextMenu(e, task)}
                         className={`group bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] hover:border-[var(--color-border)] transition-colors px-2.5 py-2 cursor-pointer flex items-center gap-2 ${
                           draggedTaskId === task.id ? 'opacity-40' : ''
                         } ${task.completed ? 'opacity-60' : ''}`}
@@ -264,6 +309,16 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
 
       {/* 仅供屏幕阅读器使用的总计 */}
       <span className="sr-only">共 {totalCount} 个任务</span>
+
+      {contextMenu && (
+        <TaskContextMenu
+          task={contextMenu.task}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={() => setContextMenu(null)}
+          onRename={() => setContextMenu(null)}
+        />
+      )}
     </div>
+    </TaskActionProvider>
   )
 }

@@ -6,6 +6,7 @@ import { habitApi } from '../../api'
 import { Habit, dateKey, getCount, getStreak, isFutureDay } from './constants'
 import { DayCell } from './DayCell'
 import { HabitFocusTimer } from './HabitFocusTimer'
+import { HabitCalendar } from './HabitCalendar'
 
 /* ============ 习惯卡片 ============ */
 
@@ -48,6 +49,13 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
 
   // 打卡操作进行中标志：避免并发点击导致计数错乱（等待 API 返回后再更新本地状态）
   const busyRef = useRef(false)
+
+  // 历史日历：展开详情中可切换显示的月历组件
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  })
 
   function closeContextMenu() {
     setContextMenu(null)
@@ -314,6 +322,28 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
                 </button>
               </div>
             </div>
+
+            {/* 历史日历切换 */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowCalendar(!showCalendar) }}
+              className="text-xs text-[var(--color-accent)] hover:underline mt-3"
+            >
+              {showCalendar ? '收起日历' : '📅 查看历史日历'}
+            </button>
+
+            {showCalendar && (
+              <HabitCalendar
+                records={habit.records}
+                month={calendarMonth}
+                onMonthChange={(dir) => {
+                  const newMonth = new Date(calendarMonth)
+                  if (dir === 'prev') newMonth.setMonth(newMonth.getMonth() - 1)
+                  else newMonth.setMonth(newMonth.getMonth() + 1)
+                  setCalendarMonth(newMonth)
+                }}
+              />
+            )}
           </div>
         )}
       </div>

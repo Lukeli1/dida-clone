@@ -136,6 +136,7 @@ function App() {
                 onTaskClick={(id) => setSelectedTaskId(id)}
                 onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
                 onUpdateTaskPriority={(id, priority) => actions.handleUpdateTask(id, { priority })}
+                actions={actions}
               />
             </div>
             <DetailPanel task={selectedTask} actions={actions} />
