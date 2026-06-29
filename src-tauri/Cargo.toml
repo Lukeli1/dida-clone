@@ -1,6 +1,6 @@
 [package]
 name = "dida-clone"
-version = "1.25.0"
+version = "1.26.0"
 description = "滴答清单本地复刻"
 authors = ["you"]
 edition = "2021"
@@ -19,3 +19,5 @@ font-loader = "0.11"
 tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+git2 = "0.19"
+tokio = { version = "1", features = ["time"] }

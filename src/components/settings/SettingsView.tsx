@@ -5,12 +5,13 @@ import { NotificationPanel } from './NotificationPanel'
 import { LLMApiPanel } from './LLMApiPanel'
 import { SystemPanel } from './SystemPanel'
 import { AboutPanel } from './AboutPanel'
+import SyncPanel from './SyncPanel'
 
 interface SettingsViewProps {
   onClose: () => void
 }
 
-type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'system' | 'about'
+type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'sync' | 'system' | 'about'
 
 interface SettingCategory {
   key: SettingCategoryKey
@@ -60,6 +61,15 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       ),
     },
     {
+      key: 'sync',
+      label: '数据同步',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ),
+    },
+    {
       key: 'system',
       label: '系统',
       icon: (
@@ -85,6 +95,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       case 'general': return <GeneralPanel />
       case 'notifications': return <NotificationPanel />
       case 'ai': return <LLMApiPanel />
+      case 'sync': return <SyncPanel />
       case 'system': return <SystemPanel />
       case 'about': return <AboutPanel />
     }
