@@ -101,14 +101,13 @@ export function useTaskFiltering() {
     return topLevel.map(task => ({ ...task, subtasks: subtaskMap.get(task.id) || [] }))
   }, [filteredTasks])
 
-  const completedTaskTree = useMemo(() => taskTree.filter(t => t.completed), [taskTree])
-  const incompleteTaskTree = useMemo(() => taskTree.filter(t => !t.completed), [taskTree])
-
-  // ===== 今日过期任务 =====
+  // ===== 过期任务 =====
+  // 今日视图从全量 tasks 提取过期任务；全部任务视图从已筛选的 taskTree 提取
   const overdueTaskTree = useMemo(() => {
-    if (currentView !== 'today') return []
+    if (currentView !== 'today' && currentView !== 'tasks') return []
     const todayStart = dateFnsStartOfDay(new Date())
-    return tasks.filter(t => {
+    const source = currentView === 'today' ? tasks : taskTree
+    return source.filter(t => {
       if (!t.due_date || t.completed) return false
       return dateFnsIsBefore(new Date(t.due_date), todayStart)
     }).sort((a, b) => {
@@ -119,7 +118,13 @@ export function useTaskFiltering() {
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
       return b.created_at.localeCompare(a.created_at)
     })
-  }, [tasks, currentView])
+  }, [tasks, taskTree, currentView])
+
+  const completedTaskTree = useMemo(() => taskTree.filter(t => t.completed), [taskTree])
+  const incompleteTaskTree = useMemo(() => {
+    const overdueIds = new Set(overdueTaskTree.map(t => t.id))
+    return taskTree.filter(t => !t.completed && !overdueIds.has(t.id))
+  }, [taskTree, overdueTaskTree])
 
   // ===== 统计 =====
   const todayCount = useMemo(() =>

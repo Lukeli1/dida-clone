@@ -112,15 +112,15 @@ export function DayViewGrid({
     <div className="flex-1 overflow-y-auto select-none">
       <div className="flex">
         {/* 小时标签列 */}
-        <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)] dark:border-gray-700">
-          <div className="h-12 border-b border-[var(--color-border)] dark:border-gray-700" />
+        <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)] dark:border-[var(--color-border)]">
+          <div className="h-12 border-b border-[var(--color-border)] dark:border-[var(--color-border)]" />
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="border-b border-[var(--color-border-light)] dark:border-gray-700/50 flex items-start justify-end pr-2"
+              className="border-b border-[var(--color-border-light)] dark:border-[var(--color-border-light)] flex items-start justify-end pr-2"
               style={{ height: `${HOUR_HEIGHT}px` }}
             >
-              <span className="text-xs text-[var(--color-text-tertiary)] dark:text-gray-500 -mt-2">
+              <span className="text-xs text-[var(--color-text-tertiary)] dark:text-[var(--color-text-tertiary)] -mt-2">
                 {hour === 0 ? '' : `${hour}:00`}
               </span>
             </div>
@@ -131,15 +131,15 @@ export function DayViewGrid({
         <div className="flex-1">
           <div
             onClick={() => onDateClick(currentDate)}
-            className={`h-12 border-b border-[var(--color-border)] dark:border-gray-700 flex items-center justify-center cursor-pointer hover:bg-[var(--color-accent-light)]/50 dark:hover:bg-blue-900/20 transition-colors ${
-              today ? 'bg-[var(--color-accent-light)] dark:bg-blue-900/30' : ''
+            className={`h-12 border-b border-[var(--color-border)] dark:border-[var(--color-border)] flex items-center justify-center cursor-pointer hover:bg-[var(--color-accent-light)]/50 dark:hover:bg-[var(--color-accent-light)] transition-colors ${
+              today ? 'bg-[var(--color-accent-light)] dark:bg-[var(--color-accent-soft)]' : ''
             }`}
           >
             <span
               className={`text-sm font-medium ${
                 today
                   ? 'w-6 h-6 flex items-center justify-center bg-[var(--color-accent)] text-white rounded-full'
-                  : 'text-[var(--color-text-secondary)] dark:text-gray-200'
+                  : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-primary)]'
               }`}
             >
               {format(currentDate, 'd')}
@@ -158,7 +158,7 @@ export function DayViewGrid({
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="border-b border-[var(--color-border-light)] dark:border-gray-700/50 hover:bg-[var(--color-accent-light)]/20 dark:hover:bg-blue-900/10 transition-colors"
+                className="border-b border-[var(--color-border-light)] dark:border-[var(--color-border-light)] hover:bg-[var(--color-accent-light)]/20 dark:hover:bg-[var(--color-accent-soft)] transition-colors"
                 style={{ height: `${HOUR_HEIGHT}px` }}
               />
             ))}
@@ -166,10 +166,10 @@ export function DayViewGrid({
             {/* 当前时间红线：仅当天显示，pointer-events-none 避免阻挡点击 */}
             {today && (
               <div
-                className="absolute left-0 right-0 z-20 pointer-events-none border-t-2 border-red-500 dark:border-red-400"
+                className="absolute left-0 right-0 z-20 pointer-events-none border-t-2 border-[var(--color-danger)]"
                 style={{ top: `${(currentMinutes / 60) * HOUR_HEIGHT}px` }}
               >
-                <div className="absolute -top-1 left-0 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400" />
+                <div className="absolute -top-1 left-0 w-2 h-2 rounded-full bg-[var(--color-danger)]" />
               </div>
             )}
 
@@ -221,16 +221,16 @@ export function DayViewGrid({
 
             {/* 快速添加弹窗（轻量） */}
             {createPopup?.isQuickAdd && (
-              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-gray-800 rounded-lg shadow-xl border border-[var(--color-accent-light)] dark:border-blue-800 p-3 w-64"
+              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-lg shadow-xl border border-[var(--color-accent-light)] dark:border-[var(--color-accent)] p-3 w-64"
                 style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: '20px' }}
                 onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-[var(--color-accent)] dark:text-blue-400 font-medium">
+                  <span className="text-xs text-[var(--color-accent)] dark:text-[var(--color-accent)] font-medium">
                     {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                   </span>
                   <button
                     onClick={onCyclePriority}
-                    className={`ml-auto p-1 rounded hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-gray-700 ${priorityFlags[popupPriority].color}`}
+                    className={`ml-auto p-1 rounded hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] ${priorityFlags[popupPriority].color}`}
                     title={priorityFlags[popupPriority].label}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,37 +241,37 @@ export function DayViewGrid({
                 <input ref={popupInputRef} value={popupTitle} onChange={(e) => onPopupTitleChange(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') onPopupSubmit(); if (e.key === 'Escape') onPopupClose() }}
                   placeholder="任务标题，回车保存"
-                  className="w-full px-2.5 py-1.5 text-sm border border-[var(--color-border)] dark:border-gray-600 bg-[var(--color-surface)] dark:bg-gray-700 text-[var(--color-text-primary)] dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]" />
+                  className="w-full px-2.5 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]" />
               </div>
             )}
 
             {/* 详细创建弹窗（拖选后） */}
             {createPopup && !createPopup.isQuickAdd && (
-              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-gray-800 rounded-xl shadow-xl border border-[var(--color-border)] dark:border-gray-700 p-4 w-72"
+              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-xl shadow-xl border border-[var(--color-border)] dark:border-[var(--color-border)] p-4 w-72"
                 style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: '20px' }}
                 onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 mb-3">
                   <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <span className="text-sm font-medium text-[var(--color-text-secondary)] dark:text-gray-200">
+                  <span className="text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-primary)]">
                     {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                   </span>
                 </div>
 
                 <input ref={popupInputRef} value={popupTitle} onChange={(e) => onPopupTitleChange(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') onPopupSubmit(); if (e.key === 'Escape') onPopupClose() }}
-                  placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-gray-600 bg-[var(--color-surface)] dark:bg-gray-700 text-[var(--color-text-primary)] dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-2" />
+                  placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-2" />
 
                 <textarea value={popupNotes} onChange={(e) => onPopupNotesChange(e.target.value)}
                   placeholder="备注（可选）" rows={2}
-                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-gray-600 bg-[var(--color-surface)] dark:bg-gray-700 text-[var(--color-text-primary)] dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none" />
+                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none" />
 
                 <div className="mb-3">
-                  <label className="block text-xs text-[var(--color-text-secondary)] dark:text-gray-400 mb-1.5">优先级</label>
+                  <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">优先级</label>
                   <div className="flex gap-1.5">
                     {priorityOptions.map((opt) => (
                       <button key={opt.value} onClick={() => onPopupPriorityChange(opt.value)}
                         className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                          popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)] dark:bg-gray-700` : 'text-[var(--color-text-tertiary)] dark:text-gray-500 border-[var(--color-border)] dark:border-gray-600 hover:border-[var(--color-border)] dark:hover:border-gray-500'
+                          popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)] dark:bg-[var(--color-bg-tertiary)]` : 'text-[var(--color-text-tertiary)] dark:text-[var(--color-text-tertiary)] border-[var(--color-border)] dark:border-[var(--color-border)] hover:border-[var(--color-border)] dark:hover:border-[var(--color-border-focus)]'
                         }`}>
                         {opt.label}
                       </button>
@@ -281,9 +281,9 @@ export function DayViewGrid({
 
                 {lists.length > 1 && (
                   <div className="mb-3">
-                    <label className="block text-xs text-[var(--color-text-secondary)] dark:text-gray-400 mb-1.5">清单</label>
+                    <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">清单</label>
                     <select value={popupListId || defaultListId} onChange={(e) => onPopupListChange(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] dark:border-gray-600 bg-[var(--color-surface)] dark:bg-gray-700 text-[var(--color-text-primary)] dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
+                      className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
                       {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
@@ -291,7 +291,7 @@ export function DayViewGrid({
 
                 <div className="flex gap-2">
                   <button onClick={onPopupSubmit} className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium">创建任务</button>
-                  <button onClick={onPopupClose} className="px-3 py-2 text-sm text-[var(--color-text-secondary)] dark:text-gray-400 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+                  <button onClick={onPopupClose} className="px-3 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">取消</button>
                 </div>
               </div>
             )}

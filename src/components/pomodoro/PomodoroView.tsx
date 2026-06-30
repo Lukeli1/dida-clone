@@ -6,6 +6,7 @@ import { MODE_CONFIG, PomodoroTimer } from './PomodoroTimer'
 import { PomodoroSettingsPanel } from './PomodoroSettings'
 import { PomodoroStatsPanel } from './PomodoroStats'
 import { PRIORITY_STYLES } from '../../utils/priority'
+import { EmptyState } from '../EmptyState'
 
 interface PomodoroViewProps {
   tasks: Task[]
@@ -189,33 +190,32 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)]">
-      <div className="min-h-full flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-2xl flex flex-col items-center">
-          {/* 标题栏 */}
-          <div className="w-full flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">番茄钟</h2>
-            <button
-              onClick={() => setShowSettings((v) => !v)}
-              className={`p-2 rounded-lg transition-colors ${
-                showSettings
-                  ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
-                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
-              }`}
-              aria-label="设置"
-              title="设置"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-          </div>
+    <div className="flex flex-col h-full">
+      <header className="border-b border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">番茄钟</h2>
+        <button
+          onClick={() => setShowSettings((v) => !v)}
+          className={`p-2 rounded-lg transition-colors ${
+            showSettings
+              ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
+              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
+          }`}
+          aria-label="设置"
+          title="设置"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
 
           {/* 轻提示通知 */}
           {notification && (
@@ -283,7 +283,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
               </div>
             )}
             {incompleteTasks.length === 0 && (
-              <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">暂未完成专注任务，先去添加一个吧</p>
+              <EmptyState title="暂无专注任务" subtitle="先去添加一个任务吧" />
             )}
           </div>
 

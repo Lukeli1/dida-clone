@@ -29,9 +29,9 @@ interface Column {
 }
 
 const COLUMNS: Column[] = [
-  { key: 'todo', title: '待处理', color: '#6B7280', description: '未开始的任务' },
-  { key: 'inprogress', title: '进行中', color: '#3B82F6', description: '正在进行的任务' },
-  { key: 'done', title: '已完成', color: '#10B981', description: '已完成的任务' },
+  { key: 'todo', title: '待处理', color: 'var(--color-text-muted)', description: '未开始的任务' },
+  { key: 'inprogress', title: '进行中', color: 'var(--color-accent)', description: '正在进行的任务' },
+  { key: 'done', title: '已完成', color: 'var(--color-success)', description: '已完成的任务' },
 ]
 
 /** 「进行中」标签名，看板据此判定任务状态。 */
@@ -261,12 +261,12 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
         {/* 工具栏 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <div>
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">任务看板</h3>
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">任务看板</h3>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">拖拽卡片改变状态，共 {totalCount} 个任务</p>
           </div>
           <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-gray-400" />待处理 {tasksByColumn.todo.length}
+              <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)]" />待处理 {tasksByColumn.todo.length}
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />进行中 {tasksByColumn.inprogress.length}
@@ -317,7 +317,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
                   <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
                     {columnTasks.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-24 text-[var(--color-text-tertiary)] opacity-60">
-                        <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                         <span className="text-xs">拖拽任务到此处</span>
@@ -326,7 +326,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
                       columnTasks.map(task => {
                         const list = listMap.get(task.list_id)
                         const listColor = list?.color || '#6B7280'
-                        const priorityColor = task.priority === 1 ? '#EF4444' : task.priority === 2 ? '#F59E0B' : task.priority === 3 ? '#3B82F6' : null
+                        const priorityColor = task.priority === 1 ? 'var(--color-priority-high)' : task.priority === 2 ? 'var(--color-priority-medium)' : task.priority === 3 ? 'var(--color-priority-low)' : null
                         const isDropBefore = dropTarget?.taskId === task.id && dropTarget.position === 'before'
                         const isDropAfter = dropTarget?.taskId === task.id && dropTarget.position === 'after'
                         const taskTags = (task.tag_ids || []).map(id => tagMap.get(id)).filter((t): t is Tag => t !== undefined)

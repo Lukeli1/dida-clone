@@ -15,7 +15,7 @@ interface TaskFilterBarProps {
  */
 export function TaskFilterBar({ filters, tags, lists, hasActiveFilters, filteredCount }: TaskFilterBarProps) {
   return (
-    <div className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex items-center gap-3 overflow-x-auto md:flex-wrap md:overflow-visible [&>*]:shrink-0">
+    <div className="mt-2 p-2.5 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex items-center gap-3 overflow-x-auto md:flex-wrap md:overflow-visible [&>*]:shrink-0 animate-slide-down">
       <span className="text-xs font-medium text-[var(--color-text-secondary)]">筛选条件：</span>
       {/* 优先级筛选 */}
       <select

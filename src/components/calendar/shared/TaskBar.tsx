@@ -21,7 +21,7 @@ export interface TaskBarProps {
   /** week 变体：插入到复选框之前的额外内容（resize 手柄、时间提示等） */
   children?: React.ReactNode
   onDragStart?: (e: React.DragEvent) => void
-  /** month 作用于根元素；week 作用于标题 span */
+  /** month / week 均作用于根元素 */
   onTaskClick?: (e: React.MouseEvent) => void
   /** month 作用于复选框按钮；week 作用于 checkbox input 的 change */
   onToggle?: (e: React.SyntheticEvent) => void
@@ -39,6 +39,7 @@ export function TaskBar({
         data-task={dataTask || undefined}
         draggable={draggable}
         onDragStart={onDragStart}
+        onClick={onTaskClick}
         className={`absolute left-1 right-1 rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group border-l-2 ${
           task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through' : ''
         } ${dragged ? 'opacity-40' : ''}`}
@@ -59,7 +60,7 @@ export function TaskBar({
           onClick={(e) => e.stopPropagation()}
           className="w-3 h-3 mr-1 rounded-sm cursor-pointer align-middle"
         />
-        <span onClick={onTaskClick} className="cursor-pointer">
+        <span>
           {timeLabel && <span className="font-medium">{timeLabel}</span>} {task.title}
         </span>
       </div>
@@ -76,7 +77,7 @@ export function TaskBar({
       onClick={onTaskClick}
       className={`flex items-center gap-1 px-1.5 py-1 rounded text-[11px] cursor-grab active:cursor-grabbing select-none transition-opacity hover:opacity-80 ${
         task.completed ? 'opacity-50' : ''
-      } ${dragged ? 'opacity-30' : ''}`}
+      } ${dragged ? 'opacity-40' : ''}`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}
     >
       <button

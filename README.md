@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.33.0-blue)
+![版本](https://img.shields.io/badge/version-1.34.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,33 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.34.0（2026-07-01）
+
+#### UI 一致性全面改进（Phase 13）
+
+**方向 A：核心功能修复**
+- **全部任务视图已过期分区**：扩展 `overdueTaskTree` 计算到全部任务视图，从 `incompleteTaskTree` 排除已过期任务避免重复显示；修正计数逻辑
+- **空白区域修复**：EmptyState 条件修正（`incompleteTaskTree.length` 替代 `filteredTasks.length`）；`min-h-[200px]` 替代 `h-full`；`estimateSize` 56→72 减少滚动跳动；TaskInputBar padding 收紧
+- **DetailPanel 布局**：添加 `shrink-0 h-full` 防止窄窗压缩；移除入场动画冲突（`animate-slide-in-right` → `transition-transform`）
+- **暗色模式对比度**：`--color-titlebar-fg` 提亮至 `#9aa0a6`；`--color-text-muted` 提亮至 `#6b7280`（WCAG AA 达标）
+- **DayView 硬编码颜色**：30+ 处 `dark:bg-gray-*` / `dark:border-gray-*` 替换为 CSS 变量
+
+**方向 B：一致性统一**
+- **Header 结构统一**：PomodoroView/HabitView/StatsView/GoalView 从无固定 Header 改为「固定 Header + 可滚动内容区」
+- **侧边栏样式统一**：ViewSwitcher/ListSection/TagSection/SidebarFooter 分组标题、导航项尺寸（`py-[9px] rounded-xl text-[13px]`）、选中态（`shadow-sm`）、计数徽标（胶囊样式）全部对齐
+- **EmptyState 复用**：4 个内容类视图内联空状态替换为统一 EmptyState 组件
+- **虚拟滚动语义**：`<li>` → `<div role="listitem">`，`<ul>` → `<div role="list">`，新增 `animateOnMount` prop 禁用虚拟滚动闪烁动画
+- **硬编码颜色清理**：KanbanView/QuadrantView/GanttView/PomodoroTimer hex 颜色替换为 CSS 变量；`hexWithAlpha` 增强 `color-mix` 支持
+- **index.css 清理**：删除通配符 transition 和 gray 色板覆盖
+- **日历类标题统一**：MonthView/KanbanView/QuadrantView 标题统一为 `text-lg font-semibold`
+
+**方向 C：细节打磨**
+- 分区展开添加 `animate-slide-down` 动画；工具栏 padding 统一为 `p-2.5`；间距方向统一为 `mt-4`
+- 标题栏按钮 hover 统一（最小化/最大化补 `hover:bg-[var(--color-bg-tertiary)]`）
+- TaskDetail 标题 textarea 加 `max-h-40`；底部菜单加 `max-h-[300px] overflow-y-auto`
+- 折叠态选中补 `shadow-sm`；hover 浮层加 `delay-150`
+- TaskBar opacity 统一为 40；点击交互统一（week 变体 onClick 绑定到根元素）
 
 ### v1.33.0（2026-06-30）
 

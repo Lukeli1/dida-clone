@@ -144,7 +144,7 @@ export function DetailPanel({ task, actions }: DetailPanelProps) {
   // 桌面：右侧滑入面板
   return (
     <div
-      className={`animate-slide-in-right transition-all duration-[250ms] ${visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}
+      className={`transition-transform duration-[250ms] shrink-0 h-full ${visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}
       style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       {taskDetail}

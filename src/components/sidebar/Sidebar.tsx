@@ -207,8 +207,8 @@ function CollapsedNav(props: SidebarProps) {
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
               item.active
                 ? item.id === 'ai'
-                  ? 'bg-purple-50 text-purple-600'
-                  : 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                  ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
+                  : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
             }`}
           >
@@ -285,7 +285,7 @@ export function Sidebar(props: SidebarProps) {
           <CollapsedNav {...props} />
         </aside>
         {/* hover 临时展开浮层 */}
-        <div className="absolute left-full top-0 bottom-0 z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 shadow-xl">
+        <div className="absolute left-full top-0 bottom-0 z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 delay-150 shadow-xl">
           <aside className="w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-full">
             <SidebarInner {...props} />
           </aside>

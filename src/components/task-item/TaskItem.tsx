@@ -32,7 +32,8 @@ function areTaskItemPropsEqual(prev: TaskItemProps, next: TaskItemProps): boolea
     prev.isExpanded !== next.isExpanded ||
     prev.subtaskInput !== next.subtaskInput ||
     prev.isSelectedForBatch !== next.isSelectedForBatch ||
-    prev.onReorder !== next.onReorder
+    prev.onReorder !== next.onReorder ||
+    prev.animateOnMount !== next.animateOnMount
   ) {
     return false
   }
@@ -93,6 +94,12 @@ export interface TaskItemProps {
   subtaskInput: string
   isSelectedForBatch?: boolean
   onReorder?: (draggedId: number, targetId: number) => void
+  /**
+   * 是否在挂载时播放 task-enter 进入动画。
+   * - 虚拟滚动场景下为 false（项会随滚动频繁挂载/卸载，动画会造成闪烁）
+   * - 普通列表（过期/已完成/归档）保持默认 true
+   */
+  animateOnMount?: boolean
 }
 
 /**
@@ -105,7 +112,7 @@ export interface TaskItemProps {
  *
  * 内联编辑、右键菜单、子任务列表已拆为独立子组件，各自通过 useTaskActionContext 获取 actions。
  */
-const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelectedForBatch, onReorder }: TaskItemProps) {
+const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelectedForBatch, onReorder, animateOnMount = true }: TaskItemProps) {
   const ctx = useTaskActionContext()
   const { tags, lists, batchMode, isArchivedView } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
@@ -220,7 +227,8 @@ const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskI
   const priorityInfo = task.priority ? PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] : null
 
   return (
-    <li
+    <div
+      role="listitem"
       draggable={!batchMode && !isEditing}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -230,7 +238,7 @@ const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskI
       onContextMenu={handleContextMenu}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-[var(--color-accent)]' : dragOverPos === 'after' ? 'border-b-2 border-[var(--color-accent)]' : ''}`}
+      className={`${animateOnMount ? 'task-enter' : ''} ${dragOverPos === 'before' ? 'border-t-2 border-[var(--color-accent)]' : dragOverPos === 'after' ? 'border-b-2 border-[var(--color-accent)]' : ''}`}
     >
       <div
         onClick={handleMainClick}
@@ -410,7 +418,7 @@ const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskI
           />
         </div>
       )}
-    </li>
+    </div>
   )
 }, areTaskItemPropsEqual)
 

@@ -126,7 +126,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
               onBlur={handleSave}
               rows={1}
               placeholder="任务标题"
-              className="flex-1 text-[17px] font-semibold text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-hidden transition-colors"
+              className="flex-1 text-[17px] font-semibold text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-y-auto max-h-40 transition-colors"
             />
             {/* 子任务按钮：列表图标，点击展开子任务区域 */}
             <button
@@ -236,7 +236,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
 
         {/* 更多菜单下拉 */}
         {showMoreMenu && (
-          <div ref={moreMenuRef} className="absolute bottom-full right-2 mb-1 w-52 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 z-30 origin-bottom-right animate-scale-in" style={{boxShadow:'var(--shadow-dropdown)'}}>
+          <div ref={moreMenuRef} className="absolute bottom-full right-2 mb-1 w-52 max-h-[300px] overflow-y-auto bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 z-30 origin-bottom-right animate-scale-in" style={{boxShadow:'var(--shadow-dropdown)'}}>
             <button
               onClick={() => {
                 setShowMoreMenu(false)

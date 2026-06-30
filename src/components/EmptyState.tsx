@@ -6,7 +6,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, subtitle }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-[var(--color-text-tertiary)] py-20 animate-scale-in">
+    <div className="flex flex-col items-center justify-center min-h-[200px] text-[var(--color-text-tertiary)] animate-scale-in">
       <div className="w-20 h-20 mb-5 rounded-2xl bg-[var(--color-bg-tertiary)] flex items-center justify-center">
         <div className="w-10 h-10 text-[var(--color-text-muted)]">
           {icon || (

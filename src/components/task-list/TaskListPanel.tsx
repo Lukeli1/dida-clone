@@ -118,7 +118,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const virtualizer = useVirtualizer({
     count: incompleteTaskTree.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 56, // TaskItem 默认高度，实际由 measureElement 动态测量
+    estimateSize: () => 72, // TaskItem 默认高度，实际由 measureElement 动态测量
     overscan: 8,
     gap: 4, // 对应原 space-y-1 的项间距
     scrollMargin,
@@ -202,7 +202,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
             <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
               {currentView === 'archived'
                 ? `${taskTree.length} 个已归档`
-                : `${incompleteTaskTree.length} 个未完成 / ${taskTree.length} 个总计`}
+                : `${incompleteTaskTree.length + overdueTaskTree.length} 个未完成 / ${taskTree.length + (currentView === 'today' ? overdueTaskTree.length : 0)} 个总计`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -345,7 +345,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-      <div ref={parentRef} className="flex-1 overflow-y-auto p-4">
+      <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
         {/* 归档视图：直接显示所有归档任务 */}
         {currentView === 'archived' ? (
           taskTree.length === 0 ? (
@@ -355,17 +355,17 @@ export function TaskListPanel(props: TaskListPanelProps) {
               subtitle="完成的任务超过 7 天后会自动归档"
             />
           ) : (
-            <ul className="space-y-1">
+            <div role="list" className="space-y-1">
               {taskTree.map((task) => (
                 <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} onReorder={NOOP_REORDER} />
               ))}
-            </ul>
+            </div>
           )
         ) : (
           <>
-            {/* 今日视图：已过期任务 */}
-            {currentView === 'today' && overdueTaskTree.length > 0 && (
-              <div className="mb-4">
+            {/* 已过期任务 */}
+            {overdueTaskTree.length > 0 && (
+              <div className="mt-4">
                 <button
                   onClick={() => setShowOverdue(!showOverdue)}
                   className="flex items-center gap-2 text-sm text-[var(--color-danger)] hover:text-[var(--color-danger)] mb-2 transition-colors font-medium"
@@ -379,23 +379,23 @@ export function TaskListPanel(props: TaskListPanelProps) {
                   已过期 ({overdueTaskTree.length})
                 </button>
                 {showOverdue && (
-                  <ul className="space-y-1">
+                  <div role="list" className="space-y-1 animate-slide-down">
                     {overdueTaskTree.map((task) => (
                       <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             )}
 
-            {filteredTasks.length === 0 && overdueTaskTree.length === 0 ? (
+            {incompleteTaskTree.length === 0 && overdueTaskTree.length === 0 ? (
               <EmptyState
                 icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
                 title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
               />
             ) : (
               <>
-                <div ref={listRef} style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                <div ref={listRef} role="list" style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
                   {virtualizer.getVirtualItems().map(virtualItem => {
                     const task = incompleteTaskTree[virtualItem.index]
                     return (
@@ -411,7 +411,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                           transform: `translateY(${virtualItem.start}px)`,
                         }}
                       >
-                        <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
+                        <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} animateOnMount={false} />
                       </div>
                     )
                   })}
@@ -429,11 +429,11 @@ export function TaskListPanel(props: TaskListPanelProps) {
                       已完成 ({completedTaskTree.length})
                     </button>
                     {showCompleted && (
-                      <ul className="space-y-1">
+                      <div role="list" className="space-y-1 animate-slide-down">
                         {completedTaskTree.map((task) => (
                           <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
                         ))}
-                      </ul>
+                      </div>
                     )}
                   </div>
                 )}

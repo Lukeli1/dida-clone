@@ -49,7 +49,7 @@ export function BatchToolbar({ selectedTaskIds, selectAllTasks, clearSelection, 
   }
 
   return (
-    <div className="mt-3 p-2 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex items-center gap-2 flex-wrap animate-slide-down">
+    <div className="mt-2 p-2.5 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)] flex items-center gap-2 flex-wrap animate-slide-down">
       <span className="text-sm font-medium text-[var(--color-text-secondary)]">
         已选 {selectedCount} 项
       </span>

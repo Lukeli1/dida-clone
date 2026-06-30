@@ -176,7 +176,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                       <span
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                         style={{
-                          backgroundColor: task.priority === 1 ? '#EF4444' : task.priority === 2 ? '#F59E0B' : '#3B82F6'
+                          backgroundColor: task.priority === 1 ? 'var(--color-priority-high)' : task.priority === 2 ? 'var(--color-priority-medium)' : 'var(--color-priority-low)'
                         }}
                       />
                     )}
@@ -270,7 +270,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                   const pos = getTaskPosition(task)
                   if (!pos) return null
                   const list = listMap.get(task.list_id)
-                  const barColor = list?.color || '#3B82F6'
+                  const barColor = list?.color || 'var(--color-accent)'
                   return (
                     <div
                       key={task.id}

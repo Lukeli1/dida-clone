@@ -36,16 +36,9 @@
 }
 
 /* ============ 全局过渡优化 ============ */
-* {
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
-  transition-duration: var(--transition-fast);
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 排除不需要过渡的元素 */
-svg, path, circle, rect, line, polyline {
-  transition: none;
-}
+/* 通配符 transition 规则已删除：它与 Tailwind 自带的 transition utilities 冲突，
+   会导致所有元素被强制添加过渡（包括拖拽定位、虚拟滚动 transform 等），
+   造成性能问题与视觉抖动。新增代码请显式使用 transition-* class 或 --transition-* 变量。 */
 
 /* ============ 滑入动画 ============ */
 @keyframes slide-in {
@@ -429,44 +422,9 @@ input[type="checkbox"]:hover {
   color-scheme: dark;
 }
 
-/* 背景色覆盖：white → 深色 */
-.dark .bg-white { background-color: #1f2937 !important; }
-.dark .bg-gray-50 { background-color: #111827 !important; }
-.dark .bg-gray-100 { background-color: #1f2937 !important; }
-.dark .bg-gray-200 { background-color: #374151 !important; }
-
-/* 文字色覆盖 */
-.dark .text-gray-900 { color: #f3f4f6 !important; }
-.dark .text-gray-800 { color: #e5e7eb !important; }
-.dark .text-gray-700 { color: #d1d5db !important; }
-.dark .text-gray-600 { color: #9ca3af !important; }
-.dark .text-gray-500 { color: #9ca3af !important; }
-.dark .text-gray-400 { color: #6b7280 !important; }
-
-/* 边框覆盖 */
-.dark .border-gray-200 { border-color: #374151 !important; }
-.dark .border-gray-100 { border-color: #1f2937 !important; }
-.dark .divide-gray-100 > * { border-color: #1f2937 !important; }
-
-/* 悬停背景覆盖 */
-.dark .hover\:bg-gray-50:hover { background-color: #1f2937 !important; }
-.dark .hover\:bg-gray-100:hover { background-color: #374151 !important; }
-
-/* 输入框/选择框背景 */
-.dark input[type="text"],
-.dark input[type="password"],
-.dark input[type="email"],
-.dark input[type="number"],
-.dark textarea,
-.dark select {
-  background-color: #111827 !important;
-  color: #f3f4f6 !important;
-  border-color: #374151 !important;
-}
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #6b7280 !important;
-}
+/* gray 色板覆盖已删除：这些 .dark .bg-gray-* / .text-gray-* / .border-gray-* 等规则
+   会与 theme-variables.css 的自定义 CSS 变量色板冲突（!important 强制覆盖），
+   导致深色模式下组件无法正确响应主题变量。现在统一由 --color-* 变量驱动。 */
 
 /* 滚动条深色 */
 .dark ::-webkit-scrollbar-thumb {

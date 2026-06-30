@@ -151,21 +151,22 @@ export function HabitView(_props: HabitViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">习惯打卡</h2>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-1">{format(today, 'yyyy年M月d日 EEEE', { locale: zhCN })}</p>
-          </div>
-          <button type="button" onClick={() => { resetForm(); setShowCreateForm(true) }}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] rounded-lg transition-colors hover:opacity-90">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            新建习惯
-          </button>
+    <div className="flex flex-col h-full">
+      <header className="border-b border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">习惯打卡</h2>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1">{format(today, 'yyyy年M月d日 EEEE', { locale: zhCN })}</p>
         </div>
+        <button type="button" onClick={() => { resetForm(); setShowCreateForm(true) }}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] rounded-lg transition-colors hover:opacity-90">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          新建习惯
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-4xl mx-auto">
 
         {showCreateForm && (
           <CreateHabitForm
@@ -195,6 +196,7 @@ export function HabitView(_props: HabitViewProps) {
             />
           )
         })()}
+        </div>
       </div>
     </div>
   )

@@ -98,7 +98,7 @@
      改为 #9CA3AF（约 6.6:1，达标）。保留 --color-text-muted 供更弱化的装饰性文字使用。 */
   --color-text-tertiary: #9CA3AF;
   --color-text-inverse: #0f1115;
-  --color-text-muted: #4a4e56;
+  --color-text-muted: #6b7280;
 
   /* 强调色 - 在深色下更明亮 */
   --color-accent: #5c9cfc;
@@ -141,7 +141,7 @@
 
   /* 标题栏 */
   --color-titlebar-bg: #16181d;
-  --color-titlebar-fg: #5f6368;
+  --color-titlebar-fg: #9aa0a6;
 
   /* 滚动条 */
   --color-scrollbar: rgba(255, 255, 255, 0.12);

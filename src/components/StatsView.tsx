@@ -13,6 +13,7 @@ import { reportApi } from '../api/reportApi'
 import type { ReportRecord } from '../api/reportApi'
 import { generateWeeklyReport } from '../utils/reportGenerator'
 import { useToast } from './Toast'
+import { EmptyState } from './EmptyState'
 
 interface StatsViewProps {
   tasks: Task[]
@@ -241,9 +242,12 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] p-6">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-6">统计面板</h2>
+    <div className="flex flex-col h-full">
+      <header className="border-b border-[var(--color-border)] px-4 py-3">
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">统计面板</h2>
+      </header>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-4xl mx-auto">
 
         {/* 概览卡片 */}
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -320,7 +324,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
             </span>
           </div>
           {timeChartData.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-tertiary)]">本周暂无时间追踪记录</p>
+            <EmptyState title="本周暂无时间追踪记录" />
           ) : (
             <div style={{ width: '100%', height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -416,7 +420,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
           <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6" style={{boxShadow:'var(--shadow-card)'}}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">清单分布</h3>
             {stats.listStats.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-secondary)]">暂无数据</p>
+              <EmptyState title="暂无数据" />
             ) : (
               <div className="space-y-3">
                 {stats.listStats.map(s => (
@@ -503,9 +507,11 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
           </div>
 
           {reports.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-tertiary)]">
-              {reportLoading ? '加载中...' : '暂无历史报告，点击右上角按钮生成本周周报'}
-            </p>
+            reportLoading ? (
+              <p className="text-sm text-[var(--color-text-tertiary)]">加载中...</p>
+            ) : (
+              <EmptyState title="暂无历史报告" subtitle="点击右上角按钮生成本周周报" />
+            )
           ) : (
             <div className="grid grid-cols-3 gap-4">
               {/* 报告列表 */}
@@ -565,6 +571,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

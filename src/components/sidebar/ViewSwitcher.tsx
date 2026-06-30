@@ -155,7 +155,7 @@ export function ViewSwitcher({
               className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
                 item.match
                   ? item.id === 'ai'
-                    ? 'bg-purple-50 text-purple-600 shadow-sm'
+                    ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
                     : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
               }`}

@@ -88,8 +88,8 @@ export function TagSection({
 
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between mb-2 px-2">
-        <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
+      <div className="flex items-center justify-between mb-2 px-3">
+        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">
           标签
         </p>
         <button
@@ -165,9 +165,9 @@ export function TagSection({
             <button
               onClick={() => { onViewChange('tasks'); onSelectTag(tag.id); onSelectList(null) }}
               onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
-              className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors active:scale-[0.97] ${
+              className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
                 selectedTagId === tag.id
-                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
               }`}
             >
@@ -191,9 +191,9 @@ export function TagSection({
                     <button
                       onClick={() => { onViewChange('tasks'); onSelectTag(child.id); onSelectList(null) }}
                       onContextMenu={(e) => handleTagContextMenu(e, child.id)}
-                      className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-1.5 rounded-lg text-sm transition-colors active:scale-[0.97] ${
+                      className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
                         selectedTagId === child.id
-                          ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                          ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
                           : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
                       }`}
                     >

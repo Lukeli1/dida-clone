@@ -3,9 +3,9 @@ import type { TimerMode } from './storage'
 // ============ 常量 ============
 
 export const MODE_CONFIG: Record<TimerMode, { label: string; color: string }> = {
-  focus: { label: '专注', color: '#4f86f7' },
-  shortBreak: { label: '短休息', color: '#10b981' },
-  longBreak: { label: '长休息', color: '#8b5cf6' },
+  focus: { label: '专注', color: 'var(--color-accent)' },
+  shortBreak: { label: '短休息', color: 'var(--color-success)' },
+  longBreak: { label: '长休息', color: 'var(--color-ai)' },
 }
 
 export const MODE_ORDER: TimerMode[] = ['focus', 'shortBreak', 'longBreak']
@@ -86,7 +86,7 @@ export function PomodoroTimer({
             cy={RING_CENTER}
             r={RING_RADIUS}
             fill="none"
-            stroke="#E5E7EB"
+            stroke="var(--color-border)"
             strokeWidth={RING_STROKE}
           />
           {/* 进度环 */}
@@ -148,7 +148,7 @@ export function PomodoroTimer({
           <span
             key={i}
             className="w-2 h-2 rounded-full transition-colors"
-            style={{ backgroundColor: i < sessionsInCycle ? ringColor : '#D1D5DB' }}
+            style={{ backgroundColor: i < sessionsInCycle ? ringColor : 'var(--color-bg-tertiary)' }}
           />
         ))}
         <span className="ml-2 text-xs text-[var(--color-text-tertiary)]">

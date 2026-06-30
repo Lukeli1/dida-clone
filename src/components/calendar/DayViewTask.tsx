@@ -34,7 +34,7 @@ export function DayViewTask({
       onDragStart={(e) => onDragStart(e, task.id)}
       className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none border-l-2 ${
         task.completed
-          ? 'bg-[var(--color-bg-tertiary)] dark:bg-gray-700 text-[var(--color-text-tertiary)] line-through'
+          ? 'bg-[var(--color-bg-tertiary)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through'
           : ''
       } ${dragged ? 'opacity-40' : ''}`}
       style={{

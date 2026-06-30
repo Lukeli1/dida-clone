@@ -62,7 +62,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
   }
 
   return (
-    <div className="task-input-bar p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="task-input-bar px-4 pb-2 pt-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex gap-2.5">
         <div className="flex-1 relative">
           <input

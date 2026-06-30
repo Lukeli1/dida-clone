@@ -111,8 +111,8 @@ export function ListSection({
 
   return (
     <div className="sidebar-lists">
-      <div className="flex items-center justify-between mb-2 px-2">
-        <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
+      <div className="flex items-center justify-between mb-2 px-3">
+        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">
           清单
         </p>
         <button
@@ -187,9 +187,9 @@ export function ListSection({
               <button
                 onClick={() => { onViewChange('tasks'); onSelectList(list.id) }}
                 onContextMenu={(e) => handleContextMenu(e, list.id)}
-                className={`relative w-full flex items-center justify-between sidebar-nav-item px-3 py-2 rounded-lg text-sm transition-colors group active:scale-[0.97] ${
+                className={`relative w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors group active:scale-[0.97] ${
                   currentView === 'tasks' && selectedListId === list.id
-                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
                     : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
                 }`}
               >
@@ -208,7 +208,11 @@ export function ListSection({
                 </span>
                 <div className="flex items-center gap-1">
                   {taskCounts[list.id] > 0 && (
-                    <span className="text-xs text-[var(--color-text-tertiary)]">{taskCounts[list.id]}</span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full min-w-[20px] text-center ${
+                      currentView === 'tasks' && selectedListId === list.id
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
+                    }`}>{taskCounts[list.id]}</span>
                   )}
                   {!list.is_default && (
                     <button

@@ -92,7 +92,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => invoke('window_minimize')}
-          className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+          className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 hover:bg-[var(--color-bg-tertiary)]"
           style={{ color: 'var(--titlebar-fg, #5f6368)' }}
           aria-label="最小化"
         >
@@ -102,7 +102,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => invoke('window_toggle_maximize')}
-          className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+          className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 hover:bg-[var(--color-bg-tertiary)]"
           style={{ color: 'var(--titlebar-fg, #5f6368)' }}
           aria-label={isMaximized ? '还原' : '最大化'}
         >

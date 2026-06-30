@@ -142,14 +142,14 @@ export function MonthView({
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 月份导航栏 */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
           <button onClick={onPrevMonth} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
             <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h3 className="text-xl font-semibold text-[var(--color-text-primary)] min-w-[100px] text-center">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] min-w-[100px] text-center">
             {format(currentDate, 'M月', { locale: zhCN })}
             <span className="text-sm font-normal text-[var(--color-text-tertiary)] ml-1">{format(currentDate, 'yyyy')}</span>
           </h3>

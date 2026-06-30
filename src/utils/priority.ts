@@ -57,7 +57,14 @@ export function getPriorityStyle(priority: number): PriorityStyle {
 }
 
 // 颜色透明度工具函数
+// 支持两种输入：
+//   - 十六进制色（如 '#4f86f7'）：追加 alpha 通道，返回 #RRGGBBAA
+//   - CSS 变量字符串（如 'var(--color-accent)'）：无法追加 alpha 通道，
+//     改用 color-mix() 与 transparent 混合，实现等价的半透明效果
 export function hexWithAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('var(')) {
+    return `color-mix(in srgb, ${hex} ${Math.round(alpha * 100)}%, transparent)`
+  }
   const a = Math.round(alpha * 255).toString(16).padStart(2, '0')
   return hex + a
 }
