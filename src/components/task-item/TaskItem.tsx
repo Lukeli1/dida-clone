@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, memo } from 'react'
 import type { Task } from '../../types'
 import { hexWithAlpha, getTaskColor } from '../../utils/priority'
 import { getSearchMatchSource } from '../../utils/taskSearch'
+import { highlightMatch } from '../../utils/searchHighlight'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
 import { TaskInlineEditor } from './TaskInlineEditor'
@@ -54,6 +55,7 @@ function areTaskItemPropsEqual(prev: TaskItemProps, next: TaskItemProps): boolea
     pt.archived !== nt.archived ||
     pt.list_id !== nt.list_id ||
     pt.sort_order !== nt.sort_order ||
+    pt.repeat_rule !== nt.repeat_rule ||
     pt.updated_at !== nt.updated_at
   ) {
     return false
@@ -299,7 +301,13 @@ const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskI
                   title={`优先级：${priorityInfo.label}`}
                 />
               )}
-              <span className="truncate">{task.title}</span>
+              <span className="truncate">{highlightMatch(task.title, searchQuery)}</span>
+              {task.repeat_rule && (
+                <svg className="w-3.5 h-3.5 text-[var(--color-text-tertiary)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="重复任务">
+                  <title>重复任务</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
               {isArchivedView && (
                 <span className="ml-1 text-[11px] text-[var(--color-text-muted)] font-normal px-1.5 py-0.5 rounded-md bg-[var(--color-bg-tertiary)]">已归档</span>
               )}

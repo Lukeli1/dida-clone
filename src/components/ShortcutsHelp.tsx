@@ -1,5 +1,12 @@
-import { useEffect } from 'react'
-import { SHORTCUTS, type ShortcutItem } from '../utils/shortcuts'
+import { useEffect, useMemo } from 'react'
+import { useUIStore } from '../stores/uiStore'
+import { DEFAULT_SHORTCUT_BINDINGS } from '../utils/shortcuts'
+
+interface DisplayShortcut {
+  key: string
+  description: string
+  category: '全局' | '导航' | '任务' | 'AI'
+}
 
 interface ShortcutsHelpProps {
   open: boolean
@@ -7,24 +14,47 @@ interface ShortcutsHelpProps {
 }
 
 /** 快捷键帮助面板按类别分组的展示顺序 */
-const CATEGORY_ORDER: ShortcutItem['category'][] = ['全局', '导航', '任务', 'AI']
+const CATEGORY_ORDER: DisplayShortcut['category'][] = ['全局', '导航', '任务', 'AI']
 
 /** 类别中文标题 */
-const CATEGORY_TITLE: Record<ShortcutItem['category'], string> = {
+const CATEGORY_TITLE: Record<DisplayShortcut['category'], string> = {
   全局: '全局',
   导航: '导航',
   任务: '任务',
   AI: 'AI 助手',
 }
 
+/** 非自定义快捷键（始终固定，不在设置面板中可配置） */
+const NON_CUSTOMIZABLE: DisplayShortcut[] = [
+  { key: 'F1', description: '打开快捷键帮助', category: '全局' },
+  { key: 'Esc', description: '关闭弹窗/取消编辑', category: '全局' },
+  { key: 'Enter', description: '保存编辑', category: '任务' },
+  { key: '双击标题', description: '行内编辑任务标题', category: '任务' },
+  { key: '右键', description: '打开右键菜单', category: '任务' },
+  { key: '拖拽', description: '拖拽任务排序/移动到日期', category: '任务' },
+]
+
 /**
  * 快捷键速查面板
  *
  * - 按 ? / F1 或 TitleBar 帮助按钮触发
  * - 按类别分组展示快捷键列表
+ * - 可自定义快捷键显示当前生效的按键（默认或自定义）
  * - 支持 Esc 关闭 / 点击背景关闭
  */
 export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
+  const customShortcuts = useUIStore(s => s.customShortcuts)
+
+  // 构建显示列表：可自定义快捷键（显示当前生效的按键）+ 非自定义快捷键
+  const allShortcuts = useMemo<DisplayShortcut[]>(() => {
+    const customizable: DisplayShortcut[] = DEFAULT_SHORTCUT_BINDINGS.map(b => ({
+      key: customShortcuts[b.id] || b.defaultKeys,
+      description: b.label,
+      category: b.category,
+    }))
+    return [...customizable, ...NON_CUSTOMIZABLE]
+  }, [customShortcuts])
+
   // ESC 关闭
   useEffect(() => {
     if (!open) return
@@ -44,7 +74,7 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
   // 按类别分组
   const grouped = CATEGORY_ORDER.map((category) => ({
     category,
-    items: SHORTCUTS.filter((s) => s.category === category),
+    items: allShortcuts.filter((s) => s.category === category),
   })).filter((g) => g.items.length > 0)
 
   return (

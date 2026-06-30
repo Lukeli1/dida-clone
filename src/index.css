@@ -23,10 +23,10 @@
   --radius-lg: 14px;
   --radius-xl: 18px;
 
-  /* 过渡 */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* 过渡（全局过渡统一：新增代码请使用这些变量，不要全局替换 Tailwind duration class） */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ============ 侧边栏密度覆盖 ============ */

@@ -1,4 +1,5 @@
-import { useMemo, useCallback, useState, useEffect, type RefObject } from 'react'
+import { useMemo, useCallback, useState, useRef, useLayoutEffect, type RefObject } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { TaskItem } from '../task-item/TaskItem'
 import { EmptyState } from '../EmptyState'
 import { TaskActionProvider, type TaskActionContextValue } from '../../contexts/TaskActionContext'
@@ -6,6 +7,7 @@ import { useTagStore } from '../../stores/tagStore'
 import { useListStore } from '../../stores/listStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskListState } from '../../hooks/useTaskListState'
+import { useSearchHistory } from '../../hooks/useSearchHistory'
 import type { TaskActions } from '../../hooks/useTaskActions'
 import type { Task } from '../../types'
 import { TaskInputBar } from './TaskInputBar'
@@ -67,28 +69,87 @@ export function TaskListPanel(props: TaskListPanelProps) {
     handleCreateTask, selectAllTasks,
   } = listState
 
-  // ===== 大型列表懒加载：超过 50 条时分批渲染，滚动到底部自动加载更多 =====
-  const VISIBLE_BATCH = 50
-  const [visibleCount, setVisibleCount] = useState(VISIBLE_BATCH)
+  // ===== 搜索历史 =====
+  const { history, addHistory, removeHistory, clearHistory } = useSearchHistory()
+  const [showHistory, setShowHistory] = useState(false)
+  const hideHistoryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 视图/搜索切换时重置分页
-  useEffect(() => {
-    setVisibleCount(VISIBLE_BATCH)
-  }, [currentView, searchQuery])
-
-  const visibleIncompleteTasks = useMemo(
-    () => incompleteTaskTree.slice(0, visibleCount),
-    [incompleteTaskTree, visibleCount],
-  )
-  const hasMoreIncompleteTasks = visibleCount < incompleteTaskTree.length
-
-  const handleListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (visibleCount >= incompleteTaskTree.length) return
-    const target = e.currentTarget
-    if (target.scrollHeight - target.scrollTop < target.clientHeight + 100) {
-      setVisibleCount(prev => Math.min(prev + VISIBLE_BATCH, incompleteTaskTree.length))
+  const handleSearchFocus = useCallback(() => {
+    if (hideHistoryTimer.current) {
+      clearTimeout(hideHistoryTimer.current)
+      hideHistoryTimer.current = null
     }
-  }, [visibleCount, incompleteTaskTree.length])
+    setShowHistory(true)
+  }, [])
+
+  const handleSearchBlur = useCallback(() => {
+    hideHistoryTimer.current = setTimeout(() => setShowHistory(false), 200)
+  }, [])
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      addHistory(searchQuery.trim())
+    }
+  }, [searchQuery, addHistory])
+
+  const handleHistoryClick = useCallback((term: string) => {
+    setSearchQuery(term)
+    addHistory(term)
+    setShowHistory(false)
+    searchInputRef.current?.blur()
+  }, [setSearchQuery, addHistory, searchInputRef])
+
+  const handleHistoryDelete = useCallback((e: React.MouseEvent, term: string) => {
+    e.stopPropagation()
+    removeHistory(term)
+  }, [removeHistory])
+
+  // ===== 虚拟滚动：useVirtualizer 仅渲染可见区域任务，解决 200+ 任务卡顿 =====
+  // 替代原 P9-09 的 visibleCount 懒加载（虚拟滚动自动只渲染可见项，无需分页）
+  const parentRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  const getItemKey = useCallback(
+    (index: number) => incompleteTaskTree[index]?.id ?? index,
+    [incompleteTaskTree],
+  )
+
+  const virtualizer = useVirtualizer({
+    count: incompleteTaskTree.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56, // TaskItem 默认高度，实际由 measureElement 动态测量
+    overscan: 8,
+    gap: 4, // 对应原 space-y-1 的项间距
+    scrollMargin,
+    getItemKey,
+  })
+
+  // 动态测量虚拟列表容器相对于滚动容器的偏移。
+  // 今日视图上方有过期任务（可展开/折叠），其高度变化时需更新 scrollMargin，
+  // 否则虚拟滚动的可见性计算会偏移（官方推荐用 ResizeObserver 动态测量）。
+  useLayoutEffect(() => {
+    const scrollEl = parentRef.current
+    const listEl = listRef.current
+    if (!scrollEl || !listEl) return
+    const measure = () => {
+      // 静态偏移 = 视口偏移 + 已滚动距离（不随滚动变化）
+      const margin =
+        listEl.getBoundingClientRect().top -
+        scrollEl.getBoundingClientRect().top +
+        scrollEl.scrollTop
+      setScrollMargin(prev => (Math.abs(prev - margin) > 0.5 ? margin : prev))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    // 监听虚拟列表容器之前的兄弟元素（过期任务等上方可变内容）
+    let node: Element | null = listEl.previousElementSibling
+    while (node) {
+      ro.observe(node)
+      node = node.previousElementSibling
+    }
+    return () => ro.disconnect()
+  }, [currentView, showOverdue, showCompleted, overdueTaskTree.length, completedTaskTree.length, incompleteTaskTree.length, filteredTasks.length])
 
   // ===== 当前列表名称（依赖 selectedTagId / tags / selectedListId / lists）=====
   const currentListName =
@@ -115,6 +176,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
     onUnarchive: actions.handleUnarchiveTask,
     onSetDate: actions.handleSetDate,
     onSetPriority: actions.handleSetPriority,
+    onSetRepeatRule: actions.handleSetRepeatRule,
     onTogglePin: actions.handleTogglePin,
     onToggleTag: actions.handleToggleTag,
     onDuplicate: actions.handleDuplicateTask,
@@ -187,9 +249,54 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="搜索标题、备注、子任务... (Ctrl+F)"
                 className="pl-9 pr-4 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] w-64"
               />
+              {/* 搜索历史下拉列表 */}
+              {showHistory && !searchQuery.trim() && history.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 overflow-hidden">
+                  <div className="px-3 py-1.5 text-xs text-[var(--color-text-tertiary)] border-b border-[var(--color-border-light)]">
+                    搜索历史
+                  </div>
+                  <ul className="py-1 max-h-80 overflow-y-auto">
+                    {history.map((term) => (
+                      <li key={term}>
+                        <div
+                          onClick={() => handleHistoryClick(term)}
+                          className="flex items-center justify-between px-3 py-2 hover:bg-[var(--color-surface-hover)] cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)] min-w-0">
+                            <svg className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="truncate">{term}</span>
+                          </div>
+                          <button
+                            onClick={(e) => handleHistoryDelete(e, term)}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-bg-tertiary)] transition-all flex-shrink-0"
+                            title="删除"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="border-t border-[var(--color-border)] px-3 py-2">
+                    <button
+                      onClick={clearHistory}
+                      className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-colors"
+                    >
+                      清除全部
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -237,7 +344,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-      <div className="flex-1 overflow-y-auto p-4" onScroll={handleListScroll}>
+      <div ref={parentRef} className="flex-1 overflow-y-auto p-4">
         {/* 归档视图：直接显示所有归档任务 */}
         {currentView === 'archived' ? (
           taskTree.length === 0 ? (
@@ -287,16 +394,27 @@ export function TaskListPanel(props: TaskListPanelProps) {
               />
             ) : (
               <>
-                <ul className="space-y-1">
-                  {visibleIncompleteTasks.map((task) => (
-                    <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
-                  ))}
-                </ul>
-                {hasMoreIncompleteTasks && (
-                  <div className="py-3 text-center text-xs text-[var(--color-text-tertiary)]">
-                    滚动加载更多（{visibleCount}/{incompleteTaskTree.length}）
-                  </div>
-                )}
+                <div ref={listRef} style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                  {virtualizer.getVirtualItems().map(virtualItem => {
+                    const task = incompleteTaskTree[virtualItem.index]
+                    return (
+                      <div
+                        key={virtualItem.key}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                      >
+                        <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
+                      </div>
+                    )
+                  })}
+                </div>
 
                 {completedTaskTree.length > 0 && (
                   <div className="mt-4">

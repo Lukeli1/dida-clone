@@ -6,15 +6,24 @@ import {
   type AISkill, type ActionOp,
 } from '../../utils/llm'
 import { llmChatStream } from '../../api'
+import { useAIStore } from '../../stores/aiStore'
 import type { ChatMessage } from '../../types'
 import type { AIAssistantProps, UIMessage } from './types'
 import { stripActionsLive, executeAction } from './ActionParser'
 import { ChatMessageItem } from './ChatMessage'
 import { WelcomeScreen } from './SkillSelector'
+import { parsePreferences } from './preferences'
 import { useConfirm } from '../common/ConfirmDialog'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
-  const [messages, setMessages] = useState<UIMessage[]>([])
+  // 对话与偏好改为全局 store 持久化，关闭面板后对话记录保留
+  const messages = useAIStore((s) => s.messages)
+  const preferences = useAIStore((s) => s.preferences)
+  const setMessages = useAIStore((s) => s.setMessages)
+  const addPreference = useAIStore((s) => s.addPreference)
+  const clearPreferences = useAIStore((s) => s.clearPreferences)
+  // 偏好自动检测：当前待确认的偏好（绑定到产生它的消息索引）
+  const [pendingPrefs, setPendingPrefs] = useState<{ index: number; prefs: string[] } | null>(null)
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeSkill, setActiveSkill] = useState<AISkill | null>(null)
@@ -58,6 +67,8 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
 
   async function sendMessage(content: string, skillId?: string) {
     if (!content.trim() || isStreaming) return
+    // 开始新一轮对话，清除上一轮的偏好提示条
+    setPendingPrefs(null)
 
     const config = getLLMConfig()
     if (!config) {
@@ -89,6 +100,10 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     systemPrompt += `\n本地时间: ${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} (${timeZone})`
     systemPrompt += `\n星期: ${['日', '一', '二', '三', '四', '五', '六'][now.getDay()]}`
     systemPrompt += `\n\n用户当前任务列表：\n${formatTasksContext(tasks)}`
+    // 注入已保存的用户偏好，让 AI 在后续对话中遵循
+    if (preferences.length > 0) {
+      systemPrompt += `\n\n## 用户偏好（请遵循这些偏好）\n${preferences.map((p) => `- ${p}`).join('\n')}`
+    }
 
     const history = newMessages.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
 
@@ -99,7 +114,6 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     ]
 
     const skill = skillId ?? activeSkill?.id ?? null
-    const assistantIdx = newMessages.length
     setMessages(prev => [...prev, { role: 'assistant', content: '', skillId, isStreaming: true }])
 
     let accumulated = ''
@@ -108,20 +122,26 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
       if (settledRef.current) return
       settledRef.current = true
       const { actions, cleanedText } = parseActions(full)
-      setMessages(prev => prev.map((m, i) =>
-        i === assistantIdx
+      setMessages(prev => prev.map(m =>
+        m.isStreaming
           ? { ...m, content: cleanedText || full, skillId, pendingAction: actions[0], isStreaming: false }
           : m
       ))
       setIsStreaming(false)
       cleanupRef.current = null
+      // 偏好自动检测：从用户输入 + AI 回复中提取偏好，提示用户确认保存
+      const detected = parsePreferences(`${content}\n${cleanedText || full}`)
+      if (detected.length > 0) {
+        const idx = useAIStore.getState().messages.length - 1
+        setPendingPrefs({ index: idx, prefs: detected })
+      }
     }
 
     const failWith = (errMsg: string) => {
       if (settledRef.current) return
       settledRef.current = true
-      setMessages(prev => prev.map((m, i) =>
-        i === assistantIdx
+      setMessages(prev => prev.map(m =>
+        m.isStreaming
           ? { ...m, content: `❌ 出错了：${errMsg}\n\n请检查设置中的大模型 API 配置。`, isStreaming: false }
           : m
       ))
@@ -145,7 +165,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           if (settledRef.current) return
           accumulated += delta
           const display = stripActionsLive(accumulated)
-          setMessages(prev => prev.map((m, i) => i === assistantIdx ? { ...m, content: display } : m))
+          setMessages(prev => prev.map(m => m.isStreaming ? { ...m, content: display } : m))
         },
         (full) => finalize(full),
         () => fallback(),
@@ -195,9 +215,30 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     cleanupRef.current = null
     settledRef.current = true
     setIsStreaming(false)
+    setPendingPrefs(null)
     setMessages([])
     setActiveSkill(null)
     setShowSkillMenu(false)
+  }
+
+  // 保存本轮检测到的偏好
+  function handleSavePrefs() {
+    if (!pendingPrefs) return
+    pendingPrefs.prefs.forEach((p) => addPreference(p))
+    setPendingPrefs(null)
+  }
+
+  // 忘记所有已保存的偏好
+  async function handleForgetPrefs() {
+    const ok = await confirm({
+      title: '忘记所有偏好',
+      message: `确定要忘记全部 ${preferences.length} 条已保存的用户偏好吗？此操作不可撤销。`,
+      danger: true,
+      confirmText: '忘记',
+      cancelText: '取消',
+    })
+    if (!ok) return
+    clearPreferences()
   }
 
   return (
@@ -220,6 +261,19 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
           )}
+          {preferences.length > 0 && (
+            <button
+              onClick={handleForgetPrefs}
+              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors relative"
+              title={`忘记所有偏好（已记住 ${preferences.length} 条）`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 9l-6 6m0-6l6 6" />
+              </svg>
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-white/90 text-[var(--color-ai)] text-[10px] font-bold flex items-center justify-center">{preferences.length}</span>
+            </button>
+          )}
           <button onClick={onClose} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="关闭">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -229,7 +283,22 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && <WelcomeScreen onSendQuickQuestion={(q) => sendMessage(q)} />}
         {messages.map((msg, i) => (
-          <ChatMessageItem key={i} msg={msg} index={i} onExecuteAction={handleExecuteAction} onRejectAction={handleRejectAction} />
+          <div key={i}>
+            <ChatMessageItem msg={msg} index={i} onExecuteAction={handleExecuteAction} onRejectAction={handleRejectAction} />
+            {pendingPrefs && pendingPrefs.index === i && (
+              <div className="mt-2 ml-10 p-2.5 bg-[var(--color-accent-light)] border border-[var(--color-accent)]/20 rounded-lg flex items-start gap-2 animate-slide-down">
+                <span className="text-sm leading-5">💡</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-0.5">检测到偏好：</p>
+                  <p className="text-sm text-[var(--color-text-primary)] break-words leading-5">{pendingPrefs.prefs.join('；')}</p>
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button onClick={handleSavePrefs} className="px-2.5 py-1 text-xs bg-[var(--color-accent)] text-white rounded-md hover:brightness-110 transition-all font-medium">保存</button>
+                  <button onClick={() => setPendingPrefs(null)} className="px-2.5 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] rounded-md hover:brightness-95 transition-all">忽略</button>
+                </div>
+              </div>
+            )}
+          </div>
         ))}
         <div ref={messagesEndRef} />
       </div>

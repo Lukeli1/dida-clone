@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Task, CreateTaskRequest } from '../types'
-import { api } from '../api'
+import { api, repeatApi } from '../api'
 
 interface TaskState {
   tasks: Task[]
@@ -127,7 +127,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   toggleTask: async (task) => {
     try {
       if (!task.completed && task.repeat_rule) {
-        const result = await api.completeTask(task.id)
+        // 新 RRULE 格式（FREQ=...）使用 complete_recurring_task 命令；
+        // 旧格式（JSON/字符串）仍走 complete_task 命令。
+        const isRRule = task.repeat_rule.trim().startsWith('FREQ=')
+        const newTaskId = isRRule
+          ? await repeatApi.completeRecurringTask(task.id)
+          : (await api.completeTask(task.id)).new_task_id ?? 0
+
         set((state) => ({
           tasks: state.tasks.map((t) =>
             t.id === task.id
@@ -135,7 +141,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
               : t
           ),
         }))
-        if (result.new_task_id) {
+        if (newTaskId) {
           await get().loadTasks()
           return { success: true, newTaskGenerated: true }
         }

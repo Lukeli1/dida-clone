@@ -3,14 +3,12 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, Tag } from '../../types'
 import { hexWithAlpha } from '../../utils/priority'
-
-// 重复规则对应的中文标签
-const REPEAT_LABELS: Record<string, string> = {
-  daily: '每天',
-  weekly: '每周',
-  monthly: '每月',
-  weekdays: '工作日',
-}
+import {
+  parseRepeatRule,
+  serializeRepeatRule,
+  getRepeatSummary,
+  type RepeatFrequency,
+} from '../../types/repeat'
 
 // 提醒提前量选项（单位：分钟）
 const REMINDER_OPTIONS = [
@@ -20,6 +18,24 @@ const REMINDER_OPTIONS = [
   { value: 30, label: '提前 30 分钟' },
   { value: 60, label: '提前 1 小时' },
   { value: 1440, label: '提前 1 天' },
+]
+
+// 重复规则编辑器选项
+const FREQ_OPTIONS: { value: RepeatFrequency; label: string }[] = [
+  { value: 'DAILY', label: '天' },
+  { value: 'WEEKLY', label: '周' },
+  { value: 'MONTHLY', label: '月' },
+  { value: 'YEARLY', label: '年' },
+]
+
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: '日' },
+  { value: 1, label: '一' },
+  { value: 2, label: '二' },
+  { value: 3, label: '三' },
+  { value: 4, label: '四' },
+  { value: 5, label: '五' },
+  { value: 6, label: '六' },
 ]
 
 interface SchedulePanelProps {
@@ -32,6 +48,20 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
   const [dueDate, setDueDate] = useState(task.due_date || '')
   const [reminder, setReminder] = useState(task.reminder || '')
   const [showScheduleEdit, setShowScheduleEdit] = useState(false)
+  const [showRepeatEdit, setShowRepeatEdit] = useState(false)
+
+  // 自定义重复规则编辑器本地状态（从已有规则初始化）
+  const existingRule = parseRepeatRule(task.repeat_rule)
+  const [repeatFreq, setRepeatFreq] = useState<RepeatFrequency>(existingRule?.freq ?? 'WEEKLY')
+  const [repeatInterval, setRepeatInterval] = useState<number>(existingRule?.interval ?? 1)
+  const [repeatByweekday, setRepeatByweekday] = useState<number[]>(existingRule?.byweekday ?? [])
+  const [repeatEndType, setRepeatEndType] = useState<'none' | 'date' | 'count'>(
+    existingRule?.endDate ? 'date' : existingRule?.count ? 'count' : 'none',
+  )
+  const [repeatEndDate, setRepeatEndDate] = useState<string>(
+    existingRule?.endDate ? existingRule.endDate.slice(0, 10) : '',
+  )
+  const [repeatCount, setRepeatCount] = useState<number>(existingRule?.count ?? 3)
 
   useEffect(() => {
     setDueDate(task.due_date || '')
@@ -95,11 +125,15 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
         ) : (
           <span className="text-[var(--color-text-tertiary)]">设置日期</span>
         )}
-        {task.repeat_rule && REPEAT_LABELS[task.repeat_rule] && (
-          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
-            {REPEAT_LABELS[task.repeat_rule]}
-          </span>
-        )}
+        {task.repeat_rule && (() => {
+          const parsed = parseRepeatRule(task.repeat_rule)
+          const summary = getRepeatSummary(parsed)
+          return summary ? (
+            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+              {summary}
+            </span>
+          ) : null
+        })()}
       </button>
 
       {/* 内联日程编辑面板 */}
@@ -137,34 +171,178 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
               ))}
             </select>
           </div>
+          {/* 重复规则行：摘要 + 编辑按钮 */}
           <div>
             <span className="block text-xs text-[var(--color-text-secondary)] mb-1">重复</span>
-            <select
-              value={task.repeat_rule || ''}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value === '__custom') return
-                onUpdate(task.id, { repeat_rule: value || undefined })
-              }}
-              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
-            >
-              <option value="">不重复</option>
-              <option value="daily">每天</option>
-              <option value="weekly">每周</option>
-              <option value="monthly">每月</option>
-              <option value="weekdays">工作日</option>
-              <option value={JSON.stringify({ type: 'weekly', interval: 1, days: [1, 3, 5] })}>每周一三五</option>
-              <option value={JSON.stringify({ type: 'weekly', interval: 1, days: [2, 4] })}>每周二四</option>
-              <option value={JSON.stringify({ type: 'weekly', interval: 2 })}>每两周</option>
-              <option value={JSON.stringify({ type: 'daily', interval: 2 })}>每两天</option>
-              <option value={JSON.stringify({ type: 'daily', interval: 3 })}>每三天</option>
-              <option value={JSON.stringify({ type: 'monthly', day: 1 })}>每月1号</option>
-              <option value={JSON.stringify({ type: 'monthly', day: 15 })}>每月15号</option>
-              <option value={JSON.stringify({ type: 'monthly', interval: 3, day: 1 })}>每季度1号</option>
-              <option value={JSON.stringify({ type: 'yearly' })}>每年</option>
-              <option value="__custom">自定义...</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-sm text-[var(--color-text-primary)]">
+                {(() => {
+                  const parsed = parseRepeatRule(task.repeat_rule)
+                  return parsed ? getRepeatSummary(parsed) : '不重复'
+                })()}
+              </span>
+              <button
+                onClick={() => setShowRepeatEdit((v) => !v)}
+                className="text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 px-2 py-1 rounded transition-colors"
+              >
+                {showRepeatEdit ? '收起' : '编辑'}
+              </button>
+            </div>
           </div>
+
+          {/* 内联重复规则自定义编辑器 */}
+          {showRepeatEdit && (
+            <div className="space-y-2 bg-[var(--color-bg-tertiary)] rounded-lg p-2.5">
+              {/* 快捷选项 */}
+              <div className="flex flex-wrap gap-1">
+                {(
+                  [
+                    { label: '每天', freq: 'DAILY' as RepeatFrequency },
+                    { label: '每周', freq: 'WEEKLY' as RepeatFrequency },
+                    { label: '每月', freq: 'MONTHLY' as RepeatFrequency },
+                    { label: '每年', freq: 'YEARLY' as RepeatFrequency },
+                  ]
+                ).map((opt) => (
+                  <button
+                    key={opt.freq}
+                    onClick={() => {
+                      onUpdate(task.id, { repeat_rule: serializeRepeatRule({ freq: opt.freq, interval: 1 }) })
+                      setShowRepeatEdit(false)
+                    }}
+                    className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] hover:bg-[var(--color-accent)]/10 text-[var(--color-text-secondary)] transition-colors border border-[var(--color-border-light)]"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => onUpdate(task.id, { repeat_rule: '' })}
+                  className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-tertiary)] transition-colors border border-[var(--color-border-light)]"
+                >
+                  不重复
+                </button>
+              </div>
+
+              <div className="border-t border-[var(--color-border-light)]" />
+
+              {/* 频率 + 间隔 */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--color-text-secondary)] flex-shrink-0">每</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={repeatInterval}
+                  onChange={(e) => setRepeatInterval(Number(e.target.value))}
+                  className="w-14 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)]"
+                />
+                <select
+                  value={repeatFreq}
+                  onChange={(e) => setRepeatFreq(e.target.value as RepeatFrequency)}
+                  className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
+                >
+                  {FREQ_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 指定星期（仅 WEEKLY） */}
+              {repeatFreq === 'WEEKLY' && (
+                <div>
+                  <span className="block text-xs text-[var(--color-text-secondary)] mb-1">星期</span>
+                  <div className="flex flex-wrap gap-1">
+                    {WEEKDAY_OPTIONS.map((opt) => {
+                      const selected = repeatByweekday.includes(opt.value)
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() =>
+                            setRepeatByweekday((prev) =>
+                              prev.includes(opt.value)
+                                ? prev.filter((d) => d !== opt.value)
+                                : [...prev, opt.value].sort((a, b) => a - b),
+                            )
+                          }
+                          className={`w-7 h-7 flex items-center justify-center rounded-full text-xs transition-colors ${
+                            selected
+                              ? 'bg-[var(--color-accent)] text-white'
+                              : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)]'
+                          }`}
+                          title={`周${opt.label}`}
+                        >
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 结束条件 */}
+              <div>
+                <span className="block text-xs text-[var(--color-text-secondary)] mb-1">结束条件</span>
+                <select
+                  value={repeatEndType}
+                  onChange={(e) => setRepeatEndType(e.target.value as 'none' | 'date' | 'count')}
+                  className="w-full text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
+                >
+                  <option value="none">永不结束</option>
+                  <option value="date">到期日期</option>
+                  <option value="count">重复次数</option>
+                </select>
+              </div>
+              {repeatEndType === 'date' && (
+                <input
+                  type="date"
+                  value={repeatEndDate}
+                  onChange={(e) => setRepeatEndDate(e.target.value)}
+                  className="w-full text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)]"
+                />
+              )}
+              {repeatEndType === 'count' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--color-text-secondary)]">重复</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={repeatCount}
+                    onChange={(e) => setRepeatCount(Number(e.target.value))}
+                    className="w-16 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)]"
+                  />
+                  <span className="text-xs text-[var(--color-text-secondary)]">次</span>
+                </div>
+              )}
+
+              {/* 应用自定义规则 */}
+              <button
+                onClick={() => {
+                  const rule: {
+                    freq: RepeatFrequency
+                    interval: number
+                    byweekday?: number[]
+                    endDate?: string
+                    count?: number
+                  } = {
+                    freq: repeatFreq,
+                    interval: Math.max(1, repeatInterval || 1),
+                  }
+                  if (repeatFreq === 'WEEKLY' && repeatByweekday.length > 0) {
+                    rule.byweekday = [...repeatByweekday].sort((a, b) => a - b)
+                  }
+                  if (repeatEndType === 'date' && repeatEndDate) {
+                    rule.endDate = new Date(repeatEndDate).toISOString()
+                  }
+                  if (repeatEndType === 'count' && repeatCount > 0) {
+                    rule.count = repeatCount
+                  }
+                  onUpdate(task.id, { repeat_rule: serializeRepeatRule(rule) })
+                  setShowRepeatEdit(false)
+                }}
+                className="w-full text-xs text-white bg-[var(--color-accent)] hover:brightness-110 rounded py-1.5 transition-colors"
+              >
+                应用
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

@@ -23,6 +23,8 @@ import { DetailPanel } from './components/DetailPanel'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { NotificationCenter } from './components/NotificationCenter'
 import { OnboardingTour } from './components/OnboardingTour'
+import { AppSkeleton } from './components/common/Skeleton'
+import { TopProgressBar } from './components/common/TopProgressBar'
 
 /**
  * App 根组件（重构后）
@@ -126,15 +128,12 @@ function App() {
   const handleCloseNotificationCenter = useCallback(() => setNotificationCenterOpen(false), [setNotificationCenterOpen])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg-secondary)] flex items-center justify-center">
-        <p className="text-[var(--color-text-secondary)]">加载中...</p>
-      </div>
-    )
+    return <AppSkeleton />
   }
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg-secondary)] overflow-hidden">
+      <TopProgressBar />
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar

@@ -3,6 +3,7 @@ pub mod commands;
 pub mod llm;
 pub mod fonts;
 pub mod sync;
+pub mod repeat;
 
 use db::DbState;
 use tauri::{
@@ -127,6 +128,7 @@ pub fn run() {
             commands::remove_tag_from_task,
             commands::reorder_tasks,
             commands::complete_task,
+            commands::complete_recurring_task,
             commands::get_habits,
             commands::create_habit,
             commands::update_habit,

@@ -88,7 +88,7 @@ export function HabitCalendar({ records, month, onMonthChange }: {
             <div
               key={i}
               className={`text-xs text-center py-1.5 rounded relative ${
-                isFuture ? 'text-[var(--color-text-tertiary)] opacity-40' : ''
+                isFuture ? 'opacity-40' : ''
               } ${isCompleted ? 'bg-[var(--color-accent-light)] text-[var(--color-accent-text)] font-medium' : 'text-[var(--color-text-secondary)]'} ${
                 isToday ? 'ring-2 ring-[var(--color-accent)]' : ''
               }`}

@@ -11,7 +11,6 @@
 //   - window_commands.rs 窗口控制 command
 
 mod task_commands;
-mod task_crud;
 mod task_ops;
 mod list_commands;
 mod tag_commands;
@@ -21,6 +20,7 @@ mod window_commands;
 pub mod sync_commands;
 pub mod template_commands;
 pub mod attachment_commands;
+pub mod repeat_commands;
 
 pub use task_commands::*;
 pub use list_commands::*;
@@ -28,6 +28,7 @@ pub use tag_commands::*;
 pub use habit_commands::*;
 pub use data_commands::*;
 pub use window_commands::*;
+pub use repeat_commands::*;
 pub use sync_commands::*;
 pub use template_commands::*;
 pub use attachment_commands::*;

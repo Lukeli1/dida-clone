@@ -14,6 +14,7 @@ export { habitApi } from './api/habitApi'
 export { syncApi } from './api/syncApi'
 export { templateApi } from './api/templateApi'
 export { attachmentApi } from './api/attachmentApi'
+export { repeatApi } from './api/repeatApi'
 export type { Attachment } from './types/attachment'
 
 // AI 流式对话 & 数据导出/导入

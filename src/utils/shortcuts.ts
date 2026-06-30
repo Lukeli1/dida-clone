@@ -46,3 +46,38 @@ export const DEFAULT_SHORTCUT_BINDINGS: ShortcutBinding[] = [
   { id: 'viewHabit', label: '切换到习惯打卡', category: '导航', defaultKeys: 'Ctrl+5', description: '切换到习惯打卡' },
   { id: 'shortcutsHelp', label: '快捷键帮助', category: '全局', defaultKeys: '?', description: '打开快捷键帮助面板' },
 ]
+
+/**
+ * 规范化快捷键组合字符串，使绑定值与事件值可以匹配。
+ * 单个字母转为小写（'Ctrl+N' → 'Ctrl+n'），其他保持原样。
+ */
+export function normalizeCombo(combo: string): string {
+  const parts = combo.split('+')
+  const last = parts[parts.length - 1]
+  if (last.length === 1 && /[a-zA-Z]/.test(last)) {
+    parts[parts.length - 1] = last.toLowerCase()
+  }
+  return parts.join('+')
+}
+
+/**
+ * 从 KeyboardEvent 构建规范化的按键组合字符串。
+ * 对于 Shift 产生的符号键（如 ? ! @），不包含 Shift 前缀（因为符号本身已隐含 Shift）。
+ */
+export function buildCombo(e: KeyboardEvent): string {
+  const parts: string[] = []
+  if (e.ctrlKey) parts.push('Ctrl')
+  if (e.shiftKey) {
+    // Shift 产生的符号键（如 ? ! @）不需要额外标注 Shift
+    if (e.key.length === 1 && !/[a-zA-Z0-9]/.test(e.key)) {
+      // 符号键，Shift 已隐含
+    } else {
+      parts.push('Shift')
+    }
+  }
+  if (e.altKey) parts.push('Alt')
+  if (e.metaKey) parts.push('Meta')
+  if (e.key === ' ') parts.push('Space')
+  else parts.push(e.key)
+  return normalizeCombo(parts.join('+'))
+}

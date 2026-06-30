@@ -49,6 +49,9 @@ interface UIState {
   // 自定义快捷键
   customShortcuts: Record<string, string> // { newTask: 'Ctrl+N', ... }
 
+  // 全局 Loading 状态（驱动顶部进度条 TopProgressBar）
+  globalLoading: boolean
+
   // Actions
   setCurrentView: (view: ViewType) => void
   setSelectedListId: (id: number | null) => void
@@ -76,6 +79,7 @@ interface UIState {
   setNotificationCenterOpen: (open: boolean) => void
   setCustomShortcut: (id: string, keys: string) => void
   resetShortcuts: () => void
+  setGlobalLoading: (loading: boolean) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -100,6 +104,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   notificationHistory: [],
   notificationCenterOpen: false,
+
+  // 全局 Loading 初始值
+  globalLoading: false,
 
   // 初始值从 localStorage 读取
   customShortcuts: (() => {
@@ -199,4 +206,6 @@ export const useUIStore = create<UIState>((set) => ({
     }
     set({ customShortcuts: {} })
   },
+
+  setGlobalLoading: (globalLoading) => set({ globalLoading }),
 }))

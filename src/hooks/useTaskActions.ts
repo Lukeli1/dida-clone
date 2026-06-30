@@ -108,6 +108,7 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     // ===== 右键菜单快捷操作 =====
     handleSetDate: inlineEdit.handleSetDate,
     handleSetPriority: inlineEdit.handleSetPriority,
+    handleSetRepeatRule: inlineEdit.handleSetRepeatRule,
     handleTogglePin: inlineEdit.handleTogglePin,
     handleToggleTag: inlineEdit.handleToggleTag,
     handleDuplicateTask: crud.handleDuplicateTask,

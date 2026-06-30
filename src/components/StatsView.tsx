@@ -162,8 +162,8 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                     style={{ height: `${(d.count / maxWeekCount) * 100}%` }}
                   />
                 </div>
-                <span className="text-xs text-[var(--color-text-tertiary)]">{format(d.date, 'EEE', { locale: zhCN })}</span>
-                <span className={`text-xs ${isToday(d.date) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
+                <span className="text-xs text-center text-[var(--color-text-secondary)]">{format(d.date, 'EEE', { locale: zhCN })}</span>
+                <span className={`text-xs ${isToday(d.date) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-secondary)]'}`}>
                   {format(d.date, 'M/d')}
                 </span>
               </div>
@@ -176,7 +176,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
           <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6" style={{boxShadow:'var(--shadow-card)'}}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">清单分布</h3>
             {stats.listStats.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-tertiary)]">暂无数据</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">暂无数据</p>
             ) : (
               <div className="space-y-3">
                 {stats.listStats.map(s => (
@@ -186,7 +186,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.list.color || '#9aa0a6' }} />
                         {s.list.name}
                       </span>
-                      <span className="text-xs text-[var(--color-text-tertiary)]">{s.completed}/{s.total}</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">{s.completed}/{s.total}</span>
                     </div>
                     <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-2 overflow-hidden">
                       <div
@@ -216,7 +216,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
                         {p.label}
                       </span>
-                      <span className="text-xs text-[var(--color-text-tertiary)]">{p.count}</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">{p.count}</span>
                     </div>
                     <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-2 overflow-hidden">
                       <div

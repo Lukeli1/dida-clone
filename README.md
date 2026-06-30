@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.28.0-blue)
+![版本](https://img.shields.io/badge/version-1.31.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -95,7 +95,7 @@
 - 设计令牌系统、统一 focus ring
 - 任务行高 56px、优先级左侧色条
 - 打勾弹跳动画、拖拽指示线、细滚动条
-- 键盘快捷键：Ctrl+N 新建、Ctrl+F 搜索、Ctrl+1/2/3 切换视图
+- 键盘快捷键：Ctrl+N 新建、Ctrl+F 搜索、Ctrl+1/2/3/4/5 切换视图、?/F1 快捷键帮助、Ctrl+B 折叠侧边栏（预留）；支持设置面板自定义快捷键
 - **深色模式完善**（v1.2.1）：全局 CSS 覆盖策略，背景/文字/边框/输入框/滚动条/主题色全适配，应用启动立即应用主题
 - **设置模块位置**（v1.2.1）：从智能清单列表移至侧边栏左下角固定底部栏
 
@@ -111,8 +111,7 @@
 | 日期处理 | date-fns |
 | 大模型协议 | OpenAI 兼容（/v1/models, /v1/chat/completions） |
 | 状态管理 | Zustand v5 |
-| 数据缓存 | TanStack Query v5 |
-| 虚拟列表 | @tanstack/react-virtual |
+| 虚拟列表 | @tanstack/react-virtual v3 |
 
 ## 快速开始
 
@@ -184,6 +183,61 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.31.0（2026-06-30）
+
+#### Phase 10 — 功能深化 + UI/UX 打磨 + 架构清理
+
+**方向 A：功能模块深化**
+- **任务重复规则**（P10-01）：RFC 5545 RRULE 简化版完整实现（前后端 + 40 个测试用例）；支持每天/每周指定星期/每月/每年重复 + 自定义间隔 + 结束条件；完成任务后自动生成下一个周期副本
+- **AI 对话记忆**（P10-02）：aiStore + localStorage 持久化，关闭面板后对话保留；用户偏好自动检测（"记住我…"/"我喜欢…"等模式）+ 确认保存 + 注入 systemPrompt；支持"忘记所有偏好"
+- **任务列表虚拟滚动**（P10-03）：@tanstack/react-virtual 替换全量渲染，500+ 条任务流畅滚动（FPS > 50）；动态高度测量 + 子任务展开自适应
+- **搜索高亮 + 搜索历史**（P10-04）：搜索关键词在标题中高亮显示（`<mark>` 标签）；搜索框聚焦时显示 10 条历史搜索词，点击快速搜索
+
+**方向 B：UI/UX 打磨**
+- **详情面板滑入动画**（P10-05）：右侧滑入 200ms cubic-bezier 缓动；全局过渡时长统一（200ms 为主，300ms 用于大型面板）
+- **右键菜单键盘导航**（P10-06）：useMenuKeyboard hook，↑↓ 选择主菜单项、←→ 在水平子菜单中导航、Enter 确认、Esc 关闭；作用域协调器避免子菜单 Enter 重复触发
+- **暗色模式对比度修复**（P10-07）：`--color-text-tertiary` 从 #5f6368 提升到 #9CA3AF（对比度 3.2:1 → 6.6:1，达到 WCAG AA 标准）；HabitCalendar、StatsView 等组件对比度修复
+- **全局 Loading + 骨架屏**（P10-08）：AppSkeleton 启动骨架屏（模拟 TitleBar + Sidebar + TaskList 布局）；TopProgressBar 顶部进度条 + uiStore.globalLoading 状态
+
+**方向 C：架构清理**
+- **清理未使用依赖**（P10-09）：移除 @tanstack/react-query；vitest.config.ts 排除 tests/** 防止 Playwright 用例被误收集；新增 test:unit / test:e2e 独立脚本
+- **快捷键自定义读取**（P10-10）：useKeyboardShortcuts 从硬编码改为数据驱动，合并 DEFAULT_SHORTCUT_BINDINGS + uiStore.customShortcuts；normalizeCombo / buildCombo 工具函数；ShortcutsHelp 面板显示当前生效按键
+- **Rust 文件合并**（P10-11）：task_crud.rs 合并到 task_commands.rs，减少文件碎片；事务安全验证通过（reorder/complete/duplicate/delete 均已包裹事务）
+
+### v1.30.0（2026-06-30）
+
+#### Phase 9 — 新功能 + 性能优化
+
+**新增功能**
+- **任务模板**（P9-01）：后端 template_commands.rs + subtask_templates 表；前端 TemplateView + TemplateEditor，支持从现有任务创建模板、应用模板快速创建任务
+- **习惯统计图表**（P9-02）：recharts 实现 7 天柱状图 + 月度热力图 + 30 天趋势折线
+- **当前时间红线**（P9-03）：周视图和日视图中显示红色当前时间线
+- **任务附件**（P9-04）：后端 attachment_commands.rs + attachments 表 + open crate；前端 TaskAttachments 组件，支持添加/删除/打开附件
+- **新手引导**（P9-05）：react-joyride v3 实现 5 步引导流程
+- **通知中心**（P9-06）：uiStore + NotificationCenter 组件 + TitleBar 铃铛图标
+- **快捷键自定义面板**（P9-07）：录制快捷键 + 冲突检测 + 恢复默认
+
+**测试与性能**
+- **Playwright E2E 框架**（P9-08）：5 个测试文件覆盖核心流程
+- **性能优化**（P9-09）：React.memo + custom comparison、useMemo、useCallback、lazy loading
+
+### v1.29.0（2026-06-30）
+
+#### Phase 8 — 架构拆分 + 功能增强
+
+**大文件拆分**
+- CalendarView（446→83 行）→ CalendarToolbar + ViewRenderer + TaskSidebar + calendarUtils
+- TaskContextMenu（437→231 行）→ DateMenu + PriorityMenu + TagMenu + menuItems
+- HabitCard（392→199 行）→ HabitStats + HabitActions
+- DayView（383→218 行）→ DayViewGrid + DayViewTask + dayViewUtils
+- SettingsView 拆分为 AppearancePanel（340→175）+ SystemPanel（325→174）+ FontPanel + DensityPanel + DataPanel + CleanupPanel
+- HabitView（311→198 行）→ HabitList
+- api.ts（407→30 行）→ 7 个子模块
+
+**功能增强**
+- **快捷键帮助面板**（P8-08）：? / F1 键 + TitleBar 帮助按钮触发
+- **TaskNotes 编辑/预览**（P8-09）：编辑/预览标签页切换 + localStorage 草稿保存
 
 ### v1.28.0（2026-06-29）
 

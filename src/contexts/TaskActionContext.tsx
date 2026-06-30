@@ -22,6 +22,7 @@ export interface TaskActionContextValue {
   onUnarchive: (taskId: number) => void
   onSetDate: (taskId: number, date: string | null) => void
   onSetPriority: (taskId: number, priority: number) => void
+  onSetRepeatRule: (taskId: number, rule: string | null) => void
   onTogglePin: (taskId: number) => void
   onToggleTag: (taskId: number, tagId: number) => void
   onDuplicate: (taskId: number) => void
