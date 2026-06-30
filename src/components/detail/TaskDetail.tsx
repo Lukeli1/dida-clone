@@ -4,6 +4,7 @@ import { getTaskColor, PRIORITY_STYLES } from '../../utils/priority'
 import { TaskNotes } from './TaskNotes'
 import { SubtaskList, TaskAIPanel } from './SubtaskList'
 import { SchedulePanel, TaskMetaPanel } from './TaskMetaPanel'
+import { TaskAttachments } from './TaskAttachments'
 import { useConfirm } from '../common/ConfirmDialog'
 
 interface TaskDetailProps {
@@ -152,6 +153,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
       {/* ===== Middle zone (scrollable) ===== */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         <TaskNotes task={task} onUpdate={onUpdate} />
+        <TaskAttachments task={task} />
         <SubtaskList
           task={task}
           onUpdate={onUpdate}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import type { Task } from '../../types'
 import { hexWithAlpha, getTaskColor } from '../../utils/priority'
 import { getSearchMatchSource } from '../../utils/taskSearch'
@@ -7,6 +7,81 @@ import { useTaskActionContext } from '../../contexts/TaskActionContext'
 import { TaskInlineEditor } from './TaskInlineEditor'
 import { TaskSubtaskList } from './TaskSubtaskList'
 import { TaskContextMenu } from './TaskContextMenu'
+
+/**
+ * 优先级指示器配置（常量，无需每次渲染重建）
+ */
+const PRIORITY_CONFIG = {
+  1: { color: 'var(--color-priority-high)', label: '高' },
+  2: { color: 'var(--color-priority-medium)', label: '中' },
+  3: { color: 'var(--color-priority-low)', label: '低' },
+} as const
+
+/**
+ * React.memo 自定义比较函数：浅比较所有影响渲染的 props。
+ *
+ * 由于 taskTree 组装时会对每个 task 创建新引用（{ ...task, subtasks: [...] }），
+ * 纯引用比较会导致所有 TaskItem 在父组件每次渲染时都重渲染。
+ * 此函数逐字段比较 task 数据 + 其他 props，仅在数据真正变化时才触发重渲染。
+ */
+function areTaskItemPropsEqual(prev: TaskItemProps, next: TaskItemProps): boolean {
+  // 非 task props 快速比较
+  if (
+    prev.isSelected !== next.isSelected ||
+    prev.isExpanded !== next.isExpanded ||
+    prev.subtaskInput !== next.subtaskInput ||
+    prev.isSelectedForBatch !== next.isSelectedForBatch ||
+    prev.onReorder !== next.onReorder
+  ) {
+    return false
+  }
+
+  // task 引用相同时无需进一步比较
+  if (prev.task === next.task) return true
+
+  const pt = prev.task
+  const nt = next.task
+
+  // task 基本字段比较
+  if (
+    pt.id !== nt.id ||
+    pt.title !== nt.title ||
+    pt.completed !== nt.completed ||
+    pt.priority !== nt.priority ||
+    pt.due_date !== nt.due_date ||
+    pt.notes !== nt.notes ||
+    pt.pinned !== nt.pinned ||
+    pt.archived !== nt.archived ||
+    pt.list_id !== nt.list_id ||
+    pt.sort_order !== nt.sort_order ||
+    pt.updated_at !== nt.updated_at
+  ) {
+    return false
+  }
+
+  // tag_ids 数组比较
+  const pTags = pt.tag_ids || []
+  const nTags = nt.tag_ids || []
+  if (pTags.length !== nTags.length || !pTags.every((t, i) => t === nTags[i])) {
+    return false
+  }
+
+  // subtasks 比较（仅比较影响渲染的字段：id / title / completed）
+  const pSubs = pt.subtasks || []
+  const nSubs = nt.subtasks || []
+  if (pSubs.length !== nSubs.length) return false
+  for (let i = 0; i < pSubs.length; i++) {
+    if (
+      pSubs[i].id !== nSubs[i].id ||
+      pSubs[i].title !== nSubs[i].title ||
+      pSubs[i].completed !== nSubs[i].completed
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
 
 export interface TaskItemProps {
   task: Task
@@ -27,7 +102,7 @@ export interface TaskItemProps {
  *
  * 内联编辑、右键菜单、子任务列表已拆为独立子组件，各自通过 useTaskActionContext 获取 actions。
  */
-export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelectedForBatch, onReorder }: TaskItemProps) {
+const TaskItem = memo(function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelectedForBatch, onReorder }: TaskItemProps) {
   const ctx = useTaskActionContext()
   const { tags, lists, batchMode, isArchivedView } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
@@ -35,84 +110,111 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [isHovered, setIsHovered] = useState(false)
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0
-  const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0
-  const totalSubtasks = task.subtasks?.length || 0
-  const taskColor = getTaskColor(task, lists)
+
+  // ===== 派生数据 useMemo 缓存 =====
+  const hasSubtasks = useMemo(() => task.subtasks && task.subtasks.length > 0, [task.subtasks])
+  const completedSubtasks = useMemo(() => task.subtasks?.filter(st => st.completed).length || 0, [task.subtasks])
+  const totalSubtasks = useMemo(() => task.subtasks?.length || 0, [task.subtasks])
+  const taskColor = useMemo(() => getTaskColor(task, lists), [task, lists])
 
   // ===== 搜索匹配来源标签 =====
   const searchQuery = useUIStore(s => s.searchQuery)
-  const matchSource = getSearchMatchSource(task, searchQuery, task.subtasks ?? [])
+  const matchSource = useMemo(
+    () => getSearchMatchSource(task, searchQuery, task.subtasks ?? []),
+    [task, searchQuery],
+  )
 
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [])
 
-  function handleDragStart(e: React.DragEvent) {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(task.id))
     ctx.onDragStartGlobal()
-  }
+  }, [task.id, ctx])
 
-  function handleDragOver(e: React.DragEvent) {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     const rect = e.currentTarget.getBoundingClientRect()
     setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
-  }
+  }, [])
 
-  function handleDragLeave() {
+  const handleDragLeave = useCallback(() => {
     setDragOverPos(null)
-  }
+  }, [])
 
-  function handleDrop(e: React.DragEvent) {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const draggedId = Number(e.dataTransfer.getData('text/plain'))
     if (draggedId && draggedId !== task.id && onReorder) {
       onReorder(draggedId, task.id)
     }
     setDragOverPos(null)
-  }
+  }, [task.id, onReorder])
 
-  function handleDragEnd() {
+  const handleDragEnd = useCallback(() => {
     ctx.onDragEndGlobal()
-  }
+  }, [ctx])
 
-  function handleContextMenu(e: React.MouseEvent) {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     document.dispatchEvent(new CustomEvent('close-context-menus'))
     setContextMenu({ x: e.clientX, y: e.clientY })
-  }
+  }, [])
 
-  function handleDoubleClick(e: React.MouseEvent) {
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (!batchMode) {
       setEditTitle(task.title)
       setIsEditing(true)
     }
-  }
+  }, [batchMode, task.title])
 
-  function handleEditSave() {
+  const handleEditSave = useCallback(() => {
     ctx.onInlineEdit(task.id, editTitle)
     setIsEditing(false)
-  }
+  }, [ctx, task.id, editTitle])
 
-  function handleEditCancel() {
+  const handleEditCancel = useCallback(() => {
     setEditTitle(task.title)
     setIsEditing(false)
-  }
+  }, [task.title])
 
-  function handleStartRename() {
+  const handleStartRename = useCallback(() => {
     setEditTitle(task.title)
     setIsEditing(true)
-  }
+  }, [task.title])
 
-  // 优先级指示器颜色
-  const priorityConfig = {
-    1: { color: 'var(--color-priority-high)', label: '高' },
-    2: { color: 'var(--color-priority-medium)', label: '中' },
-    3: { color: 'var(--color-priority-low)', label: '低' },
-  }
-  const priorityInfo = task.priority ? priorityConfig[task.priority as keyof typeof priorityConfig] : null
+  const handleMouseEnter = useCallback(() => setIsHovered(true), [])
+  const handleMouseLeave = useCallback(() => setIsHovered(false), [])
+
+  const handleMainClick = useCallback((e: React.MouseEvent) => {
+    if (batchMode) {
+      e.stopPropagation()
+      ctx.onToggleSelect(task.id)
+    } else if (!isEditing) {
+      ctx.onClick(task.id)
+    }
+  }, [batchMode, isEditing, ctx, task.id])
+
+  const handleToggleExpandClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    ctx.onToggleExpand(task.id)
+  }, [ctx, task.id])
+
+  const handleBatchCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+    ctx.onToggleSelect(task.id)
+  }, [ctx, task.id])
+
+  const handleToggleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+    ctx.onToggle(task)
+  }, [ctx, task])
+
+  // 优先级指示器颜色（使用模块级常量）
+  const priorityInfo = task.priority ? PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] : null
 
   return (
     <li
@@ -123,19 +225,12 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={`task-enter ${dragOverPos === 'before' ? 'border-t-2 border-[var(--color-accent)]' : dragOverPos === 'after' ? 'border-b-2 border-[var(--color-accent)]' : ''}`}
     >
       <div
-        onClick={(e) => {
-          if (batchMode) {
-            e.stopPropagation()
-            ctx.onToggleSelect(task.id)
-          } else if (!isEditing) {
-            ctx.onClick(task.id)
-          }
-        }}
+        onClick={handleMainClick}
         onDoubleClick={handleDoubleClick}
         className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 border border-[var(--color-border-light)] ${
           isSelected
@@ -152,7 +247,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
       >
         {hasSubtasks ? (
           <button
-            onClick={(e) => { e.stopPropagation(); ctx.onToggleExpand(task.id) }}
+            onClick={handleToggleExpandClick}
             className="flex-shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-all active:scale-90"
             aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
           >
@@ -168,7 +263,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
           <input
             type="checkbox"
             checked={isSelectedForBatch || false}
-            onChange={(e) => { e.stopPropagation(); ctx.onToggleSelect(task.id) }}
+            onChange={handleBatchCheckboxChange}
             onClick={(e) => e.stopPropagation()}
             className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
           />
@@ -176,7 +271,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
           <input
             type="checkbox"
             checked={task.completed}
-            onChange={(e) => { e.stopPropagation(); ctx.onToggle(task) }}
+            onChange={handleToggleCheckboxChange}
             onClick={(e) => e.stopPropagation()}
             className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
           />
@@ -302,4 +397,7 @@ export function TaskItem({ task, isSelected, isExpanded, subtaskInput, isSelecte
       )}
     </li>
   )
-}
+}, areTaskItemPropsEqual)
+
+export { TaskItem }
+export default TaskItem

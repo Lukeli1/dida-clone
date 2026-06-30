@@ -133,11 +133,27 @@ export function AvatarSection() {
 
 // 底部固定栏：设置入口
 export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps) {
+  function handleRestartTour() {
+    localStorage.removeItem('onboarding_seen')
+    // 触发页面刷新以重新启动引导教程
+    window.location.reload()
+  }
+
   return (
     <div className="border-t border-[var(--color-border)] p-3">
       <button
+        onClick={handleRestartTour}
+        className="w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+        title="重新查看新手引导教程"
+      >
+        <svg className="w-[18px] h-[18px] opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+        </svg>
+        引导教程
+      </button>
+      <button
         onClick={() => onViewChange('settings')}
-        className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
+        className={`settings-btn w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
           currentView === 'settings'
             ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
             : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'

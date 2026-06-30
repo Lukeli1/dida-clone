@@ -19,6 +19,8 @@ mod habit_commands;
 mod data_commands;
 mod window_commands;
 pub mod sync_commands;
+pub mod template_commands;
+pub mod attachment_commands;
 
 pub use task_commands::*;
 pub use list_commands::*;
@@ -27,6 +29,8 @@ pub use habit_commands::*;
 pub use data_commands::*;
 pub use window_commands::*;
 pub use sync_commands::*;
+pub use template_commands::*;
+pub use attachment_commands::*;
 
 /// 辅助函数：获取当前时间的 RFC3339 字符串（消除重复 chrono::Local::now().to_rfc3339()）
 /// 被 task_commands / list_commands / tag_commands 共用。

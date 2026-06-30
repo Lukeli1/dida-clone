@@ -1,5 +1,10 @@
-import { type RefObject } from 'react'
+import { useState, useEffect, useRef, type RefObject } from 'react'
 import { parseSmartDate } from '../../utils/smartDate'
+import { templateApi } from '../../api'
+import { useUIStore } from '../../stores/uiStore'
+import { useTaskStore } from '../../stores/taskStore'
+import { useToast } from '../Toast'
+import type { TaskTemplate } from '../../types/template'
 
 interface TaskInputBarProps {
   newTaskInputRef: RefObject<HTMLInputElement>
@@ -11,10 +16,53 @@ interface TaskInputBarProps {
   handleCreateTask: () => void
 }
 
-/** 新建任务输入栏（含 AI 模式切换 + 智能日期识别预览） */
+/** 新建任务输入栏（含 AI 模式切换 + 智能日期识别预览 + 从模板创建） */
 export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, aiMode, aiParsing, setAiMode, handleCreateTask }: TaskInputBarProps) {
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
+  const [templates, setTemplates] = useState<TaskTemplate[]>([])
+  const [templatesLoaded, setTemplatesLoaded] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const toast = useToast()
+  const selectedListId = useUIStore(s => s.selectedListId)
+  const loadTasks = useTaskStore(s => s.loadTasks)
+
+  // 点击外部关闭模板下拉
+  useEffect(() => {
+    if (!showTemplateDropdown) return
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowTemplateDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showTemplateDropdown])
+
+  // 首次打开时加载模板列表
+  useEffect(() => {
+    if (showTemplateDropdown && !templatesLoaded) {
+      templateApi.getTemplates()
+        .then(setTemplates)
+        .catch(e => console.error('加载模板列表失败:', e))
+        .finally(() => setTemplatesLoaded(true))
+    }
+  }, [showTemplateDropdown, templatesLoaded])
+
+  async function handleApplyTemplate(template: TaskTemplate) {
+    try {
+      const listId = selectedListId ?? 1
+      await templateApi.applyTemplate(template.id, listId)
+      await loadTasks()
+      toast.success(`已从模板「${template.name}」创建任务`)
+      setShowTemplateDropdown(false)
+    } catch (e) {
+      console.error('应用模板失败:', e)
+      toast.error('创建失败，请重试')
+    }
+  }
+
   return (
-    <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="task-input-bar p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex gap-2.5">
         <div className="flex-1 relative">
           <input
@@ -75,6 +123,55 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
             )
           })()}
         </div>
+
+        {/* 从模板创建按钮 */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+            disabled={aiParsing}
+            className="px-3 py-2.5 text-[14px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl transition-all duration-200 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50 flex items-center justify-center"
+            title="从模板创建任务"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            </svg>
+          </button>
+          {/* 模板下拉列表 */}
+          {showTemplateDropdown && (
+            <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg py-1.5 z-50 animate-scale-in max-h-80 overflow-y-auto">
+              {templates.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm text-[var(--color-text-tertiary)]">暂无模板</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">在「模板」视图中创建模板</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-1.5 border-b border-[var(--color-border)] mb-1">
+                    从模板创建
+                  </p>
+                  {templates.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleApplyTemplate(template)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors rounded-lg mx-1 w-[calc(100%-8px)]"
+                    >
+                      <span className="text-lg flex-shrink-0">{template.icon ?? '📋'}</span>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="font-medium text-[var(--color-text-primary)] truncate">{template.name}</p>
+                        {template.subtask_templates.length > 0 && (
+                          <p className="text-xs text-[var(--color-text-tertiary)]">
+                            含 {template.subtask_templates.length} 个子任务
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handleCreateTask}
           disabled={aiParsing}

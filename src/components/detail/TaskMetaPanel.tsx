@@ -12,6 +12,16 @@ const REPEAT_LABELS: Record<string, string> = {
   weekdays: '工作日',
 }
 
+// 提醒提前量选项（单位：分钟）
+const REMINDER_OPTIONS = [
+  { value: 0, label: '正点' },
+  { value: 5, label: '提前 5 分钟' },
+  { value: 15, label: '提前 15 分钟' },
+  { value: 30, label: '提前 30 分钟' },
+  { value: 60, label: '提前 1 小时' },
+  { value: 1440, label: '提前 1 天' },
+]
+
 interface SchedulePanelProps {
   task: Task
   onUpdate: (id: number, updates: Partial<Task>) => void
@@ -114,6 +124,18 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
               onBlur={handleScheduleSave}
               className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
             />
+          </div>
+          <div>
+            <span className="block text-xs text-[var(--color-text-secondary)] mb-1">提醒提前量</span>
+            <select
+              value={task.reminder_minutes ?? 0}
+              onChange={(e) => onUpdate(task.id, { reminder_minutes: Number(e.target.value) })}
+              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
+            >
+              {REMINDER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <span className="block text-xs text-[var(--color-text-secondary)] mb-1">重复</span>

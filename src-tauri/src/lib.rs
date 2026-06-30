@@ -154,6 +154,15 @@ pub fn run() {
             commands::init_sync_repo,
             commands::sync_now,
             commands::get_sync_status_cmd,
+            commands::get_templates,
+            commands::create_template,
+            commands::update_template,
+            commands::delete_template,
+            commands::apply_template,
+            commands::get_attachments,
+            commands::add_attachment,
+            commands::delete_attachment,
+            commands::open_attachment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

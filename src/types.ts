@@ -6,6 +6,7 @@ export interface Task {
   due_date?: string
   end_date?: string
   reminder?: string
+  reminder_minutes?: number
   completed: boolean
   archived?: boolean
   pinned?: boolean
@@ -77,6 +78,7 @@ export interface UpdateTaskRequest {
   due_date?: string
   end_date?: string
   reminder?: string
+  reminder_minutes?: number
   completed?: boolean
   archived?: boolean
   pinned?: boolean

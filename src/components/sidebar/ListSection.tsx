@@ -110,7 +110,7 @@ export function ListSection({
   }
 
   return (
-    <div>
+    <div className="sidebar-lists">
       <div className="flex items-center justify-between mb-2 px-2">
         <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
           清单

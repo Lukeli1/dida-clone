@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import type { ViewType } from '../components/sidebar/types'
 
+/** 通知中心单条通知项 */
+export interface NotificationItem {
+  id: string
+  taskId: number
+  taskTitle: string
+  message: string
+  timestamp: string // ISO
+  read: boolean
+}
+
 interface UIState {
   // 视图与导航
   currentView: ViewType
@@ -32,6 +42,13 @@ interface UIState {
   // 快捷键帮助面板
   shortcutsHelpOpen: boolean
 
+  // 通知中心
+  notificationHistory: NotificationItem[]
+  notificationCenterOpen: boolean
+
+  // 自定义快捷键
+  customShortcuts: Record<string, string> // { newTask: 'Ctrl+N', ... }
+
   // Actions
   setCurrentView: (view: ViewType) => void
   setSelectedListId: (id: number | null) => void
@@ -53,6 +70,12 @@ interface UIState {
   setDragOverCalendarDate: (date: string | null) => void
   setMiniCalendarDate: (date: Date) => void
   setShortcutsHelpOpen: (open: boolean) => void
+  addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'read'>) => void
+  markNotificationRead: (id: string) => void
+  clearNotifications: () => void
+  setNotificationCenterOpen: (open: boolean) => void
+  setCustomShortcut: (id: string, keys: string) => void
+  resetShortcuts: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -74,6 +97,19 @@ export const useUIStore = create<UIState>((set) => ({
   miniCalendarDate: new Date(),
   searchQuery: '',
   shortcutsHelpOpen: false,
+
+  notificationHistory: [],
+  notificationCenterOpen: false,
+
+  // 初始值从 localStorage 读取
+  customShortcuts: (() => {
+    try {
+      const savedShortcuts = localStorage.getItem('customShortcuts')
+      return savedShortcuts ? JSON.parse(savedShortcuts) : {}
+    } catch {
+      return {}
+    }
+  })(),
 
   setCurrentView: (currentView) => set({ currentView }),
   setSelectedListId: (selectedListId) => set({ selectedListId, selectedTagId: null }),
@@ -116,4 +152,51 @@ export const useUIStore = create<UIState>((set) => ({
   setDragOverCalendarDate: (dragOverCalendarDate) => set({ dragOverCalendarDate }),
   setMiniCalendarDate: (miniCalendarDate) => set({ miniCalendarDate }),
   setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
+
+  addNotification: (notification) =>
+    set((state) => {
+      const item: NotificationItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        taskId: notification.taskId,
+        taskTitle: notification.taskTitle,
+        message: notification.message,
+        timestamp: new Date().toISOString(),
+        read: false,
+      }
+      const next = [item, ...state.notificationHistory]
+      // 最多保留 100 条
+      if (next.length > 100) next.length = 100
+      return { notificationHistory: next }
+    }),
+
+  markNotificationRead: (id) =>
+    set((state) => ({
+      notificationHistory: state.notificationHistory.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+    })),
+
+  clearNotifications: () => set({ notificationHistory: [] }),
+
+  setNotificationCenterOpen: (notificationCenterOpen) => set({ notificationCenterOpen }),
+
+  setCustomShortcut: (id, keys) =>
+    set((state) => {
+      const next = { ...state.customShortcuts, [id]: keys }
+      try {
+        localStorage.setItem('customShortcuts', JSON.stringify(next))
+      } catch {
+        // 忽略 localStorage 写入失败
+      }
+      return { customShortcuts: next }
+    }),
+
+  resetShortcuts: () => {
+    try {
+      localStorage.removeItem('customShortcuts')
+    } catch {
+      // 忽略 localStorage 删除失败
+    }
+    set({ customShortcuts: {} })
+  },
 }))

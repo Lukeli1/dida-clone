@@ -12,6 +12,7 @@ import {
   type Selection,
   type CreatePopup,
 } from '../../utils/dayViewUtils'
+import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
 import { DayViewTask } from './DayViewTask'
 
 const priorityOptions = [
@@ -95,6 +96,10 @@ export function DayViewGrid({
 }: DayViewGridProps) {
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
+  // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
+  const now = useCurrentTime()
+  const currentMinutes = toDayMinutes(now)
+
   return (
     <div className="flex-1 overflow-y-auto select-none">
       <div className="flex">
@@ -149,6 +154,16 @@ export function DayViewGrid({
                 style={{ height: `${HOUR_HEIGHT}px` }}
               />
             ))}
+
+            {/* 当前时间红线：仅当天显示，pointer-events-none 避免阻挡点击 */}
+            {today && (
+              <div
+                className="absolute left-0 right-0 z-20 pointer-events-none border-t-2 border-red-500 dark:border-red-400"
+                style={{ top: `${(currentMinutes / 60) * HOUR_HEIGHT}px` }}
+              >
+                <div className="absolute -top-1 left-0 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400" />
+              </div>
+            )}
 
             {/* 悬停提示 */}
             <div className="absolute top-0 right-1 opacity-0 group-hover:opacity-30 pointer-events-none text-xs text-[var(--color-accent)] font-medium">

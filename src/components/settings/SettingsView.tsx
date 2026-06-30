@@ -5,13 +5,14 @@ import { NotificationPanel } from './NotificationPanel'
 import { LLMApiPanel } from './LLMApiPanel'
 import { SystemPanel } from './SystemPanel'
 import { AboutPanel } from './AboutPanel'
+import { ShortcutsPanel } from './ShortcutsPanel'
 import SyncPanel from './SyncPanel'
 
 interface SettingsViewProps {
   onClose: () => void
 }
 
-type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'sync' | 'system' | 'about'
+type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'sync' | 'shortcuts' | 'system' | 'about'
 
 interface SettingCategory {
   key: SettingCategoryKey
@@ -70,6 +71,16 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       ),
     },
     {
+      key: 'shortcuts',
+      label: '快捷键',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h.01M12 7h.01M15 7h.01M9 10h.01M12 10h.01M15 10h.01M9 13h6M9 16h6" />
+        </svg>
+      ),
+    },
+    {
       key: 'system',
       label: '系统',
       icon: (
@@ -96,6 +107,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       case 'notifications': return <NotificationPanel />
       case 'ai': return <LLMApiPanel />
       case 'sync': return <SyncPanel />
+      case 'shortcuts': return <ShortcutsPanel />
       case 'system': return <SystemPanel />
       case 'about': return <AboutPanel />
     }

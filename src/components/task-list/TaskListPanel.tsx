@@ -1,4 +1,4 @@
-import { useMemo, type RefObject } from 'react'
+import { useMemo, useCallback, useState, useEffect, type RefObject } from 'react'
 import { TaskItem } from '../task-item/TaskItem'
 import { EmptyState } from '../EmptyState'
 import { TaskActionProvider, type TaskActionContextValue } from '../../contexts/TaskActionContext'
@@ -12,6 +12,13 @@ import { TaskInputBar } from './TaskInputBar'
 import { TaskFilterBar } from './TaskFilterBar'
 import { BatchToolbar } from './BatchToolbar'
 import { MiniCalendarDropzone } from './MiniCalendarDropzone'
+
+/**
+ * 稳定的空操作函数（模块级常量，引用永不变）。
+ * 用于归档/过期/已完成列表中 TaskItem 的 onReorder prop，
+ * 避免每次渲染创建新函数引用导致 React.memo 失效。
+ */
+const NOOP_REORDER = () => {}
 
 /** 任务列表区容器：列表渲染 + 子组件编排（输入栏 / 筛选栏 / 批量工具栏 / 迷你日历已拆为子组件，逻辑未改） */
 interface TaskListPanelProps {
@@ -59,6 +66,29 @@ export function TaskListPanel(props: TaskListPanelProps) {
     isDraggingTask, miniCalendarDate, dragOverCalendarDate, setMiniCalendarDate, setDragOverCalendarDate,
     handleCreateTask, selectAllTasks,
   } = listState
+
+  // ===== 大型列表懒加载：超过 50 条时分批渲染，滚动到底部自动加载更多 =====
+  const VISIBLE_BATCH = 50
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_BATCH)
+
+  // 视图/搜索切换时重置分页
+  useEffect(() => {
+    setVisibleCount(VISIBLE_BATCH)
+  }, [currentView, searchQuery])
+
+  const visibleIncompleteTasks = useMemo(
+    () => incompleteTaskTree.slice(0, visibleCount),
+    [incompleteTaskTree, visibleCount],
+  )
+  const hasMoreIncompleteTasks = visibleCount < incompleteTaskTree.length
+
+  const handleListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (visibleCount >= incompleteTaskTree.length) return
+    const target = e.currentTarget
+    if (target.scrollHeight - target.scrollTop < target.clientHeight + 100) {
+      setVisibleCount(prev => Math.min(prev + VISIBLE_BATCH, incompleteTaskTree.length))
+    }
+  }, [visibleCount, incompleteTaskTree.length])
 
   // ===== 当前列表名称（依赖 selectedTagId / tags / selectedListId / lists）=====
   const currentListName =
@@ -207,7 +237,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4" onScroll={handleListScroll}>
         {/* 归档视图：直接显示所有归档任务 */}
         {currentView === 'archived' ? (
           taskTree.length === 0 ? (
@@ -219,7 +249,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
           ) : (
             <ul className="space-y-1">
               {taskTree.map((task) => (
-                <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} onReorder={() => {}} />
+                <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} onReorder={NOOP_REORDER} />
               ))}
             </ul>
           )
@@ -243,7 +273,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 {showOverdue && (
                   <ul className="space-y-1">
                     {overdueTaskTree.map((task) => (
-                      <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={() => {}} />
+                      <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
                     ))}
                   </ul>
                 )}
@@ -258,10 +288,15 @@ export function TaskListPanel(props: TaskListPanelProps) {
             ) : (
               <>
                 <ul className="space-y-1">
-                  {incompleteTaskTree.map((task) => (
+                  {visibleIncompleteTasks.map((task) => (
                     <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
                   ))}
                 </ul>
+                {hasMoreIncompleteTasks && (
+                  <div className="py-3 text-center text-xs text-[var(--color-text-tertiary)]">
+                    滚动加载更多（{visibleCount}/{incompleteTaskTree.length}）
+                  </div>
+                )}
 
                 {completedTaskTree.length > 0 && (
                   <div className="mt-4">
@@ -277,7 +312,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                     {showCompleted && (
                       <ul className="space-y-1">
                         {completedTaskTree.map((task) => (
-                          <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={() => {}} />
+                          <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
                         ))}
                       </ul>
                     )}

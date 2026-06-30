@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useCallback, useRef } from 'react'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { StatsView } from './components/StatsView'
@@ -7,6 +7,7 @@ import { AIAssistant } from './components/ai/AIAssistant'
 import { QuadrantView } from './components/QuadrantView'
 import { PomodoroView } from './components/pomodoro/PomodoroView'
 import { HabitView } from './components/habit/HabitView'
+import { TemplateView } from './components/template/TemplateView'
 import { useToast } from './components/Toast'
 import { useTaskStore } from './stores/taskStore'
 import { useListStore } from './stores/listStore'
@@ -20,6 +21,8 @@ import { TaskListPanel } from './components/task-list/TaskListPanel'
 import { CalendarPanel } from './components/CalendarPanel'
 import { DetailPanel } from './components/DetailPanel'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
+import { NotificationCenter } from './components/NotificationCenter'
+import { OnboardingTour } from './components/OnboardingTour'
 
 /**
  * App 根组件（重构后）
@@ -68,6 +71,10 @@ function App() {
   const shortcutsHelpOpen = useUIStore(s => s.shortcutsHelpOpen)
   const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
 
+  // ===== 通知中心面板（共享状态：TitleBar 通知按钮触发）=====
+  const notificationCenterOpen = useUIStore(s => s.notificationCenterOpen)
+  const setNotificationCenterOpen = useUIStore(s => s.setNotificationCenterOpen)
+
   // ===== Refs（键盘快捷键 + TaskListPanel 输入框共享）=====
   const newTaskInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -94,6 +101,30 @@ function App() {
     return tasks.find(t => t.id === selectedTaskId) || null
   }, [tasks, selectedTaskId])
 
+  // ===== 视图专用派生数据（useMemo 缓存，避免每次渲染创建新数组）=====
+  const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks])
+  const activeIncompleteTasks = useMemo(() => tasks.filter(t => !t.completed && !t.archived), [tasks])
+
+  // ===== 稳定回调（useCallback 缓存，避免每次渲染创建新函数引用）=====
+  const handleCloseSettings = useCallback(() => setCurrentView('tasks'), [setCurrentView])
+  const handleCloseAI = useCallback(() => setCurrentView('tasks'), [setCurrentView])
+  const handleAITasksChange = useCallback(() => useTaskStore.getState().loadTasks(), [])
+  const handleQuadrantTaskClick = useCallback((id: number) => setSelectedTaskId(id), [setSelectedTaskId])
+  const handlePomodoroTaskClick = useCallback((id: number) => setSelectedTaskId(id), [setSelectedTaskId])
+  const handleQuadrantToggleTask = useCallback((id: number) => {
+    const task = tasks.find(t => t.id === id)
+    if (task) actions.handleToggleTask(task)
+  }, [tasks, actions])
+  const handlePomodoroToggleTask = useCallback((id: number) => {
+    const task = tasks.find(t => t.id === id)
+    if (task) actions.handleToggleTask(task)
+  }, [tasks, actions])
+  const handleQuadrantUpdatePriority = useCallback((id: number, priority: number) => {
+    actions.handleUpdateTask(id, { priority })
+  }, [actions])
+  const handleCloseShortcutsHelp = useCallback(() => setShortcutsHelpOpen(false), [setShortcutsHelpOpen])
+  const handleCloseNotificationCenter = useCallback(() => setNotificationCenterOpen(false), [setNotificationCenterOpen])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg-secondary)] flex items-center justify-center">
@@ -112,8 +143,8 @@ function App() {
           selectedListId={selectedListId}
           selectedTagId={selectedTagId}
           currentView={currentView}
-          onSelectList={(id) => setSelectedListId(id)}
-          onSelectTag={(id) => setSelectedTagId(id)}
+          onSelectList={setSelectedListId}
+          onSelectTag={setSelectedTagId}
           onViewChange={setCurrentView}
           onCreateList={actions.handleCreateList}
           onUpdateList={actions.handleUpdateList}
@@ -130,17 +161,17 @@ function App() {
         ) : currentView === 'stats' ? (
           <StatsView tasks={tasks} lists={lists} />
         ) : currentView === 'settings' ? (
-          <SettingsView onClose={() => setCurrentView('tasks')} />
+          <SettingsView onClose={handleCloseSettings} />
         ) : currentView === 'ai' ? (
-          <AIAssistant tasks={tasks} onClose={() => setCurrentView('tasks')} onTasksChange={() => useTaskStore.getState().loadTasks()} />
+          <AIAssistant tasks={tasks} onClose={handleCloseAI} onTasksChange={handleAITasksChange} />
         ) : currentView === 'quadrant' ? (
           <main className="flex-1 flex overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <QuadrantView
-                tasks={tasks.filter(t => !t.archived)}
-                onTaskClick={(id) => setSelectedTaskId(id)}
-                onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
-                onUpdateTaskPriority={(id, priority) => actions.handleUpdateTask(id, { priority })}
+                tasks={activeTasks}
+                onTaskClick={handleQuadrantTaskClick}
+                onToggleTask={handleQuadrantToggleTask}
+                onUpdateTaskPriority={handleQuadrantUpdatePriority}
                 actions={actions}
               />
             </div>
@@ -148,12 +179,14 @@ function App() {
           </main>
         ) : currentView === 'pomodoro' ? (
           <PomodoroView
-            tasks={tasks.filter(t => !t.completed && !t.archived)}
-            onTaskClick={(id) => setSelectedTaskId(id)}
-            onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
+            tasks={activeIncompleteTasks}
+            onTaskClick={handlePomodoroTaskClick}
+            onToggleTask={handlePomodoroToggleTask}
           />
         ) : currentView === 'habit' ? (
           <HabitView />
+        ) : currentView === 'template' ? (
+          <TemplateView />
         ) : (
           <TaskListPanel
             newTaskInputRef={newTaskInputRef}
@@ -170,13 +203,19 @@ function App() {
 
         {/* 右侧独立详情：仅在“非日历/非四象限/非设置/非番茄/非习惯”视图下显示，
             避免与日历/四象限的内联详情重复渲染。无选中任务时 DetailPanel 返回 null。 */}
-        {selectedTask && currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && (
+        {selectedTask && currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && currentView !== 'template' && (
           <DetailPanel task={selectedTask} actions={actions} />
         )}
       </div>
 
       {/* 快捷键帮助面板（fixed 定位，按 ? / F1 或 TitleBar 帮助按钮打开）*/}
-      <ShortcutsHelp open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />
+      <ShortcutsHelp open={shortcutsHelpOpen} onClose={handleCloseShortcutsHelp} />
+
+      {/* 通知中心面板（fixed 定位，按 TitleBar 通知按钮打开）*/}
+      <NotificationCenter open={notificationCenterOpen} onClose={handleCloseNotificationCenter} />
+
+      {/* 新用户引导教程（首次启动自动弹出，可在侧边栏底部重新触发）*/}
+      <OnboardingTour />
     </div>
   )
 }

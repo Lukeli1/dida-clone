@@ -5,6 +5,7 @@ import {
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
+import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
 import { TaskBar } from './shared/TaskBar'
 import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
@@ -37,6 +38,10 @@ export function WeekView({
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const defaultListId = lists.length > 0 ? lists[0].id : 1
+
+  // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
+  const now = useCurrentTime()
+  const currentMinutes = toDayMinutes(now)
 
   const days = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
@@ -166,6 +171,16 @@ export function WeekView({
                     {HOURS.map((hour) => (
                       <div key={hour} className="border-b border-[var(--color-border-light)] hover:bg-[var(--color-accent-light)]/20 transition-colors" style={{ height: `${HOUR_HEIGHT}px` }} />
                     ))}
+
+                    {/* 当前时间红线：仅在「今天」列显示，pointer-events-none 避免阻挡点击 */}
+                    {today && (
+                      <div
+                        className="absolute left-0 right-0 z-20 pointer-events-none border-t-2 border-red-500 dark:border-red-400"
+                        style={{ top: `${(currentMinutes / 60) * HOUR_HEIGHT}px` }}
+                      >
+                        <div className="absolute -top-1 left-0 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400" />
+                      </div>
+                    )}
 
                     {/* 悬停提示 */}
                     <div className="absolute top-0 right-1 opacity-0 group-hover:opacity-30 pointer-events-none text-xs text-[var(--color-accent)] font-medium">点击添加</div>

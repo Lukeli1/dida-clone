@@ -651,6 +651,16 @@ npm run tauri build
 
 ## 开发说明
 
+## E2E 测试
+
+```bash
+# 1. 启动 dev server
+npm run dev
+
+# 2. 在另一个终端运行 E2E 测试
+npm run test:e2e
+```
+
 ### 数据存储
 - 任务数据存储在 SQLite 数据库（位于系统 AppData 目录）
 - 应用配置存储在 localStorage

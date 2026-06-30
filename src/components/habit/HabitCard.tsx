@@ -164,6 +164,9 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
               <HabitActions part="checkin" habit={habit} color={color} onIncrement={handleIncrement} onDecrement={handleDecrement} />
             </div>
 
+            {/* 统计图表：周 / 月 / 趋势（Tab 切换） */}
+            <HabitStats part="expandedCharts" habit={habit} todayStr={todayStr} weekDays={weekDays} today={today} color={color} onDayClick={handleDayClick} />
+
             {/* 历史日历切换 */}
             <HabitActions part="toggle" habit={habit} color={color} showCalendar={showCalendar} onToggleCalendar={() => setShowCalendar(!showCalendar)} />
 

@@ -5,6 +5,10 @@ import { useUIStore } from '../stores/uiStore'
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
   const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
+  const setNotificationCenterOpen = useUIStore(s => s.setNotificationCenterOpen)
+  const hasUnreadNotifications = useUIStore(s =>
+    s.notificationHistory.some(n => !n.read)
+  )
 
   useEffect(() => {
     invoke<boolean>('window_is_maximized')
@@ -42,6 +46,21 @@ export function TitleBar() {
 
       {/* 右侧：窗口控制按钮 */}
       <div className="flex items-center h-full">
+        {/* 通知中心按钮：打开通知中心抽屉，有未读时显示小红点 */}
+        <button
+          onClick={() => setNotificationCenterOpen(true)}
+          className="relative h-full px-3 flex items-center justify-center transition-all duration-150 active:scale-90 hover:bg-[var(--color-bg-tertiary)]"
+          style={{ color: 'var(--titlebar-fg, #5f6368)' }}
+          aria-label="通知中心"
+          title="通知中心"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+          </svg>
+          {hasUnreadNotifications && (
+            <span className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-[var(--color-danger, #ef4444)]" />
+          )}
+        </button>
         {/* 帮助按钮：打开快捷键帮助面板 */}
         <button
           onClick={() => setShortcutsHelpOpen(true)}

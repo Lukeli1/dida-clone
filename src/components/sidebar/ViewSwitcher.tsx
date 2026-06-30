@@ -117,6 +117,17 @@ export function ViewSwitcher({
       action: () => onViewChange('habit'),
       match: currentView === 'habit',
     },
+    {
+      id: 'template',
+      label: '模板',
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+        </svg>
+      ),
+      action: () => onViewChange('template'),
+      match: currentView === 'template',
+    },
   ]
 
   return (
@@ -130,7 +141,7 @@ export function ViewSwitcher({
             <button
               key={item.id}
               onClick={item.action}
-              className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
+              className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
                 item.match
                   ? item.id === 'ai'
                     ? 'bg-purple-50 text-purple-600 shadow-sm'

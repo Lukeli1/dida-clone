@@ -234,5 +234,58 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
          CREATE INDEX IF NOT EXISTS idx_habit_records_date ON habit_records(date);"
     )?;
 
+    // 任务模板表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            icon TEXT,
+            title_template TEXT NOT NULL,
+            notes_template TEXT,
+            priority INTEGER DEFAULT 0,
+            reminder_minutes INTEGER,
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    // 子任务模板表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS subtask_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0
+        )",
+        [],
+    )?;
+
+    // 子任务模板索引
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_subtask_templates_template_id ON subtask_templates(template_id);"
+    )?;
+
+    // 任务附件表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            mime_type TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    // 附件索引，提升按 task_id 查询性能
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);"
+    )?;
+
     Ok(conn)
 }
