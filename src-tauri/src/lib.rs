@@ -14,7 +14,36 @@ use tauri::{
     Manager, WindowEvent,
 };
 
+/// 修正开机自启路径：debug 模式运行时自动将注册表指向 release exe
+/// 避免 debug 版（依赖 Vite 服务器）被注册为开机自启导致启动后白屏
+#[cfg(debug_assertions)]
+fn fix_autostart_path() {
+    use std::path::Path;
+    if let Ok(exe_path) = std::env::current_exe() {
+        let exe_str = exe_path.to_string_lossy().to_string();
+        if exe_str.contains(r"\debug\") {
+            let release_path = exe_str.replace(r"\debug\", r"\release\");
+            if Path::new(&release_path).exists() {
+                let _ = std::process::Command::new("reg")
+                    .args([
+                        "add",
+                        r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                        "/v", "滴答清单",
+                        "/t", "REG_SZ",
+                        "/d", &release_path,
+                        "/f",
+                    ])
+                    .output();
+                println!("[autostart] Path fixed to release exe: {}", release_path);
+            }
+        }
+    }
+}
+
 pub fn run() {
+    #[cfg(debug_assertions)]
+    fix_autostart_path();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .plugin(tauri_plugin_dialog::init())
