@@ -23,6 +23,7 @@ import { smartSort } from '../smartSort'
 import { taskTemplate } from '../taskTemplate'
 import { taskBreakdown } from '../taskBreakdown'
 import { prioritySuggest } from '../prioritySuggest'
+import { autoSchedulePrompt } from '../autoSchedule'
 import type { Task } from '../../../types'
 
 // ----- 测试辅助 -----
@@ -55,8 +56,8 @@ const sampleTasks: Task[] = [
 // AI_SKILLS 结构
 // ============================================================
 describe('AI_SKILLS', () => {
-  it('数组长度为 10', () => {
-    expect(AI_SKILLS).toHaveLength(10)
+  it('数组长度为 11', () => {
+    expect(AI_SKILLS).toHaveLength(11)
   })
 
   it('每个 skill 都具有完整的结构字段（id/name/icon/description/buildPrompt）', () => {
@@ -91,6 +92,7 @@ describe('AI_SKILLS', () => {
     expect(ids).toContain('weekly-report')
     expect(ids).toContain('smart-search')
     expect(ids).toContain('priority-advice')
+    expect(ids).toContain('auto-schedule')
   })
 })
 
@@ -156,6 +158,21 @@ describe('prompt 模板函数', () => {
     expect(prompt.length).toBeGreaterThan(0)
     expect(prompt).toContain('完成季度报告')
     expect(prompt).toContain('优先级')
+  })
+
+  it('autoSchedulePrompt 返回非空字符串且包含任务标题和排程指令', () => {
+    const prompt = autoSchedulePrompt(sampleTasks)
+    expect(prompt.length).toBeGreaterThan(0)
+    expect(prompt).toContain('完成季度报告')
+    expect(prompt).toContain('update_task')
+    expect(prompt).toContain('日程')
+  })
+
+  it('autoSchedulePrompt 只包含未完成任务', () => {
+    const prompt = autoSchedulePrompt(sampleTasks)
+    // 任务2 是已完成的，不应出现在排程列表中
+    expect(prompt).toContain('完成季度报告')
+    // 回复客户邮件是已完成任务，不应被排程
   })
 
   it('taskTemplate 返回非空字符串（无需任务参数）', () => {

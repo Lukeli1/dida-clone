@@ -9,6 +9,7 @@ import { smartSort } from './smartSort'
 import { taskTemplate } from './taskTemplate'
 import { taskBreakdown } from './taskBreakdown'
 import { prioritySuggest } from './prioritySuggest'
+import { autoSchedulePrompt } from './autoSchedule'
 
 /** AI 技能定义 */
 export interface AISkill {
@@ -31,6 +32,7 @@ export const AI_SKILLS: AISkill[] = [
   { id: 'task-template', name: '任务模板', icon: '🎯', description: '生成任务模板（会议/出差等）', buildPrompt: taskTemplate },
   { id: 'breakdown', name: '任务拆解', icon: '🧩', description: '拆解复杂任务为子任务', buildPrompt: taskBreakdown },
   { id: 'priority-advice', name: '优先级建议', icon: '💡', description: '建议任务优先级', buildPrompt: prioritySuggest },
+  { id: 'auto-schedule', name: '智能排程', icon: '🗓️', description: 'AI 自动安排明日日程', buildPrompt: autoSchedulePrompt },
 ]
 
 export { parseActions, ACTION_SYSTEM_PROMPT } from './actionProtocol'

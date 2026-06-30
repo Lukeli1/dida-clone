@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { useWindowSize } from '../../hooks/useWindowSize'
 import {
   chat, getLLMConfig, AI_SKILLS, formatTasksContext,
   ACTION_SYSTEM_PROMPT, parseActions,
@@ -7,13 +8,15 @@ import {
 } from '../../utils/llm'
 import { llmChatStream } from '../../api'
 import { useAIStore } from '../../stores/aiStore'
+import { useUIStore } from '../../stores/uiStore'
 import type { ChatMessage } from '../../types'
-import type { AIAssistantProps, UIMessage } from './types'
+import type { AIAssistantProps, UIMessage, ScheduleItem } from './types'
 import { stripActionsLive, executeAction } from './ActionParser'
 import { ChatMessageItem } from './ChatMessage'
 import { WelcomeScreen } from './SkillSelector'
 import { parsePreferences } from './preferences'
 import { useConfirm } from '../common/ConfirmDialog'
+import { SchedulePreviewDialog } from './SchedulePreviewDialog'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
   // 对话与偏好改为全局 store 持久化，关闭面板后对话记录保留
@@ -28,11 +31,15 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeSkill, setActiveSkill] = useState<AISkill | null>(null)
   const [showSkillMenu, setShowSkillMenu] = useState(false)
+  // 排程预览：AI 返回多个 update_task 动作时，弹出预览对话框供用户确认
+  const [schedulePreview, setSchedulePreview] = useState<ScheduleItem[] | null>(null)
+  const scheduleActionsRef = useRef<ActionOp[] | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null) // 流式取消函数
   const settledRef = useRef(false) // 防止 done/error/stop 重复结算
   const confirm = useConfirm()
+  const { isNarrow } = useWindowSize()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -48,6 +55,24 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
       inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
     }
   }, [input])
+
+  // 从日历工具栏 "AI 排程" 按钮跳转过来时，自动填入预设消息
+  useEffect(() => {
+    const preset = useUIStore.getState().aiPresetMessage
+    if (preset) {
+      setInput(preset)
+      useUIStore.getState().setAiPresetMessage(null)
+      // 延迟聚焦，等待 textarea 渲染
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [])
+
+  /** 检测用户输入是否包含排程意图 */
+  function detectSchedulingIntent(text: string): boolean {
+    const keywords = ['安排明天', '排程', '规划日程', '安排任务', 'schedule', 'plan tomorrow', '安排一下', '帮我安排']
+    const lower = text.toLowerCase()
+    return keywords.some(k => lower.includes(k.toLowerCase()))
+  }
 
   function handleSelectSkill(skill: AISkill) {
     setActiveSkill(skill)
@@ -122,9 +147,33 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
       if (settledRef.current) return
       settledRef.current = true
       const { actions, cleanedText } = parseActions(full)
+
+      // 排程场景检测：多个 update_task 动作包含 due_date（时间安排）
+      const scheduleActions = actions.filter(
+        a => a.type === 'update_task' && a.data.updates?.due_date
+      )
+      let pendingAction: ActionOp | undefined = actions[0]
+      if (scheduleActions.length >= 2) {
+        // 提取日程项，准备排程预览对话框
+        const items: ScheduleItem[] = scheduleActions.map(a => {
+          const task = tasks.find(t => t.id === a.data.task_id)
+          return {
+            taskId: a.data.task_id,
+            taskTitle: task?.title ?? `任务 #${a.data.task_id}`,
+            start: a.data.updates.due_date,
+            end: a.data.updates.end_date ?? a.data.updates.due_date,
+            priority: task?.priority ?? 0,
+          }
+        })
+        scheduleActionsRef.current = scheduleActions
+        setSchedulePreview(items)
+        // 排程动作由对话框统一处理，不显示单个 pendingAction 卡片
+        pendingAction = undefined
+      }
+
       setMessages(prev => prev.map(m =>
         m.isStreaming
-          ? { ...m, content: cleanedText || full, skillId, pendingAction: actions[0], isStreaming: false }
+          ? { ...m, content: cleanedText || full, skillId, pendingAction, isStreaming: false }
           : m
       ))
       setIsStreaming(false)
@@ -202,7 +251,18 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     setMessages(prev => [...prev, { role: 'assistant', content: '已取消该操作。' }])
   }
 
-  function handleSend() { sendMessage(input) }
+  function handleSend() {
+    // 排程意图检测：用户输入包含排程关键词时，自动使用智能排程技能
+    if (detectSchedulingIntent(input)) {
+      const skill = AI_SKILLS.find(s => s.id === 'auto-schedule')
+      if (skill) {
+        setActiveSkill(skill)
+        sendMessage(skill.buildPrompt(tasks), skill.id)
+        return
+      }
+    }
+    sendMessage(input)
+  }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
@@ -241,8 +301,38 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     clearPreferences()
   }
 
+  // 确认应用排程：批量执行所有 update_task 动作
+  async function handleConfirmSchedule() {
+    const actions = scheduleActionsRef.current
+    if (!actions || actions.length === 0) {
+      setSchedulePreview(null)
+      scheduleActionsRef.current = null
+      return
+    }
+    const results: string[] = []
+    for (const action of actions) {
+      try {
+        const msg = await executeAction(action, tasks)
+        results.push(msg)
+      } catch (e: any) {
+        results.push(`❌ 任务 #${action.data.task_id} 排程失败：${e.message || String(e)}`)
+      }
+    }
+    setSchedulePreview(null)
+    scheduleActionsRef.current = null
+    setMessages(prev => [...prev, { role: 'assistant', content: `🗓️ 排程已应用：\n${results.join('\n')}` }])
+    onTasksChange?.()
+  }
+
+  // 取消排程
+  function handleCancelSchedule() {
+    setSchedulePreview(null)
+    scheduleActionsRef.current = null
+    setMessages(prev => [...prev, { role: 'assistant', content: '已取消排程应用，任务时间未更改。' }])
+  }
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
+    <div className={`${isNarrow ? 'fixed inset-0 z-50' : 'flex-1'} flex flex-col overflow-hidden bg-[var(--color-surface)]`}>
       <header className="bg-[var(--color-ai)] px-5 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur">
@@ -368,6 +458,15 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           )}
         </div>
       </div>
+
+      {/* 排程预览对话框 */}
+      {schedulePreview && (
+        <SchedulePreviewDialog
+          schedule={schedulePreview}
+          onConfirm={handleConfirmSchedule}
+          onCancel={handleCancelSchedule}
+        />
+      )}
     </div>
   )
 }

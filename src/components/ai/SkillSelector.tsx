@@ -35,7 +35,7 @@ interface WelcomeScreenProps {
 
 /** 空状态欢迎页 */
 export function WelcomeScreen({ onSendQuickQuestion }: WelcomeScreenProps) {
-  const quickQuestions = ['我今天的任务有哪些？', '帮我生成本周周报', '哪些任务比较紧急？']
+  const quickQuestions = ['我今天的任务有哪些？', '帮我生成本周周报', '帮我安排明天的任务']
   return (
     <div className="flex flex-col items-center justify-center h-full text-center">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center mb-4">

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useUIStore } from '../stores/uiStore'
+import { useWindowSize } from '../hooks/useWindowSize'
 
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
   const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
   const setNotificationCenterOpen = useUIStore(s => s.setNotificationCenterOpen)
+  const setSidebarOpen = useUIStore(s => s.setSidebarOpen)
   const hasUnreadNotifications = useUIStore(s =>
     s.notificationHistory.some(n => !n.read)
   )
+  const { isNarrow } = useWindowSize()
 
   useEffect(() => {
     invoke<boolean>('window_is_maximized')
@@ -34,6 +37,20 @@ export function TitleBar() {
     >
       {/* 左侧：应用名称 */}
       <div className="flex items-center gap-2.5 pl-4">
+        {/* 窄屏汉堡按钮：唤出侧边栏抽屉 */}
+        {isNarrow && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150 active:scale-90 hover:bg-[var(--color-bg-tertiary)]"
+            style={{ color: 'var(--titlebar-fg, #5f6368)' }}
+            aria-label="打开侧边栏"
+            title="打开侧边栏"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
         <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

@@ -128,6 +128,17 @@ export function ViewSwitcher({
       action: () => onViewChange('template'),
       match: currentView === 'template',
     },
+    {
+      id: 'goals',
+      label: '目标 / OKR',
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+      action: () => onViewChange('goals'),
+      match: currentView === 'goals',
+    },
   ]
 
   return (

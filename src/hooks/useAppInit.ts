@@ -10,7 +10,9 @@ import { getAppearance, applyAppearance } from '../utils/appearance'
 import { migrateHabits, cleanupOldHabitBackup } from '../utils/migrateHabits'
 import { applyThemePreset, applyAccentColor, getCurrentTheme } from '../utils/themeUtils'
 import { logError } from '../utils/errorLogger'
+import { measureAsync } from '../utils/perfMonitor'
 import { checkNotificationPermission, requestNotificationPermission } from '../utils/notification'
+import { generateWeeklyReport, getWeekRange } from '../utils/reportGenerator'
 import type { ToastApi } from '../components/Toast'
 
 /**
@@ -27,10 +29,11 @@ export function useAppInit(toast: ToastApi) {
     // 使用 Promise.all 协调并行 IPC 调用，任一失败时统一提示。
     // 注：各 store 的 loadXxx 内部已捕获错误并 resolve，此处的 catch 作为防御性兜底，
     // 未来若 store 改为向外抛错亦可立即生效。
+    // 使用 measureAsync 包裹以记录各操作的耗时，供「设置 → 性能监控」面板查看（P12-07）。
     Promise.all([
-      useTaskStore.getState().loadTasks(),
-      useListStore.getState().loadLists(),
-      useTagStore.getState().loadTags(),
+      measureAsync('loadTasks', () => useTaskStore.getState().loadTasks()),
+      measureAsync('loadLists', () => useListStore.getState().loadLists()),
+      measureAsync('loadTags', () => useTagStore.getState().loadTags()),
     ])
       .then(() => {
         // 关键数据就绪：标记可进入第二阶段，习惯/模板等功能按钮随之变为可用
@@ -135,6 +138,45 @@ export function useAppInit(toast: ToastApi) {
       })
     return () => {
       if (unlisten) unlisten()
+    }
+  }, [toast])
+
+  // ===== P12-05: 周报自动生成（每周日 21:00 检查，每小时轮询一次） =====
+  // 触发条件：当前为周日且小时为 21（21:00~21:59 区间内首次命中即生成）。
+  // 幂等：以本周一的日期作为 localStorage key，生成后写入 '1'，避免同周重复生成。
+  // LLM 未配置时 generateWeeklyReport 内部静默返回 null，不弹 toast。
+  useEffect(() => {
+    let cancelled = false
+
+    async function run() {
+      // 周一作为本周 key（与 reports.period_start 一致）
+      const [weekStart] = getWeekRange()
+      const key = `weekly_report_${weekStart.toISOString().slice(0, 10)}`
+      if (localStorage.getItem(key)) return
+
+      // 始终用最新 store 状态，避免闭包捕获过期 tasks
+      const tasks = useTaskStore.getState().tasks
+      const id = await generateWeeklyReport(tasks)
+      if (cancelled) return
+      if (id !== null) {
+        localStorage.setItem(key, '1')
+        toast.success('周报已生成，可在统计面板查看')
+      }
+    }
+
+    function check() {
+      const now = new Date()
+      // 周日 getDay()===0 且 21 点
+      if (now.getDay() !== 0 || now.getHours() !== 21) return
+      run().catch(err => console.error('自动周报生成失败:', err))
+    }
+
+    // 启动时立即检查一次（应对启动时恰逢 21 点），之后每小时轮询
+    check()
+    const timer = setInterval(check, 60 * 60 * 1000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
     }
   }, [toast])
 

@@ -25,6 +25,10 @@ interface UIState {
   aiMode: boolean
   aiParsing: boolean
 
+  // 侧边栏响应式状态（P12-01 窗口宽度自适应）
+  sidebarCollapsed: boolean // 平板/桌面折叠为图标条模式
+  sidebarOpen: boolean      // 移动端抽屉开关
+
   // 任务交互
   expandedTasks: Set<number>
   subtaskInputs: Record<number, string>
@@ -64,6 +68,9 @@ interface UIState {
   // 创建/更新任务时若 due_date 存在且 reminder 为空，自动按此偏移填充 reminder
   defaultReminderOffset: number
 
+  // AI 助手预设消息（从日历工具栏"AI 排程"按钮跳转时携带）
+  aiPresetMessage: string | null
+
   // Actions
   setCurrentView: (view: ViewType) => void
   setSelectedListId: (id: number | null) => void
@@ -81,6 +88,9 @@ interface UIState {
   setSubtaskInput: (taskId: number, value: string) => void
   setAiMode: (mode: boolean) => void
   setAiParsing: (parsing: boolean) => void
+  toggleSidebar: () => void
+  setSidebarOpen: (open: boolean) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
   setIsDraggingTask: (dragging: boolean) => void
   setDragOverCalendarDate: (date: string | null) => void
   setMiniCalendarDate: (date: Date) => void
@@ -95,6 +105,7 @@ interface UIState {
   setSecondaryDataLoaded: (loaded: boolean) => void
   setDefaultReminderOffset: (offset: number) => void
   setSyncConflict: (conflict: { message: string } | null) => void
+  setAiPresetMessage: (msg: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -107,6 +118,8 @@ export const useUIStore = create<UIState>((set) => ({
   showFilters: false,
   aiMode: false,
   aiParsing: false,
+  sidebarCollapsed: false,
+  sidebarOpen: false,
   expandedTasks: new Set<number>(),
   subtaskInputs: {},
   batchMode: false,
@@ -128,6 +141,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   // 同步冲突初始值（无冲突）
   syncConflict: null,
+
+  // AI 预设消息初始值
+  aiPresetMessage: null,
 
   // 默认提醒偏移初始值从 localStorage 读取
   defaultReminderOffset: (() => {
@@ -187,6 +203,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   setAiMode: (aiMode) => set({ aiMode }),
   setAiParsing: (aiParsing) => set({ aiParsing }),
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
   setIsDraggingTask: (isDraggingTask) => set({ isDraggingTask }),
   setDragOverCalendarDate: (dragOverCalendarDate) => set({ dragOverCalendarDate }),
   setMiniCalendarDate: (miniCalendarDate) => set({ miniCalendarDate }),
@@ -253,4 +272,6 @@ export const useUIStore = create<UIState>((set) => ({
   },
 
   setSyncConflict: (syncConflict) => set({ syncConflict }),
+
+  setAiPresetMessage: (aiPresetMessage) => set({ aiPresetMessage }),
 }))

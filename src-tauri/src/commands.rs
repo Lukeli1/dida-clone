@@ -22,6 +22,9 @@ pub mod webdav_commands;
 pub mod template_commands;
 pub mod attachment_commands;
 pub mod repeat_commands;
+pub mod time_tracking_commands;
+pub mod report_commands;
+pub mod goal_commands;
 
 pub use task_commands::*;
 pub use list_commands::*;
@@ -34,6 +37,9 @@ pub use sync_commands::*;
 pub use webdav_commands::*;
 pub use template_commands::*;
 pub use attachment_commands::*;
+pub use time_tracking_commands::*;
+pub use report_commands::*;
+pub use goal_commands::*;
 
 /// 辅助函数：获取当前时间的 RFC3339 字符串（消除重复 chrono::Local::now().to_rfc3339()）
 /// 被 task_commands / list_commands / tag_commands 共用。

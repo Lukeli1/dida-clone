@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { ViewMode } from '../../utils/calendarUtils'
+import { useUIStore } from '../../stores/uiStore'
 
 /**
  * 日历工具栏
@@ -7,6 +8,7 @@ import type { ViewMode } from '../../utils/calendarUtils'
  * 所有视图共用的顶部工具栏，包含：
  *  - 视图切换按钮（月 / 周 / 日）
  *  - 任务列表侧边栏切换按钮
+ *  - AI 排程快捷入口
  *  - 更多选项下拉（月 / 周 / 日 / 甘特图 / 看板）
  */
 interface CalendarToolbarProps {
@@ -17,10 +19,30 @@ interface CalendarToolbarProps {
 }
 
 export function CalendarToolbar({ viewMode, onChangeView, sidebarOpen, onToggleSidebar }: CalendarToolbarProps) {
+  const setAiPresetMessage = useUIStore(s => s.setAiPresetMessage)
+  const setCurrentView = useUIStore(s => s.setCurrentView)
+
+  /** 点击 AI 排程：设置预设消息并跳转到 AI 助手 */
+  function handleAISchedule() {
+    setAiPresetMessage('帮我安排明天的任务')
+    setCurrentView('ai')
+  }
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <ViewToggle mode={viewMode} onChange={onChangeView} />
       <div className="flex-1" />
+      {/* AI 排程按钮 */}
+      <button
+        onClick={handleAISchedule}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-[var(--color-accent-light)] text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/70 transition-colors font-medium"
+        title="AI 自动安排明日日程"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span className="hidden sm:inline">AI 排程</span>
+      </button>
       {/* 任务侧边栏切换按钮 */}
       <button
         onClick={onToggleSidebar}

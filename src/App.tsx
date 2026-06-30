@@ -8,6 +8,7 @@ import { QuadrantView } from './components/QuadrantView'
 import { PomodoroView } from './components/pomodoro/PomodoroView'
 import { HabitView } from './components/habit/HabitView'
 import { TemplateView } from './components/template/TemplateView'
+import { GoalView } from './components/goal/GoalView'
 import { useToast } from './components/Toast'
 import { useTaskStore } from './stores/taskStore'
 import { useListStore } from './stores/listStore'
@@ -186,6 +187,8 @@ function App() {
           <HabitView />
         ) : currentView === 'template' ? (
           <TemplateView />
+        ) : currentView === 'goals' ? (
+          <GoalView />
         ) : (
           <TaskListPanel
             newTaskInputRef={newTaskInputRef}
@@ -202,7 +205,7 @@ function App() {
 
         {/* 右侧独立详情：仅在“非日历/非四象限/非设置/非番茄/非习惯”视图下显示，
             避免与日历/四象限的内联详情重复渲染。无选中任务时 DetailPanel 返回 null。 */}
-        {selectedTask && currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && currentView !== 'template' && (
+        {selectedTask && currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && currentView !== 'template' && currentView !== 'goals' && (
           <DetailPanel task={selectedTask} actions={actions} />
         )}
       </div>

@@ -4,6 +4,7 @@ import { GeneralPanel } from './GeneralPanel'
 import { NotificationPanel } from './NotificationPanel'
 import { LLMApiPanel } from './LLMApiPanel'
 import { SystemPanel } from './SystemPanel'
+import { PerfPanel } from './PerfPanel'
 import { AboutPanel } from './AboutPanel'
 import { ShortcutsPanel } from './ShortcutsPanel'
 import SyncPanel from './SyncPanel'
@@ -12,7 +13,7 @@ interface SettingsViewProps {
   onClose: () => void
 }
 
-type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'sync' | 'shortcuts' | 'system' | 'about'
+type SettingCategoryKey = 'appearance' | 'general' | 'notifications' | 'ai' | 'sync' | 'shortcuts' | 'system' | 'perf' | 'about'
 
 interface SettingCategory {
   key: SettingCategoryKey
@@ -90,6 +91,15 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       ),
     },
     {
+      key: 'perf',
+      label: '性能监控',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12a9 9 0 1118 0M3 12h4m10 0h4M12 3v4m0 10v4m-4.95-9.95l2.83 2.83m4.24-4.24l-2.83 2.83M7.05 16.95l2.83-2.83m6.24-0.34l2.83 2.83" />
+        </svg>
+      ),
+    },
+    {
       key: 'about',
       label: '关于',
       icon: (
@@ -109,6 +119,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
       case 'sync': return <SyncPanel />
       case 'shortcuts': return <ShortcutsPanel />
       case 'system': return <SystemPanel />
+      case 'perf': return <PerfPanel />
       case 'about': return <AboutPanel />
     }
   }

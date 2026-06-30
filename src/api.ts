@@ -15,7 +15,13 @@ export { syncApi } from './api/syncApi'
 export { templateApi } from './api/templateApi'
 export { attachmentApi } from './api/attachmentApi'
 export { repeatApi } from './api/repeatApi'
+export { timeTrackingApi } from './api/timeTrackingApi'
+export { reportApi } from './api/reportApi'
+export { goalApi } from './api/goalApi'
 export type { Attachment } from './types/attachment'
+export type { TimeEntry, TimeStat } from './api/timeTrackingApi'
+export type { ReportRecord, ReportType } from './api/reportApi'
+export type { Goal, GoalProgress, GoalType, GoalStatus, CreateGoalRequest, UpdateGoalRequest } from './api/goalApi'
 
 // AI 流式对话 & 数据导出/导入
 export { llmChatStream } from './api/llmApi'

@@ -5,7 +5,12 @@ import { TaskNotes } from './TaskNotes'
 import { SubtaskList, TaskAIPanel } from './SubtaskList'
 import { SchedulePanel, TaskMetaPanel } from './TaskMetaPanel'
 import { TaskAttachments } from './TaskAttachments'
+import { TimeTrackingSection } from './TimeTrackingSection'
+import { RelatedTasksPanel } from './RelatedTasksPanel'
+import { TaskGoalsPanel } from './TaskGoalsPanel'
 import { useConfirm } from '../common/ConfirmDialog'
+import { useTaskStore } from '../../stores/taskStore'
+import { useUIStore } from '../../stores/uiStore'
 
 interface TaskDetailProps {
   task: Task
@@ -26,6 +31,9 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showSubtaskInput, setShowSubtaskInput] = useState(false)
+
+  // 全部任务（用于"相关任务"推荐：AI 分析同项目/同人/同地点的关联）
+  const tasks = useTaskStore(s => s.tasks)
 
   const confirm = useConfirm()
 
@@ -154,6 +162,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         <TaskNotes task={task} onUpdate={onUpdate} />
         <TaskAttachments task={task} />
+        <TimeTrackingSection task={task} />
         <SubtaskList
           task={task}
           onUpdate={onUpdate}
@@ -168,6 +177,14 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
           onUpdate={onUpdate}
           visible={showAIPanel}
         />
+        {/* 相关任务推荐：AI 检测同项目/同人/同地点关联，无结果或未配置时自动隐藏 */}
+        <RelatedTasksPanel
+          task={task}
+          allTasks={tasks}
+          onTaskClick={(id) => useUIStore.getState().setSelectedTaskId(id)}
+        />
+        {/* 关联目标/OKR：显示当前任务关联的目标，可增删关联 */}
+        <TaskGoalsPanel taskId={task.id} />
       </div>
 
       {/* ===== Bottom zone (fixed toolbar) ===== */}

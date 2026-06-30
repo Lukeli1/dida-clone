@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.32.0-blue)
+![版本](https://img.shields.io/badge/version-1.33.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,25 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.33.0（2026-06-30）
+
+#### Phase 12 — 响应式布局 + 时间追踪 + AI 排程 + 目标管理 + 性能监控
+
+**方向 A：响应式与自适应**
+- **窗口宽度自适应**（P12-01）：useWindowSize hook（mobile/tablet/desktop 三态断点）；Sidebar 三态响应（移动端抽屉 + 平板折叠图标条 + 桌面固定）；DetailPanel 窄屏全屏覆盖；TitleBar 汉堡按钮；AIAssistant 窄屏全屏；Ctrl+B 切换侧边栏；窗口最小宽度降至 480px
+
+**方向 B：时间追踪与统计**
+- **时间追踪**（P12-04）：time_entries 表（task_id/start/end/duration/note）；开始/停止计时 + 实时秒级更新；localStorage 恢复计时状态；StatsView 新增本周时间分布柱状图（按清单分组）
+- **周/月报自动化**（P12-05）：reports 表（type/period/content/stats_json）；周日 21:00 自动生成周报（localStorage 幂等）；StatsView 月度趋势折线图（完成/逾期双线）；历史报告列表 + markdown 渲染 + 手动生成按钮
+
+**方向 C：AI 能力深化**
+- **AI 自动排程**（P12-02）：autoSchedulePrompt 生成明日日程（优先级 + 时长估算 + 工作时间规则）；意图检测（"帮我安排明天"等关键词）；SchedulePreviewDialog 预览面板 + 批量应用；CalendarToolbar "AI 排程"入口按钮
+- **任务关联推荐**（P12-03）：relatedTasksPrompt 分析同一项目/人物/地点/主题关联；RelatedTasksPanel 延迟加载 + JSON 容错解析；点击关联任务跳转
+
+**方向 D：目标管理与性能监控**
+- **目标/OKR 管理**（P12-06）：goals + goal_tasks 表（年度/季度/月度目标）；GoalView 卡片网格 + 进度条；GoalEditor 创建/编辑对话框；TaskGoalsPanel 任务详情中关联目标；Sidebar 新增"目标"入口
+- **性能数据化**（P12-07）：perfMonitor 工具（measureAsync/measure + localStorage 持久化 200 条）；PerfPanel 性能监控设置面板（操作名/次数/平均/最大/最近）；useAppInit 关键操作埋点
 
 ### v1.32.0（2026-06-30）
 

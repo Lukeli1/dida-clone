@@ -289,6 +289,88 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         "CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);"
     )?;
 
+    // P12-04: time_entries 时间追踪记录表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS time_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT,
+            duration_secs INTEGER NOT NULL DEFAULT 0,
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    // P12-04: 时间追踪索引
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_time_entries_task ON time_entries(task_id);
+         CREATE INDEX IF NOT EXISTS idx_time_entries_start ON time_entries(start_time);"
+    )?;
+
+    // P12-05: reports 周/月报归档表
+    // type: 'weekly' | 'monthly'
+    // UNIQUE(type, period_start) 保证同一周期只保留一份（INSERT OR REPLACE 时覆盖更新）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            content TEXT NOT NULL,
+            stats_json TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(type, period_start)
+        )",
+        [],
+    )?;
+
+    // P12-05: reports 索引，提升按 type 与时间倒序查询性能
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_reports_type ON reports(type);
+         CREATE INDEX IF NOT EXISTS idx_reports_period_start ON reports(period_start);"
+    )?;
+
+    // P12-06: goals 目标/OKR 表
+    // type:    'annual' | 'quarterly' | 'monthly'
+    // status:  'active' | 'completed' | 'archived'
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            type TEXT NOT NULL DEFAULT 'quarterly',
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            color TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )",
+        [],
+    )?;
+
+    // P12-06: goal_tasks 目标-任务关联表（多对多）
+    // ON DELETE CASCADE：删除目标时自动解除关联；删除任务时自动解除关联
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS goal_tasks (
+            goal_id INTEGER NOT NULL,
+            task_id INTEGER NOT NULL,
+            PRIMARY KEY (goal_id, task_id),
+            FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    // P12-06: goal_tasks 索引，提升按 goal_id / task_id 查询关联性能
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_goal_tasks_goal ON goal_tasks(goal_id);
+         CREATE INDEX IF NOT EXISTS idx_goal_tasks_task ON goal_tasks(task_id);"
+    )?;
+
     // 启动性能优化：执行一次简单查询让 SQLite 初始化页缓存，
     // 使后续首屏 get_tasks / get_lists 等查询命中缓存，减少冷启动延迟。
     // 效果有限，失败时忽略（不影响应用正常启动）。

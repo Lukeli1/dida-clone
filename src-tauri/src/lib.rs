@@ -180,6 +180,22 @@ pub fn run() {
             commands::add_attachment,
             commands::delete_attachment,
             commands::open_attachment,
+            commands::start_time_tracking,
+            commands::stop_time_tracking,
+            commands::get_time_entries,
+            commands::delete_time_entry,
+            commands::get_time_stats,
+            commands::save_report,
+            commands::get_reports,
+            commands::delete_report,
+            commands::get_goals,
+            commands::create_goal,
+            commands::update_goal,
+            commands::delete_goal,
+            commands::link_task_to_goal,
+            commands::unlink_task_from_goal,
+            commands::get_goal_progress,
+            commands::get_task_goals,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

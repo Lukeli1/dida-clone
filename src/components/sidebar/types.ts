@@ -1,6 +1,6 @@
 import type { List, Tag } from '../../types'
 
-export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit' | 'template'
+export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit' | 'template' | 'goals'
 
 export const PRESET_COLORS = [
   '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',

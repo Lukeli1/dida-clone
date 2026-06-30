@@ -39,7 +39,7 @@ export function useKeyboardShortcuts(
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const { setSelectedTaskId, setSearchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setShortcutsHelpOpen } = useUIStore.getState()
+      const { setSelectedTaskId, setSearchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setShortcutsHelpOpen, toggleSidebar } = useUIStore.getState()
 
       // F1 始终打开快捷键帮助（不在自定义范围内）
       if (e.key === 'F1') {
@@ -83,7 +83,13 @@ export function useKeyboardShortcuts(
           searchInputRef.current?.focus()
           break
         case 'toggleSidebar':
-          // 预留：侧边栏折叠功能暂未实现
+          // 窄屏切换抽屉开关；桌面/平板切换折叠状态
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            const { sidebarOpen, setSidebarOpen } = useUIStore.getState()
+            setSidebarOpen(!sidebarOpen)
+          } else {
+            toggleSidebar()
+          }
           break
         case 'viewTasks':
           setCurrentView('tasks')

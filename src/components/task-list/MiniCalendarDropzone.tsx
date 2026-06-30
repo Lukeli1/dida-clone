@@ -44,7 +44,7 @@ export function MiniCalendarDropzone({ currentDate, onPrevMonth, onNextMonth, on
   }
 
   return (
-    <div className="absolute right-6 top-32 z-40 bg-[var(--color-surface)] rounded-lg shadow-2xl border border-[var(--color-border)] p-3 w-72">
+    <div className="absolute right-6 top-32 z-40 bg-[var(--color-surface)] rounded-lg shadow-2xl border border-[var(--color-border)] p-3 w-72 hidden md:block">
       <div className="flex items-center justify-between mb-2">
         <button onClick={onPrevMonth} className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] rounded hover:bg-[var(--color-bg-tertiary)]">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7 7-7-7" /></svg>

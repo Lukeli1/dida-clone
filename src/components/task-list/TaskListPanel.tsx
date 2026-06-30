@@ -193,10 +193,10 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
-      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">
+            <h2 className="text-lg md:text-xl font-semibold text-[var(--color-text-primary)]">
               {currentView === 'archived' ? '归档' : searchQuery.trim() ? '搜索结果' : currentListName}
             </h2>
             <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
@@ -254,7 +254,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 onBlur={handleSearchBlur}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="搜索标题、备注、子任务... (Ctrl+F)"
-                className="pl-9 pr-4 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] w-64"
+                className="pl-9 pr-4 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] w-36 sm:w-44 md:w-64"
               />
               {/* 搜索历史下拉列表 */}
               {showHistory && !searchQuery.trim() && history.length > 0 && (

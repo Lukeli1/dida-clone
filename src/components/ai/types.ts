@@ -14,3 +14,12 @@ export interface UIMessage {
   pendingAction?: ActionOp  // 待确认的操作
   isStreaming?: boolean      // 当前正在流式生成中（用于打字机光标）
 }
+
+/** 排程预览中的单个日程项 */
+export interface ScheduleItem {
+  taskId: number
+  taskTitle: string
+  start: string  // ISO 时间
+  end: string    // ISO 时间
+  priority: number
+}
