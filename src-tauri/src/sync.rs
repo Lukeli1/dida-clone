@@ -10,17 +10,42 @@ use std::path::PathBuf;
 
 #[path = "sync_ops.rs"]
 mod sync_ops;
-pub use sync_ops::{init_sync_repo, pull_changes, push_changes};
+pub use sync_ops::{init_sync_repo, pull_changes, push_changes, fetch_remote};
 
 /// 同步配置（持久化到 sync_config.json）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncConfig {
+    #[serde(default)]
     pub repo_url: String,
+    #[serde(default)]
     pub branch: String,
     #[serde(default)]
     pub local_path: PathBuf,
+    #[serde(default)]
     pub auto_sync: bool,
+    #[serde(default)]
     pub auto_sync_interval_secs: u64,
+    /// 同步方式："git" 或 "webdav"（空值视为 "git"，向后兼容）
+    #[serde(default)]
+    pub sync_type: String,
+    /// WebDAV 服务地址，如 https://dav.jianguoyun.com/dav/
+    #[serde(default)]
+    pub webdav_url: Option<String>,
+    #[serde(default)]
+    pub webdav_username: Option<String>,
+    /// WebDAV 密码（坚果云为应用密码）
+    #[serde(default)]
+    pub webdav_password: Option<String>,
+    /// 远程文件路径，如 /dida-clone/dida.db
+    #[serde(default)]
+    pub webdav_remote_path: Option<String>,
+}
+
+impl SyncConfig {
+    /// 判断是否使用 WebDAV 同步
+    pub fn is_webdav(&self) -> bool {
+        self.sync_type == "webdav"
+    }
 }
 
 /// 同步状态（同步后返回给前端）
@@ -101,9 +126,33 @@ pub fn handle_db_conflict(repo: &Repository, branch: &str) -> Result<(), String>
         .map_err(|e| format!("checkout_head 失败: {}", e))?;
 
     Err(format!(
-        "检测到数据库冲突。本地数据库已备份为 {}，远程版本已覆盖本地。请重启应用以加载远程数据。",
+        "检测到同步冲突 (conflict)。本地数据库已备份为 {}，远程版本已加载到同步目录，请选择处理方式。",
         backup_db.display()
     ))
+}
+
+/// 将本地分支重置为远程版本（丢弃本地更改），用于冲突解决时选择"保留远程"
+pub fn reset_to_remote(repo: &Repository, branch: &str) -> Result<(), String> {
+    let remote_ref = repo
+        .find_reference(&format!("refs/remotes/origin/{}", branch))
+        .or_else(|_| repo.find_reference("FETCH_HEAD"))
+        .map_err(|e| format!("查找远程引用失败: {}", e))?;
+    let remote_oid = remote_ref
+        .target()
+        .ok_or_else(|| "远程引用无目标 OID".to_string())?;
+
+    let refname = format!("refs/heads/{}", branch);
+    repo.reference(&refname, remote_oid, true, "resolve conflict: use remote")
+        .map_err(|e| format!("重置分支引用失败: {}", e))?;
+    repo.set_head(&refname)
+        .map_err(|e| format!("set_head 失败: {}", e))?;
+
+    let mut co = CheckoutBuilder::new();
+    co.force();
+    repo.checkout_head(Some(&mut co))
+        .map_err(|e| format!("checkout_head 失败: {}", e))?;
+
+    Ok(())
 }
 
 /// 读取上次同步时间

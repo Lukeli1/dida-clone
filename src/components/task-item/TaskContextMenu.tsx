@@ -5,6 +5,7 @@ import { DateMenu } from './menu/DateMenu'
 import { PriorityMenu } from './menu/PriorityMenu'
 import { TagMenu } from './menu/TagMenu'
 import { RepeatMenu } from './menu/RepeatMenu'
+import { ReminderMenu } from './menu/ReminderMenu'
 import {
   useMenuKeyboard,
   useMenuScope,
@@ -224,6 +225,11 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
       {/* 重复规则设置 */}
       {!isArchivedView && !showDeleteConfirm && (
         <RepeatMenu task={task} onClose={onClose} />
+      )}
+
+      {/* 提醒设置 */}
+      {!isArchivedView && !showDeleteConfirm && (
+        <ReminderMenu task={task} onClose={onClose} />
       )}
 
       {/* 置顶 */}

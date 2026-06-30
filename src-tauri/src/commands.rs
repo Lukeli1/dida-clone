@@ -18,6 +18,7 @@ mod habit_commands;
 mod data_commands;
 mod window_commands;
 pub mod sync_commands;
+pub mod webdav_commands;
 pub mod template_commands;
 pub mod attachment_commands;
 pub mod repeat_commands;
@@ -30,6 +31,7 @@ pub use data_commands::*;
 pub use window_commands::*;
 pub use repeat_commands::*;
 pub use sync_commands::*;
+pub use webdav_commands::*;
 pub use template_commands::*;
 pub use attachment_commands::*;
 

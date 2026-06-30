@@ -26,17 +26,21 @@ export function useTaskResize({ tasks, onUpdateTask, getTaskTop, getTaskHeight }
     const top = getTaskTop(task)
     const height = getTaskHeight(task)
 
+    // 对于无 end_date 的任务，下边缘 resize 时自动创建 end_date
+    // 初始高度按 30 分钟计算（与 getTaskHeight 默认值一致）
+    const effectiveHeight = task.end_date ? height : 30
+
     resizeStartRef.current = {
       taskId: task.id,
       mode,
       startY: e.clientY,
       originalTop: top,
-      originalHeight: height,
+      originalHeight: effectiveHeight,
       dateKey,
     }
     setResizingTaskId(task.id)
     setResizeMode(mode)
-    setResizePreview({ top, height })
+    setResizePreview({ top, height: effectiveHeight })
   }
 
   const handleResizeMove = useCallback((e: MouseEvent) => {
@@ -56,6 +60,9 @@ export function useTaskResize({ tasks, onUpdateTask, getTaskTop, getTaskHeight }
       // 拖动下边缘：改变结束时间（高度）
       let newHeight = originalHeight + deltaY
       newHeight = Math.max(30, newHeight)
+      // 限制不超过当天 24:00
+      const maxEnd = 24 * 60 - originalTop
+      newHeight = Math.min(maxEnd, newHeight)
       newHeight = Math.round(newHeight / 15) * 15
       setResizePreview({ top: originalTop, height: newHeight })
     }
@@ -76,21 +83,21 @@ export function useTaskResize({ tasks, onUpdateTask, getTaskTop, getTaskHeight }
       const [year, month, day] = dateKey.split('-').map(Number)
 
       if (mode === 'top') {
-        // 由预览 top 计算新的开始时间（HOUR_HEIGHT=60，像素即分钟）
-        const newStartMinutes = resizePreview.top
-        const newStartHour = Math.floor(newStartMinutes / 60)
-        const newStartMin = newStartMinutes % 60
-        const newDueDate = new Date(year, month - 1, day, newStartHour, newStartMin)
-        // 不改 end_date，时长随之变化
-        onUpdateTask(taskId, { due_date: newDueDate.toISOString() })
-      } else {
-        // 由预览高度计算新的结束时间
-        const newEndMinutes = resizePreview.top + resizePreview.height
-        const newEndHour = Math.floor(newEndMinutes / 60)
-        const newEndMin = newEndMinutes % 60
-        const newEndDate = new Date(year, month - 1, day, newEndHour, newEndMin)
-        onUpdateTask(taskId, { end_date: newEndDate.toISOString() })
-      }
+      // 由预览 top 计算新的开始时间（HOUR_HEIGHT=60，像素即分钟）
+      const newStartMinutes = Math.max(0, Math.min(24 * 60 - 15, resizePreview.top))
+      const newStartHour = Math.floor(newStartMinutes / 60)
+      const newStartMin = newStartMinutes % 60
+      const newDueDate = new Date(year, month - 1, day, newStartHour, newStartMin)
+      // 不改 end_date，时长随之变化
+      onUpdateTask(taskId, { due_date: newDueDate.toISOString() })
+    } else {
+      // 由预览高度计算新的结束时间
+      const newEndMinutes = Math.max(0, Math.min(24 * 60 - 15, resizePreview.top + resizePreview.height))
+      const newEndHour = Math.floor(newEndMinutes / 60)
+      const newEndMin = newEndMinutes % 60
+      const newEndDate = new Date(year, month - 1, day, newEndHour, newEndMin)
+      onUpdateTask(taskId, { end_date: newEndDate.toISOString() })
+    }
     }
 
     resizeStartRef.current = null

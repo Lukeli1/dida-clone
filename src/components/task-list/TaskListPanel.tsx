@@ -177,6 +177,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
     onSetDate: actions.handleSetDate,
     onSetPriority: actions.handleSetPriority,
     onSetRepeatRule: actions.handleSetRepeatRule,
+    onSetReminder: actions.handleSetReminder,
     onTogglePin: actions.handleTogglePin,
     onToggleTag: actions.handleToggleTag,
     onDuplicate: actions.handleDuplicateTask,

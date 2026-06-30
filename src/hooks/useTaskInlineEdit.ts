@@ -37,6 +37,11 @@ export function useTaskInlineEdit(toast: ToastApi) {
     if (!success) toast.error('设置重复规则失败')
   }
 
+  async function handleSetReminder(taskId: number, reminder: string | null) {
+    const success = await useTaskStore.getState().updateTask(taskId, { reminder: reminder ?? '' })
+    if (!success) toast.error('设置提醒失败')
+  }
+
   async function handleTogglePin(taskId: number) {
     const success = await useTaskStore.getState().togglePin(taskId)
     if (!success) toast.error('置顶操作失败')
@@ -66,6 +71,7 @@ export function useTaskInlineEdit(toast: ToastApi) {
     handleSetDate,
     handleSetPriority,
     handleSetRepeatRule,
+    handleSetReminder,
     handleTogglePin,
     handleToggleTag,
     handleCreateNewTagFromMenu,

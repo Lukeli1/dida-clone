@@ -212,3 +212,14 @@ pub fn push_changes(repo: &Repository, branch: &str) -> Result<(), String> {
     crate::sync::write_last_sync(repo);
     Ok(())
 }
+
+/// 拉取远程最新引用（仅 fetch，不合并），用于冲突解决时获取最新远程数据
+pub fn fetch_remote(repo: &Repository, branch: &str) -> Result<(), String> {
+    let mut remote = repo
+        .find_remote("origin")
+        .map_err(|e| format!("查找 origin 远程失败: {}", e))?;
+    remote
+        .fetch(&[branch], Some(&mut make_fetch_options()), None)
+        .map_err(|e| format!("fetch 失败: {}", e))?;
+    Ok(())
+}

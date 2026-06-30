@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { habitApi } from '../../api'
+import { useUIStore } from '../../stores/uiStore'
 import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, dateKey, getWeekDays } from './constants'
 import { HabitEditor } from './HabitEditor'
 import { CreateHabitForm } from './CreateHabitForm'
@@ -30,6 +31,8 @@ export function HabitView(_props: HabitViewProps) {
 
   const confirm = useConfirm()
   const toast = useToast()
+  // 次要数据（习惯/模板）是否已就绪：未就绪时显示局部 loading，避免渲染空状态
+  const secondaryDataLoaded = useUIStore(s => s.secondaryDataLoaded)
   const today = new Date()
   const weekDays = getWeekDays()
   const todayStr = dateKey(today)
@@ -173,7 +176,7 @@ export function HabitView(_props: HabitViewProps) {
         )}
 
         <HabitList
-          loading={loading} habits={habits} visibleHabits={visibleHabits}
+          loading={loading || !secondaryDataLoaded} habits={habits} visibleHabits={visibleHabits}
           showCreateForm={showCreateForm} expandedId={expandedId} todayStr={todayStr}
           weekDays={weekDays} today={today} showArchived={showArchived} archivedCount={archivedCount}
           onToggle={toggleExpand} onDelete={handleDelete} onEdit={startEditing}

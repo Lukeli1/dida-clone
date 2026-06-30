@@ -43,38 +43,31 @@ export function CalendarToolbar({ viewMode, onChangeView, sidebarOpen, onToggleS
 }
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
+  // 视图模式按钮配置：月 / 周 / 日 为常用项，看板 / 甘特图 为高级项（分隔显示）
+  const buttons: { key: ViewMode; label: string }[] = [
+    { key: 'month', label: '月' },
+    { key: 'week', label: '周' },
+    { key: 'day', label: '日' },
+    { key: 'kanban', label: '看板' },
+    { key: 'gantt', label: '甘特' },
+  ]
   return (
     <div className="flex bg-[var(--color-bg-tertiary)] rounded-lg p-0.5">
-      <button
-        onClick={() => onChange('month')}
-        className={`px-3 py-1 text-sm rounded-md transition-colors ${
-          mode === 'month'
-            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
-            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
-        }`}
-      >
-        月
-      </button>
-      <button
-        onClick={() => onChange('week')}
-        className={`px-3 py-1 text-sm rounded-md transition-colors ${
-          mode === 'week'
-            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
-            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
-        }`}
-      >
-        周
-      </button>
-      <button
-        onClick={() => onChange('day')}
-        className={`px-3 py-1 text-sm rounded-md transition-colors ${
-          mode === 'day'
-            ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
-            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
-        }`}
-      >
-        日
-      </button>
+      {buttons.map((b) => (
+        <button
+          key={b.key}
+          onClick={() => onChange(b.key)}
+          className={`px-3 py-1 text-sm rounded-md transition-colors ${
+            mode === b.key
+              ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm font-medium'
+              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+          }`}
+          aria-pressed={mode === b.key}
+          title={b.key === 'kanban' ? '看板视图' : b.key === 'gantt' ? '甘特图视图' : `${b.label}视图`}
+        >
+          {b.label}
+        </button>
+      ))}
     </div>
   )
 }

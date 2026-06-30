@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.31.0-blue)
+![版本](https://img.shields.io/badge/version-1.32.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -183,6 +183,29 @@ npm run tauri build
 ```
 
 ## 版本历史
+
+### v1.32.0（2026-06-30）
+
+#### Phase 11 — 系统通知 + 同步增强 + 视图扩展 + 性能调优
+
+**方向 A：系统通知与提醒**
+- **系统级通知**（P11-01）：引入 tauri-plugin-notification，后台 30 秒扫描到期 reminder，发送系统通知（Windows 通知中心）；ReminderMenu 设置 UI（5 分/15 分/30 分/1 小时/1 天前/自定义）；tasks 表新增 last_notified 字段防重复通知；emit task-reminder 事件驱动应用内 Toast
+- **提醒规则增强**（P11-02）：uiStore 新增 defaultReminderOffset，创建任务时自动填充 reminder = due_date - offset；修改 due_date 时自动同步 reminder（仅自动生成的）；设置面板新增"默认提醒时间"下拉
+- **通知权限管理**（P11-03）：首次启动请求系统通知权限（仅一次）；设置面板显示三态权限状态（已开启/未开启/未决定）；"重新请求权限"+"发送测试通知"按钮
+
+**方向 B：数据同步增强**
+- **WebDAV 同步**（P11-04）：webdav_sync.rs 完整实现（MKCOL/PUT/GET/PROPFIND）；支持坚果云/Nextcloud/群晖；自动同步策略（本地更新→上传/远程更新→下载）；SyncPanel 新增 WebDAV 配置表单 + 测试连接按钮
+- **同步冲突解决 UI**（P11-05）：SyncConflictDialog 三种策略（保留本地/保留远程/两者都保留）；resolve_sync_conflict 命令根据 sync_type 分发到 Git 或 WebDAV
+
+**方向 C：视图能力扩展**
+- **看板视图完善**（P11-06）：CalendarToolbar 直接暴露看板/甘特图按钮；分组逻辑改为标签驱动（@进行中 标签）；列间拖拽改变状态 + 列内拖拽排序；卡片显示优先级色条 + 截止日期 + 标签；右键菜单接入
+- **甘特图完善**（P11-07）：任务名显示在色条上（截断 + tooltip）；今天红色指示线；周末背景区分；拖拽目标日期 tooltip；鼠标滚轮横向滚动；列头日期 + 星期
+- **周视图 Resize 修复**（P11-08）：修复 draggable=true 干扰 resize handle 的 bug（添加 draggable={false}）；无 end_date 任务支持拖下边缘创建 end_date；handle 加粗 h-1.5→h-2；hover 颜色改为 CSS 变量适配暗色模式；DayView 同步添加 resize 支持
+
+**方向 D：性能与体验调优**
+- **错误边界增强**（P11-09）：errorLogger 持久化错误日志到 localStorage（最多 50 条）；全局 unhandledrejection 监听；ErrorBoundary 增强为错误摘要 + 技术详情 + 复制/刷新/返回首页按钮；设置面板新增错误日志查看/导出/清除
+- **导入导出进度反馈**（P11-10）：后端 emit data-progress 事件；前端监听并显示进度条（百分比 + 消息）；TopProgressBar 同步显示
+- **启动性能优化**（P11-11）：tasks/lists/tags 并行加载（Promise.all）；habits/templates 延后非阻塞加载；secondaryDataLoaded 两阶段标记；db.rs 预热查询
 
 ### v1.31.0（2026-06-30）
 

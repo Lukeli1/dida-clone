@@ -6,10 +6,13 @@ import {
   getMinuteFromY,
   makeCreatePopup,
   makeDropISODate,
+  getTaskTop,
+  getTaskHeight,
   type Selection,
   type CreatePopup,
 } from '../utils/dayViewUtils'
 import { DayViewGrid } from './calendar/DayViewGrid'
+import { useTaskResize } from './calendar/useTaskResize'
 
 interface DayViewProps {
   currentDate: Date
@@ -23,9 +26,10 @@ interface DayViewProps {
   onToday: () => void
   onMoveTask: (taskId: number, newDate: string) => void
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
+  onUpdateTask: (taskId: number, updates: Partial<Task>) => void
 }
 
-export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onMoveTask, onCreateTaskOnRange }: DayViewProps) {
+export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onMoveTask, onCreateTaskOnRange, onUpdateTask }: DayViewProps) {
   // 拖拽与选区状态
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -50,6 +54,9 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
       return format(new Date(task.due_date), 'yyyy-MM-dd') === dateKey
     })
   }, [tasks, dateKey])
+
+  // 时间块 resize（拖拽上下边缘调整开始/结束时间）
+  const resize = useTaskResize({ tasks: dayTasks, onUpdateTask, getTaskTop, getTaskHeight })
 
   // 时间列鼠标交互：按下开始选区
   const handleTimeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -199,6 +206,8 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
         onTaskDragStart={handleDragStart}
         onTaskClick={onTaskClick}
         onToggleTask={onToggleTask}
+        resize={resize}
+        dateKey={dateKey}
         createPopup={createPopup}
         popupTitle={popupTitle}
         popupNotes={popupNotes}

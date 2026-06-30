@@ -3,7 +3,9 @@ pub mod commands;
 pub mod llm;
 pub mod fonts;
 pub mod sync;
+pub mod webdav_sync;
 pub mod repeat;
+pub mod reminder;
 
 use db::DbState;
 use tauri::{
@@ -17,6 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
             // 拦截关闭事件：改为隐藏窗口，不退出应用
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -32,6 +35,9 @@ pub fn run() {
             let db = db::init_db(app_data_dir.to_str().unwrap())
                 .expect("Failed to initialize database");
             app.manage(DbState(std::sync::Mutex::new(db)));
+
+            // P11-01: 启动 reminder 扫描器（后台每 30 秒检查到期提醒）
+            reminder::start_reminder_scanner(app.handle().clone());
 
             // 创建托盘菜单
             let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
@@ -100,8 +106,12 @@ pub fn run() {
                         }
                     };
 
-                    // 执行同步
-                    let _ = commands::sync_commands::sync_now(app_data_dir).await;
+                    // 根据同步方式调用不同的同步命令
+                    if config.sync_type == "webdav" {
+                        let _ = commands::webdav_commands::webdav_sync(app_handle.clone(), app_data_dir).await;
+                    } else {
+                        let _ = commands::sync_commands::sync_now(app_data_dir).await;
+                    }
 
                     // 等待下次同步
                     let interval = config.auto_sync_interval_secs;
@@ -156,6 +166,11 @@ pub fn run() {
             commands::init_sync_repo,
             commands::sync_now,
             commands::get_sync_status_cmd,
+            commands::webdav_test_connection,
+            commands::webdav_sync,
+            commands::webdav_upload,
+            commands::webdav_download,
+            commands::resolve_sync_conflict,
             commands::get_templates,
             commands::create_template,
             commands::update_template,

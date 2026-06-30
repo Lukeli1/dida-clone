@@ -52,6 +52,18 @@ interface UIState {
   // 全局 Loading 状态（驱动顶部进度条 TopProgressBar）
   globalLoading: boolean
 
+  // 次要数据是否已加载完成（habits/templates 等非关键数据）
+  // false 时首屏主界面已可交互，但习惯/模板等功能按钮处于局部 loading
+  // true 时表示次要数据加载流程已就绪，相关功能可正常使用
+  secondaryDataLoaded: boolean
+
+  // 同步冲突状态（检测到冲突时弹出 SyncConflictDialog 让用户选择解决策略）
+  syncConflict: { message: string; strategy?: 'local' | 'remote' | 'backup' } | null
+
+  // 默认提醒偏移（分钟）：0=不自动提醒，5/15/30/60/1440 等取值
+  // 创建/更新任务时若 due_date 存在且 reminder 为空，自动按此偏移填充 reminder
+  defaultReminderOffset: number
+
   // Actions
   setCurrentView: (view: ViewType) => void
   setSelectedListId: (id: number | null) => void
@@ -80,6 +92,9 @@ interface UIState {
   setCustomShortcut: (id: string, keys: string) => void
   resetShortcuts: () => void
   setGlobalLoading: (loading: boolean) => void
+  setSecondaryDataLoaded: (loaded: boolean) => void
+  setDefaultReminderOffset: (offset: number) => void
+  setSyncConflict: (conflict: { message: string } | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -107,6 +122,23 @@ export const useUIStore = create<UIState>((set) => ({
 
   // 全局 Loading 初始值
   globalLoading: false,
+
+  // 次要数据初始未加载（首屏主数据加载完成后置 true）
+  secondaryDataLoaded: false,
+
+  // 同步冲突初始值（无冲突）
+  syncConflict: null,
+
+  // 默认提醒偏移初始值从 localStorage 读取
+  defaultReminderOffset: (() => {
+    try {
+      const saved = localStorage.getItem('default_reminder_offset')
+      const num = saved ? Number(saved) : 0
+      return Number.isFinite(num) ? num : 0
+    } catch {
+      return 0
+    }
+  })(),
 
   // 初始值从 localStorage 读取
   customShortcuts: (() => {
@@ -208,4 +240,17 @@ export const useUIStore = create<UIState>((set) => ({
   },
 
   setGlobalLoading: (globalLoading) => set({ globalLoading }),
+
+  setSecondaryDataLoaded: (secondaryDataLoaded) => set({ secondaryDataLoaded }),
+
+  setDefaultReminderOffset: (offset) => {
+    try {
+      localStorage.setItem('default_reminder_offset', String(offset))
+    } catch {
+      // 忽略 localStorage 写入失败
+    }
+    set({ defaultReminderOffset: offset })
+  },
+
+  setSyncConflict: (syncConflict) => set({ syncConflict }),
 }))

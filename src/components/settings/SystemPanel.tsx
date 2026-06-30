@@ -8,6 +8,7 @@ import { useToast } from '../Toast'
 import { Toggle } from './Toggle'
 import { DataPanel, type ExportFormat } from './system/DataPanel'
 import { CleanupPanel, type ImportModalState } from './system/CleanupPanel'
+import { ErrorLogPanel } from './system/ErrorLogPanel'
 
 /** 当天日期字符串，用于生成导出文件名，如 2026-06-29 */
 function todayStr(): string {
@@ -169,6 +170,8 @@ export function SystemPanel() {
         onCloseImportModal={closeImportModal}
         onImportModeChange={(mode) => setImportModal((s) => ({ ...s, mode }))}
       />
+
+      <ErrorLogPanel toast={toast} />
     </div>
   )
 }

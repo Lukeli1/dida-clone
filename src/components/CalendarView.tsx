@@ -4,6 +4,7 @@ import { type ViewMode, prevMonth, nextMonth, prevWeek, nextWeek, prevDay, nextD
 import { CalendarToolbar } from './calendar/CalendarToolbar'
 import { ViewRenderer } from './calendar/ViewRenderer'
 import { TaskSidebar } from './calendar/TaskSidebar'
+import type { TaskActions } from '../hooks/useTaskActions'
 
 interface CalendarViewProps {
   tasks: Task[]
@@ -14,9 +15,10 @@ interface CalendarViewProps {
   onCreateTask: (date: string, title?: string) => void
   onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
+  actions: TaskActions
 }
 
-export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask, onCreateTask, onCreateTaskOnRange, onUpdateTask }: CalendarViewProps) {
+export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask, onCreateTask, onCreateTaskOnRange, onUpdateTask, actions }: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   // 任务侧边栏：保持开启状态，拖拽时不关闭
@@ -68,6 +70,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
           onCreateTask={onCreateTask}
           onCreateTaskOnRange={onCreateTaskOnRange}
           onUpdateTask={onUpdateTask}
+          actions={actions}
           onDateClick={handleDateClick}
           onToday={goToToday}
           onPrevMonth={() => setCurrentDate(prevMonth(currentDate))}

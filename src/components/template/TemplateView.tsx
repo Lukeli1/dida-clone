@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { templateApi } from '../../api'
+import { useUIStore } from '../../stores/uiStore'
 import type { TaskTemplate } from '../../types/template'
 import { getPriorityStyle } from '../../utils/priority'
 import { TemplateEditor } from './TemplateEditor'
@@ -19,6 +20,8 @@ export function TemplateView() {
 
   const confirm = useConfirm()
   const toast = useToast()
+  // 次要数据（习惯/模板）是否已就绪：未就绪时显示局部 loading，避免渲染空状态
+  const secondaryDataLoaded = useUIStore(s => s.secondaryDataLoaded)
   const today = new Date()
 
   const loadTemplates = useCallback(async () => {
@@ -116,7 +119,7 @@ export function TemplateView() {
         </div>
 
         {/* 模板网格 */}
-        {loading ? (
+        {loading || !secondaryDataLoaded ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-sm text-[var(--color-text-tertiary)]">加载中...</p>
           </div>

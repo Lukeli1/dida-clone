@@ -95,6 +95,7 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
     onSetDate: actions.handleSetDate,
     onSetPriority: actions.handleSetPriority,
     onSetRepeatRule: actions.handleSetRepeatRule,
+    onSetReminder: actions.handleSetReminder,
     onTogglePin: actions.handleTogglePin,
     onToggleTag: actions.handleToggleTag,
     onDuplicate: actions.handleDuplicateTask,

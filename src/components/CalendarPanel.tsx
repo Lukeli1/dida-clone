@@ -44,6 +44,7 @@ export function CalendarPanel({ selectedTask, actions }: CalendarPanelProps) {
           onCreateTask={actions.handleCreateTaskOnDate}
           onCreateTaskOnRange={actions.handleCreateTaskOnRange}
           onUpdateTask={actions.handleUpdateTask}
+          actions={actions}
         />
       </div>
       {selectedTask && (

@@ -100,6 +100,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
             priority INTEGER DEFAULT 2,
             due_date TEXT,
             reminder TEXT,
+            last_notified TEXT,
             completed INTEGER DEFAULT 0,
             list_id INTEGER NOT NULL,
             parent_id INTEGER,
@@ -118,6 +119,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     add_column_if_not_exists(&conn, "tasks", "end_date", "TEXT")?;
     add_column_if_not_exists(&conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(&conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
+    add_column_if_not_exists(&conn, "tasks", "last_notified", "TEXT")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -286,6 +288,11 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);"
     )?;
+
+    // 启动性能优化：执行一次简单查询让 SQLite 初始化页缓存，
+    // 使后续首屏 get_tasks / get_lists 等查询命中缓存，减少冷启动延迟。
+    // 效果有限，失败时忽略（不影响应用正常启动）。
+    let _ = conn.execute_batch("SELECT COUNT(*) FROM tasks;");
 
     Ok(conn)
 }

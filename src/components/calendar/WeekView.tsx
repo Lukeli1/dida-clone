@@ -213,19 +213,27 @@ export function WeekView({
                           onTaskClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }}
                           onToggle={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
                         >
-                          {/* TOP resize handle */}
+                          {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
                           {task.end_date && (
-                            <div className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-black/10 z-10" onMouseDown={(e) => resize.handleResizeStart(e, task, 'top', key)} />
+                            <div
+                              draggable={false}
+                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
+                              onMouseDown={(e) => resize.handleResizeStart(e, task, 'top', key)}
+                            />
                           )}
                           {/* resize time tooltip */}
                           {isResizing && resize.resizePreview && (
-                            <div className="absolute -top-6 left-0 bg-[var(--color-tooltip-bg)] text-[var(--color-tooltip-text)] text-xs px-2 py-0.5 rounded whitespace-nowrap z-30">
+                            <div className="absolute -top-6 left-0 bg-[var(--color-tooltip-bg)] text-[var(--color-tooltip-text)] text-xs px-2 py-0.5 rounded whitespace-nowrap z-30 pointer-events-none">
                               {sel.formatMinute(resize.resizePreview.top)} - {sel.formatMinute(resize.resizePreview.top + resize.resizePreview.height)}
                             </div>
                           )}
-                          {/* BOTTOM resize handle */}
-                          {task.end_date && (
-                            <div className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-black/10 z-10" onMouseDown={(e) => resize.handleResizeStart(e, task, 'bottom', key)} />
+                          {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date */}
+                          {task.due_date && (
+                            <div
+                              draggable={false}
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
+                              onMouseDown={(e) => resize.handleResizeStart(e, task, 'bottom', key)}
+                            />
                           )}
                         </TaskBar>
                       )

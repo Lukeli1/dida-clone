@@ -109,6 +109,7 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     handleSetDate: inlineEdit.handleSetDate,
     handleSetPriority: inlineEdit.handleSetPriority,
     handleSetRepeatRule: inlineEdit.handleSetRepeatRule,
+    handleSetReminder: inlineEdit.handleSetReminder,
     handleTogglePin: inlineEdit.handleTogglePin,
     handleToggleTag: inlineEdit.handleToggleTag,
     handleDuplicateTask: crud.handleDuplicateTask,

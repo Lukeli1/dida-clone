@@ -9,11 +9,14 @@ import {
   HOUR_HEIGHT,
   HOURS,
   formatMinute,
+  getTaskTop,
+  getTaskHeight,
   type Selection,
   type CreatePopup,
 } from '../../utils/dayViewUtils'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
 import { DayViewTask } from './DayViewTask'
+import type { useTaskResize } from './useTaskResize'
 
 const priorityOptions = [
   { value: 0, label: '无', color: 'text-[var(--color-priority-none)]' },
@@ -47,6 +50,9 @@ interface DayViewGridProps {
   onTaskDragStart: (e: React.DragEvent, taskId: number) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
+  // resize（拖拽边缘调整时间）
+  resize: ReturnType<typeof useTaskResize>
+  dateKey: string
   // 创建任务弹窗（时间列覆盖层）
   createPopup: CreatePopup | null
   popupTitle: string
@@ -80,6 +86,8 @@ export function DayViewGrid({
   onTaskDragStart,
   onTaskClick,
   onToggleTask,
+  resize,
+  dateKey,
   createPopup,
   popupTitle,
   popupNotes,
@@ -186,17 +194,30 @@ export function DayViewGrid({
 
             {dayTasks
               .filter((t) => t.due_date)
-              .map((task) => (
-                <DayViewTask
-                  key={task.id}
-                  task={task}
-                  lists={lists}
-                  dragged={draggedTaskId === task.id}
-                  onDragStart={onTaskDragStart}
-                  onTaskClick={onTaskClick}
-                  onToggleTask={onToggleTask}
-                />
-              ))}
+              .map((task) => {
+                const top = getTaskTop(task)
+                const height = getTaskHeight(task)
+                const isResizing = resize.resizingTaskId === task.id
+                const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
+                const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
+                return (
+                  <DayViewTask
+                    key={task.id}
+                    task={task}
+                    lists={lists}
+                    dragged={draggedTaskId === task.id}
+                    draggable={resize.resizingTaskId === null}
+                    top={displayTop}
+                    height={displayHeight}
+                    isResizing={isResizing}
+                    resizePreview={resize.resizePreview}
+                    onDragStart={onTaskDragStart}
+                    onTaskClick={onTaskClick}
+                    onToggleTask={onToggleTask}
+                    onResizeStart={(e, mode) => resize.handleResizeStart(e, task, mode, dateKey)}
+                  />
+                )
+              })}
 
             {/* 快速添加弹窗（轻量） */}
             {createPopup?.isQuickAdd && (

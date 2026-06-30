@@ -4,16 +4,32 @@
 // 配置文件路径使用 Tauri app_data_dir，不硬编码 Windows APPDATA。
 
 use crate::sync::{self, SyncConfig, SyncStatus};
+use crate::webdav_sync::{WebDavClient, WebDavConfig};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// 同步配置 DTO（前端交互用，不含 local_path）
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SyncConfigDto {
+    #[serde(default)]
     pub repo_url: String,
+    #[serde(default)]
     pub branch: String,
+    #[serde(default)]
     pub auto_sync: bool,
+    #[serde(default)]
     pub auto_sync_interval_secs: u64,
+    /// 同步方式："git" 或 "webdav"
+    #[serde(default)]
+    pub sync_type: String,
+    #[serde(default)]
+    pub webdav_url: Option<String>,
+    #[serde(default)]
+    pub webdav_username: Option<String>,
+    #[serde(default)]
+    pub webdav_password: Option<String>,
+    #[serde(default)]
+    pub webdav_remote_path: Option<String>,
 }
 
 /// 同步状态 DTO（返回给前端）
@@ -37,6 +53,11 @@ impl From<SyncConfigDto> for SyncConfig {
             local_path: PathBuf::new(), // 运行时填充
             auto_sync: dto.auto_sync,
             auto_sync_interval_secs: dto.auto_sync_interval_secs,
+            sync_type: dto.sync_type,
+            webdav_url: dto.webdav_url,
+            webdav_username: dto.webdav_username,
+            webdav_password: dto.webdav_password,
+            webdav_remote_path: dto.webdav_remote_path,
         }
     }
 }
@@ -48,6 +69,11 @@ impl From<SyncConfig> for SyncConfigDto {
             branch: config.branch,
             auto_sync: config.auto_sync,
             auto_sync_interval_secs: config.auto_sync_interval_secs,
+            sync_type: config.sync_type,
+            webdav_url: config.webdav_url,
+            webdav_username: config.webdav_username,
+            webdav_password: config.webdav_password,
+            webdav_remote_path: config.webdav_remote_path,
         }
     }
 }
@@ -65,7 +91,7 @@ fn get_sync_dir(app_data_dir: &str) -> PathBuf {
 }
 
 /// 从 sync_config.json 读取同步配置，并填充 local_path
-fn load_sync_config(app_data_dir: &str) -> Result<Option<SyncConfig>, String> {
+pub(crate) fn load_sync_config(app_data_dir: &str) -> Result<Option<SyncConfig>, String> {
     let path = get_sync_config_path(app_data_dir);
     if !path.exists() {
         return Ok(None);
@@ -199,7 +225,22 @@ pub fn get_sync_status_cmd(app_data_dir: String) -> Result<SyncStatusDto, String
         }
     };
 
-    // 仓库不存在时返回 disabled
+    // WebDAV 同步状态：读取 webdav_last_sync.txt
+    if config.is_webdav() {
+        let last_sync_path = Path::new(&app_data_dir).join("webdav_last_sync.txt");
+        let last_sync = std::fs::read_to_string(last_sync_path).unwrap_or_default();
+        let enabled = config.webdav_url.is_some();
+        return Ok(SyncStatusDto {
+            enabled,
+            ahead: 0,
+            behind: 0,
+            last_sync,
+            has_conflict: false,
+            conflict_message: None,
+        });
+    }
+
+    // Git 同步状态：仓库不存在时返回 disabled
     if !config.local_path.join(".git").exists() {
         return Ok(SyncStatusDto {
             enabled: false,
@@ -222,4 +263,147 @@ pub fn get_sync_status_cmd(app_data_dir: String) -> Result<SyncStatusDto, String
         has_conflict: status.has_conflict,
         conflict_message: None,
     })
+}
+
+// ---- 冲突解决（P11-05） ----
+
+/// 默认 WebDAV 远程路径
+const CONFLICT_DEFAULT_REMOTE_PATH: &str = "/dida-clone/dida.db";
+
+/// 从 SyncConfig 构建 WebDavConfig
+fn build_webdav_config_from_config(config: &SyncConfig) -> Result<WebDavConfig, String> {
+    Ok(WebDavConfig {
+        url: config.webdav_url.clone().ok_or("未配置 WebDAV URL")?,
+        username: config.webdav_username.clone().ok_or("未配置 WebDAV 用户名")?,
+        password: config.webdav_password.clone().unwrap_or_default(),
+        remote_path: config
+            .webdav_remote_path
+            .clone()
+            .unwrap_or_else(|| CONFLICT_DEFAULT_REMOTE_PATH.to_string()),
+    })
+}
+
+/// 记录 WebDAV 同步时间到 webdav_last_sync.txt
+fn write_webdav_last_sync(app_data_dir: &str) {
+    let last_sync_path = Path::new(app_data_dir).join("webdav_last_sync.txt");
+    let now = chrono::Local::now().to_rfc3339();
+    let _ = std::fs::write(last_sync_path, now);
+}
+
+/// 解决同步冲突：根据策略保留本地 / 远程 / 备份
+///
+/// - "local"：强制上传本地数据库到远程（覆盖远程）
+/// - "remote"：强制下载远程数据库覆盖本地
+/// - "backup"：备份本地为 dida.db.local-backup，然后下载远程
+///
+/// 根据 sync_type 自动选择 Git 或 WebDAV 执行方式。
+#[tauri::command]
+pub async fn resolve_sync_conflict(
+    strategy: String,
+    app_data_dir: String,
+) -> Result<(), String> {
+    let config = load_sync_config(&app_data_dir)?
+        .ok_or("未配置同步")?;
+
+    match strategy.as_str() {
+        "local" | "remote" | "backup" => {}
+        _ => return Err("无效的冲突解决策略".to_string()),
+    }
+
+    if config.is_webdav() {
+        resolve_webdav_conflict(&strategy, &config, &app_data_dir).await
+    } else {
+        // Git 操作为阻塞调用，放到 spawn_blocking 中执行
+        let strategy_clone = strategy.clone();
+        let config_clone = config.clone();
+        let app_data_dir_clone = app_data_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            resolve_git_conflict(&strategy_clone, &config_clone, &app_data_dir_clone)
+        })
+        .await
+        .map_err(|e| format!("冲突解决任务执行失败: {}", e))?
+    }
+}
+
+/// Git 冲突解决（阻塞操作）
+fn resolve_git_conflict(
+    strategy: &str,
+    config: &SyncConfig,
+    app_data_dir: &str,
+) -> Result<(), String> {
+    let repo = sync::init_sync_repo(config)?;
+    let live_db = Path::new(app_data_dir).join("dida.db");
+    let synced_db = config.local_path.join("dida.db");
+
+    match strategy {
+        // 保留本地：将 live db 复制到同步目录，然后 commit + push
+        "local" => {
+            if live_db.exists() {
+                std::fs::copy(&live_db, &synced_db)
+                    .map_err(|e| format!("复制数据库到同步目录失败: {}", e))?;
+            }
+            sync::push_changes(&repo, &config.branch)?;
+        }
+        // 保留远程：fetch 最新远程，reset 到远程，复制到 live db
+        "remote" => {
+            sync::fetch_remote(&repo, &config.branch)?;
+            sync::reset_to_remote(&repo, &config.branch)?;
+            if synced_db.exists() {
+                std::fs::copy(&synced_db, &live_db)
+                    .map_err(|e| format!("复制远程数据库到应用目录失败: {}", e))?;
+            }
+        }
+        // 两者都保留：备份 live db，然后使用远程
+        "backup" => {
+            let backup_db = Path::new(app_data_dir).join("dida.db.local-backup");
+            if live_db.exists() {
+                std::fs::copy(&live_db, &backup_db)
+                    .map_err(|e| format!("备份本地数据库失败: {}", e))?;
+            }
+            sync::fetch_remote(&repo, &config.branch)?;
+            sync::reset_to_remote(&repo, &config.branch)?;
+            if synced_db.exists() {
+                std::fs::copy(&synced_db, &live_db)
+                    .map_err(|e| format!("复制远程数据库到应用目录失败: {}", e))?;
+            }
+        }
+        _ => return Err("无效的冲突解决策略".to_string()),
+    }
+    Ok(())
+}
+
+/// WebDAV 冲突解决（异步操作）
+async fn resolve_webdav_conflict(
+    strategy: &str,
+    config: &SyncConfig,
+    app_data_dir: &str,
+) -> Result<(), String> {
+    let webdav_config = build_webdav_config_from_config(config)?;
+    let client = WebDavClient::new(webdav_config);
+    let local_db = Path::new(app_data_dir).join("dida.db");
+
+    match strategy {
+        // 保留本地：上传到远程
+        "local" => {
+            client.upload(&local_db).await?;
+            write_webdav_last_sync(app_data_dir);
+        }
+        // 保留远程：下载覆盖本地
+        "remote" => {
+            client.download(&local_db).await?;
+            write_webdav_last_sync(app_data_dir);
+        }
+        // 两者都保留：备份本地，然后下载远程
+        "backup" => {
+            let backup_db = Path::new(app_data_dir).join("dida.db.local-backup");
+            if local_db.exists() {
+                std::fs::copy(&local_db, &backup_db)
+                    .map_err(|e| format!("备份本地数据库失败: {}", e))?;
+            }
+            client.download(&local_db).await?;
+            write_webdav_last_sync(app_data_dir);
+        }
+        _ => return Err("无效的冲突解决策略".to_string()),
+    }
+    Ok(())
 }
