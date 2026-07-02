@@ -35,7 +35,10 @@ fn build_url(base_url: &str, endpoint: &str) -> String {
 #[tauri::command]
 pub async fn test_llm_connection(base_url: String, api_key: String) -> Result<Vec<String>, String> {
     let url = build_url(&base_url, "/models");
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
     let resp = client
         .get(&url)
@@ -82,7 +85,10 @@ pub async fn llm_chat(
     history: Option<Vec<ChatMessage>>,
 ) -> Result<String, String> {
     let url = build_url(&base_url, "/chat/completions");
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
     let reasoning_enabled = reasoning.unwrap_or(false);
     let effort = reasoning_effort.unwrap_or_else(|| "medium".to_string());
@@ -154,7 +160,10 @@ pub async fn llm_chat_stream(
     let _ = &skill;
 
     let url = build_url(&config.base_url, "/chat/completions");
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
     let mut body = serde_json::json!({
         "model": config.model,

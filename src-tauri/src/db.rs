@@ -74,6 +74,20 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     let db_path = std::path::Path::new(app_data_dir).join("dida.db");
     let conn = Connection::open(db_path)?;
 
+    init_schema(&conn)?;
+
+    // 启动性能优化：执行一次简单查询让 SQLite 初始化页缓存，
+    // 使后续首屏 get_tasks / get_lists 等查询命中缓存，减少冷启动延迟。
+    // 效果有限，失败时忽略（不影响应用正常启动）。
+    let _ = conn.execute_batch("SELECT COUNT(*) FROM tasks;");
+
+    Ok(conn)
+}
+
+/// 初始化数据库 schema：创建所有表、索引，并写入默认数据（默认清单与标签）。
+/// 从 init_db 中提取，便于单元测试使用内存数据库验证。
+#[allow(dead_code)]
+fn init_schema(conn: &Connection) -> Result<()> {
     // P0-1: 启用外键约束和 WAL 模式
     conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
 
@@ -90,7 +104,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     )?;
 
     // 兼容已有数据库：使用辅助函数检查并添加缺失列
-    add_column_if_not_exists(&conn, "lists", "color", "TEXT DEFAULT '#6B7280'")?;
+    add_column_if_not_exists(conn, "lists", "color", "TEXT DEFAULT '#6B7280'")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tasks (
@@ -115,11 +129,11 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
     )?;
 
     // 兼容已有数据库：使用辅助函数检查并添加缺失列
-    add_column_if_not_exists(&conn, "tasks", "sort_order", "REAL DEFAULT 0")?;
-    add_column_if_not_exists(&conn, "tasks", "end_date", "TEXT")?;
-    add_column_if_not_exists(&conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
-    add_column_if_not_exists(&conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
-    add_column_if_not_exists(&conn, "tasks", "last_notified", "TEXT")?;
+    add_column_if_not_exists(conn, "tasks", "sort_order", "REAL DEFAULT 0")?;
+    add_column_if_not_exists(conn, "tasks", "end_date", "TEXT")?;
+    add_column_if_not_exists(conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
+    add_column_if_not_exists(conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
+    add_column_if_not_exists(conn, "tasks", "last_notified", "TEXT")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -133,7 +147,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
         [],
     )?;
 
-    add_column_if_not_exists(&conn, "tags", "parent_id", "INTEGER")?;
+    add_column_if_not_exists(conn, "tags", "parent_id", "INTEGER")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS task_tags (
@@ -371,10 +385,174 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
          CREATE INDEX IF NOT EXISTS idx_goal_tasks_task ON goal_tasks(task_id);"
     )?;
 
-    // 启动性能优化：执行一次简单查询让 SQLite 初始化页缓存，
-    // 使后续首屏 get_tasks / get_lists 等查询命中缓存，减少冷启动延迟。
-    // 效果有限，失败时忽略（不影响应用正常启动）。
-    let _ = conn.execute_batch("SELECT COUNT(*) FROM tasks;");
+    Ok(())
+}
 
-    Ok(conn)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::params;
+
+    /// 辅助函数：创建内存数据库并初始化 schema
+    fn setup_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_init_schema_creates_tables() {
+        let conn = setup_db();
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        for expected in &[
+            "lists", "tasks", "tags", "task_tags", "habits", "habit_records",
+            "templates", "subtask_templates", "attachments", "time_entries",
+            "reports", "goals", "goal_tasks",
+        ] {
+            assert!(
+                tables.contains(&expected.to_string()),
+                "表 {} 未创建，现有表: {:?}", expected, tables
+            );
+        }
+    }
+
+    #[test]
+    fn test_default_list_created() {
+        let conn = setup_db();
+        let (name, is_default): (String, i64) = conn
+            .query_row(
+                "SELECT name, is_default FROM lists WHERE is_default = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(name, "收件箱");
+        assert_eq!(is_default, 1);
+    }
+
+    #[test]
+    fn test_create_and_query_task() {
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (title, notes, priority, list_id, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, 1, ?4, ?5)",
+            params!["测试任务", "备注内容", 1, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let task_id = conn.last_insert_rowid();
+
+        let (title, notes, priority): (String, Option<String>, i64) = conn
+            .query_row(
+                "SELECT title, notes, priority FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(title, "测试任务");
+        assert_eq!(notes, Some("备注内容".to_string()));
+        assert_eq!(priority, 1);
+    }
+
+    #[test]
+    fn test_task_foreign_key_list() {
+        let conn = setup_db();
+        // 向不存在的 list_id 插入任务应因外键约束失败
+        let result = conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4)",
+            params!["无清单任务", 99999, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        );
+        assert!(result.is_err(), "外键约束未生效，应拒绝插入");
+    }
+
+    #[test]
+    fn test_task_completion_toggle() {
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at) \
+             VALUES (?1, 1, ?2, ?3)",
+            params!["切换任务", "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let task_id = conn.last_insert_rowid();
+
+        // 初始 completed = 0
+        let completed: i64 = conn
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
+
+        // 切换为已完成
+        conn.execute("UPDATE tasks SET completed = 1 WHERE id = ?1", params![task_id])
+            .unwrap();
+        let completed: i64 = conn
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(completed, 1);
+    }
+
+    #[test]
+    fn test_tag_unique_name() {
+        let conn = setup_db();
+        // 插入一个新标签
+        conn.execute(
+            "INSERT INTO tags (name, created_at) VALUES (?1, ?2)",
+            params!["测试标签", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+
+        // 重复插入同名标签应失败（UNIQUE 约束）
+        let result = conn.execute(
+            "INSERT INTO tags (name, created_at) VALUES (?1, ?2)",
+            params!["测试标签", "2026-01-01T00:00:00"],
+        );
+        assert!(result.is_err(), "UNIQUE 约束未生效，应拒绝重复标签名");
+    }
+
+    #[test]
+    fn test_subtask_parent_relation() {
+        let conn = setup_db();
+        // 插入父任务（list_id=1 为默认清单）
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at) \
+             VALUES (?1, 1, ?2, ?3)",
+            params!["父任务", "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let parent_id = conn.last_insert_rowid();
+
+        // 插入子任务
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) \
+             VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子任务", parent_id, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let subtask_id = conn.last_insert_rowid();
+
+        // 查询子任务的 parent_id
+        let pid: Option<i64> = conn
+            .query_row(
+                "SELECT parent_id FROM tasks WHERE id = ?1",
+                params![subtask_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pid, Some(parent_id));
+    }
 }

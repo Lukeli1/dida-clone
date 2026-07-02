@@ -13,6 +13,7 @@ import { logError } from '../utils/errorLogger'
 import { measureAsync } from '../utils/perfMonitor'
 import { checkNotificationPermission, requestNotificationPermission } from '../utils/notification'
 import { generateWeeklyReport, getWeekRange } from '../utils/reportGenerator'
+import { migrateStorageKeys } from '../config/localStorageKeys'
 import type { ToastApi } from '../components/Toast'
 
 /**
@@ -25,6 +26,10 @@ export function useAppInit(toast: ToastApi) {
 
   // ===== 启动初始化 =====
   useEffect(() => {
+    // 第零阶段：localStorage key 命名空间迁移（裸 key → `dida:` 前缀 key）。
+    // 必须最先执行，确保后续读取设置时新命名空间已有数据（软迁移：仅复制不删除旧 key）。
+    migrateStorageKeys()
+
     // 第一阶段：关键数据并行加载（tasks / lists / tags）
     // 使用 Promise.all 协调并行 IPC 调用，任一失败时统一提示。
     // 注：各 store 的 loadXxx 内部已捕获错误并 resolve，此处的 catch 作为防御性兜底，

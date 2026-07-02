@@ -202,3 +202,202 @@ pub fn next_occurrence(rule: &RepeatRule, from: DateTime<Local>) -> Option<DateT
 
     Some(next)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    #[test]
+    fn test_serialize_daily() {
+        let rule = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        assert_eq!(serialize_rrule(&rule), "FREQ=DAILY;INTERVAL=1");
+    }
+
+    #[test]
+    fn test_serialize_weekly_with_byday() {
+        let rule = RepeatRule {
+            freq: "WEEKLY".to_string(),
+            interval: 2,
+            byweekday: Some(vec![0, 2, 4]),
+            end_date: None,
+            count: Some(10),
+        };
+        let result = serialize_rrule(&rule);
+        assert!(result.contains("FREQ=WEEKLY"));
+        assert!(result.contains("INTERVAL=2"));
+        assert!(result.contains("BYDAY=0,2,4"));
+        assert!(result.contains("COUNT=10"));
+    }
+
+    #[test]
+    fn test_parse_valid_rrule() {
+        let rule = parse_rrule("FREQ=DAILY;INTERVAL=2").unwrap();
+        assert_eq!(rule.freq, "DAILY");
+        assert_eq!(rule.interval, 2);
+        assert!(rule.byweekday.is_none());
+        assert!(rule.end_date.is_none());
+        assert!(rule.count.is_none());
+    }
+
+    #[test]
+    fn test_parse_empty_string() {
+        assert!(parse_rrule("").is_none());
+        assert!(parse_rrule("   ").is_none());
+    }
+
+    #[test]
+    fn test_parse_invalid_freq() {
+        assert!(parse_rrule("FREQ=HOURLY;INTERVAL=1").is_none());
+        assert!(parse_rrule("FREQ=invalid;INTERVAL=1").is_none());
+    }
+
+    #[test]
+    fn test_parse_invalid_interval() {
+        assert!(parse_rrule("FREQ=DAILY;INTERVAL=0").is_none());
+        assert!(parse_rrule("FREQ=DAILY;INTERVAL=-1").is_none());
+    }
+
+    #[test]
+    fn test_parse_default_interval() {
+        let rule = parse_rrule("FREQ=WEEKLY").unwrap();
+        assert_eq!(rule.interval, 1);
+    }
+
+    #[test]
+    fn test_parse_with_until() {
+        let rule =
+            parse_rrule("FREQ=DAILY;INTERVAL=1;UNTIL=2026-12-31T23:59:59").unwrap();
+        assert_eq!(rule.end_date, Some("2026-12-31T23:59:59".to_string()));
+    }
+
+    #[test]
+    fn test_parse_byday_filter() {
+        // 合法日期 0-6 被保留，非法日期（7、8）被过滤
+        let rule = parse_rrule("FREQ=WEEKLY;INTERVAL=1;BYDAY=0,2,7,8").unwrap();
+        assert_eq!(rule.byweekday, Some(vec![0, 2]));
+
+        // 全部非法 → 过滤为空 → None
+        let rule = parse_rrule("FREQ=WEEKLY;INTERVAL=1;BYDAY=7,8").unwrap();
+        assert!(rule.byweekday.is_none());
+    }
+
+    #[test]
+    fn test_next_occurrence_daily() {
+        let rule = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        let from = Local.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        let next = next_occurrence(&rule, from).unwrap();
+        assert_eq!(next, from + chrono::Duration::days(1));
+    }
+
+    #[test]
+    fn test_next_occurrence_daily_interval_3() {
+        let rule = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 3,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        let from = Local.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        let next = next_occurrence(&rule, from).unwrap();
+        assert_eq!(next, from + chrono::Duration::days(3));
+    }
+
+    #[test]
+    fn test_next_occurrence_weekly_no_byday() {
+        let rule = RepeatRule {
+            freq: "WEEKLY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        let from = Local.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        let next = next_occurrence(&rule, from).unwrap();
+        assert_eq!(next, from + chrono::Duration::weeks(1));
+    }
+
+    #[test]
+    fn test_next_occurrence_count_exhausted() {
+        let rule = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: Some(0),
+        };
+        let from = Local.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        assert!(next_occurrence(&rule, from).is_none());
+
+        // 负数 count 同样视为已耗尽
+        let rule_neg = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: Some(-1),
+        };
+        assert!(next_occurrence(&rule_neg, from).is_none());
+    }
+
+    #[test]
+    fn test_next_occurrence_end_date_reached() {
+        let rule = RepeatRule {
+            freq: "DAILY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: Some("2026-01-01T23:59:59Z".to_string()),
+            count: None,
+        };
+        // from = 2026-01-01 09:00，下一次出现 = 2026-01-02 09:00，已超过 end_date
+        let from = Local.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        assert!(next_occurrence(&rule, from).is_none());
+    }
+
+    #[test]
+    fn test_next_occurrence_monthly() {
+        let rule = RepeatRule {
+            freq: "MONTHLY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        let from = Local.with_ymd_and_hms(2026, 1, 15, 9, 0, 0).unwrap();
+        let next = next_occurrence(&rule, from).unwrap();
+        assert_eq!(
+            next,
+            Local.with_ymd_and_hms(2026, 2, 15, 9, 0, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_next_occurrence_yearly() {
+        let rule = RepeatRule {
+            freq: "YEARLY".to_string(),
+            interval: 1,
+            byweekday: None,
+            end_date: None,
+            count: None,
+        };
+        let from = Local.with_ymd_and_hms(2026, 6, 15, 9, 0, 0).unwrap();
+        let next = next_occurrence(&rule, from).unwrap();
+        assert_eq!(
+            next,
+            Local.with_ymd_and_hms(2027, 6, 15, 9, 0, 0).unwrap()
+        );
+    }
+}

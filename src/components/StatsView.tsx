@@ -47,7 +47,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
         const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString()
         const stats = await timeTrackingApi.getTimeStats('list', weekStart, weekEnd)
         if (!cancelled) setTimeStats(stats)
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('加载时间分布统计失败', e)
       }
     }
@@ -180,8 +180,8 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
       const todayTasks = tasks.filter(t => t.due_date && isToday(parseISO(t.due_date)))
       const summary = await generateSummary(todayTasks.length > 0 ? todayTasks : tasks.slice(0, 20))
       setAiSummary(summary)
-    } catch (e: any) {
-      toast.error(`AI 摘要生成失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      toast.error(`AI 摘要生成失败: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setAiLoading(false)
     }
@@ -193,7 +193,7 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
     try {
       const list = await reportApi.getAll(undefined, 50)
       setReports(list)
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('加载历史报告失败', e)
     } finally {
       setReportLoading(false)
@@ -222,8 +222,8 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
       } else {
         toast.error('周报生成失败，请稍后重试')
       }
-    } catch (e: any) {
-      toast.error(`周报生成失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      toast.error(`周报生成失败: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setGeneratingReport(false)
     }
@@ -236,8 +236,8 @@ export function StatsView({ tasks, lists }: StatsViewProps) {
       setReports(prev => prev.filter(r => r.id !== id))
       if (selectedReport?.id === id) setSelectedReport(null)
       toast.info('已删除报告')
-    } catch (e: any) {
-      toast.error(`删除失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      toast.error(`删除失败: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

@@ -52,17 +52,29 @@ pub fn run() {
         .on_window_event(|window, event| {
             // 拦截关闭事件：改为隐藏窗口，不退出应用
             if let WindowEvent::CloseRequested { api, .. } = event {
-                window.hide().unwrap();
+                if let Err(e) = window.hide() {
+                    eprintln!("[window] Failed to hide window: {}", e);
+                }
                 api.prevent_close();
             }
         })
-        .setup(|app| {
-            let app_data_dir = app.path().app_data_dir()
-                .expect("Failed to get app data directory");
-            std::fs::create_dir_all(&app_data_dir)
-                .expect("Failed to create app data directory");
-            let db = db::init_db(app_data_dir.to_str().unwrap())
-                .expect("Failed to initialize database");
+        .setup(|app| -> Result<(), Box<dyn std::error::Error>> {
+            let app_data_dir = app.path().app_data_dir().map_err(|e| {
+                eprintln!("[setup] Failed to get app data directory: {}", e);
+                e
+            })?;
+            std::fs::create_dir_all(&app_data_dir).map_err(|e| {
+                eprintln!("[setup] Failed to create app data directory: {}", e);
+                e
+            })?;
+            let dir_str = app_data_dir.to_str().ok_or_else(|| -> Box<dyn std::error::Error> {
+                eprintln!("[setup] App data directory path is not valid UTF-8");
+                "App data directory path is not valid UTF-8".into()
+            })?;
+            let db = db::init_db(dir_str).map_err(|e| {
+                eprintln!("[setup] Failed to initialize database: {}", e);
+                e
+            })?;
             app.manage(DbState(std::sync::Mutex::new(db)));
 
             // P11-01: 启动 reminder 扫描器（后台每 30 秒检查到期提醒）
@@ -75,7 +87,10 @@ pub fn run() {
 
             // 创建系统托盘图标
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(app.default_window_icon().cloned().unwrap_or_else(|| {
+                    eprintln!("[setup] No default window icon found, using fallback");
+                    tauri::image::Image::new(&[0u8, 0, 0, 0], 1, 1)
+                }))
                 .tooltip("滴答清单")
                 .menu(&menu)
                 .show_menu_on_left_click(false)

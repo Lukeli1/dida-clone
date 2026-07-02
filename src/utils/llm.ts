@@ -121,13 +121,13 @@ export async function testConnection(baseUrl: string, apiKey: string): Promise<s
     })
     clearTimeout(timeout)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const body = await resp.json()
-    const models: string[] = (body.data || []).map((m: any) => m.id).filter(Boolean)
+    const body = await resp.json() as { data?: Array<{ id: string }> }
+    const models: string[] = (body.data || []).map(m => m.id).filter(Boolean)
     if (models.length === 0) throw new Error('未找到可用模型')
     return models
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeout)
-    if (err.name === 'AbortError') throw new Error('请求超时（30秒）')
+    if (err instanceof Error && err.name === 'AbortError') throw new Error('请求超时（30秒）')
     throw err
   }
 }
@@ -135,6 +135,20 @@ export async function testConnection(baseUrl: string, apiKey: string): Promise<s
 export interface ChatHistoryMessage {
   role: 'user' | 'assistant'
   content: string
+}
+
+/** chat/completions 请求中的单条消息 */
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+/** chat/completions 请求体 */
+interface ChatPayload {
+  model: string
+  messages: ChatMessage[]
+  reasoning_effort?: 'low' | 'medium' | 'high'
+  temperature?: number
 }
 
 export async function chat(
@@ -158,12 +172,12 @@ export async function chat(
     })
   }
   const url = buildUrl(config.baseUrl, '/chat/completions')
-  const messages: any[] = [
+  const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
     ...(history || []).map(m => ({ role: m.role, content: m.content })),
     { role: 'user', content: userMessage },
   ]
-  const payload: any = { model: config.model, messages }
+  const payload: ChatPayload = { model: config.model, messages }
   if (config.reasoning) {
     payload.reasoning_effort = config.reasoningEffort || 'medium'
   } else {
@@ -183,11 +197,11 @@ export async function chat(
     })
     clearTimeout(timeout)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const body = await resp.json()
+    const body = await resp.json() as { choices?: Array<{ message?: { content?: string } }> }
     return body.choices?.[0]?.message?.content || ''
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeout)
-    if (err.name === 'AbortError') throw new Error('AI 响应超时（60秒）')
+    if (err instanceof Error && err.name === 'AbortError') throw new Error('AI 响应超时（60秒）')
     throw err
   }
 }

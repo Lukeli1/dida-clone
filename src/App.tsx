@@ -1,14 +1,6 @@
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/sidebar/Sidebar'
-import { StatsView } from './components/StatsView'
-import { SettingsView } from './components/settings/SettingsView'
-import { AIAssistant } from './components/ai/AIAssistant'
-import { QuadrantView } from './components/QuadrantView'
-import { PomodoroView } from './components/pomodoro/PomodoroView'
-import { HabitView } from './components/habit/HabitView'
-import { TemplateView } from './components/template/TemplateView'
-import { GoalView } from './components/goal/GoalView'
 import { useToast } from './components/Toast'
 import { useTaskStore } from './stores/taskStore'
 import { useListStore } from './stores/listStore'
@@ -26,6 +18,17 @@ import { NotificationCenter } from './components/NotificationCenter'
 import { OnboardingTour } from './components/OnboardingTour'
 import { AppSkeleton } from './components/common/Skeleton'
 import { TopProgressBar } from './components/common/TopProgressBar'
+
+// 按需懒加载：非首屏视图（统计 / 设置 / AI / 四象限 / 番茄 / 习惯 / 模板 / 目标）
+// 独立打包为各自 chunk，减小首屏 bundle 体积。首屏任务列表 / 日历仍走同步导入。
+const StatsView = lazy(() => import('./components/StatsView').then(m => ({ default: m.StatsView })))
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })))
+const AIAssistant = lazy(() => import('./components/ai/AIAssistant').then(m => ({ default: m.AIAssistant })))
+const QuadrantView = lazy(() => import('./components/QuadrantView').then(m => ({ default: m.QuadrantView })))
+const PomodoroView = lazy(() => import('./components/pomodoro/PomodoroView').then(m => ({ default: m.PomodoroView })))
+const HabitView = lazy(() => import('./components/habit/HabitView').then(m => ({ default: m.HabitView })))
+const TemplateView = lazy(() => import('./components/template/TemplateView').then(m => ({ default: m.TemplateView })))
+const GoalView = lazy(() => import('./components/goal/GoalView').then(m => ({ default: m.GoalView })))
 
 /**
  * App 根组件（重构后）
@@ -132,6 +135,80 @@ function App() {
     return <AppSkeleton />
   }
 
+  // 视图路由：switch-case 替代原先 8 层嵌套三元表达式，可读性更好。
+  // 懒加载视图（stats / settings / ai / quadrant / pomodoro / habit / template / goals）
+  // 在下方由 <Suspense> 包裹，首次进入对应视图时加载 chunk 并展示 fallback。
+  // tasks / today / archived 三种列表视图共用 TaskListPanel（同步导入，首屏优先）。
+  let mainView
+  switch (currentView) {
+    case 'calendar':
+      mainView = <CalendarPanel selectedTask={selectedTask} actions={actions} />
+      break
+    case 'stats':
+      mainView = <StatsView tasks={tasks} lists={lists} />
+      break
+    case 'settings':
+      mainView = <SettingsView onClose={handleCloseSettings} />
+      break
+    case 'ai':
+      mainView = (
+        <AIAssistant tasks={tasks} onClose={handleCloseAI} onTasksChange={handleAITasksChange} />
+      )
+      break
+    case 'quadrant':
+      mainView = (
+        <main className="flex-1 flex overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <QuadrantView
+              tasks={activeTasks}
+              onTaskClick={handleQuadrantTaskClick}
+              onToggleTask={handleQuadrantToggleTask}
+              onUpdateTaskPriority={handleQuadrantUpdatePriority}
+              actions={actions}
+            />
+          </div>
+          <DetailPanel task={selectedTask} actions={actions} />
+        </main>
+      )
+      break
+    case 'pomodoro':
+      mainView = (
+        <PomodoroView
+          tasks={activeIncompleteTasks}
+          onTaskClick={handlePomodoroTaskClick}
+          onToggleTask={handlePomodoroToggleTask}
+        />
+      )
+      break
+    case 'habit':
+      mainView = <HabitView />
+      break
+    case 'template':
+      mainView = <TemplateView />
+      break
+    case 'goals':
+      mainView = <GoalView />
+      break
+    case 'tasks':
+    case 'today':
+    case 'archived':
+    default:
+      mainView = (
+        <TaskListPanel
+          newTaskInputRef={newTaskInputRef}
+          searchInputRef={searchInputRef}
+          actions={actions}
+          filteredTasks={filteredTasks}
+          taskTree={taskTree}
+          completedTaskTree={completedTaskTree}
+          incompleteTaskTree={incompleteTaskTree}
+          overdueTaskTree={overdueTaskTree}
+          hasActiveFilters={hasActiveFilters}
+        />
+      )
+      break
+  }
+
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg-secondary)] overflow-hidden">
       <TopProgressBar />
@@ -156,56 +233,23 @@ function App() {
           archivedCount={archivedCount}
         />
 
-        {currentView === 'calendar' ? (
-          <CalendarPanel selectedTask={selectedTask} actions={actions} />
-        ) : currentView === 'stats' ? (
-          <StatsView tasks={tasks} lists={lists} />
-        ) : currentView === 'settings' ? (
-          <SettingsView onClose={handleCloseSettings} />
-        ) : currentView === 'ai' ? (
-          <AIAssistant tasks={tasks} onClose={handleCloseAI} onTasksChange={handleAITasksChange} />
-        ) : currentView === 'quadrant' ? (
-          <main className="flex-1 flex overflow-hidden">
-            <div className="flex-1 overflow-hidden">
-              <QuadrantView
-                tasks={activeTasks}
-                onTaskClick={handleQuadrantTaskClick}
-                onToggleTask={handleQuadrantToggleTask}
-                onUpdateTaskPriority={handleQuadrantUpdatePriority}
-                actions={actions}
-              />
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center text-[var(--color-text-tertiary)]">
+              <svg className="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              加载中...
             </div>
-            <DetailPanel task={selectedTask} actions={actions} />
-          </main>
-        ) : currentView === 'pomodoro' ? (
-          <PomodoroView
-            tasks={activeIncompleteTasks}
-            onTaskClick={handlePomodoroTaskClick}
-            onToggleTask={handlePomodoroToggleTask}
-          />
-        ) : currentView === 'habit' ? (
-          <HabitView />
-        ) : currentView === 'template' ? (
-          <TemplateView />
-        ) : currentView === 'goals' ? (
-          <GoalView />
-        ) : (
-          <TaskListPanel
-            newTaskInputRef={newTaskInputRef}
-            searchInputRef={searchInputRef}
-            actions={actions}
-            filteredTasks={filteredTasks}
-            taskTree={taskTree}
-            completedTaskTree={completedTaskTree}
-            incompleteTaskTree={incompleteTaskTree}
-            overdueTaskTree={overdueTaskTree}
-            hasActiveFilters={hasActiveFilters}
-          />
-        )}
+          }
+        >
+          {mainView}
+        </Suspense>
 
-        {/* 右侧独立详情：仅在“非日历/非四象限/非设置/非番茄/非习惯”视图下显示，
+        {/* 右侧独立详情：仅在任务列表类视图（tasks / today / archived）下显示，
             避免与日历/四象限的内联详情重复渲染。无选中任务时 DetailPanel 返回 null。 */}
-        {selectedTask && currentView !== 'calendar' && currentView !== 'settings' && currentView !== 'quadrant' && currentView !== 'pomodoro' && currentView !== 'habit' && currentView !== 'template' && currentView !== 'goals' && (
+        {selectedTask && (currentView === 'tasks' || currentView === 'today' || currentView === 'archived') && (
           <DetailPanel task={selectedTask} actions={actions} />
         )}
       </div>

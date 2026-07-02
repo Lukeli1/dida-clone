@@ -1,13 +1,17 @@
-import { useMemo, useCallback, useState, useRef, useLayoutEffect, type RefObject } from 'react'
+import { useMemo, useCallback, useState, useRef, useEffect, useLayoutEffect, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { format } from 'date-fns'
 import { TaskItem } from '../task-item/TaskItem'
 import { EmptyState } from '../EmptyState'
 import { TaskActionProvider, type TaskActionContextValue } from '../../contexts/TaskActionContext'
 import { useTagStore } from '../../stores/tagStore'
 import { useListStore } from '../../stores/listStore'
 import { useUIStore } from '../../stores/uiStore'
+import { useTaskStore } from '../../stores/taskStore'
 import { useTaskListState } from '../../hooks/useTaskListState'
 import { useSearchHistory } from '../../hooks/useSearchHistory'
+import { habitApi } from '../../api'
+import { dateKey } from '../habit/constants'
 import type { TaskActions } from '../../hooks/useTaskActions'
 import type { Task } from '../../types'
 import { TaskInputBar } from './TaskInputBar'
@@ -52,6 +56,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const tags = useTagStore(s => s.tags)
   const lists = useListStore(s => s.lists)
   const selectedTagId = useUIStore(s => s.selectedTagId)
+  const updateTask = useTaskStore(s => s.updateTask)
 
   // ===== 列表状态聚合 =====
   const listState = useTaskListState(actions.handleCreateTask, incompleteTaskTree)
@@ -68,6 +73,73 @@ export function TaskListPanel(props: TaskListPanelProps) {
     isDraggingTask, miniCalendarDate, dragOverCalendarDate, setMiniCalendarDate, setDragOverCalendarDate,
     handleCreateTask, selectAllTasks,
   } = listState
+
+  // ===== 分组折叠状态（今天/已过期/今日习惯 默认展开，已完成默认隐藏）=====
+  const [showTodaySection, setShowTodaySection] = useState(true)
+  const [showHabitSection, setShowHabitSection] = useState(true)
+  const [showCompletedSection, setShowCompletedSection] = useState(false)
+
+  // ===== 右键上下文菜单 =====
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('[data-task-item]')) return
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('contextmenu', close)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('contextmenu', close)
+    }
+  }, [contextMenu])
+
+  // ===== 今日习惯数据 =====
+  const [todayHabits, setTodayHabits] = useState<Array<{ id: number; name: string; icon: string; color: string; target_count: number; todayCount: number }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadTodayHabits() {
+      try {
+        const list = await habitApi.getHabits(false)
+        const todayKey = dateKey(new Date())
+        const habitsWithToday = await Promise.all(
+          list.map(async h => {
+            const records = await habitApi.getRecords(h.id, todayKey, todayKey)
+            const todayCount = records.find(r => r.date === todayKey)?.count ?? 0
+            return { id: h.id, name: h.name, icon: h.icon || '🎯', color: h.color || '#6B7280', target_count: h.target_count, todayCount }
+          })
+        )
+        if (!cancelled) setTodayHabits(habitsWithToday)
+      } catch { /* 习惯加载失败不阻塞 */ }
+    }
+    loadTodayHabits()
+    return () => { cancelled = true }
+  }, [])
+
+  // ===== 顺延：将所有过期任务的 due_date 改为今天 =====
+  const handlePostponeOverdue = useCallback(async () => {
+    const todayStr = format(new Date(), "yyyy-MM-dd'T'00:00:00")
+    for (const task of overdueTaskTree) {
+      await updateTask(task.id, { due_date: todayStr })
+    }
+  }, [overdueTaskTree, updateTask])
+
+  // ===== 习惯打卡 =====
+  const handleHabitCheck = useCallback(async (habitId: number, todayCount: number, targetCount: number) => {
+    const todayKey = dateKey(new Date())
+    const newCount = todayCount >= targetCount ? 0 : targetCount
+    try {
+      await habitApi.upsertRecord(habitId, todayKey, newCount)
+      setTodayHabits(prev => prev.map(h => h.id === habitId ? { ...h, todayCount: newCount } : h))
+    } catch { /* 打卡失败静默 */ }
+  }, [])
 
   // ===== 搜索历史 =====
   const { history, addHistory, removeHistory, clearHistory } = useSearchHistory()
@@ -105,7 +177,10 @@ export function TaskListPanel(props: TaskListPanelProps) {
   }, [removeHistory])
 
   // ===== 虚拟滚动：useVirtualizer 仅渲染可见区域任务，解决 200+ 任务卡顿 =====
-  // 替代原 P9-09 的 visibleCount 懒加载（虚拟滚动自动只渲染可见项，无需分页）
+  // 当任务数 <= 50 时使用普通列表（避免虚拟列表 absolute 定位导致区块重叠）
+  const VIRTUAL_THRESHOLD = 50
+  const useVirtual = incompleteTaskTree.length > VIRTUAL_THRESHOLD
+
   const parentRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -345,7 +420,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-      <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
+      <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2" onContextMenu={handleContextMenu}>
         {/* 归档视图：直接显示所有归档任务 */}
         {currentView === 'archived' ? (
           taskTree.length === 0 ? (
@@ -361,23 +436,76 @@ export function TaskListPanel(props: TaskListPanelProps) {
               ))}
             </div>
           )
+        ) : incompleteTaskTree.length === 0 && overdueTaskTree.length === 0 && todayHabits.length === 0 ? (
+          <EmptyState
+            icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
+            title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
+          />
         ) : (
           <>
-            {/* 已过期任务 */}
+            {/* ===== 第1组：今天 ===== */}
+            {incompleteTaskTree.length > 0 && (
+              <div className="mt-2">
+                <button
+                  onClick={() => setShowTodaySection(!showTodaySection)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
+                >
+                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showTodaySection ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                  今天 ({incompleteTaskTree.length})
+                </button>
+                {showTodaySection && (
+                  <>
+                    {useVirtual ? (
+                      <div ref={listRef} role="list" style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                        {virtualizer.getVirtualItems().map(virtualItem => {
+                          const task = incompleteTaskTree[virtualItem.index]
+                          return (
+                            <div
+                              key={virtualItem.key}
+                              data-index={virtualItem.index}
+                              ref={virtualizer.measureElement}
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+                            >
+                              <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} animateOnMount={false} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div ref={listRef} role="list" className="space-y-1">
+                        {incompleteTaskTree.map((task) => (
+                          <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ===== 第2组：已过期 ===== */}
             {overdueTaskTree.length > 0 && (
               <div className="mt-4">
-                <button
-                  onClick={() => setShowOverdue(!showOverdue)}
-                  className="flex items-center gap-2 text-sm text-[var(--color-danger)] hover:text-[var(--color-danger)] mb-2 transition-colors font-medium"
-                >
-                  <svg className={`w-4 h-4 transition-transform ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  已过期 ({overdueTaskTree.length})
-                </button>
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={() => setShowOverdue(!showOverdue)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-danger)] hover:opacity-80 transition-opacity"
+                  >
+                    <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                    已过期 ({overdueTaskTree.length})
+                  </button>
+                  <button
+                    onClick={handlePostponeOverdue}
+                    className="text-xs text-[var(--color-accent)] hover:opacity-70 transition-opacity"
+                    title="将所有过期任务的截止日期改为今天"
+                  >
+                    顺延
+                  </button>
+                </div>
                 {showOverdue && (
                   <div role="list" className="space-y-1 animate-slide-down">
                     {overdueTaskTree.map((task) => (
@@ -388,60 +516,96 @@ export function TaskListPanel(props: TaskListPanelProps) {
               </div>
             )}
 
-            {incompleteTaskTree.length === 0 && overdueTaskTree.length === 0 ? (
-              <EmptyState
-                icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
-                title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
-              />
-            ) : (
-              <>
-                <div ref={listRef} role="list" style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
-                  {virtualizer.getVirtualItems().map(virtualItem => {
-                    const task = incompleteTaskTree[virtualItem.index]
-                    return (
-                      <div
-                        key={virtualItem.key}
-                        data-index={virtualItem.index}
-                        ref={virtualizer.measureElement}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualItem.start}px)`,
-                        }}
-                      >
-                        <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} animateOnMount={false} />
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {completedTaskTree.length > 0 && (
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setShowCompleted(!showCompleted)}
-                      className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)] mb-2 transition-colors"
-                    >
-                      <svg className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                      已完成 ({completedTaskTree.length})
-                    </button>
-                    {showCompleted && (
-                      <div role="list" className="space-y-1 animate-slide-down">
-                        {completedTaskTree.map((task) => (
-                          <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
-                        ))}
-                      </div>
-                    )}
+            {/* ===== 第3组：今日习惯 ===== */}
+            {todayHabits.length > 0 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowHabitSection(!showHabitSection)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
+                >
+                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showHabitSection ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                  今日习惯 ({todayHabits.filter(h => h.todayCount < h.target_count).length})
+                </button>
+                {showHabitSection && (
+                  <div className="space-y-1 animate-slide-down">
+                    {todayHabits.map((h) => {
+                      const completed = h.todayCount >= h.target_count
+                      return (
+                        <div
+                          key={h.id}
+                          data-task-item
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                          onClick={() => handleHabitCheck(h.id, h.todayCount, h.target_count)}
+                        >
+                          <span className="text-lg flex-shrink-0">{h.icon}</span>
+                          <span className={`flex-1 text-sm ${completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
+                            {h.name}
+                          </span>
+                          {completed && (
+                            <svg className="w-4 h-4 text-[var(--color-success)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: completed ? 'var(--color-success)' : h.color }}
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
-              </>
+              </div>
+            )}
+
+            {/* ===== 第4组：已完成（默认隐藏，右键菜单切换显示）===== */}
+            {showCompletedSection && completedTaskTree.length > 0 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-2 hover:text-[var(--color-text-primary)] transition-colors"
+                >
+                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                  已完成 ({completedTaskTree.length})
+                </button>
+                {showCompleted && (
+                  <div role="list" className="space-y-1 animate-slide-down">
+                    {completedTaskTree.map((task) => (
+                      <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}
       </div>
+
+      {/* 右键上下文菜单 */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[160px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 text-sm"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              setShowCompletedSection(!showCompletedSection)
+              if (!showCompletedSection) setShowCompleted(true)
+              setContextMenu(null)
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showCompletedSection ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21' : 'M5 13l4 4L19 7'} />
+            </svg>
+            {showCompletedSection ? '隐藏已完成' : '显示已完成'}
+          </button>
+        </div>
+      )}
       </TaskActionProvider>
     </main>
   )
