@@ -1,7 +1,14 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import {
-  startOfWeek, eachDayOfInterval, format, addDays,
-  addWeeks, subWeeks, isToday, isSameDay, differenceInDays,
+  startOfWeek,
+  eachDayOfInterval,
+  format,
+  addDays,
+  addWeeks,
+  subWeeks,
+  isToday,
+  isSameDay,
+  differenceInDays,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
@@ -13,9 +20,9 @@ interface GanttViewProps {
   onMoveTask: (taskId: number, newDate: string) => void
 }
 
-const DAY_WIDTH = 44   // 每天列宽
-const ROW_HEIGHT = 36  // 每行高
-const BAR_HEIGHT = 26  // 任务条高度（24-28px 适中）
+const DAY_WIDTH = 44 // 每天列宽
+const ROW_HEIGHT = 36 // 每行高
+const BAR_HEIGHT = 26 // 任务条高度（24-28px 适中）
 const HEADER_HEIGHT = 48
 const LEFT_COL_WIDTH = 240
 
@@ -33,11 +40,11 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
   // 显示有截止日期且未归档的任务（含已完成，已完成半透明显示）
   const ganttTasks = useMemo(() => {
     return tasks
-      .filter(t => t.due_date && !t.archived)
+      .filter((t) => t.due_date && !t.archived)
       .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
   }, [tasks])
 
-  const listMap = useMemo(() => new Map(lists.map(l => [l.id, l])), [lists])
+  const listMap = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
 
   // 今天在时间轴中的偏移（用于绘制红色指示线）
   const todayOffset = useMemo(() => differenceInDays(new Date(), rangeStart), [rangeStart])
@@ -109,7 +116,12 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
           className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
           title="上一周"
         >
-          <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4 text-[var(--color-text-secondary)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -124,24 +136,31 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
           className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
           title="下一周"
         >
-          <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4 text-[var(--color-text-secondary)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
         <span className="text-sm text-[var(--color-text-secondary)] ml-2">
-          {format(rangeStart, 'yyyy年M月d日', { locale: zhCN })} - {format(addDays(rangeStart, 20), 'M月d日', { locale: zhCN })}
+          {format(rangeStart, 'yyyy年M月d日', { locale: zhCN })} -{' '}
+          {format(addDays(rangeStart, 20), 'M月d日', { locale: zhCN })}
         </span>
         <div className="flex-1" />
-        <span className="text-xs text-[var(--color-text-tertiary)]">
-          共 {ganttTasks.length} 个任务 · 滚轮横向滚动
-        </span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">共 {ganttTasks.length} 个任务 · 滚轮横向滚动</span>
       </div>
 
       {/* 甘特图主体：左侧任务名 + 右侧时间轴 */}
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="flex min-w-max">
           {/* 左侧任务列表（sticky 横向滚动时固定） */}
-          <div className="sticky left-0 z-20 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex-shrink-0" style={{ width: `${LEFT_COL_WIDTH}px` }}>
+          <div
+            className="sticky left-0 z-20 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex-shrink-0"
+            style={{ width: `${LEFT_COL_WIDTH}px` }}
+          >
             {/* 表头 */}
             <div
               className="flex items-center px-3 text-xs font-medium text-[var(--color-text-secondary)] border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
@@ -155,7 +174,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                 暂无有截止日期的任务
               </div>
             ) : (
-              ganttTasks.map(task => {
+              ganttTasks.map((task) => {
                 const list = listMap.get(task.list_id)
                 return (
                   <div
@@ -169,14 +188,21 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                       style={{ backgroundColor: list?.color || '#6B7280' }}
                       title={list?.name}
                     />
-                    <span className={`text-sm truncate flex-1 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span
+                      className={`text-sm truncate flex-1 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}
+                    >
                       {task.title}
                     </span>
                     {task.priority > 0 && (
                       <span
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                         style={{
-                          backgroundColor: task.priority === 1 ? 'var(--color-priority-high)' : task.priority === 2 ? 'var(--color-priority-medium)' : 'var(--color-priority-low)'
+                          backgroundColor:
+                            task.priority === 1
+                              ? 'var(--color-priority-high)'
+                              : task.priority === 2
+                                ? 'var(--color-priority-medium)'
+                                : 'var(--color-priority-low)',
                         }}
                       />
                     )}
@@ -189,8 +215,11 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
           {/* 右侧时间轴 */}
           <div className="flex-shrink-0" style={{ width: days.length * DAY_WIDTH }}>
             {/* 日期表头：星期 + 日期 */}
-            <div className="flex border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]" style={{ height: HEADER_HEIGHT }}>
-              {days.map(date => {
+            <div
+              className="flex border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+              style={{ height: HEADER_HEIGHT }}
+            >
+              {days.map((date) => {
                 const weekend = isWeekend(date)
                 const today = isToday(date)
                 return (
@@ -201,10 +230,14 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                     }`}
                     style={{ width: DAY_WIDTH }}
                   >
-                    <span className={`text-[10px] ${today ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
+                    <span
+                      className={`text-[10px] ${today ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}
+                    >
                       {format(date, 'EEE', { locale: zhCN })}
                     </span>
-                    <span className={`text-xs ${today ? 'bg-[var(--color-accent)] text-white rounded-full w-5 h-5 flex items-center justify-center font-medium' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span
+                      className={`text-xs ${today ? 'bg-[var(--color-accent)] text-white rounded-full w-5 h-5 flex items-center justify-center font-medium' : 'text-[var(--color-text-secondary)]'}`}
+                    >
                       {date.getDate()}
                     </span>
                   </div>
@@ -216,7 +249,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
             <div className="relative">
               {/* 日期列网格 */}
               <div className="flex">
-                {days.map(date => {
+                {days.map((date) => {
                   const weekend = isWeekend(date)
                   const isDragOver = dragOverDate && isSameDay(dragOverDate, date)
                   return (
@@ -256,7 +289,7 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
               {dragOverDate && (
                 <div
                   className="absolute -top-1 z-30 pointer-events-none"
-                  style={{ left: (differenceInDays(dragOverDate, rangeStart) * DAY_WIDTH) + 4 }}
+                  style={{ left: differenceInDays(dragOverDate, rangeStart) * DAY_WIDTH + 4 }}
                 >
                   <span className="inline-block text-[10px] font-medium text-white bg-[var(--color-accent)] px-1.5 py-0.5 rounded shadow-md whitespace-nowrap">
                     {format(dragOverDate, 'M月d日 EEE', { locale: zhCN })}

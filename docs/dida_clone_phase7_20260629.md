@@ -11,14 +11,14 @@
 
 ### 三个 Bug + 三个优化方向
 
-| 类型 | 内容 | 优先级 |
-|---|---|---|
-| 🐛 Bug | 四象限模块无法右键删除任务 | P0 |
-| 🐛 Bug | 习惯模块只能看 7 天打卡，缺日历图 | P1 |
-| 🐛 Bug | AI 快捷技能常驻占用空间，应集成到输入框 | P1 |
-| 🔧 优化 | sync.rs 381 行拆分 | P2 |
-| 🔧 优化 | SyncPanel.tsx 460 行拆分 | P2 |
-| 🔧 优化 | README badge 版本号同步 | P3 |
+| 类型    | 内容                                    | 优先级 |
+| ------- | --------------------------------------- | ------ |
+| 🐛 Bug  | 四象限模块无法右键删除任务              | P0     |
+| 🐛 Bug  | 习惯模块只能看 7 天打卡，缺日历图       | P1     |
+| 🐛 Bug  | AI 快捷技能常驻占用空间，应集成到输入框 | P1     |
+| 🔧 优化 | sync.rs 381 行拆分                      | P2     |
+| 🔧 优化 | SyncPanel.tsx 460 行拆分                | P2     |
+| 🔧 优化 | README badge 版本号同步                 | P3     |
 
 ---
 
@@ -31,6 +31,7 @@
 **Bug 描述**：四象限视图中右键任务没有"删除"选项，无法删除任务。
 
 **原因分析**：
+
 - `QuadrantView.tsx` 当前只实现了拖拽改变优先级，没有调用 `TaskContextMenu`
 - 需要在四象限的任务卡片上添加 `onContextMenu` 事件，复用现有的 `TaskContextMenu` 组件
 
@@ -72,19 +73,22 @@ function handleCloseContextMenu() {
 3. 在组件末尾渲染右键菜单：
 
 ```tsx
-{contextMenu && (
-  <TaskContextMenu
-    task={contextMenu.task}
-    position={{ x: contextMenu.x, y: contextMenu.y }}
-    onClose={handleCloseContextMenu}
-    onRename={handleCloseContextMenu}
-  />
-)}
+{
+  contextMenu && (
+    <TaskContextMenu
+      task={contextMenu.task}
+      position={{ x: contextMenu.x, y: contextMenu.y }}
+      onClose={handleCloseContextMenu}
+      onRename={handleCloseContextMenu}
+    />
+  )
+}
 ```
 
 4. 确保 `TaskActionContext` 已经在父级提供（检查 `CalendarView.tsx` 是否已包裹 `TaskActionProvider`）。
 
 **验收**：
+
 - 四象限视图中右键任务，弹出完整右键菜单
 - 菜单中"删除"选项可用，点击后弹出删除确认
 - 删除后任务从四象限消失
@@ -97,6 +101,7 @@ function handleCloseContextMenu() {
 **Bug 描述**：当前习惯模块只显示 7 天打卡情况，用户希望像日历图一样看到所有历史打卡记录。
 
 **原因分析**：
+
 - `HabitView.tsx` 中 `loadHabits` 调用 `habitApi.getRecords(h.id)` **不传日期范围**，后端返回全部记录
 - 但 `HabitCard.tsx` 只渲染 `weekDays`（7 天），没有历史日历视图
 - 需要新增"展开日历"功能，显示完整月历或全部历史
@@ -128,7 +133,11 @@ const [calendarMonth, setCalendarMonth] = useState(() => {
 在 `HabitCard` 展开后渲染一个月历：
 
 ```tsx
-function HabitCalendar({ records, month, onMonthChange }: {
+function HabitCalendar({
+  records,
+  month,
+  onMonthChange,
+}: {
   records: Record<string, number>
   month: Date
   onMonthChange: (dir: 'prev' | 'next') => void
@@ -155,15 +164,29 @@ function HabitCalendar({ records, month, onMonthChange }: {
     <div className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg">
       {/* 月份导航 */}
       <div className="flex items-center justify-between mb-2">
-        <button onClick={() => onMonthChange('prev')} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">‹</button>
-        <span className="text-sm font-medium">{year}年{monthIdx + 1}月</span>
-        <button onClick={() => onMonthChange('next')} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">›</button>
+        <button
+          onClick={() => onMonthChange('prev')}
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        >
+          ‹
+        </button>
+        <span className="text-sm font-medium">
+          {year}年{monthIdx + 1}月
+        </span>
+        <button
+          onClick={() => onMonthChange('next')}
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        >
+          ›
+        </button>
       </div>
 
       {/* 星期标题 */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {['日', '一', '二', '三', '四', '五', '六'].map(d => (
-          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">{d}</div>
+        {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">
+            {d}
+          </div>
         ))}
       </div>
 
@@ -199,10 +222,16 @@ function HabitCalendar({ records, month, onMonthChange }: {
 
       {/* 统计 */}
       <div className="mt-2 pt-2 border-t border-[var(--color-border-light)] flex justify-between text-xs text-[var(--color-text-tertiary)]">
-        <span>本月打卡: {Object.entries(records).filter(([d]) => {
-          const dt = new Date(d)
-          return dt.getFullYear() === year && dt.getMonth() === monthIdx
-        }).length} 天</span>
+        <span>
+          本月打卡:{' '}
+          {
+            Object.entries(records).filter(([d]) => {
+              const dt = new Date(d)
+              return dt.getFullYear() === year && dt.getMonth() === monthIdx
+            }).length
+          }{' '}
+          天
+        </span>
         <span>累计打卡: {Object.keys(records).length} 天</span>
       </div>
     </div>
@@ -214,28 +243,31 @@ function HabitCalendar({ records, month, onMonthChange }: {
 
 ```tsx
 // 在 HabitCard 的展开内容区域（expanded 为 true 时）添加：
-<button
+;<button
   onClick={() => setShowCalendar(!showCalendar)}
   className="text-xs text-[var(--color-accent)] hover:underline mb-2"
 >
   {showCalendar ? '收起日历' : '📅 查看历史日历'}
 </button>
 
-{showCalendar && (
-  <HabitCalendar
-    records={habit.records}
-    month={calendarMonth}
-    onMonthChange={(dir) => {
-      const newMonth = new Date(calendarMonth)
-      if (dir === 'prev') newMonth.setMonth(newMonth.getMonth() - 1)
-      else newMonth.setMonth(newMonth.getMonth() + 1)
-      setCalendarMonth(newMonth)
-    }}
-  />
-)}
+{
+  showCalendar && (
+    <HabitCalendar
+      records={habit.records}
+      month={calendarMonth}
+      onMonthChange={(dir) => {
+        const newMonth = new Date(calendarMonth)
+        if (dir === 'prev') newMonth.setMonth(newMonth.getMonth() - 1)
+        else newMonth.setMonth(newMonth.getMonth() + 1)
+        setCalendarMonth(newMonth)
+      }}
+    />
+  )
+}
 ```
 
 **验收**：
+
 - 习惯卡片展开后有"查看历史日历"按钮
 - 点击后显示当月日历，已打卡的日期有高亮
 - 可以左右切换月份
@@ -354,6 +386,7 @@ const [showSkillMenu, setShowSkillMenu] = useState(false)
 ```
 
 **验收**：
+
 - AI 助手打开后，技能列表不再常驻显示
 - 输入框右侧有一个闪电⚡图标按钮
 - 点击后弹出技能菜单（上下文菜单样式）
@@ -380,12 +413,14 @@ const [showSkillMenu, setShowSkillMenu] = useState(false)
    - `handle_db_conflict`
 
 3. 在 `sync.rs` 顶部添加：
+
 ```rust
 mod sync_ops;
 pub use sync_ops::{init_sync_repo, pull_changes, push_changes};
 ```
 
 **验收**：
+
 - `sync.rs` ≤200 行
 - `sync_ops.rs` ≤200 行
 - `cargo check` 通过
@@ -406,6 +441,7 @@ pub use sync_ops::{init_sync_repo, pull_changes, push_changes};
    - 按钮操作（初始化 / 立即同步 / 保存配置）
 
 **验收**：
+
 - `SyncPanel.tsx` ≤250 行
 - `SyncStatusPanel.tsx` ≤200 行
 - `npm run build` 通过
@@ -562,24 +598,24 @@ git commit -m "release: v1.27.0 — Phase 7 bug fixes + habit calendar"
 
 ## 五、Phase 7 完成后的预期成果
 
-| 指标 | v1.26.0 | v1.27.0 |
-|---|---|---|
-| 四象限右键删除 | ❌ | ✅ |
-| 习惯历史日历 | ❌（仅 7 天） | ✅（完整月历） |
-| AI 技能按钮 | 常驻占空间 | **集成到输入框** |
-| sync.rs 行数 | 381 | **≤200 × 2** |
-| SyncPanel.tsx 行数 | 460 | **≤250 × 2** |
-| README badge | 1.24.0 | **1.27.0** |
-| 超 300 行 .rs 文件 | 1 个 | **0 个** |
+| 指标               | v1.26.0       | v1.27.0          |
+| ------------------ | ------------- | ---------------- |
+| 四象限右键删除     | ❌            | ✅               |
+| 习惯历史日历       | ❌（仅 7 天） | ✅（完整月历）   |
+| AI 技能按钮        | 常驻占空间    | **集成到输入框** |
+| sync.rs 行数       | 381           | **≤200 × 2**     |
+| SyncPanel.tsx 行数 | 460           | **≤250 × 2**     |
+| README badge       | 1.24.0        | **1.27.0**       |
+| 超 300 行 .rs 文件 | 1 个          | **0 个**         |
 
 ---
 
 ## 六、Phase 8 候选方向
 
-| 方向 | 说明 |
-|---|---|
-| 任务模板系统 | 常用任务快速创建（会议/出差/项目启动） |
-| E2E 测试 | Playwright 端到端测试 |
-| 习惯周/月统计图 | 图表展示打卡趋势 |
-| 性能优化 | 虚拟列表 + 大列表优化 |
-| 国际化 i18n | 多语言支持 |
+| 方向            | 说明                                   |
+| --------------- | -------------------------------------- |
+| 任务模板系统    | 常用任务快速创建（会议/出差/项目启动） |
+| E2E 测试        | Playwright 端到端测试                  |
+| 习惯周/月统计图 | 图表展示打卡趋势                       |
+| 性能优化        | 虚拟列表 + 大列表优化                  |
+| 国际化 i18n     | 多语言支持                             |

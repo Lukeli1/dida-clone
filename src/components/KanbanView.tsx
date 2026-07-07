@@ -50,17 +50,14 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
   const [contextMenu, setContextMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
 
   const toast = useToast()
-  const tags = useTagStore(s => s.tags)
-  const storeLists = useListStore(s => s.lists)
+  const tags = useTagStore((s) => s.tags)
+  const storeLists = useListStore((s) => s.lists)
 
-  const listMap = useMemo(() => new Map(lists.map(l => [l.id, l])), [lists])
-  const tagMap = useMemo(() => new Map(tags.map(t => [t.id, t])), [tags])
+  const listMap = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
+  const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
 
   // 查找「进行中」标签 id（可能尚未创建）
-  const inProgressTagId = useMemo(
-    () => tags.find(t => t.name === INPROGRESS_TAG_NAME)?.id ?? null,
-    [tags]
-  )
+  const inProgressTagId = useMemo(() => tags.find((t) => t.name === INPROGRESS_TAG_NAME)?.id ?? null, [tags])
 
   function taskHasInProgress(task: Task): boolean {
     if (inProgressTagId == null) return false
@@ -77,7 +74,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
   // 按列分组任务（排除已归档），列内按 sort_order 升序（手动排序），回退创建时间
   const tasksByColumn = useMemo(() => {
     const result: Record<ColumnKey, Task[]> = { todo: [], inprogress: [], done: [] }
-    tasks.forEach(t => {
+    tasks.forEach((t) => {
       if (t.archived) return
       result[getColumnOf(t)].push(t)
     })
@@ -102,7 +99,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
 
   // ===== 拖拽：列间改变状态 =====
   async function changeTaskColumn(taskId: number, column: ColumnKey) {
-    const task = tasks.find(t => t.id === taskId)
+    const task = tasks.find((t) => t.id === taskId)
     if (!task) return
     const currentColumn = getColumnOf(task)
     if (currentColumn === column) return // 同列无需处理（列内排序另走 reorder）
@@ -137,20 +134,20 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
   async function reorderInColumn(column: ColumnKey, draggedId: number, targetId: number, position: 'before' | 'after') {
     if (draggedId === targetId) return
     const columnTasks = tasksByColumn[column]
-    const dragged = columnTasks.find(t => t.id === draggedId)
+    const dragged = columnTasks.find((t) => t.id === draggedId)
     if (!dragged) return
     // 重建顺序
-    const without = columnTasks.filter(t => t.id !== draggedId)
-    const targetIdx = without.findIndex(t => t.id === targetId)
+    const without = columnTasks.filter((t) => t.id !== draggedId)
+    const targetIdx = without.findIndex((t) => t.id === targetId)
     if (targetIdx === -1) return
     const insertIdx = position === 'before' ? targetIdx : targetIdx + 1
     without.splice(insertIdx, 0, dragged)
     // 分配新的 sort_order
     const items = without.map((t, idx) => ({ id: t.id, sort_order: idx }))
     // 乐观更新本地状态
-    const orderMap = new Map(items.map(i => [i.id, i.sort_order]))
-    useTaskStore.setState(state => ({
-      tasks: state.tasks.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t),
+    const orderMap = new Map(items.map((i) => [i.id, i.sort_order]))
+    useTaskStore.setState((state) => ({
+      tasks: state.tasks.map((t) => (orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t)),
     }))
     const success = await useTaskStore.getState().reorderTasks(items)
     if (!success) toast.error('排序失败')
@@ -187,7 +184,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
       resetDrag()
       return
     }
-    const task = tasks.find(t => t.id === taskId)
+    const task = tasks.find((t) => t.id === taskId)
     if (task) {
       const sourceColumn = getColumnOf(task)
       if (sourceColumn === column && dropTarget) {
@@ -224,36 +221,39 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
   }
 
   // 为 TaskContextMenu 提供 Context 值（与 QuadrantView 一致的模式）
-  const taskActionValue: TaskActionContextValue = useMemo(() => ({
-    tags,
-    lists: storeLists,
-    batchMode: false,
-    isArchivedView: false,
-    onToggle: actions.handleToggleTask,
-    onToggleSubtask: actions.handleToggleSubtask,
-    onClick: onTaskClick,
-    onReorder: () => {},
-    onDelete: actions.handleDeleteTask,
-    onArchive: actions.handleArchiveTask,
-    onUnarchive: actions.handleUnarchiveTask,
-    onSetDate: actions.handleSetDate,
-    onSetPriority: actions.handleSetPriority,
-    onSetRepeatRule: actions.handleSetRepeatRule,
-    onSetReminder: actions.handleSetReminder,
-    onTogglePin: actions.handleTogglePin,
-    onToggleTag: actions.handleToggleTag,
-    onDuplicate: actions.handleDuplicateTask,
-    onCreateNewTag: actions.handleCreateTag,
-    onInlineEdit: actions.handleInlineEdit,
-    onDragStartGlobal: actions.handleDragStartGlobal,
-    onDragEndGlobal: actions.handleDragEndGlobal,
-    onCreateSubtask: actions.handleCreateSubtask,
-    onToggleExpand: () => {},
-    onToggleSelect: () => {},
-    onSubtaskInputChange: () => {},
-  }), [tags, storeLists, actions, onTaskClick])
+  const taskActionValue: TaskActionContextValue = useMemo(
+    () => ({
+      tags,
+      lists: storeLists,
+      batchMode: false,
+      isArchivedView: false,
+      onToggle: actions.handleToggleTask,
+      onToggleSubtask: actions.handleToggleSubtask,
+      onClick: onTaskClick,
+      onReorder: () => {},
+      onDelete: actions.handleDeleteTask,
+      onArchive: actions.handleArchiveTask,
+      onUnarchive: actions.handleUnarchiveTask,
+      onSetDate: actions.handleSetDate,
+      onSetPriority: actions.handleSetPriority,
+      onSetRepeatRule: actions.handleSetRepeatRule,
+      onSetReminder: actions.handleSetReminder,
+      onTogglePin: actions.handleTogglePin,
+      onToggleTag: actions.handleToggleTag,
+      onDuplicate: actions.handleDuplicateTask,
+      onCreateNewTag: actions.handleCreateTag,
+      onInlineEdit: actions.handleInlineEdit,
+      onDragStartGlobal: actions.handleDragStartGlobal,
+      onDragEndGlobal: actions.handleDragEndGlobal,
+      onCreateSubtask: actions.handleCreateSubtask,
+      onToggleExpand: () => {},
+      onToggleSelect: () => {},
+      onSubtaskInputChange: () => {},
+    }),
+    [tags, storeLists, actions, onTaskClick],
+  )
 
-  const totalCount = tasks.filter(t => !t.archived).length
+  const totalCount = tasks.filter((t) => !t.archived).length
 
   return (
     <TaskActionProvider value={taskActionValue}>
@@ -262,17 +262,22 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <div>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">任务看板</h3>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">拖拽卡片改变状态，共 {totalCount} 个任务</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              拖拽卡片改变状态，共 {totalCount} 个任务
+            </p>
           </div>
           <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)]" />待处理 {tasksByColumn.todo.length}
+              <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)]" />
+              待处理 {tasksByColumn.todo.length}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />进行中 {tasksByColumn.inprogress.length}
+              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
+              进行中 {tasksByColumn.inprogress.length}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />已完成 {tasksByColumn.done.length}
+              <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
+              已完成 {tasksByColumn.done.length}
             </span>
           </div>
         </div>
@@ -280,14 +285,17 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
         {/* 看板列 */}
         <div className="flex-1 overflow-x-auto p-4">
           <div className="flex gap-4 h-full min-w-max">
-            {COLUMNS.map(column => {
+            {COLUMNS.map((column) => {
               const columnTasks = tasksByColumn[column.key]
               const isDragOver = dragOverColumn === column.key
               return (
                 <div
                   key={column.key}
                   onDragOver={(e) => handleDragOver(e, column.key)}
-                  onDragLeave={() => { setDragOverColumn(null); setDropTarget(null) }}
+                  onDragLeave={() => {
+                    setDragOverColumn(null)
+                    setDropTarget(null)
+                  }}
                   onDrop={(e) => handleDrop(e, column.key)}
                   className={`flex flex-col w-80 rounded-xl border-2 transition-colors ${
                     isDragOver
@@ -298,10 +306,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
                   {/* 列标题 + 任务数量 */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-light)]">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: column.color }}
-                      />
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: column.color }} />
                       <span className="text-sm font-semibold text-[var(--color-text-primary)]">{column.title}</span>
                     </div>
                     <span
@@ -318,24 +323,36 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
                     {columnTasks.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-24 text-[var(--color-text-tertiary)] opacity-60">
                         <svg className="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
                         </svg>
                         <span className="text-xs">拖拽任务到此处</span>
                       </div>
                     ) : (
-                      columnTasks.map(task => {
+                      columnTasks.map((task) => {
                         const list = listMap.get(task.list_id)
                         const listColor = list?.color || '#6B7280'
-                        const priorityColor = task.priority === 1 ? 'var(--color-priority-high)' : task.priority === 2 ? 'var(--color-priority-medium)' : task.priority === 3 ? 'var(--color-priority-low)' : null
+                        const priorityColor =
+                          task.priority === 1
+                            ? 'var(--color-priority-high)'
+                            : task.priority === 2
+                              ? 'var(--color-priority-medium)'
+                              : task.priority === 3
+                                ? 'var(--color-priority-low)'
+                                : null
                         const isDropBefore = dropTarget?.taskId === task.id && dropTarget.position === 'before'
                         const isDropAfter = dropTarget?.taskId === task.id && dropTarget.position === 'after'
-                        const taskTags = (task.tag_ids || []).map(id => tagMap.get(id)).filter((t): t is Tag => t !== undefined)
+                        const taskTags = (task.tag_ids || [])
+                          .map((id) => tagMap.get(id))
+                          .filter((t): t is Tag => t !== undefined)
                         return (
                           <div key={task.id}>
                             {/* 插入指示线 - before */}
-                            {isDropBefore && (
-                              <div className="h-0.5 mb-2 rounded-full bg-[var(--color-accent)]" />
-                            )}
+                            {isDropBefore && <div className="h-0.5 mb-2 rounded-full bg-[var(--color-accent)]" />}
                             <div
                               draggable
                               onDragStart={(e) => handleDragStart(e, task.id)}
@@ -365,55 +382,85 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
                                   {list?.name || '未分类'}
                                 </span>
                                 {task.due_date && (
-                                  <span className={`flex items-center gap-1 text-[11px] ${
-                                    !task.completed && new Date(task.due_date).getTime() < Date.now()
-                                      ? 'text-[var(--color-danger)]'
-                                      : 'text-[var(--color-text-tertiary)]'
-                                  }`}>
+                                  <span
+                                    className={`flex items-center gap-1 text-[11px] ${
+                                      !task.completed && new Date(task.due_date).getTime() < Date.now()
+                                        ? 'text-[var(--color-danger)]'
+                                        : 'text-[var(--color-text-tertiary)]'
+                                    }`}
+                                  >
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
                                     </svg>
-                                    {new Date(task.due_date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                                    {new Date(task.due_date).toLocaleDateString('zh-CN', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })}
                                   </span>
                                 )}
                               </div>
                               {/* 标题 */}
-                              <p className={`text-sm font-medium mb-2 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
+                              <p
+                                className={`text-sm font-medium mb-2 ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}
+                              >
                                 {task.title}
                               </p>
                               {/* 底部：标签 + 子任务/备注 */}
                               <div className="flex items-center gap-2 flex-wrap text-xs text-[var(--color-text-tertiary)]">
-                                {taskTags.slice(0, 3).map(tag => (
+                                {taskTags.slice(0, 3).map((tag) => (
                                   <span
                                     key={tag.id}
                                     className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]"
-                                    style={{ backgroundColor: hexWithAlpha(tag.color || '#9aa0a6', 0.14), color: tag.color || '#9aa0a6' }}
+                                    style={{
+                                      backgroundColor: hexWithAlpha(tag.color || '#9aa0a6', 0.14),
+                                      color: tag.color || '#9aa0a6',
+                                    }}
                                   >
                                     {tag.name}
                                   </span>
                                 ))}
                                 {taskTags.length > 3 && (
-                                  <span className="text-[10px] text-[var(--color-text-tertiary)]">+{taskTags.length - 3}</span>
+                                  <span className="text-[10px] text-[var(--color-text-tertiary)]">
+                                    +{taskTags.length - 3}
+                                  </span>
                                 )}
                                 {task.subtasks && task.subtasks.length > 0 && (
                                   <span className="flex items-center gap-1 ml-auto">
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                                      />
                                     </svg>
-                                    {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                                    {task.subtasks.filter((st) => st.completed).length}/{task.subtasks.length}
                                   </span>
                                 )}
                                 {task.notes && (
-                                  <svg className={`w-3 h-3 ${task.subtasks && task.subtasks.length > 0 ? '' : 'ml-auto'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  <svg
+                                    className={`w-3 h-3 ${task.subtasks && task.subtasks.length > 0 ? '' : 'ml-auto'}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
                                   </svg>
                                 )}
                               </div>
                             </div>
                             {/* 插入指示线 - after */}
-                            {isDropAfter && (
-                              <div className="h-0.5 mt-2 rounded-full bg-[var(--color-accent)]" />
-                            )}
+                            {isDropAfter && <div className="h-0.5 mt-2 rounded-full bg-[var(--color-accent)]" />}
                           </div>
                         )
                       })

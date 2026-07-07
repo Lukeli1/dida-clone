@@ -25,7 +25,17 @@ interface TaskDetailProps {
 }
 
 // 容器：任务基本信息 + 子组件编排
-export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onAddTag, onRemoveTag, onCreateSubtask }: TaskDetailProps) {
+export function TaskDetail({
+  task,
+  tags,
+  lists,
+  onUpdate,
+  onDelete,
+  onClose,
+  onAddTag,
+  onRemoveTag,
+  onCreateSubtask,
+}: TaskDetailProps) {
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState(task.priority)
   const [showAIPanel, setShowAIPanel] = useState(false)
@@ -33,7 +43,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   const [showSubtaskInput, setShowSubtaskInput] = useState(false)
 
   // 全部任务（用于"相关任务"推荐：AI 分析同项目/同人/同地点的关联）
-  const tasks = useTaskStore(s => s.tasks)
+  const tasks = useTaskStore((s) => s.tasks)
 
   const confirm = useConfirm()
 
@@ -46,8 +56,10 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
     if (!showMoreMenu) return
     function handleClickOutside(e: MouseEvent) {
       if (
-        moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node) &&
-        moreBtnRef.current && !moreBtnRef.current.contains(e.target as Node)
+        moreMenuRef.current &&
+        !moreMenuRef.current.contains(e.target as Node) &&
+        moreBtnRef.current &&
+        !moreBtnRef.current.contains(e.target as Node)
       ) {
         setShowMoreMenu(false)
       }
@@ -91,7 +103,13 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
   }
 
   async function handleDelete() {
-    const ok = await confirm({ title: '删除任务', message: '确定删除这个任务吗？', danger: true, confirmText: '删除', cancelText: '取消' })
+    const ok = await confirm({
+      title: '删除任务',
+      message: '确定删除这个任务吗？',
+      danger: true,
+      confirmText: '删除',
+      cancelText: '取消',
+    })
     if (ok) {
       onDelete(task.id)
     }
@@ -130,9 +148,11 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
             />
             {/* 子任务按钮：列表图标，点击展开子任务区域 */}
             <button
-              onClick={() => setShowSubtaskInput(v => !v)}
+              onClick={() => setShowSubtaskInput((v) => !v)}
               className={`shrink-0 p-1 rounded transition-all mt-0.5 active:scale-90 ${
-                showSubtaskInput ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)]'
+                showSubtaskInput
+                  ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
+                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)]'
               }`}
               title="添加子任务"
             >
@@ -171,12 +191,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
           visible={showSubtaskInput}
         />
         <TaskMetaPanel task={task} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
-        <TaskAIPanel
-          task={task}
-          onCreateSubtask={onCreateSubtask}
-          onUpdate={onUpdate}
-          visible={showAIPanel}
-        />
+        <TaskAIPanel task={task} onCreateSubtask={onCreateSubtask} onUpdate={onUpdate} visible={showAIPanel} />
         {/* 相关任务推荐：AI 检测同项目/同人/同地点关联，无结果或未配置时自动隐藏 */}
         <RelatedTasksPanel
           task={task}
@@ -192,14 +207,11 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
         {/* 左侧：清单标识（带颜色圆点） */}
         <div className="flex items-center gap-1.5">
           {(() => {
-            const list = lists?.find(l => l.id === task.list_id)
+            const list = lists?.find((l) => l.id === task.list_id)
             const color = getTaskColor(task, lists)
             return (
               <>
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                />
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                 <span className="text-sm text-[var(--color-text-secondary)]">{list?.name || '清单'}</span>
               </>
             )
@@ -210,7 +222,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
         <div className="flex items-center gap-2">
           {/* AI 魔法棒按钮，切换 AI 面板 */}
           <button
-            onClick={() => setShowAIPanel(v => !v)}
+            onClick={() => setShowAIPanel((v) => !v)}
             className={`p-1.5 rounded-lg transition-all active:scale-90 ${showAIPanel ? 'text-[var(--color-ai)] bg-[var(--color-ai-light)]' : 'text-[var(--color-ai)] hover:bg-[var(--color-ai-light)]'}`}
             title="AI 助手"
           >
@@ -222,7 +234,7 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
           {/* 更多选项按钮 */}
           <button
             ref={moreBtnRef}
-            onClick={() => setShowMoreMenu(v => !v)}
+            onClick={() => setShowMoreMenu((v) => !v)}
             className="p-1.5 rounded-lg text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-all active:scale-90"
             title="更多"
           >
@@ -236,7 +248,11 @@ export function TaskDetail({ task, tags, lists, onUpdate, onDelete, onClose, onA
 
         {/* 更多菜单下拉 */}
         {showMoreMenu && (
-          <div ref={moreMenuRef} className="absolute bottom-full right-2 mb-1 w-52 max-h-[300px] overflow-y-auto bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 z-30 origin-bottom-right animate-scale-in" style={{boxShadow:'var(--shadow-dropdown)'}}>
+          <div
+            ref={moreMenuRef}
+            className="absolute bottom-full right-2 mb-1 w-52 max-h-[300px] overflow-y-auto bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 z-30 origin-bottom-right animate-scale-in"
+            style={{ boxShadow: 'var(--shadow-dropdown)' }}
+          >
             <button
               onClick={() => {
                 setShowMoreMenu(false)

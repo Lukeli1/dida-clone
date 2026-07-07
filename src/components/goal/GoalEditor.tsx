@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Goal, GoalType, CreateGoalRequest, UpdateGoalRequest } from '../../api/goalApi'
 
 /** 预设颜色（与 PRESET_COLORS 一致） */
-const PRESET_COLORS = [
-  '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',
-  '#F59E0B', '#10B981', '#06B6D4', '#6B7280',
-]
+const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#6B7280']
 
 /** 目标类型选项 */
 const TYPE_OPTIONS: { value: GoalType; label: string }[] = [
@@ -18,7 +15,10 @@ export interface GoalEditorProps {
   /** 编辑时传入已有目标；新建时为 null */
   goal: Goal | null
   /** 保存回调：新建时传 CreateGoalRequest，编辑时传 { id, updates } */
-  onSave: (payload: { create?: CreateGoalRequest; update?: { id: number; updates: UpdateGoalRequest } }) => Promise<void> | void
+  onSave: (payload: {
+    create?: CreateGoalRequest
+    update?: { id: number; updates: UpdateGoalRequest }
+  }) => Promise<void> | void
   onCancel: () => void
 }
 
@@ -137,7 +137,9 @@ export function GoalEditor({ goal, onSave, onCancel }: GoalEditorProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSave && !saving) handleSave() }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSave && !saving) handleSave()
+              }}
               autoFocus
               placeholder="例如：2026 Q2 完成 OKR 系统"
               className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
@@ -167,7 +169,9 @@ export function GoalEditor({ goal, onSave, onCancel }: GoalEditorProps) {
                 className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
               {!isEdit && (
@@ -181,9 +185,7 @@ export function GoalEditor({ goal, onSave, onCancel }: GoalEditorProps) {
               )}
             </div>
             {isEdit && (
-              <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">
-                类型不可修改（如需变更请新建目标）
-              </p>
+              <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">类型不可修改（如需变更请新建目标）</p>
             )}
           </div>
 

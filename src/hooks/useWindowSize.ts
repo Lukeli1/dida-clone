@@ -39,8 +39,7 @@ export function useWindowSize(): WindowSize {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const breakpoint: Breakpoint =
-    size.width < 768 ? 'mobile' : size.width < 1024 ? 'tablet' : 'desktop'
+  const breakpoint: Breakpoint = size.width < 768 ? 'mobile' : size.width < 1024 ? 'tablet' : 'desktop'
 
   return {
     ...size,

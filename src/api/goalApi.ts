@@ -65,8 +65,7 @@ export interface UpdateGoalRequest {
  */
 export const goalApi = {
   /** 查询目标列表（可按 status 过滤，按 created_at 倒序） */
-  getAll: (status?: GoalStatus): Promise<Goal[]> =>
-    invoke<Goal[]>('get_goals', { status: status ?? null }),
+  getAll: (status?: GoalStatus): Promise<Goal[]> => invoke<Goal[]>('get_goals', { status: status ?? null }),
 
   /** 创建目标，返回新记录 id */
   create: (req: CreateGoalRequest): Promise<number> =>
@@ -90,22 +89,18 @@ export const goalApi = {
     }),
 
   /** 删除目标（goal_tasks 因 ON DELETE CASCADE 自动级联删除关联记录） */
-  delete: (id: number): Promise<void> =>
-    invoke<void>('delete_goal', { id }),
+  delete: (id: number): Promise<void> => invoke<void>('delete_goal', { id }),
 
   /** 将任务关联到目标（已存在则忽略，避免重复） */
-  linkTask: (goalId: number, taskId: number): Promise<void> =>
-    invoke<void>('link_task_to_goal', { goalId, taskId }),
+  linkTask: (goalId: number, taskId: number): Promise<void> => invoke<void>('link_task_to_goal', { goalId, taskId }),
 
   /** 解除任务与目标的关联 */
   unlinkTask: (goalId: number, taskId: number): Promise<void> =>
     invoke<void>('unlink_task_from_goal', { goalId, taskId }),
 
   /** 查询目标进度：关联任务总数 / 已完成数 / 完成百分比 */
-  getProgress: (goalId: number): Promise<GoalProgress> =>
-    invoke<GoalProgress>('get_goal_progress', { goalId }),
+  getProgress: (goalId: number): Promise<GoalProgress> => invoke<GoalProgress>('get_goal_progress', { goalId }),
 
   /** 查询任务关联的所有目标（用于任务详情显示"关联目标"） */
-  getTaskGoals: (taskId: number): Promise<Goal[]> =>
-    invoke<Goal[]>('get_task_goals', { taskId }),
+  getTaskGoals: (taskId: number): Promise<Goal[]> => invoke<Goal[]>('get_task_goals', { taskId }),
 }

@@ -55,7 +55,9 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
       }
     }
     loadProgress()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goal.id])
 
@@ -95,13 +97,9 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
       {/* 头部：标题 + 类型/状态标签 */}
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-[var(--color-text-primary)] truncate">
-            {goal.title}
-          </h3>
+          <h3 className="text-base font-semibold text-[var(--color-text-primary)] truncate">{goal.title}</h3>
           {goal.description && (
-            <p className="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
-              {goal.description}
-            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">{goal.description}</p>
           )}
         </div>
         {/* 类型标签 */}
@@ -120,7 +118,11 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
       {periodText && (
         <div className="text-xs text-[var(--color-text-tertiary)] flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
           {periodText}
         </div>
@@ -135,9 +137,7 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
               {progress.completed_tasks}/{progress.total_tasks}
             </span>
           </span>
-          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
-            {progressInt}%
-          </span>
+          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{progressInt}%</span>
         </div>
         <div className="h-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
           <div
@@ -164,12 +164,10 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
           {STATUS_LABELS[goal.status]}
         </span>
         {!isArchived && daysLeft !== null && (
-          <span className={daysLeft < 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-tertiary)]'}>
-            {daysLeft < 0
-              ? `已过期 ${Math.abs(daysLeft)} 天`
-              : daysLeft === 0
-                ? '今日截止'
-                : `剩 ${daysLeft} 天`}
+          <span
+            className={daysLeft < 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-tertiary)]'}
+          >
+            {daysLeft < 0 ? `已过期 ${Math.abs(daysLeft)} 天` : daysLeft === 0 ? '今日截止' : `剩 ${daysLeft} 天`}
           </span>
         )}
       </div>
@@ -182,7 +180,11 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
           </svg>
           编辑
         </button>
@@ -193,7 +195,11 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
           title={isArchived ? '取消归档' : '归档'}
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+            />
           </svg>
         </button>
         <button
@@ -203,7 +209,11 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
           title="删除"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
         </button>
       </div>

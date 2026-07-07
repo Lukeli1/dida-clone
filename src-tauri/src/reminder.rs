@@ -1,5 +1,5 @@
-use tauri::{AppHandle, Emitter, Manager};
 use chrono::Local;
+use tauri::{AppHandle, Emitter, Manager};
 
 /// 后台扫描线程：每 30 秒检查一次到期 reminder。
 ///

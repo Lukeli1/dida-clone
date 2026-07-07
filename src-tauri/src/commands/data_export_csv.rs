@@ -60,7 +60,17 @@ pub fn export_csv(state: State<DbState>) -> Result<String, String> {
         )
         .map_err(|e| e.to_string())?;
 
-    let rows: Vec<(i64, String, Option<String>, i64, Option<String>, bool, bool, String)> = stmt
+    #[allow(clippy::type_complexity)]
+    let rows: Vec<(
+        i64,
+        String,
+        Option<String>,
+        i64,
+        Option<String>,
+        bool,
+        bool,
+        String,
+    )> = stmt
         .query_map([], |row| {
             Ok((
                 row.get(0)?,

@@ -9,7 +9,7 @@ import { useUIStore } from '../../stores/uiStore'
  * 不阻挡任何点击。
  */
 export function TopProgressBar() {
-  const globalLoading = useUIStore(s => s.globalLoading)
+  const globalLoading = useUIStore((s) => s.globalLoading)
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function TopProgressBar() {
     }
     setProgress(0)
     const timer = setInterval(() => {
-      setProgress(p => Math.min(p + Math.random() * 15, 90))
+      setProgress((p) => Math.min(p + Math.random() * 15, 90))
     }, 200)
     return () => clearInterval(timer)
   }, [globalLoading])

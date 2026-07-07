@@ -21,10 +21,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
-          'charts': ['recharts'],
-          'markdown': ['react-markdown', 'remark-gfm', 'rehype-raw'],
-          'date': ['date-fns'],
-          'virtual': ['@tanstack/react-virtual'],
+          charts: ['recharts'],
+          markdown: ['react-markdown', 'remark-gfm', 'rehype-raw'],
+          date: ['date-fns'],
+          virtual: ['@tanstack/react-virtual'],
         },
       },
     },

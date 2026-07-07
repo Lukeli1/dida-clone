@@ -1,10 +1,10 @@
+use chrono::{Datelike, TimeZone};
 use rusqlite::{params, Result};
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use chrono::{Datelike, TimeZone};
 
-use crate::db::DbState;
 use super::now_rfc3339;
+use crate::db::DbState;
 
 #[derive(Debug, Deserialize)]
 pub struct ReorderItem {
@@ -27,7 +27,8 @@ pub fn reorder_tasks(state: State<DbState>, items: Vec<ReorderItem>) -> Result<(
         tx.execute(
             "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
             params![item.sort_order, now, item.id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
@@ -42,6 +43,7 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // 查询任务详情
+    #[allow(clippy::type_complexity)]
     let task: (String, Option<String>, i64, Option<String>, Option<String>, i64, Option<String>, f64) = tx
         .query_row(
             "SELECT title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
@@ -56,14 +58,15 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
     tx.execute(
         "UPDATE tasks SET completed = 1, updated_at = ?1 WHERE id = ?2",
         params![now, id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // 如果有重复规则，创建下一个周期的任务
     if let Some(ref rule) = repeat_rule {
         if !rule.is_empty() {
-            let next_due = due_date.as_ref().and_then(|d| {
-                compute_next_due_date(d, rule)
-            });
+            let next_due = due_date
+                .as_ref()
+                .and_then(|d| compute_next_due_date(d, rule));
 
             let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
 
@@ -88,11 +91,14 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
                 tx.execute(
                     "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
                     params![new_id, tag_id],
-                ).map_err(|e| e.to_string())?;
+                )
+                .map_err(|e| e.to_string())?;
             }
 
             tx.commit().map_err(|e| e.to_string())?;
-            return Ok(CompleteResult { new_task_id: Some(new_id) });
+            return Ok(CompleteResult {
+                new_task_id: Some(new_id),
+            });
         }
     }
 
@@ -122,7 +128,7 @@ fn compute_next_due_date(due_date: &str, rule: &str) -> Option<String> {
     }
 
     // 回退到旧的字符串匹配逻辑
-    let next = match rule.as_ref() {
+    let next = match rule {
         "daily" => local + chrono::Duration::days(1),
         "weekly" => local + chrono::Duration::weeks(1),
         "monthly" => {
@@ -189,7 +195,7 @@ fn compute_next_from_json(
                 let mut searched = 0;
 
                 while searched < limit {
-                    let cand_wd = candidate.weekday().num_days_from_monday() as u32 + 1; // 1=周一
+                    let cand_wd = candidate.weekday().num_days_from_monday() + 1; // 1=周一
                     if weekdays.contains(&cand_wd) {
                         let cand_monday =
                             candidate.date_naive() - chrono::Duration::days(cand_wd as i64 - 1);
@@ -198,7 +204,7 @@ fn compute_next_from_json(
                             return Some(candidate);
                         }
                     }
-                    candidate = candidate + chrono::Duration::days(1);
+                    candidate += chrono::Duration::days(1);
                     searched += 1;
                 }
                 None
@@ -225,8 +231,7 @@ fn compute_next_from_json(
             loop {
                 if let Some(naive) = chrono::NaiveDate::from_ymd_opt(year, month, day) {
                     let naive_dt = naive.and_time(local.naive_local().time());
-                    let candidate_local =
-                        chrono::Local.from_local_datetime(&naive_dt).single()?;
+                    let candidate_local = chrono::Local.from_local_datetime(&naive_dt).single()?;
                     return Some(candidate_local);
                 }
 

@@ -28,8 +28,8 @@ export const SHORTCUTS: ShortcutItem[] = [
  * id 与 useKeyboardShortcuts 中的快捷键一一对应
  */
 export interface ShortcutBinding {
-  id: string          // 'newTask', 'search', etc.
-  label: string       // '新建任务'
+  id: string // 'newTask', 'search', etc.
+  label: string // '新建任务'
   category: '全局' | '任务' | '导航' | 'AI'
   defaultKeys: string // 'Ctrl+N'
   description: string
@@ -38,10 +38,34 @@ export interface ShortcutBinding {
 export const DEFAULT_SHORTCUT_BINDINGS: ShortcutBinding[] = [
   { id: 'newTask', label: '新建任务', category: '全局', defaultKeys: 'Ctrl+N', description: '快速创建新任务' },
   { id: 'search', label: '搜索任务', category: '全局', defaultKeys: 'Ctrl+F', description: '打开搜索框' },
-  { id: 'toggleSidebar', label: '折叠/展开侧边栏', category: '全局', defaultKeys: 'Ctrl+B', description: '切换侧边栏显示' },
-  { id: 'viewTasks', label: '切换到任务列表', category: '导航', defaultKeys: 'Ctrl+1', description: '切换到任务列表视图' },
-  { id: 'viewCalendar', label: '切换到日历视图', category: '导航', defaultKeys: 'Ctrl+2', description: '切换到日历视图' },
-  { id: 'viewQuadrant', label: '切换到四象限', category: '导航', defaultKeys: 'Ctrl+3', description: '切换到四象限视图' },
+  {
+    id: 'toggleSidebar',
+    label: '折叠/展开侧边栏',
+    category: '全局',
+    defaultKeys: 'Ctrl+B',
+    description: '切换侧边栏显示',
+  },
+  {
+    id: 'viewTasks',
+    label: '切换到任务列表',
+    category: '导航',
+    defaultKeys: 'Ctrl+1',
+    description: '切换到任务列表视图',
+  },
+  {
+    id: 'viewCalendar',
+    label: '切换到日历视图',
+    category: '导航',
+    defaultKeys: 'Ctrl+2',
+    description: '切换到日历视图',
+  },
+  {
+    id: 'viewQuadrant',
+    label: '切换到四象限',
+    category: '导航',
+    defaultKeys: 'Ctrl+3',
+    description: '切换到四象限视图',
+  },
   { id: 'viewPomodoro', label: '切换到番茄钟', category: '导航', defaultKeys: 'Ctrl+4', description: '切换到番茄钟' },
   { id: 'viewHabit', label: '切换到习惯打卡', category: '导航', defaultKeys: 'Ctrl+5', description: '切换到习惯打卡' },
   { id: 'shortcutsHelp', label: '快捷键帮助', category: '全局', defaultKeys: '?', description: '打开快捷键帮助面板' },

@@ -3,9 +3,13 @@ import { isTauri, mockTasks, mockTaskTags, mockCounters } from './_shared'
 import type { Task, CreateTaskRequest, ReorderItem, CompleteResult } from '../types'
 
 export const taskApi = {
-  getTasks: async (filter?: { list_id?: number; include_completed?: boolean; include_archived?: boolean }): Promise<Task[]> => {
+  getTasks: async (filter?: {
+    list_id?: number
+    include_completed?: boolean
+    include_archived?: boolean
+  }): Promise<Task[]> => {
     if (!isTauri) {
-      return Promise.resolve(mockTasks.map(t => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })))
+      return Promise.resolve(mockTasks.map((t) => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })))
     }
     return await invoke<Task[]>('get_tasks', {
       listId: filter?.list_id ?? null,
@@ -67,7 +71,7 @@ export const taskApi = {
 
   duplicateTask: async (id: number): Promise<Task> => {
     if (!isTauri) {
-      const source = mockTasks.find(t => t.id === id)
+      const source = mockTasks.find((t) => t.id === id)
       if (!source) throw new Error('Task not found')
       const now = new Date().toISOString()
       const task: Task = {
@@ -94,8 +98,8 @@ export const taskApi = {
 
   reorderTasks: async (items: ReorderItem[]): Promise<void> => {
     if (!isTauri) {
-      items.forEach(item => {
-        const idx = mockTasks.findIndex(t => t.id === item.id)
+      items.forEach((item) => {
+        const idx = mockTasks.findIndex((t) => t.id === item.id)
         if (idx !== -1) mockTasks[idx].sort_order = item.sort_order
       })
       return Promise.resolve()
@@ -105,7 +109,7 @@ export const taskApi = {
 
   completeTask: async (id: number): Promise<CompleteResult> => {
     if (!isTauri) {
-      const idx = mockTasks.findIndex(t => t.id === id)
+      const idx = mockTasks.findIndex((t) => t.id === id)
       if (idx !== -1) {
         mockTasks[idx].completed = true
         const task = mockTasks[idx]

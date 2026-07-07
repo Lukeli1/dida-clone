@@ -21,9 +21,7 @@ describe('perfMonitor 性能监控持久化', () => {
     })
 
     it('已存储数据时正确读回', () => {
-      const records = [
-        { name: 'loadTasks', duration: 12.5, timestamp: 1000 },
-      ]
+      const records = [{ name: 'loadTasks', duration: 12.5, timestamp: 1000 }]
       localStorage.setItem('perf_records', JSON.stringify(records))
       expect(getPerfRecords()).toEqual(records)
     })

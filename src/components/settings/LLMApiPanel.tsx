@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import {
-  getLLMConfig, saveLLMConfig, testConnection,
-  getProviders, saveProvider, deleteProvider, deriveProviderName,
+  getLLMConfig,
+  saveLLMConfig,
+  testConnection,
+  getProviders,
+  saveProvider,
+  deleteProvider,
+  deriveProviderName,
   type LLMProvider,
 } from '../../utils/llm'
 import { Toggle } from './Toggle'
@@ -16,7 +21,9 @@ export function LLMApiPanel() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [reasoning, setReasoning] = useState(existingConfig?.reasoning ?? false)
-  const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high'>(existingConfig?.reasoningEffort || 'medium')
+  const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high'>(
+    existingConfig?.reasoningEffort || 'medium',
+  )
   const [providers, setProviders] = useState<LLMProvider[]>(() => getProviders())
   const [providerName, setProviderName] = useState('')
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
@@ -85,7 +92,9 @@ export function LLMApiPanel() {
     <div className="space-y-6">
       <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 space-y-4">
         <div>
-          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">API 地址（OpenAI 兼容协议）</label>
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+            API 地址（OpenAI 兼容协议）
+          </label>
           <input
             type="text"
             value={llmBaseUrl}
@@ -120,7 +129,8 @@ export function LLMApiPanel() {
           </button>
           {testResult && (
             <span className={`text-xs ${testResult.ok ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
+              {testResult.ok ? '✓ ' : '✗ '}
+              {testResult.msg}
             </span>
           )}
         </div>
@@ -129,14 +139,19 @@ export function LLMApiPanel() {
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">选择模型</label>
             <select
               value={llmModel}
-              onChange={(e) => { setLlmModel(e.target.value); handleSaveLlmConfig(); }}
+              onChange={(e) => {
+                setLlmModel(e.target.value)
+                handleSaveLlmConfig()
+              }}
               className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
             >
-              {llmModels.length > 0 ? (
-                llmModels.map(m => <option key={m} value={m}>{m}</option>)
-              ) : (
-                llmModel && <option value={llmModel}>{llmModel}</option>
-              )}
+              {llmModels.length > 0
+                ? llmModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                : llmModel && <option value={llmModel}>{llmModel}</option>}
             </select>
           </div>
         )}
@@ -150,18 +165,41 @@ export function LLMApiPanel() {
                 启用模型的深度推理能力（适用于 o1/o3、DeepSeek-R1 等推理模型）
               </p>
             </div>
-            <Toggle checked={reasoning} onChange={(v) => { setReasoning(v); saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning: v, reasoningEffort }); }} />
+            <Toggle
+              checked={reasoning}
+              onChange={(v) => {
+                setReasoning(v)
+                saveLLMConfig({
+                  baseUrl: llmBaseUrl,
+                  apiKey: llmApiKey,
+                  model: llmModel,
+                  reasoning: v,
+                  reasoningEffort,
+                })
+              }}
+            />
           </div>
           {reasoning && (
             <div className="mt-3">
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">思考强度</label>
               <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-                {(['low', 'medium', 'high'] as const).map(e => (
+                {(['low', 'medium', 'high'] as const).map((e) => (
                   <button
                     key={e}
-                    onClick={() => { setReasoningEffort(e); saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort: e }); }}
+                    onClick={() => {
+                      setReasoningEffort(e)
+                      saveLLMConfig({
+                        baseUrl: llmBaseUrl,
+                        apiKey: llmApiKey,
+                        model: llmModel,
+                        reasoning,
+                        reasoningEffort: e,
+                      })
+                    }}
                     className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
-                      reasoningEffort === e ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
+                      reasoningEffort === e
+                        ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                        : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]'
                     }`}
                   >
                     {e === 'low' ? '低（快速）' : e === 'medium' ? '中（平衡）' : '高（深度）'}
@@ -177,7 +215,9 @@ export function LLMApiPanel() {
 
         {/* 保存为厂商 */}
         <div className="pt-2 border-t border-[var(--color-border-light)]">
-          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">保存为厂商（方便后续快速切换）</label>
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+            保存为厂商（方便后续快速切换）
+          </label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -205,7 +245,7 @@ export function LLMApiPanel() {
               已保存厂商（{providers.length}）— 点击切换
             </label>
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {providers.map(p => {
+              {providers.map((p) => {
                 const isActive = activeProviderId === p.id
                 return (
                   <div
@@ -217,9 +257,13 @@ export function LLMApiPanel() {
                         : 'border-[var(--color-border)] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      isActive ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'
-                    }`}>
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                        isActive
+                          ? 'bg-[var(--color-accent)] text-white'
+                          : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'
+                      }`}
+                    >
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -228,16 +272,19 @@ export function LLMApiPanel() {
                         {p.lastModel} · {p.models.length} 个模型
                       </p>
                     </div>
-                    {isActive && (
-                      <span className="text-xs text-[var(--color-accent)] font-medium">当前</span>
-                    )}
+                    {isActive && <span className="text-xs text-[var(--color-accent)] font-medium">当前</span>}
                     <button
                       onClick={(e) => handleDeleteProvider(p.id, e)}
                       className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100 transition-opacity"
                       title="删除厂商"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -248,8 +295,8 @@ export function LLMApiPanel() {
         )}
 
         <p className="text-xs text-[var(--color-text-tertiary)] leading-relaxed">
-          支持 OpenAI 兼容协议的 API（如 OpenAI、DeepSeek、通义千问、Moonshot 等）。
-          配置后可使用 AI 自然语言添加任务、智能拆解、优先级建议等功能。
+          支持 OpenAI 兼容协议的 API（如 OpenAI、DeepSeek、通义千问、Moonshot 等）。 配置后可使用 AI
+          自然语言添加任务、智能拆解、优先级建议等功能。
         </p>
       </div>
     </div>

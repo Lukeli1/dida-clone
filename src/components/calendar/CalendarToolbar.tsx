@@ -19,8 +19,8 @@ interface CalendarToolbarProps {
 }
 
 export function CalendarToolbar({ viewMode, onChangeView, sidebarOpen, onToggleSidebar }: CalendarToolbarProps) {
-  const setAiPresetMessage = useUIStore(s => s.setAiPresetMessage)
-  const setCurrentView = useUIStore(s => s.setCurrentView)
+  const setAiPresetMessage = useUIStore((s) => s.setAiPresetMessage)
+  const setCurrentView = useUIStore((s) => s.setCurrentView)
 
   /** 点击 AI 排程：设置预设消息并跳转到 AI 助手 */
   function handleAISchedule() {
@@ -39,7 +39,12 @@ export function CalendarToolbar({ viewMode, onChangeView, sidebarOpen, onToggleS
         title="AI 自动安排明日日程"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
         </svg>
         <span className="hidden sm:inline">AI 排程</span>
       </button>
@@ -95,10 +100,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
 }
 
 // 更多选项按钮：仅保留视图切换功能（月/周/日 + 甘特图 + 看板）
-function MoreOptionsButton({ viewMode, onChangeView }: {
-  viewMode: ViewMode
-  onChangeView: (m: ViewMode) => void
-}) {
+function MoreOptionsButton({ viewMode, onChangeView }: { viewMode: ViewMode; onChangeView: (m: ViewMode) => void }) {
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -107,8 +109,10 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
     if (!open) return
     function handleClick(e: MouseEvent) {
       if (
-        buttonRef.current && !buttonRef.current.contains(e.target as Node) &&
-        panelRef.current && !panelRef.current.contains(e.target as Node)
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node) &&
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node)
       ) {
         setOpen(false)
       }
@@ -118,11 +122,23 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
   }, [open])
 
   const viewOptions: { key: ViewMode; label: string; icon: string }[] = [
-    { key: 'month', label: '月视图', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { key: 'week', label: '周视图', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+    {
+      key: 'month',
+      label: '月视图',
+      icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+    },
+    {
+      key: 'week',
+      label: '周视图',
+      icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    },
     { key: 'day', label: '日视图', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
     { key: 'gantt', label: '甘特图', icon: 'M4 6h16M4 10h10M4 14h16M4 18h7' },
-    { key: 'kanban', label: '看板', icon: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2' },
+    {
+      key: 'kanban',
+      label: '看板',
+      icon: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2',
+    },
   ]
 
   return (
@@ -147,11 +163,16 @@ function MoreOptionsButton({ viewMode, onChangeView }: {
           className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] w-56 py-1"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="px-3 py-1.5 text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">视图切换</p>
-          {viewOptions.map(v => (
+          <p className="px-3 py-1.5 text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">
+            视图切换
+          </p>
+          {viewOptions.map((v) => (
             <button
               key={v.key}
-              onClick={() => { onChangeView(v.key); setOpen(false) }}
+              onClick={() => {
+                onChangeView(v.key)
+                setOpen(false)
+              }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                 viewMode === v.key
                   ? 'bg-[var(--color-accent-light)]/60 text-[var(--color-accent)] font-medium'

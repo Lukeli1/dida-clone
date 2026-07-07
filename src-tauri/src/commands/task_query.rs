@@ -1,9 +1,9 @@
 use rusqlite::{params, Result};
-use tauri::State;
 use std::collections::HashMap;
+use tauri::State;
 
-use crate::db::{DbState, Task};
 use super::super::now_rfc3339;
+use crate::db::{DbState, Task};
 
 #[tauri::command]
 pub fn get_tasks(
@@ -129,6 +129,7 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // 查询原任务所有字段
+    #[allow(clippy::type_complexity)]
     let task: (String, Option<String>, i64, Option<String>, Option<String>, Option<String>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = tx
         .query_row(
             "SELECT title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
@@ -137,7 +138,21 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, end_date, reminder, _completed, _archived, _pinned, list_id, parent_id, repeat_rule, _sort_order) = task;
+    let (
+        title,
+        notes,
+        priority,
+        due_date,
+        end_date,
+        reminder,
+        _completed,
+        _archived,
+        _pinned,
+        list_id,
+        parent_id,
+        repeat_rule,
+        _sort_order,
+    ) = task;
 
     // 插入副本：completed=false, archived=false, pinned=false
     tx.execute(
@@ -161,7 +176,8 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         tx.execute(
             "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
             params![new_id, tag_id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     tx.commit().map_err(|e| e.to_string())?;

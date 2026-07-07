@@ -5,7 +5,7 @@ import { TaskItem } from './task-item/TaskItem'
 import { TaskActionProvider, type TaskActionContextValue } from '../contexts/TaskActionContext'
 
 interface TaskListProps {
-  tasks: Task[]  // Top-level tasks (with subtasks already attached)
+  tasks: Task[] // Top-level tasks (with subtasks already attached)
   expandedTasks: Set<number>
   subtaskInputs: Record<number, string>
   selectedTaskIds: Set<number>

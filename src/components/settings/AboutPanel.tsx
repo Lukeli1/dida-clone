@@ -16,8 +16,7 @@ export function AboutPanel() {
           </div>
         </div>
         <p className="text-xs text-[var(--color-text-tertiary)] leading-relaxed">
-          本地任务管理桌面应用，基于 Tauri v2 + React + TypeScript + SQLite 构建。
-          数据完全本地存储，无需联网。
+          本地任务管理桌面应用，基于 Tauri v2 + React + TypeScript + SQLite 构建。 数据完全本地存储，无需联网。
         </p>
       </div>
     </div>

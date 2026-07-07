@@ -1,11 +1,11 @@
-pub mod db;
 pub mod commands;
-pub mod llm;
+pub mod db;
 pub mod fonts;
+pub mod llm;
+pub mod reminder;
+pub mod repeat;
 pub mod sync;
 pub mod webdav_sync;
-pub mod repeat;
-pub mod reminder;
 
 use db::DbState;
 use tauri::{
@@ -28,9 +28,12 @@ fn fix_autostart_path() {
                     .args([
                         "add",
                         r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-                        "/v", "滴答清单",
-                        "/t", "REG_SZ",
-                        "/d", &release_path,
+                        "/v",
+                        "滴答清单",
+                        "/t",
+                        "REG_SZ",
+                        "/d",
+                        &release_path,
                         "/f",
                     ])
                     .output();
@@ -67,10 +70,12 @@ pub fn run() {
                 eprintln!("[setup] Failed to create app data directory: {}", e);
                 e
             })?;
-            let dir_str = app_data_dir.to_str().ok_or_else(|| -> Box<dyn std::error::Error> {
-                eprintln!("[setup] App data directory path is not valid UTF-8");
-                "App data directory path is not valid UTF-8".into()
-            })?;
+            let dir_str = app_data_dir
+                .to_str()
+                .ok_or_else(|| -> Box<dyn std::error::Error> {
+                    eprintln!("[setup] App data directory path is not valid UTF-8");
+                    "App data directory path is not valid UTF-8".into()
+                })?;
             let db = db::init_db(dir_str).map_err(|e| {
                 eprintln!("[setup] Failed to initialize database: {}", e);
                 e
@@ -94,19 +99,17 @@ pub fn run() {
                 .tooltip("滴答清单")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    match event.id.as_ref() {
-                        "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
-                        "quit" => {
-                            app.exit(0);
-                        }
-                        _ => {}
                     }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
                     // 左键单击/双击：显示窗口
@@ -142,17 +145,22 @@ pub fn run() {
                     };
 
                     // 检查是否配置了同步
-                    let config = match commands::sync_commands::get_sync_config(app_data_dir.clone()) {
-                        Ok(Some(c)) if c.auto_sync => c,
-                        _ => {
-                            tokio::time::sleep(std::time::Duration::from_secs(300)).await;
-                            continue;
-                        }
-                    };
+                    let config =
+                        match commands::sync_commands::get_sync_config(app_data_dir.clone()) {
+                            Ok(Some(c)) if c.auto_sync => c,
+                            _ => {
+                                tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+                                continue;
+                            }
+                        };
 
                     // 根据同步方式调用不同的同步命令
                     if config.sync_type == "webdav" {
-                        let _ = commands::webdav_commands::webdav_sync(app_handle.clone(), app_data_dir).await;
+                        let _ = commands::webdav_commands::webdav_sync(
+                            app_handle.clone(),
+                            app_data_dir,
+                        )
+                        .await;
                     } else {
                         let _ = commands::sync_commands::sync_now(app_data_dir).await;
                     }

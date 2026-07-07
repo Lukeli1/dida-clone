@@ -10,36 +10,36 @@
 //   - habit_commands.rs  习惯相关（占位，P3-06 填充）
 //   - window_commands.rs 窗口控制 command
 
+pub mod attachment_commands;
+mod data_commands;
+pub mod goal_commands;
+mod habit_commands;
+mod list_commands;
+pub mod repeat_commands;
+pub mod report_commands;
+pub mod sync_commands;
+mod tag_commands;
 mod task_commands;
 mod task_ops;
-mod list_commands;
-mod tag_commands;
-mod habit_commands;
-mod data_commands;
-mod window_commands;
-pub mod sync_commands;
-pub mod webdav_commands;
 pub mod template_commands;
-pub mod attachment_commands;
-pub mod repeat_commands;
 pub mod time_tracking_commands;
-pub mod report_commands;
-pub mod goal_commands;
+pub mod webdav_commands;
+mod window_commands;
 
-pub use task_commands::*;
-pub use list_commands::*;
-pub use tag_commands::*;
-pub use habit_commands::*;
-pub use data_commands::*;
-pub use window_commands::*;
-pub use repeat_commands::*;
-pub use sync_commands::*;
-pub use webdav_commands::*;
-pub use template_commands::*;
 pub use attachment_commands::*;
-pub use time_tracking_commands::*;
-pub use report_commands::*;
+pub use data_commands::*;
 pub use goal_commands::*;
+pub use habit_commands::*;
+pub use list_commands::*;
+pub use repeat_commands::*;
+pub use report_commands::*;
+pub use sync_commands::*;
+pub use tag_commands::*;
+pub use task_commands::*;
+pub use template_commands::*;
+pub use time_tracking_commands::*;
+pub use webdav_commands::*;
+pub use window_commands::*;
 
 /// 辅助函数：获取当前时间的 RFC3339 字符串（消除重复 chrono::Local::now().to_rfc3339()）
 /// 被 task_commands / list_commands / tag_commands 共用。

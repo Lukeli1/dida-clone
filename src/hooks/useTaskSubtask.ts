@@ -16,8 +16,9 @@ export function useTaskSubtask(toast: ToastApi) {
   // ===== 创建子任务 =====
   async function handleCreateSubtask(parentId: number, title: string) {
     if (!title.trim()) return
-    const parentTask = useTaskStore.getState().tasks.find(t => t.id === parentId)
-    const listId = parentTask?.list_id ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
+    const parentTask = useTaskStore.getState().tasks.find((t) => t.id === parentId)
+    const listId =
+      parentTask?.list_id ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
     const newTask = await useTaskStore.getState().createTask({
       title: title.trim(),
       list_id: listId,
@@ -25,9 +26,7 @@ export function useTaskSubtask(toast: ToastApi) {
     })
     if (newTask) {
       useTaskStore.setState((state) => ({
-        tasks: state.tasks.map(t =>
-          t.id === parentId ? { ...t, subtasks: [...(t.subtasks || []), newTask] } : t
-        ),
+        tasks: state.tasks.map((t) => (t.id === parentId ? { ...t, subtasks: [...(t.subtasks || []), newTask] } : t)),
       }))
       useUIStore.getState().setSubtaskInput(parentId, '')
       const uiState = useUIStore.getState()
@@ -45,8 +44,11 @@ export function useTaskSubtask(toast: ToastApi) {
   }
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
-  return useMemo(() => ({
-    handleCreateSubtask,
-    handleToggleSubtask,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      handleCreateSubtask,
+      handleToggleSubtask,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }

@@ -12,6 +12,7 @@
 本次验收本应聚焦 **Phase 8**（架构优化与功能增强，v1.29.0），但 git log 显示 Workbuddy 已经把 **Phase 9**（功能增强与性能优化，v1.30.0）也一并完成并提交。为节省用户时间，一次性给出两个阶段的合并验收结论。
 
 **git log 关键提交**：
+
 ```
 56d3da0  release: v1.30.0 — Phase 9 功能增强与性能优化   (2026-06-30 12:08)
 30fdc8e  release: v1.29.0 — Phase 8 架构优化与功能增强   (2026-06-30 02:02)
@@ -25,17 +26,18 @@
 
 ### 方向 A：大文件拆分（7 个任务，P8-01 ~ P8-07）
 
-| 任务 | 拆分前 | 拆分后 | 衍生子文件 | 验收 |
-|---|---|---|---|---|
-| P8-01 CalendarView | 446 行 | **83 行** | CalendarToolbar / ViewRenderer / TaskSidebar / calendarUtils | ✅ |
-| P8-02 TaskContextMenu | 437 行 | **231 行**（+menuItems 20） | DateMenu / PriorityMenu / TagMenu / menuItems | ✅ |
-| P8-03 HabitCard | 392 行 | **199 行** | HabitStats / HabitActions | ✅ |
-| P8-04 DayView | 383 行 | **213 行** | DayViewGrid / DayViewTask / dayViewUtils | ✅ |
-| P8-05 AppearancePanel & SystemPanel | 340 / 325 行 | **174 / 171 行** | FontPanel / DensityPanel / DataPanel / CleanupPanel | ✅ |
-| P8-06 HabitView | 311 行 | **198 行** | HabitList | ✅ |
-| P8-07 api.ts | 407 行 | **30 行**（聚合 re-export） | taskApi / habitApi / syncApi / listApi / tagApi / llmApi / dataApi / _shared | ✅ |
+| 任务                                | 拆分前       | 拆分后                      | 衍生子文件                                                                   | 验收 |
+| ----------------------------------- | ------------ | --------------------------- | ---------------------------------------------------------------------------- | ---- |
+| P8-01 CalendarView                  | 446 行       | **83 行**                   | CalendarToolbar / ViewRenderer / TaskSidebar / calendarUtils                 | ✅   |
+| P8-02 TaskContextMenu               | 437 行       | **231 行**（+menuItems 20） | DateMenu / PriorityMenu / TagMenu / menuItems                                | ✅   |
+| P8-03 HabitCard                     | 392 行       | **199 行**                  | HabitStats / HabitActions                                                    | ✅   |
+| P8-04 DayView                       | 383 行       | **213 行**                  | DayViewGrid / DayViewTask / dayViewUtils                                     | ✅   |
+| P8-05 AppearancePanel & SystemPanel | 340 / 325 行 | **174 / 171 行**            | FontPanel / DensityPanel / DataPanel / CleanupPanel                          | ✅   |
+| P8-06 HabitView                     | 311 行       | **198 行**                  | HabitList                                                                    | ✅   |
+| P8-07 api.ts                        | 407 行       | **30 行**（聚合 re-export） | taskApi / habitApi / syncApi / listApi / tagApi / llmApi / dataApi / _shared | ✅   |
 
 **架构亮点**：
+
 - `src/api/` 目录按领域拆分（taskApi 142 / habitApi 42 / syncApi 51 / listApi 55 / tagApi 65 / llmApi 39 / dataApi 28 / templateApi 26 / attachmentApi 22 / _shared 33）
 - `src/api.ts` 仅做聚合 re-export，保持对外接口完全兼容
 - 日历模块按职责拆为 Toolbar / ViewRenderer / TaskSidebar / DayViewGrid / DayViewTask / WeekView / MonthView 等
@@ -45,12 +47,14 @@
 ### 方向 B：功能增强（2 个任务）
 
 #### P8-08 快捷键帮助面板 ✅
+
 - `ShortcutsHelp.tsx`（139 行）按 ?/F1 触发，TitleBar 帮助按钮亦可触发
 - 按 `全局 / 导航 / 任务 / AI` 四类分组展示
 - 支持 Esc 关闭 / 点击背景关闭
 - `shortcuts.ts` 定义 `ShortcutItem` 和 `DEFAULT_SHORTCUT_BINDINGS`（9 项）
 
 #### P8-09 TaskNotes 编辑/预览切换 ✅
+
 - `TaskNotes.tsx`（71 行）支持编辑 / 预览双模式 tab 切换
 - 用户偏好持久化到 `localStorage('taskNoteMode')`
 - 预览模式使用 `react-markdown` + `remark-gfm` 渲染
@@ -64,6 +68,7 @@
 ### 方向 A：新功能（4 个）
 
 #### P9-01 任务模板系统 ✅
+
 - **后端**：`template_commands.rs`（388 行）实现 5 个 Tauri 命令
   - `templates` / `subtask_templates` 两张表（db.rs 新增 53 行建表语句）
   - CRUD + `apply_template`（事务：查模板 → 插主任务 → 插子任务）
@@ -77,6 +82,7 @@
 - **验收**：代码结构完整，类型对齐，UI 交互闭环
 
 #### P9-02 习惯统计图表 ✅
+
 - 引入 `recharts` 库
 - `HabitStats.tsx`（218 行）在展开详情中以 Tab 切换三种可视化：
   - **本周**：BarChart，最近 7 天每日打卡次数柱状图
@@ -86,6 +92,7 @@
 - 图例 / Tooltip / 统计文案完整
 
 #### P9-04 任务附件 ✅
+
 - **后端**：`attachment_commands.rs`（220 行）4 个 Tauri 命令
   - `attachments` 表
   - `add_attachment`：将源文件复制到 `{app_data_dir}/attachments/{task_id}/{uuid}_{filename}`
@@ -101,6 +108,7 @@
 - **依赖**：Cargo.toml 新增 `open = "5"` crate
 
 #### P9-06 通知中心 ✅
+
 - `uiStore.ts` 新增 `notificationHistory` / `notificationCenterOpen` / `addNotification` / `markNotificationRead` / `clearNotifications`（最多保留 100 条）
 - `NotificationCenter.tsx`（227 行）右侧抽屉式面板
   - 按日期分组（今天 / 昨天 / 更早）
@@ -113,6 +121,7 @@
 ### 方向 B：UX 增强（3 个）
 
 #### P9-03 周/日视图当前时间红线 ✅
+
 - `useCurrentTime.ts`（27 行）自定义 Hook，每 60 秒刷新一次
 - `toDayMinutes` 辅助函数：将 Date 转为当天自 00:00 起的分钟数
 - `DayViewGrid.tsx` 和 `WeekView.tsx` 引入该 Hook，仅当天列显示红线
@@ -120,12 +129,14 @@
 - `pointer-events-none` 避免阻挡点击
 
 #### P9-05 新用户引导教程 ✅
+
 - 引入 `react-joyride`
 - `OnboardingTour.tsx`（95 行）5 步引导：创建任务 / 管理清单 / 日历视图 / AI 助手 / 设置
 - `localStorage('onboarding_seen')` 记录是否已看过
 - `SidebarFooter.tsx` 新增"引导教程"按钮，清除 localStorage 后刷新页面重新触发
 
 #### P9-07 快捷键自定义面板 ✅
+
 - `ShortcutsPanel.tsx`（204 行）设置面板
   - 点击按键按钮进入录制模式（`animate-pulse` 视觉提示）
   - 全局 keydown 监听捕获组合键，支持 Ctrl/Shift/Alt/Meta + 普通键
@@ -139,6 +150,7 @@
 ### 方向 C：测试与性能（2 个）
 
 #### P9-08 E2E 测试框架 ✅（框架就位，用例待补）
+
 - 引入 `@playwright/test`
 - `playwright.config.ts`（22 行）配置：单线程、chromium、`localhost:1420`、不自动启动 webServer
 - 5 个测试文件（ai-assistant / calendar-view / list-management / settings / task-crud），共 6 个用例
@@ -147,6 +159,7 @@
 - **建议**：将 `tests/*.spec.ts` 从 vitest 默认 glob 中排除，避免 vitest 误收集
 
 #### P9-09 性能调优 ✅
+
 - `TaskItem.tsx`（391 行）使用 `React.memo` + 自定义比较函数 `areTaskItemPropsEqual`
   - 浅比较 task 基本字段 / tag_ids / subtasks（仅 id/title/completed）
   - 避免父组件渲染导致全量 TaskItem 重渲染
@@ -162,14 +175,15 @@
 
 ## 四、自动化测试结果
 
-| 检查项 | 结果 | 说明 |
-|---|---|---|
-| `npx tsc --noEmit` | ✅ 通过 | 无类型错误 |
-| `cargo check` | ✅ 通过 | 13.53s 编译完成，无错误 |
-| `npx vitest run`（189 单元测试） | ✅ 全部通过 | 13 个测试文件，189 tests，15.92s |
+| 检查项                               | 结果        | 说明                                          |
+| ------------------------------------ | ----------- | --------------------------------------------- |
+| `npx tsc --noEmit`                   | ✅ 通过     | 无类型错误                                    |
+| `cargo check`                        | ✅ 通过     | 13.53s 编译完成，无错误                       |
+| `npx vitest run`（189 单元测试）     | ✅ 全部通过 | 13 个测试文件，189 tests，15.92s              |
 | `npx vitest run`（5 Playwright E2E） | ⚠️ 5 failed | Playwright 未在正确上下文执行，非业务功能问题 |
 
 ### 单元测试分布
+
 - `smartDate.test.ts`：27 tests ✅
 - `prompts.test.ts`：28 tests ✅
 - `llm.test.ts`：22 tests ✅
@@ -190,23 +204,23 @@
 
 ### 最大文件 Top 15（src/components/）
 
-| 文件 | 行数 | 评估 |
-|---|---|---|
-| QuadrantView.tsx | 319 | 🟡 可进一步拆分（但逻辑紧凑） |
-| StatsView.tsx | 262 | 🟢 可接受 |
-| KanbanView.tsx | 239 | 🟢 可接受 |
-| GanttView.tsx | 238 | 🟢 可接受 |
-| NotificationCenter.tsx | 227 | 🟢 可接受 |
-| DayView.tsx | 213 | 🟢 已拆分 |
-| Toast.tsx | 178 | 🟢 可接受 |
-| ShortcutsHelp.tsx | 139 | 🟢 可接受 |
-| TitleBar.tsx | 115 | 🟢 可接受 |
-| DetailPanel.tsx | 103 | 🟢 可接受 |
-| OnboardingTour.tsx | 95 | 🟢 可接受 |
-| TaskList.tsx | 86 | 🟢 可接受 |
-| CalendarView.tsx | 83 | 🟢 已拆分 |
-| ErrorBoundary.tsx | 65 | 🟢 可接受 |
-| CalendarPanel.tsx | 46 | 🟢 可接受 |
+| 文件                   | 行数 | 评估                          |
+| ---------------------- | ---- | ----------------------------- |
+| QuadrantView.tsx       | 319  | 🟡 可进一步拆分（但逻辑紧凑） |
+| StatsView.tsx          | 262  | 🟢 可接受                     |
+| KanbanView.tsx         | 239  | 🟢 可接受                     |
+| GanttView.tsx          | 238  | 🟢 可接受                     |
+| NotificationCenter.tsx | 227  | 🟢 可接受                     |
+| DayView.tsx            | 213  | 🟢 已拆分                     |
+| Toast.tsx              | 178  | 🟢 可接受                     |
+| ShortcutsHelp.tsx      | 139  | 🟢 可接受                     |
+| TitleBar.tsx           | 115  | 🟢 可接受                     |
+| DetailPanel.tsx        | 103  | 🟢 可接受                     |
+| OnboardingTour.tsx     | 95   | 🟢 可接受                     |
+| TaskList.tsx           | 86   | 🟢 可接受                     |
+| CalendarView.tsx       | 83   | 🟢 已拆分                     |
+| ErrorBoundary.tsx      | 65   | 🟢 可接受                     |
+| CalendarPanel.tsx      | 46   | 🟢 可接受                     |
 
 **结论**：Phase 8 拆分后，无超过 400 行的组件文件，最大文件 QuadrantView 319 行在可接受范围内。
 

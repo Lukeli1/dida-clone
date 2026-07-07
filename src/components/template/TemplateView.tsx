@@ -21,7 +21,7 @@ export function TemplateView() {
   const confirm = useConfirm()
   const toast = useToast()
   // 次要数据（习惯/模板）是否已就绪：未就绪时显示局部 loading，避免渲染空状态
-  const secondaryDataLoaded = useUIStore(s => s.secondaryDataLoaded)
+  const secondaryDataLoaded = useUIStore((s) => s.secondaryDataLoaded)
   const today = new Date()
 
   const loadTemplates = useCallback(async () => {
@@ -36,7 +36,9 @@ export function TemplateView() {
     }
   }, [])
 
-  useEffect(() => { loadTemplates() }, [loadTemplates])
+  useEffect(() => {
+    loadTemplates()
+  }, [loadTemplates])
 
   function handleCreate() {
     setEditingTemplate(null)
@@ -49,10 +51,10 @@ export function TemplateView() {
   }
 
   function handleEditorSave(saved: TaskTemplate) {
-    setTemplates(prev => {
-      const exists = prev.some(t => t.id === saved.id)
+    setTemplates((prev) => {
+      const exists = prev.some((t) => t.id === saved.id)
       if (exists) {
-        return prev.map(t => (t.id === saved.id ? saved : t))
+        return prev.map((t) => (t.id === saved.id ? saved : t))
       }
       return [...prev, saved]
     })
@@ -76,7 +78,7 @@ export function TemplateView() {
     if (!ok) return
     try {
       await templateApi.deleteTemplate(template.id)
-      setTemplates(prev => prev.filter(t => t.id !== template.id))
+      setTemplates((prev) => prev.filter((t) => t.id !== template.id))
       toast.success('模板已删除')
     } catch (e) {
       console.error('删除模板失败:', e)
@@ -126,8 +128,18 @@ export function TemplateView() {
         ) : templates.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-20 h-20 mb-5 rounded-2xl bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-              <svg className="w-10 h-10 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              <svg
+                className="w-10 h-10 text-[var(--color-text-muted)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                />
               </svg>
             </div>
             <p className="text-[15px] font-semibold text-[var(--color-text-secondary)]">暂无模板</p>
@@ -137,7 +149,7 @@ export function TemplateView() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map(template => (
+            {templates.map((template) => (
               <TemplateCard
                 key={template.id}
                 template={template}
@@ -152,11 +164,7 @@ export function TemplateView() {
 
       {/* 编辑/创建弹窗 */}
       {showEditor && (
-        <TemplateEditor
-          template={editingTemplate}
-          onSave={handleEditorSave}
-          onCancel={handleEditorCancel}
-        />
+        <TemplateEditor template={editingTemplate} onSave={handleEditorSave} onCancel={handleEditorCancel} />
       )}
     </div>
   )
@@ -184,17 +192,15 @@ function TemplateCard({
           {template.icon ?? '📋'}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-[var(--color-text-primary)] truncate">
-            {template.name}
-          </h3>
+          <h3 className="text-base font-semibold text-[var(--color-text-primary)] truncate">{template.name}</h3>
           {template.description && (
-            <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2">
-              {template.description}
-            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2">{template.description}</p>
           )}
         </div>
         {/* 优先级标签 */}
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${priorityStyle.bg} ${priorityStyle.text} flex-shrink-0`}>
+        <span
+          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${priorityStyle.bg} ${priorityStyle.text} flex-shrink-0`}
+        >
           {PRIORITY_LABELS[template.priority] ?? '无'}
         </span>
       </div>
@@ -208,13 +214,17 @@ function TemplateCard({
       {/* 子任务预览 */}
       {template.subtask_templates.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            子任务（{template.subtask_templates.length}）
-          </p>
+          <p className="text-xs text-[var(--color-text-tertiary)]">子任务（{template.subtask_templates.length}）</p>
           <ul className="space-y-0.5">
-            {template.subtask_templates.slice(0, 3).map(st => (
+            {template.subtask_templates.slice(0, 3).map((st) => (
               <li key={st.id} className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1.5">
-                <svg className="w-3 h-3 text-[var(--color-text-muted)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <svg
+                  className="w-3 h-3 text-[var(--color-text-muted)] flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
                 {st.title}
@@ -248,7 +258,11 @@ function TemplateCard({
           title="编辑"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
           </svg>
         </button>
         <button
@@ -258,7 +272,11 @@ function TemplateCard({
           title="删除"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
         </button>
       </div>

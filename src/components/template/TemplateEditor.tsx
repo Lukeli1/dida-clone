@@ -31,8 +31,8 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
   const [priority, setPriority] = useState(template?.priority ?? 0)
   const [subtasks, setSubtasks] = useState(
     template?.subtask_templates
-      ? [...template.subtask_templates].sort((a, b) => a.sort_order - b.sort_order).map(s => s.title)
-      : [] as string[],
+      ? [...template.subtask_templates].sort((a, b) => a.sort_order - b.sort_order).map((s) => s.title)
+      : ([] as string[]),
   )
   const [newSubtask, setNewSubtask] = useState('')
   const [saving, setSaving] = useState(false)
@@ -104,11 +104,9 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onCancel}>
       <div
         className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">
-          {isEdit ? '编辑模板' : '新建模板'}
-        </h3>
+        <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">{isEdit ? '编辑模板' : '新建模板'}</h3>
 
         <div className="space-y-4">
           {/* 图标 + 名称 */}
@@ -122,15 +120,17 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && canSave) handleSave() }}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSave) handleSave()
+                }}
                 autoFocus
                 placeholder="模板名称"
                 className="w-full px-4 py-2.5 text-base border border-[var(--color-border)] rounded-xl bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
               />
               {/* 图标选择 */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {PRESET_ICONS.map(emoji => (
+                {PRESET_ICONS.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
@@ -154,7 +154,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
             <input
               type="text"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="模板的简要描述（可选）"
               className="w-full px-4 py-2.5 text-sm border border-[var(--color-border)] rounded-xl bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
@@ -168,7 +168,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
             <input
               type="text"
               value={titleTemplate}
-              onChange={e => setTitleTemplate(e.target.value)}
+              onChange={(e) => setTitleTemplate(e.target.value)}
               placeholder="创建任务时的默认标题"
               className="w-full px-4 py-2.5 text-sm border border-[var(--color-border)] rounded-xl bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
@@ -179,7 +179,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">备注模板</label>
             <textarea
               value={notesTemplate}
-              onChange={e => setNotesTemplate(e.target.value)}
+              onChange={(e) => setNotesTemplate(e.target.value)}
               placeholder="创建任务时的默认备注（可选）"
               rows={3}
               className="w-full px-4 py-2.5 text-sm border border-[var(--color-border)] rounded-xl bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 resize-none"
@@ -190,7 +190,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
           <div className="flex items-center gap-4">
             <label className="w-20 text-sm font-medium text-[var(--color-text-secondary)] flex-shrink-0">优先级</label>
             <div className="flex gap-2">
-              {PRIORITY_OPTIONS.map(opt => (
+              {PRIORITY_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -257,8 +257,13 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
               <input
                 type="text"
                 value={newSubtask}
-                onChange={e => setNewSubtask(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtask() } }}
+                onChange={(e) => setNewSubtask(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addSubtask()
+                  }
+                }}
                 placeholder="添加子任务后按回车"
                 className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-accent)]"
               />

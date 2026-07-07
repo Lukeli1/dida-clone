@@ -231,12 +231,10 @@ fn parse_propfind_last_modified(xml: &str) -> Result<Option<String>, String> {
             Ok(Event::Empty(_)) => {
                 // 自闭合标签，无文本内容
             }
-            Ok(Event::Text(e)) => {
-                if in_getlastmodified {
-                    let text = e.unescape().map(|s| s.to_string()).unwrap_or_default();
-                    if !text.is_empty() {
-                        result = Some(text);
-                    }
+            Ok(Event::Text(e)) if in_getlastmodified => {
+                let text = e.unescape().map(|s| s.to_string()).unwrap_or_default();
+                if !text.is_empty() {
+                    result = Some(text);
                 }
             }
             Ok(Event::End(e)) => {

@@ -106,8 +106,18 @@ export function ShortcutsPanel() {
     <div className="space-y-6">
       {/* 提示信息 */}
       <div className="flex items-start gap-3 px-4 py-3 bg-[var(--color-accent-light)] rounded-lg border border-[var(--color-accent)]/20">
-        <svg className="w-5 h-5 text-[var(--color-accent)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          className="w-5 h-5 text-[var(--color-accent)] shrink-0 mt-0.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
           点击右侧按键进入录制模式，然后按下你想要的快捷键组合。按 Esc 可取消录制。
@@ -140,9 +150,7 @@ export function ShortcutsPanel() {
                     </div>
                     <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{binding.description}</p>
                     {hasConflict && (
-                      <p className="text-xs text-red-500 mt-1">
-                        冲突：该快捷键已被「{conflictLabel}」使用
-                      </p>
+                      <p className="text-xs text-red-500 mt-1">冲突：该快捷键已被「{conflictLabel}」使用</p>
                     )}
                   </div>
 

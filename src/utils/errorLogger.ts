@@ -35,7 +35,7 @@ export const MAX_LOGS = 50
 export function loadErrorLogs(): ErrorLog[] {
   try {
     const data = localStorage.getItem(LOG_KEY)
-    return data ? JSON.parse(data) as ErrorLog[] : []
+    return data ? (JSON.parse(data) as ErrorLog[]) : []
   } catch {
     return []
   }

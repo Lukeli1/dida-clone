@@ -11,15 +11,16 @@
 
 **从前三阶段的"整理代码"转向"增强功能 + 提升体验"。让软件从"能用"升级到"好用"。**
 
-| 方向 | 核心目标 | 量化指标 |
-|---|---|---|
-| A. 拆分最后 3 个大文件 | 0 个文件超过 500 行 | 3 个 → 0 个 |
-| B. LLM 流式响应 | AI 对话打字机效果 | 当前全量返回 → SSE 流式 |
-| C. 数据导出/导入 | 支持 JSON/CSV/Markdown 备份 | 0 种 → 3 种格式 |
-| D. 全文搜索增强 | 任务标题+备注+子任务搜索 | 当前仅标题 → 全字段 |
-| E. CI/CD 基础 | GitHub Actions 自动测试 | 0 → 1 条流水线 |
+| 方向                   | 核心目标                    | 量化指标                |
+| ---------------------- | --------------------------- | ----------------------- |
+| A. 拆分最后 3 个大文件 | 0 个文件超过 500 行         | 3 个 → 0 个             |
+| B. LLM 流式响应        | AI 对话打字机效果           | 当前全量返回 → SSE 流式 |
+| C. 数据导出/导入       | 支持 JSON/CSV/Markdown 备份 | 0 种 → 3 种格式         |
+| D. 全文搜索增强        | 任务标题+备注+子任务搜索    | 当前仅标题 → 全字段     |
+| E. CI/CD 基础          | GitHub Actions 自动测试     | 0 → 1 条流水线          |
 
 **原则**：
+
 - A 方向：纯重构（同 Phase 2/3）
 - B-E 方向：功能增强，需手动测试
 
@@ -29,35 +30,39 @@
 
 ### 2.1 仍超过 500 行的文件（3 个）
 
-| 文件 | 行数 | 问题 |
-|---|---|---|
-| `WeekView.tsx` | 600 | 周视图+任务条+拖拽+点击交互全在一个文件 |
-| `MonthView.tsx` | 531 | 月视图+任务条+拖拽+农历+辅助函数 |
-| `task_commands.rs` | 585 | 7 个任务 command 含复杂 SQL 逻辑 |
+| 文件               | 行数 | 问题                                    |
+| ------------------ | ---- | --------------------------------------- |
+| `WeekView.tsx`     | 600  | 周视图+任务条+拖拽+点击交互全在一个文件 |
+| `MonthView.tsx`    | 531  | 月视图+任务条+拖拽+农历+辅助函数        |
+| `task_commands.rs` | 585  | 7 个任务 command 含复杂 SQL 逻辑        |
 
 ### 2.2 接近 500 行的文件（3 个，不拆）
 
-| 文件 | 行数 | 备注 |
-|---|---|---|
-| `TaskContextMenu.tsx` | 441 | P3-02 新拆出的，可接受 |
-| `AIAssistant.tsx` | 430 | 本次要加流式响应，暂不拆 |
-| `CalendarView.tsx` | 473 | 容器+3 个子组件，可接受 |
-| `DayView.tsx` | 430 | 日视图，结构清晰 |
+| 文件                  | 行数 | 备注                     |
+| --------------------- | ---- | ------------------------ |
+| `TaskContextMenu.tsx` | 441  | P3-02 新拆出的，可接受   |
+| `AIAssistant.tsx`     | 430  | 本次要加流式响应，暂不拆 |
+| `CalendarView.tsx`    | 473  | 容器+3 个子组件，可接受  |
+| `DayView.tsx`         | 430  | 日视图，结构清晰         |
 
 ### 2.3 AI 对话现状
+
 - 当前：`llm_chat` Tauri command 一次性返回完整响应
 - 问题：长回答等待 5-10 秒无反馈，用户体验差
 - 目标：SSE 流式返回，打字机效果
 
 ### 2.4 数据导出现状
+
 - 当前：仅设置页有"数据导出"按钮，导出格式不明
 - 目标：支持 JSON（完整备份）/ CSV（Excel 可开）/ Markdown（可读）
 
 ### 2.5 搜索现状
+
 - 当前：`searchQuery` 只搜索任务标题
 - 目标：搜索标题 + 备注 + 子任务标题
 
 ### 2.6 CI/CD 现状
+
 - 当前：无 CI/CD，推送后无自动验证
 - 目标：GitHub Actions 跑 `npm run test` + `tsc --noEmit`
 
@@ -74,6 +79,7 @@
 **当前**：两个日历视图文件都超过 500 行，结构类似（任务条渲染 + 拖拽 + 点击交互）
 
 **拆分方案**：
+
 ```
 src/components/calendar/
 ├── shared/
@@ -86,6 +92,7 @@ src/components/calendar/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/calendar/` 目录
 2. 提取 `getTaskBarColor` 和 `getLunarLabel` 到 `shared/` 目录
 3. 提取任务条渲染逻辑到 `TaskBar.tsx`（两个视图共用）
@@ -95,6 +102,7 @@ src/components/calendar/
 7. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `MonthView.tsx` ≤ 300 行
 - [ ] `WeekView.tsx` ≤ 300 行
 - [ ] 共享组件被两个视图复用
@@ -108,6 +116,7 @@ src/components/calendar/
 **当前**：`src-tauri/src/commands/task_commands.rs` 585 行，7 个 Tauri command
 
 **拆分方案**：
+
 ```
 src-tauri/src/commands/
 ├── task_commands.rs (30 行) — mod 声明 + re-export
@@ -116,12 +125,14 @@ src-tauri/src/commands/
 ```
 
 **操作步骤**：
+
 1. 按职责把 7 个函数分到 2 个子模块
 2. `task_commands.rs` 改为 `mod task_crud; mod task_ops; pub use task_crud::*; pub use task_ops::*;`
 3. `commands/mod.rs` 的 import 路径不变
 4. 验证：`cargo check` 通过
 
 **验收**：
+
 - [ ] `task_commands.rs` ≤ 30 行
 - [ ] 每个子模块 ≤ 200 行
 - [ ] `cargo check` 通过
@@ -140,6 +151,7 @@ src-tauri/src/commands/
 **目标**：改为 Tauri event 流式返回，前端通过 `listen` 接收
 
 **Rust 端改动**（`src-tauri/src/llm.rs`）：
+
 ```rust
 use tauri::{AppHandle, Emitter};
 
@@ -201,11 +213,13 @@ pub async fn llm_chat_stream(
 ```
 
 **操作步骤**：
+
 1. 在 `llm.rs` 中新增 `llm_chat_stream` 函数（保留原 `llm_chat` 作为 fallback）
 2. 在 `lib.rs` 的 `generate_handler!` 中注册 `llm_chat_stream`
 3. 验证：`cargo check` 通过
 
 **验收**：
+
 - [ ] `llm_chat_stream` 函数实现
 - [ ] `lib.rs` 注册新 command
 - [ ] `cargo check` 通过
@@ -220,7 +234,9 @@ pub async fn llm_chat_stream(
 **目标**：调用 `llm_chat_stream`，通过 Tauri event 监听，实现打字机效果
 
 **前端改动**：
+
 1. 在 `api.ts` 添加流式调用封装：
+
    ```typescript
    import { listen } from '@tauri-apps/api/event'
 
@@ -247,7 +263,10 @@ pub async fn llm_chat_stream(
        onError(String(err))
      }
 
-     return () => { unlistenChunk(); unlistenDone() }
+     return () => {
+       unlistenChunk()
+       unlistenDone()
+     }
    }
    ```
 
@@ -263,6 +282,7 @@ pub async fn llm_chat_stream(
    - 取消按钮（停止生成）
 
 **操作步骤**：
+
 1. 在 `api.ts` 添加 `llmChatStream` 封装
 2. 修改 `AIAssistant.tsx` 的 `sendMessage` 函数
 3. 添加打字机效果 UI
@@ -271,6 +291,7 @@ pub async fn llm_chat_stream(
 6. 验证：AI 对话有打字机效果，可中途取消
 
 **验收**：
+
 - [ ] AI 回复有打字机效果
 - [ ] 可中途取消生成
 - [ ] 取消后不残留监听器
@@ -288,6 +309,7 @@ pub async fn llm_chat_stream(
 **目标**：后端提供导出 JSON / CSV / Markdown 的 Tauri command
 
 **Rust 端新增**（`src-tauri/src/commands/data_commands.rs`）：
+
 ```rust
 #[tauri::command]
 pub fn export_json(state: State<DbState>) -> Result<String, String> {
@@ -311,6 +333,7 @@ pub fn import_json(state: State<DbState>, json: String, mode: String) -> Result<
 ```
 
 **操作步骤**：
+
 1. 创建 `src-tauri/src/commands/data_commands.rs`
 2. 实现 4 个 command
 3. 在 `commands/mod.rs` 和 `lib.rs` 中注册
@@ -319,6 +342,7 @@ pub fn import_json(state: State<DbState>, json: String, mode: String) -> Result<
 **导出格式规范**：
 
 **JSON 格式**：
+
 ```json
 {
   "version": "1.0",
@@ -332,24 +356,29 @@ pub fn import_json(state: State<DbState>, json: String, mode: String) -> Result<
 ```
 
 **CSV 格式**：
+
 ```
 ID,标题,清单,优先级,截止日期,完成,归档,创建时间
 1,买牛奶,生活,中,2026-06-29,否,否,2026-06-28
 ```
 
 **Markdown 格式**：
+
 ```markdown
 # 任务导出 — 2026-06-29
 
 ## 收件箱
+
 - [ ] 买牛奶 (优先级：中，截止：2026-06-29)
 - [x] 写周报 (已完成)
 
 ## 工作
+
 - [ ] 开会
 ```
 
 **验收**：
+
 - [ ] `export_json` 返回完整 JSON
 - [ ] `export_csv` 返回 CSV 字符串
 - [ ] `export_markdown` 返回 Markdown 字符串
@@ -363,6 +392,7 @@ ID,标题,清单,优先级,截止日期,完成,归档,创建时间
 **目标**：设置页"数据"部分增加导出/导入按钮
 
 **前端改动**：
+
 1. 修改 `src/components/settings/SystemPanel.tsx`：
    - 添加"导出数据"区域（3 个按钮：JSON / CSV / Markdown）
    - 添加"导入数据"区域（文件选择 + 模式选择 + 确认）
@@ -376,6 +406,7 @@ ID,标题,清单,优先级,截止日期,完成,归档,创建时间
    - 点击"导入数据" → 弹出打开对话框 → 选择 JSON 文件 → 选择模式（合并/替换）→ 确认 → Toast 提示结果
 
 **操作步骤**：
+
 1. 在 `api.ts` 添加 `exportJson` / `exportCsv` / `exportMarkdown` / `importJson` 封装
 2. 修改 `SystemPanel.tsx` 添加导出/导入 UI
 3. 使用 `@tauri-apps/plugin-dialog` 的 `save` 和 `open`
@@ -383,6 +414,7 @@ ID,标题,清单,优先级,截止日期,完成,归档,创建时间
 5. 验证：导出 JSON/CSV/Markdown 到文件，导入 JSON 能恢复数据
 
 **验收**：
+
 - [ ] 点击"导出 JSON"能保存文件
 - [ ] 点击"导出 CSV"能保存文件（Excel 可打开）
 - [ ] 点击"导出 Markdown"能保存文件（可读）
@@ -404,6 +436,7 @@ ID,标题,清单,优先级,截止日期,完成,归档,创建时间
 **目标**：匹配 `task.title` + `task.notes` + 子任务标题
 
 **前端改动**（`src/hooks/useTaskFiltering.ts`）：
+
 ```typescript
 // 当前
 const matches = (task: Task) => {
@@ -420,18 +453,20 @@ const matches = (task: Task) => {
   // 2. 备注
   if (task.notes?.toLowerCase().includes(q)) return true
   // 3. 子任务标题
-  const childTasks = tasks.filter(t => t.parent_id === task.id)
-  if (childTasks.some(ct => ct.title.toLowerCase().includes(q))) return true
+  const childTasks = tasks.filter((t) => t.parent_id === task.id)
+  if (childTasks.some((ct) => ct.title.toLowerCase().includes(q))) return true
   return false
 }
 ```
 
 **UI 增强**：
+
 - 搜索框 placeholder 改为"搜索标题、备注、子任务..."
 - 搜索结果中高亮匹配的关键词
 - 如果匹配的是备注或子任务，显示一个小标签（"备注命中" / "子任务命中"）
 
 **操作步骤**：
+
 1. 修改 `useTaskFiltering.ts` 的 `matches` 函数
 2. 修改 `TaskListPanel.tsx` 的搜索框 placeholder
 3. 在 `TaskItem.tsx` 中添加匹配来源标签
@@ -439,6 +474,7 @@ const matches = (task: Task) => {
 5. 验证：搜索能命中备注和子任务
 
 **验收**：
+
 - [ ] 搜索"会议"能命中标题含"会议"的任务
 - [ ] 搜索"会议"能命中备注含"会议"的任务
 - [ ] 搜索"会议"能命中子任务标题含"会议"的任务
@@ -458,7 +494,9 @@ const matches = (task: Task) => {
 **目标**：推送到 GitHub 时自动跑 `tsc --noEmit` + `npm run test`
 
 **操作步骤**：
+
 1. 创建 `.github/workflows/ci.yml`：
+
    ```yaml
    name: CI
 
@@ -512,6 +550,7 @@ const matches = (task: Task) => {
 4. 推送到 GitHub 验证流水线运行
 
 **验收**：
+
 - [ ] `.github/workflows/ci.yml` 创建
 - [ ] push 后 GitHub Actions 自动运行
 - [ ] TypeScript check + vitest + cargo check 三个 job 都通过
@@ -541,6 +580,7 @@ const matches = (task: Task) => {
 ```
 
 **每批完成后**：
+
 1. `tsc --noEmit` + `cargo check` + `npm run test` 通过
 2. `npm run tauri dev` 手动测试
 3. git commit + push
@@ -649,16 +689,19 @@ tsc --noEmit 通过。"
 ## 六、验收清单（最终）
 
 ### 编译
+
 - [ ] `tsc --noEmit` 通过
 - [ ] `cargo check` 通过
 - [ ] `npm run test` 全部通过（≥156 用例）
 - [ ] GitHub Actions CI 绿
 
 ### 文件行数
+
 - [ ] 没有任何 `.tsx` / `.ts` 文件超过 500 行
 - [ ] 没有任何 `.rs` 文件超过 300 行
 
 ### 功能回归
+
 - [ ] 任务 CRUD + 子任务 + 拖拽 + 批量
 - [ ] 日历视图（月/周/日/甘特/看板）
 - [ ] AI 助手 10 个技能 + **打字机效果** + **可取消**
@@ -669,11 +712,13 @@ tsc --noEmit 通过。"
 - [ ] **导入 JSON（合并/替换）**
 
 ### CI/CD
+
 - [ ] `.github/workflows/ci.yml` 创建
 - [ ] push 后自动运行 tsc + test + cargo check
 - [ ] PR 页面显示 CI 状态
 
 ### 版本管理
+
 - [ ] 版本号 bump 到 v1.24.0
 - [ ] README 更新日志
 - [ ] git commit + push
@@ -682,15 +727,16 @@ tsc --noEmit 通过。"
 
 ## 七、风险控制
 
-| 风险 | 概率 | 影响 | 缓解 |
-|---|---|---|---|
-| P4-03 SSE 解析错误 | 中 | 中 | 保留 llm_chat 非 流式 fallback |
-| P4-04 event 监听器泄漏 | 中 | 低 | onDone 时 unlisten，组件卸载时清理 |
-| P4-05 导入数据格式不兼容 | 低 | 高 | 版本号校验 + dry-run 预览 |
-| P4-06 大文件导出卡顿 | 低 | 低 | 后端生成完整字符串，前端一次写入 |
-| P4-08 CI 系统依赖安装失败 | 中 | 低 | 用 ubuntu-latest + apt 装 webkit2gtk |
+| 风险                      | 概率 | 影响 | 缓解                                 |
+| ------------------------- | ---- | ---- | ------------------------------------ |
+| P4-03 SSE 解析错误        | 中   | 中   | 保留 llm_chat 非 流式 fallback       |
+| P4-04 event 监听器泄漏    | 中   | 低   | onDone 时 unlisten，组件卸载时清理   |
+| P4-05 导入数据格式不兼容  | 低   | 高   | 版本号校验 + dry-run 预览            |
+| P4-06 大文件导出卡顿      | 低   | 低   | 后端生成完整字符串，前端一次写入     |
+| P4-08 CI 系统依赖安装失败 | 中   | 低   | 用 ubuntu-latest + apt 装 webkit2gtk |
 
 **回滚策略**：
+
 - A 方向：每任务一个 commit
 - B 方向：保留非流式 fallback，流式出问题可切回
 - C 方向：导入前校验格式，替换模式先备份

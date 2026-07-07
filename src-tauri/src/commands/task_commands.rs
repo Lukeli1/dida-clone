@@ -14,12 +14,12 @@
 
 #[path = "task_create.rs"]
 mod task_create;
-#[path = "task_update.rs"]
-mod task_update;
 #[path = "task_query.rs"]
 mod task_query;
+#[path = "task_update.rs"]
+mod task_update;
 
-pub use task_create::*;
-pub use task_update::*;
-pub use task_query::*;
 pub use super::task_ops::*;
+pub use task_create::*;
+pub use task_query::*;
+pub use task_update::*;

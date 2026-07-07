@@ -48,7 +48,7 @@ export function useTaskInlineEdit(toast: ToastApi) {
   }
 
   async function handleToggleTag(taskId: number, tagId: number) {
-    const task = useTaskStore.getState().tasks.find(t => t.id === taskId)
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
     if (!task) return
     if (task.tag_ids?.includes(tagId)) {
       await useTagStore.getState().removeTagFromTask(taskId, tagId)
@@ -66,14 +66,17 @@ export function useTaskInlineEdit(toast: ToastApi) {
   }
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
-  return useMemo(() => ({
-    handleInlineEdit,
-    handleSetDate,
-    handleSetPriority,
-    handleSetRepeatRule,
-    handleSetReminder,
-    handleTogglePin,
-    handleToggleTag,
-    handleCreateNewTagFromMenu,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      handleInlineEdit,
+      handleSetDate,
+      handleSetPriority,
+      handleSetRepeatRule,
+      handleSetReminder,
+      handleTogglePin,
+      handleToggleTag,
+      handleCreateNewTagFromMenu,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }

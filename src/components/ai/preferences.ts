@@ -29,7 +29,10 @@ const PREFERENCE_PATTERNS: PreferencePattern[] = [
 
 /** 去掉首尾多余标点与空白 */
 function cleanFragment(text: string): string {
-  return text.replace(/^[，,。！!?？;；:：\s]+/, '').replace(/[，,。！!?？;；:：\s]+$/, '').trim()
+  return text
+    .replace(/^[，,。！!?？;；:：\s]+/, '')
+    .replace(/[，,。！!?？;；:：\s]+$/, '')
+    .trim()
 }
 
 /**

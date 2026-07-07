@@ -2,8 +2,8 @@ use rusqlite::Result;
 use serde::Deserialize;
 use tauri::State;
 
-use crate::db::DbState;
 use super::super::now_rfc3339;
+use crate::db::DbState;
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateTaskRequest {
@@ -23,7 +23,11 @@ pub struct UpdateTaskRequest {
 }
 
 #[tauri::command]
-pub fn update_task(state: State<DbState>, id: i64, updates: UpdateTaskRequest) -> Result<(), String> {
+pub fn update_task(
+    state: State<DbState>,
+    id: i64,
+    updates: UpdateTaskRequest,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let now = now_rfc3339();
 

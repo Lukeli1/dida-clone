@@ -17,10 +17,10 @@
 //
 // 子模块文件与 data_export.rs 同目录（commands/），通过 `#[path]` 显式定位，
 // 与 data_commands.rs 中挂载 data_export / data_import 的方式一致。
-#[path = "data_export_json.rs"]
-mod data_export_json;
 #[path = "data_export_csv.rs"]
 mod data_export_csv;
+#[path = "data_export_json.rs"]
+mod data_export_json;
 #[path = "data_export_markdown.rs"]
 mod data_export_markdown;
 

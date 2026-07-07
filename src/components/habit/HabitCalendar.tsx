@@ -9,7 +9,11 @@ import { dateKey, isFutureDay } from './constants'
  * - month:   当前展示月份（每月 1 号 0 点的 Date）
  * - onMonthChange: 翻月回调（'prev' 上一月 / 'next' 下一月）
  */
-export function HabitCalendar({ records, month, onMonthChange }: {
+export function HabitCalendar({
+  records,
+  month,
+  onMonthChange,
+}: {
   records: Record<string, number>
   month: Date
   onMonthChange: (dir: 'prev' | 'next') => void
@@ -33,17 +37,14 @@ export function HabitCalendar({ records, month, onMonthChange }: {
   while (cells.length < 42) cells.push(null)
 
   // 本月打卡天数 & 累计打卡天数
-  const monthCheckedDays = Object.keys(records).filter(d => {
+  const monthCheckedDays = Object.keys(records).filter((d) => {
     const dt = new Date(d)
     return !Number.isNaN(dt.getTime()) && dt.getFullYear() === year && dt.getMonth() === monthIdx
   }).length
   const totalCheckedDays = Object.keys(records).length
 
   return (
-    <div
-      className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="mt-3 p-3 bg-[var(--color-bg-secondary)] rounded-lg" onClick={(e) => e.stopPropagation()}>
       {/* 月份导航 */}
       <div className="flex items-center justify-between mb-2">
         <button
@@ -69,8 +70,10 @@ export function HabitCalendar({ records, month, onMonthChange }: {
 
       {/* 星期标题 */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {['日', '一', '二', '三', '四', '五', '六'].map(d => (
-          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">{d}</div>
+        {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">
+            {d}
+          </div>
         ))}
       </div>
 

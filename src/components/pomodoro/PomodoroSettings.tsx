@@ -2,15 +2,7 @@ import type { PomodoroSettings } from './storage'
 
 // ============ 设置输入子组件 ============
 
-function SettingInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-}) {
+function SettingInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
       <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">{label}</label>
@@ -33,11 +25,7 @@ interface PomodoroSettingsPanelProps {
   onResetDefaults: () => void
 }
 
-export function PomodoroSettingsPanel({
-  settings,
-  onSettingChange,
-  onResetDefaults,
-}: PomodoroSettingsPanelProps) {
+export function PomodoroSettingsPanel({ settings, onSettingChange, onResetDefaults }: PomodoroSettingsPanelProps) {
   return (
     <div className="w-full bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] p-4 mt-4 space-y-4">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">自定义时长</h3>

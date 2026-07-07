@@ -22,7 +22,7 @@ import type { ToastApi } from '../components/Toast'
 export function useAppInit(toast: ToastApi) {
   const autoArchivedRef = useRef(false)
 
-  const tasks = useTaskStore(s => s.tasks)
+  const tasks = useTaskStore((s) => s.tasks)
 
   // ===== 启动初始化 =====
   useEffect(() => {
@@ -44,7 +44,7 @@ export function useAppInit(toast: ToastApi) {
         // 关键数据就绪：标记可进入第二阶段，习惯/模板等功能按钮随之变为可用
         useUIStore.getState().setSecondaryDataLoaded(true)
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('关键数据加载失败:', err)
         toast.error('数据加载失败，请重启应用')
       })
@@ -55,7 +55,10 @@ export function useAppInit(toast: ToastApi) {
 
     const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system'
     const root = document.documentElement
-    if (savedTheme === 'dark' || (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (
+      savedTheme === 'dark' ||
+      (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    ) {
       root.classList.add('dark')
     } else {
       root.classList.remove('dark')
@@ -102,7 +105,9 @@ export function useAppInit(toast: ToastApi) {
     initNotifications().catch(() => {
       // 请求失败时静默处理
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [toast])
 
   // ===== 自动归档：已完成超过 7 天的任务 =====
@@ -111,13 +116,11 @@ export function useAppInit(toast: ToastApi) {
     autoArchivedRef.current = true
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const toArchive = tasks.filter(t =>
-      t.completed && !t.archived && new Date(t.updated_at) < sevenDaysAgo
-    )
+    const toArchive = tasks.filter((t) => t.completed && !t.archived && new Date(t.updated_at) < sevenDaysAgo)
     if (toArchive.length > 0) {
-      Promise.all(toArchive.map(t => api.updateTask(t.id, { archived: true })))
+      Promise.all(toArchive.map((t) => api.updateTask(t.id, { archived: true })))
         .then(() => useTaskStore.getState().loadTasks())
-        .catch(err => console.error('Auto-archive failed:', err))
+        .catch((err) => console.error('Auto-archive failed:', err))
     }
   }, [tasks])
 
@@ -137,7 +140,9 @@ export function useAppInit(toast: ToastApi) {
         message: '任务提醒已到期',
       })
     })
-      .then((fn) => { unlisten = fn })
+      .then((fn) => {
+        unlisten = fn
+      })
       .catch(() => {
         // 非 Tauri 环境或事件监听失败时静默处理
       })
@@ -173,7 +178,7 @@ export function useAppInit(toast: ToastApi) {
       const now = new Date()
       // 周日 getDay()===0 且 21 点
       if (now.getDay() !== 0 || now.getHours() !== 21) return
-      run().catch(err => console.error('自动周报生成失败:', err))
+      run().catch((err) => console.error('自动周报生成失败:', err))
     }
 
     // 启动时立即检查一次（应对启动时恰逢 21 点），之后每小时轮询
@@ -190,10 +195,7 @@ export function useAppInit(toast: ToastApi) {
     function handleUnhandledRejection(event: PromiseRejectionEvent) {
       event.preventDefault()
       const reason = event.reason
-      const error =
-        reason instanceof Error
-          ? reason
-          : new Error(String(reason?.message ?? reason))
+      const error = reason instanceof Error ? reason : new Error(String(reason?.message ?? reason))
       logError(error)
       toast.error('发生未捕获错误，已记录')
     }

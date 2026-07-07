@@ -1,7 +1,13 @@
 // 主题持久化 hook：统一管理模式（浅色/深色/系统）+ 预设 + 强调色
 
 import { useState, useEffect, useCallback } from 'react'
-import { applyThemePreset, applyAccentColor, savePresetId, saveAccentColor, clearThemeOverride } from '../utils/themeUtils'
+import {
+  applyThemePreset,
+  applyAccentColor,
+  savePresetId,
+  saveAccentColor,
+  clearThemeOverride,
+} from '../utils/themeUtils'
 import { DEFAULT_PRESET_ID } from '../styles/themes'
 
 export type ThemeMode = 'light' | 'dark' | 'system'

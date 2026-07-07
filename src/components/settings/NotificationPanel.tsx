@@ -43,12 +43,18 @@ export function NotificationPanel() {
   const [requesting, setRequesting] = useState(false)
   const [testing, setTesting] = useState(false)
 
-  useEffect(() => { localStorage.setItem('notifications', String(notifications)) }, [notifications])
-  useEffect(() => { localStorage.setItem('reminderSound', String(reminderSound)) }, [reminderSound])
+  useEffect(() => {
+    localStorage.setItem('notifications', String(notifications))
+  }, [notifications])
+  useEffect(() => {
+    localStorage.setItem('reminderSound', String(reminderSound))
+  }, [reminderSound])
 
   // 组件挂载时获取权限状态
   useEffect(() => {
-    checkNotificationPermission().then(setPermission).catch(() => setPermission('default'))
+    checkNotificationPermission()
+      .then(setPermission)
+      .catch(() => setPermission('default'))
   }, [])
 
   // 重新请求权限

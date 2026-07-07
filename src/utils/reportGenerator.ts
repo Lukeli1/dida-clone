@@ -77,7 +77,7 @@ function isOverdueInPeriod(t: Task, start: Date, end: Date, now: Date): boolean 
 /** 判断任务在周期内活跃（created_at / due_date / updated_at 任一落在区间内） */
 function isActiveInPeriod(t: Task, start: Date, end: Date): boolean {
   const candidates = [t.created_at, t.updated_at, t.due_date].filter(Boolean) as string[]
-  return candidates.some(s => {
+  return candidates.some((s) => {
     const d = new Date(s)
     return d >= start && d <= end
   })
@@ -86,9 +86,9 @@ function isActiveInPeriod(t: Task, start: Date, end: Date): boolean {
 /** 计算周期统计快照 */
 export function computeReportStats(tasks: Task[], start: Date, end: Date): ReportStats {
   const now = new Date()
-  const inPeriod = tasks.filter(t => isActiveInPeriod(t, start, end))
-  const completed = inPeriod.filter(t => isCompletedInPeriod(t, start, end)).length
-  const overdue = inPeriod.filter(t => isOverdueInPeriod(t, start, end, now)).length
+  const inPeriod = tasks.filter((t) => isActiveInPeriod(t, start, end))
+  const completed = inPeriod.filter((t) => isCompletedInPeriod(t, start, end)).length
+  const overdue = inPeriod.filter((t) => isOverdueInPeriod(t, start, end, now)).length
   return {
     total: inPeriod.length,
     completed,
@@ -143,14 +143,9 @@ async function generateReport(type: ReportType, tasks: Task[]): Promise<number |
   const stats = computeReportStats(tasks, start, end)
 
   // 收集周期内相关任务作为 LLM 上下文（限制 50 条避免 token 超限）
-  const ctxTasks = tasks
-    .filter(t => isActiveInPeriod(t, start, end))
-    .slice(0, 50)
+  const ctxTasks = tasks.filter((t) => isActiveInPeriod(t, start, end)).slice(0, 50)
 
-  const messages =
-    type === 'weekly'
-      ? buildWeeklyMessages(ctxTasks, stats)
-      : buildMonthlyMessages(ctxTasks, stats)
+  const messages = type === 'weekly' ? buildWeeklyMessages(ctxTasks, stats) : buildMonthlyMessages(ctxTasks, stats)
 
   let content: string
   try {
@@ -161,13 +156,7 @@ async function generateReport(type: ReportType, tasks: Task[]): Promise<number |
   }
 
   try {
-    const id = await reportApi.save(
-      type,
-      toDateStr(start),
-      toDateStr(end),
-      content,
-      JSON.stringify(stats),
-    )
+    const id = await reportApi.save(type, toDateStr(start), toDateStr(end), content, JSON.stringify(stats))
     return id
   } catch (err) {
     console.error(`[${type} report] 保存失败:`, err)

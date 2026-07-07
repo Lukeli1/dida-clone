@@ -42,7 +42,9 @@ export function SystemPanel() {
   // 初始化开机自启状态
   useEffect(() => {
     if (isTauri) {
-      isEnabled().then(setAutoStart).catch(() => setAutoStart(false))
+      isEnabled()
+        .then(setAutoStart)
+        .catch(() => setAutoStart(false))
     }
   }, [])
 
@@ -150,18 +152,11 @@ export function SystemPanel() {
             <p className="text-sm font-medium text-[var(--color-text-primary)]">开机自启</p>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">系统启动时自动打开应用</p>
           </div>
-          <Toggle
-            checked={autoStart}
-            onChange={handleAutoStartChange}
-          />
+          <Toggle checked={autoStart} onChange={handleAutoStartChange} />
         </div>
       </div>
 
-      <DataPanel
-        exporting={exporting}
-        onExport={handleExport}
-        onSelectFile={handleSelectFile}
-      />
+      <DataPanel exporting={exporting} onExport={handleExport} onSelectFile={handleSelectFile} />
 
       <CleanupPanel
         importModal={importModal}

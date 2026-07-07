@@ -33,7 +33,10 @@ export function parseRepeatRule(rule: string | null | undefined): RepeatRule | n
   if (!rule || typeof rule !== 'string' || rule.trim() === '') return null
 
   const map: Record<string, string> = {}
-  const parts = rule.split(';').map((p) => p.trim()).filter(Boolean)
+  const parts = rule
+    .split(';')
+    .map((p) => p.trim())
+    .filter(Boolean)
   for (const part of parts) {
     const idx = part.indexOf('=')
     if (idx === -1) continue
@@ -129,9 +132,7 @@ function computeNextDate(rule: RepeatRule, from: Date): Date | null {
           const day = candidate.getDay() // 0=周日..6=周六
           if (sortedDays.includes(day)) {
             const candMonday = startOfWeek(candidate)
-            const weekDiff = Math.round(
-              (candMonday.getTime() - fromMonday.getTime()) / MS_PER_WEEK,
-            )
+            const weekDiff = Math.round((candMonday.getTime() - fromMonday.getTime()) / MS_PER_WEEK)
             if (weekDiff >= 0 && weekDiff % interval === 0) {
               return candidate
             }

@@ -126,10 +126,7 @@ describe('taskStore', () => {
 
   // 7. updateTask 成功：更新顶层任务
   it('updateTask 成功时更新对应顶层任务的字段', async () => {
-    useTaskStore.getState().setTasks([
-      makeTask({ id: 1, title: 'A' }),
-      makeTask({ id: 2, title: 'B' }),
-    ])
+    useTaskStore.getState().setTasks([makeTask({ id: 1, title: 'A' }), makeTask({ id: 2, title: 'B' })])
     vi.mocked(api.updateTask).mockResolvedValue()
 
     const ok = await useTaskStore.getState().updateTask(2, { title: 'B-updated', priority: 5 })
@@ -157,11 +154,13 @@ describe('taskStore', () => {
   // 9. deleteTask 成功：删除顶层任务及其作为子任务出现的记录
   it('deleteTask 成功时移除顶层任务并清除其它任务下的同名子任务', async () => {
     const sub = makeTask({ id: 5, title: 'sub', parent_id: 1 })
-    useTaskStore.getState().setTasks([
-      makeTask({ id: 1, title: 'parent', subtasks: [sub] }),
-      makeTask({ id: 5, title: 'orphan' }),
-      makeTask({ id: 7, title: 'keep' }),
-    ])
+    useTaskStore
+      .getState()
+      .setTasks([
+        makeTask({ id: 1, title: 'parent', subtasks: [sub] }),
+        makeTask({ id: 5, title: 'orphan' }),
+        makeTask({ id: 7, title: 'keep' }),
+      ])
     vi.mocked(api.deleteTask).mockResolvedValue()
 
     const ok = await useTaskStore.getState().deleteTask(5)
@@ -224,9 +223,9 @@ describe('taskStore', () => {
 
   // 14. toggleTask 重复任务且生成新任务：调用 completeTask 并重新加载
   it('toggleTask 重复任务完成时调用 completeTask 并重新加载任务列表', async () => {
-    useTaskStore.getState().setTasks([
-      makeTask({ id: 1, completed: false, repeat_rule: 'daily', due_date: '2026-01-01T00:00:00.000Z' }),
-    ])
+    useTaskStore
+      .getState()
+      .setTasks([makeTask({ id: 1, completed: false, repeat_rule: 'daily', due_date: '2026-01-01T00:00:00.000Z' })])
     vi.mocked(api.completeTask).mockResolvedValue({ new_task_id: 42 })
     const reloaded = [makeTask({ id: 1, completed: true }), makeTask({ id: 42, title: 'next' })]
     vi.mocked(api.getTasks).mockResolvedValue(reloaded)
@@ -242,10 +241,7 @@ describe('taskStore', () => {
 
   // 15. reorderTasks 成功：更新 sort_order
   it('reorderTasks 成功时按传入顺序更新各任务 sort_order', async () => {
-    useTaskStore.getState().setTasks([
-      makeTask({ id: 1, sort_order: 0 }),
-      makeTask({ id: 2, sort_order: 1 }),
-    ])
+    useTaskStore.getState().setTasks([makeTask({ id: 1, sort_order: 0 }), makeTask({ id: 2, sort_order: 1 })])
     vi.mocked(api.reorderTasks).mockResolvedValue()
 
     const ok = await useTaskStore.getState().reorderTasks([

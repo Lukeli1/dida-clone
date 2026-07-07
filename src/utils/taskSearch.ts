@@ -18,7 +18,7 @@ import type { Task } from '../types'
  * @param allTasks 全部任务（平铺）
  */
 export function getChildTasks(task: Task, allTasks: Task[]): Task[] {
-  return allTasks.filter(t => t.parent_id === task.id)
+  return allTasks.filter((t) => t.parent_id === task.id)
 }
 
 export type SearchMatchSource = 'title' | 'notes' | 'subtask'
@@ -47,7 +47,7 @@ export function getSearchMatchSource(
   if (!q) return null
   if (task.title.toLowerCase().includes(q)) return 'title'
   if (task.notes && task.notes.toLowerCase().includes(q)) return 'notes'
-  if (childTasks.some(ct => ct.title.toLowerCase().includes(q))) return 'subtask'
+  if (childTasks.some((ct) => ct.title.toLowerCase().includes(q))) return 'subtask'
   return null
 }
 

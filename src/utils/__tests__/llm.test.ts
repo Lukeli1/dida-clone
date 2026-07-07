@@ -7,14 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import { invoke } from '@tauri-apps/api/core'
-import {
-  getLLMConfig,
-  saveLLMConfig,
-  formatTasksContext,
-  deriveProviderName,
-  chat,
-  testConnection,
-} from '../llm'
+import { getLLMConfig, saveLLMConfig, formatTasksContext, deriveProviderName, chat, testConnection } from '../llm'
 import type { LLMConfig } from '../llm'
 import type { Task } from '../../types'
 
@@ -233,9 +226,7 @@ describe('chat（mock invoke）', () => {
     })
     vi.mocked(invoke).mockResolvedValue('ok')
 
-    await chat('sys prompt', 'user msg', [
-      { role: 'user', content: '历史1' },
-    ])
+    await chat('sys prompt', 'user msg', [{ role: 'user', content: '历史1' }])
 
     expect(invoke).toHaveBeenCalledWith(
       'llm_chat',
@@ -261,10 +252,7 @@ describe('chat（mock invoke）', () => {
     vi.mocked(invoke).mockResolvedValue('ok')
 
     await chat('sys', 'hi')
-    expect(invoke).toHaveBeenCalledWith(
-      'llm_chat',
-      expect.objectContaining({ history: [] }),
-    )
+    expect(invoke).toHaveBeenCalledWith('llm_chat', expect.objectContaining({ history: [] }))
   })
 })
 

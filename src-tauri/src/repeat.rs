@@ -75,12 +75,15 @@ pub fn parse_rrule(s: &str) -> Option<RepeatRule> {
         return None;
     }
 
-    let byweekday = map.get("BYDAY").map(|s| {
-        s.split(',')
-            .filter_map(|d| d.trim().parse::<i32>().ok())
-            .filter(|d| *d >= 0 && *d <= 6)
-            .collect::<Vec<_>>()
-    }).filter(|v| !v.is_empty());
+    let byweekday = map
+        .get("BYDAY")
+        .map(|s| {
+            s.split(',')
+                .filter_map(|d| d.trim().parse::<i32>().ok())
+                .filter(|d| *d >= 0 && *d <= 6)
+                .collect::<Vec<_>>()
+        })
+        .filter(|v| !v.is_empty());
 
     let end_date = map.get("UNTIL").cloned();
     let count = map.get("COUNT").and_then(|s| s.parse::<i32>().ok());
@@ -142,8 +145,8 @@ fn compute_next(rule: &RepeatRule, from: DateTime<Local>) -> Option<DateTime<Loc
                 year += 1;
             }
             // 尝试创建目标日期，若该月无此日则回退到月末
-            let target_naive = NaiveDate::from_ymd_opt(year, month as u32, original_day)
-                .or_else(|| {
+            let target_naive =
+                NaiveDate::from_ymd_opt(year, month as u32, original_day).or_else(|| {
                     // 目标月最后一天 = 下月1号 - 1天
                     let next_first = if month == 12 {
                         NaiveDate::from_ymd_opt(year + 1, 1, 1)
@@ -161,15 +164,15 @@ fn compute_next(rule: &RepeatRule, from: DateTime<Local>) -> Option<DateTime<Loc
             let original_day = from.day();
             let target_year = from.year() + interval as i32;
             // 尝试创建目标日期，若无效（如闰年2月29日）则回退到目标月月末
-            let target_naive =
-                NaiveDate::from_ymd_opt(target_year, original_month, original_day).or_else(|| {
-                    let next_first = if original_month == 12 {
-                        NaiveDate::from_ymd_opt(target_year + 1, 1, 1)
-                    } else {
-                        NaiveDate::from_ymd_opt(target_year, original_month + 1, 1)
-                    }?;
-                    Some(next_first - chrono::Duration::days(1))
-                })?;
+            let target_naive = NaiveDate::from_ymd_opt(target_year, original_month, original_day)
+                .or_else(|| {
+                let next_first = if original_month == 12 {
+                    NaiveDate::from_ymd_opt(target_year + 1, 1, 1)
+                } else {
+                    NaiveDate::from_ymd_opt(target_year, original_month + 1, 1)
+                }?;
+                Some(next_first - chrono::Duration::days(1))
+            })?;
             let naive_dt = target_naive.and_time(from.naive_local().time());
             Local.from_local_datetime(&naive_dt).single()
         }
@@ -272,8 +275,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_until() {
-        let rule =
-            parse_rrule("FREQ=DAILY;INTERVAL=1;UNTIL=2026-12-31T23:59:59").unwrap();
+        let rule = parse_rrule("FREQ=DAILY;INTERVAL=1;UNTIL=2026-12-31T23:59:59").unwrap();
         assert_eq!(rule.end_date, Some("2026-12-31T23:59:59".to_string()));
     }
 
@@ -378,10 +380,7 @@ mod tests {
         };
         let from = Local.with_ymd_and_hms(2026, 1, 15, 9, 0, 0).unwrap();
         let next = next_occurrence(&rule, from).unwrap();
-        assert_eq!(
-            next,
-            Local.with_ymd_and_hms(2026, 2, 15, 9, 0, 0).unwrap()
-        );
+        assert_eq!(next, Local.with_ymd_and_hms(2026, 2, 15, 9, 0, 0).unwrap());
     }
 
     #[test]
@@ -395,9 +394,6 @@ mod tests {
         };
         let from = Local.with_ymd_and_hms(2026, 6, 15, 9, 0, 0).unwrap();
         let next = next_occurrence(&rule, from).unwrap();
-        assert_eq!(
-            next,
-            Local.with_ymd_and_hms(2027, 6, 15, 9, 0, 0).unwrap()
-        );
+        assert_eq!(next, Local.with_ymd_and_hms(2027, 6, 15, 9, 0, 0).unwrap());
     }
 }

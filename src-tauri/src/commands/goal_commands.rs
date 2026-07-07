@@ -10,8 +10,8 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::DbState;
 use super::now_rfc3339;
+use crate::db::DbState;
 
 /// 目标记录（与 goals 表对齐）
 ///
@@ -185,7 +185,11 @@ pub fn link_task_to_goal(goal_id: i64, task_id: i64, state: State<DbState>) -> R
 
 /// 解除任务与目标的关联。
 #[tauri::command]
-pub fn unlink_task_from_goal(goal_id: i64, task_id: i64, state: State<DbState>) -> Result<(), String> {
+pub fn unlink_task_from_goal(
+    goal_id: i64,
+    task_id: i64,
+    state: State<DbState>,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM goal_tasks WHERE goal_id = ?1 AND task_id = ?2",

@@ -21,14 +21,14 @@ import { TopProgressBar } from './components/common/TopProgressBar'
 
 // 按需懒加载：非首屏视图（统计 / 设置 / AI / 四象限 / 番茄 / 习惯 / 模板 / 目标）
 // 独立打包为各自 chunk，减小首屏 bundle 体积。首屏任务列表 / 日历仍走同步导入。
-const StatsView = lazy(() => import('./components/StatsView').then(m => ({ default: m.StatsView })))
-const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })))
-const AIAssistant = lazy(() => import('./components/ai/AIAssistant').then(m => ({ default: m.AIAssistant })))
-const QuadrantView = lazy(() => import('./components/QuadrantView').then(m => ({ default: m.QuadrantView })))
-const PomodoroView = lazy(() => import('./components/pomodoro/PomodoroView').then(m => ({ default: m.PomodoroView })))
-const HabitView = lazy(() => import('./components/habit/HabitView').then(m => ({ default: m.HabitView })))
-const TemplateView = lazy(() => import('./components/template/TemplateView').then(m => ({ default: m.TemplateView })))
-const GoalView = lazy(() => import('./components/goal/GoalView').then(m => ({ default: m.GoalView })))
+const StatsView = lazy(() => import('./components/StatsView').then((m) => ({ default: m.StatsView })))
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then((m) => ({ default: m.SettingsView })))
+const AIAssistant = lazy(() => import('./components/ai/AIAssistant').then((m) => ({ default: m.AIAssistant })))
+const QuadrantView = lazy(() => import('./components/QuadrantView').then((m) => ({ default: m.QuadrantView })))
+const PomodoroView = lazy(() => import('./components/pomodoro/PomodoroView').then((m) => ({ default: m.PomodoroView })))
+const HabitView = lazy(() => import('./components/habit/HabitView').then((m) => ({ default: m.HabitView })))
+const TemplateView = lazy(() => import('./components/template/TemplateView').then((m) => ({ default: m.TemplateView })))
+const GoalView = lazy(() => import('./components/goal/GoalView').then((m) => ({ default: m.GoalView })))
 
 /**
  * App 根组件（重构后）
@@ -58,28 +58,28 @@ function App() {
   const toast = useToast()
 
   // ===== Store: 数据 =====
-  const tasks = useTaskStore(s => s.tasks)
-  const lists = useListStore(s => s.lists)
-  const tags = useTagStore(s => s.tags)
-  const loading = useTaskStore(s => s.loading)
+  const tasks = useTaskStore((s) => s.tasks)
+  const lists = useListStore((s) => s.lists)
+  const tags = useTagStore((s) => s.tags)
+  const loading = useTaskStore((s) => s.loading)
 
   // ===== Store: UI（仅保留 App 布局/路由/Sidebar 所需；列表专属状态已下沉到 useTaskListState）=====
-  const currentView = useUIStore(s => s.currentView)
-  const selectedListId = useUIStore(s => s.selectedListId)
-  const selectedTagId = useUIStore(s => s.selectedTagId)
-  const selectedTaskId = useUIStore(s => s.selectedTaskId)
-  const setCurrentView = useUIStore(s => s.setCurrentView)
-  const setSelectedListId = useUIStore(s => s.setSelectedListId)
-  const setSelectedTagId = useUIStore(s => s.setSelectedTagId)
-  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const currentView = useUIStore((s) => s.currentView)
+  const selectedListId = useUIStore((s) => s.selectedListId)
+  const selectedTagId = useUIStore((s) => s.selectedTagId)
+  const selectedTaskId = useUIStore((s) => s.selectedTaskId)
+  const setCurrentView = useUIStore((s) => s.setCurrentView)
+  const setSelectedListId = useUIStore((s) => s.setSelectedListId)
+  const setSelectedTagId = useUIStore((s) => s.setSelectedTagId)
+  const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
 
   // ===== 快捷键帮助面板（共享状态：TitleBar 按钮 + ? / F1 监听均可触发）=====
-  const shortcutsHelpOpen = useUIStore(s => s.shortcutsHelpOpen)
-  const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
+  const shortcutsHelpOpen = useUIStore((s) => s.shortcutsHelpOpen)
+  const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen)
 
   // ===== 通知中心面板（共享状态：TitleBar 通知按钮触发）=====
-  const notificationCenterOpen = useUIStore(s => s.notificationCenterOpen)
-  const setNotificationCenterOpen = useUIStore(s => s.setNotificationCenterOpen)
+  const notificationCenterOpen = useUIStore((s) => s.notificationCenterOpen)
+  const setNotificationCenterOpen = useUIStore((s) => s.setNotificationCenterOpen)
 
   // ===== Refs（键盘快捷键 + TaskListPanel 输入框共享）=====
   const newTaskInputRef = useRef<HTMLInputElement>(null)
@@ -91,8 +91,15 @@ function App() {
 
   // ===== 任务筛选（结果被 Sidebar 与 TaskListPanel 共用）=====
   const {
-    filteredTasks, taskTree, completedTaskTree, incompleteTaskTree,
-    overdueTaskTree, todayCount, archivedCount, taskCounts, hasActiveFilters,
+    filteredTasks,
+    taskTree,
+    completedTaskTree,
+    incompleteTaskTree,
+    overdueTaskTree,
+    todayCount,
+    archivedCount,
+    taskCounts,
+    hasActiveFilters,
   } = useTaskFiltering()
 
   // Ref for incompleteTaskTree（reorder handler 需要最新值而不重建回调）
@@ -104,12 +111,12 @@ function App() {
 
   // ===== 选中任务（单次计算，三处详情共用）=====
   const selectedTask = useMemo(() => {
-    return tasks.find(t => t.id === selectedTaskId) || null
+    return tasks.find((t) => t.id === selectedTaskId) || null
   }, [tasks, selectedTaskId])
 
   // ===== 视图专用派生数据（useMemo 缓存，避免每次渲染创建新数组）=====
-  const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks])
-  const activeIncompleteTasks = useMemo(() => tasks.filter(t => !t.completed && !t.archived), [tasks])
+  const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks])
+  const activeIncompleteTasks = useMemo(() => tasks.filter((t) => !t.completed && !t.archived), [tasks])
 
   // ===== 稳定回调（useCallback 缓存，避免每次渲染创建新函数引用）=====
   const handleCloseSettings = useCallback(() => setCurrentView('tasks'), [setCurrentView])
@@ -117,17 +124,26 @@ function App() {
   const handleAITasksChange = useCallback(() => useTaskStore.getState().loadTasks(), [])
   const handleQuadrantTaskClick = useCallback((id: number) => setSelectedTaskId(id), [setSelectedTaskId])
   const handlePomodoroTaskClick = useCallback((id: number) => setSelectedTaskId(id), [setSelectedTaskId])
-  const handleQuadrantToggleTask = useCallback((id: number) => {
-    const task = tasks.find(t => t.id === id)
-    if (task) actions.handleToggleTask(task)
-  }, [tasks, actions])
-  const handlePomodoroToggleTask = useCallback((id: number) => {
-    const task = tasks.find(t => t.id === id)
-    if (task) actions.handleToggleTask(task)
-  }, [tasks, actions])
-  const handleQuadrantUpdatePriority = useCallback((id: number, priority: number) => {
-    actions.handleUpdateTask(id, { priority })
-  }, [actions])
+  const handleQuadrantToggleTask = useCallback(
+    (id: number) => {
+      const task = tasks.find((t) => t.id === id)
+      if (task) actions.handleToggleTask(task)
+    },
+    [tasks, actions],
+  )
+  const handlePomodoroToggleTask = useCallback(
+    (id: number) => {
+      const task = tasks.find((t) => t.id === id)
+      if (task) actions.handleToggleTask(task)
+    },
+    [tasks, actions],
+  )
+  const handleQuadrantUpdatePriority = useCallback(
+    (id: number, priority: number) => {
+      actions.handleUpdateTask(id, { priority })
+    },
+    [actions],
+  )
   const handleCloseShortcutsHelp = useCallback(() => setShortcutsHelpOpen(false), [setShortcutsHelpOpen])
   const handleCloseNotificationCenter = useCallback(() => setNotificationCenterOpen(false), [setNotificationCenterOpen])
 
@@ -151,9 +167,7 @@ function App() {
       mainView = <SettingsView onClose={handleCloseSettings} />
       break
     case 'ai':
-      mainView = (
-        <AIAssistant tasks={tasks} onClose={handleCloseAI} onTasksChange={handleAITasksChange} />
-      )
+      mainView = <AIAssistant tasks={tasks} onClose={handleCloseAI} onTasksChange={handleAITasksChange} />
       break
     case 'quadrant':
       mainView = (

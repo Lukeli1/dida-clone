@@ -14,7 +14,7 @@ export function useTaskBatch(toast: ToastApi) {
     const ids = Array.from(useUIStore.getState().selectedTaskIds)
     if (ids.length === 0) return
     try {
-      await Promise.all(ids.map(id => api.updateTask(id, { completed: true })))
+      await Promise.all(ids.map((id) => api.updateTask(id, { completed: true })))
       await useTaskStore.getState().loadTasks()
       toast.success(`已完成 ${ids.length} 个任务`)
       useUIStore.getState().clearSelection()
@@ -29,7 +29,7 @@ export function useTaskBatch(toast: ToastApi) {
     if (ids.length === 0) return
     if (!confirm(`确定批量删除 ${ids.length} 个任务吗？`)) return
     try {
-      await Promise.all(ids.map(id => api.deleteTask(id)))
+      await Promise.all(ids.map((id) => api.deleteTask(id)))
       await useTaskStore.getState().loadTasks()
       toast.success(`已删除 ${ids.length} 个任务`)
       useUIStore.getState().clearSelection()
@@ -43,7 +43,7 @@ export function useTaskBatch(toast: ToastApi) {
     const ids = Array.from(useUIStore.getState().selectedTaskIds)
     if (ids.length === 0) return
     try {
-      await Promise.all(ids.map(id => api.updateTask(id, { priority })))
+      await Promise.all(ids.map((id) => api.updateTask(id, { priority })))
       await useTaskStore.getState().loadTasks()
       toast.success(`已设置 ${ids.length} 个任务的优先级`)
       useUIStore.getState().clearSelection()
@@ -57,7 +57,7 @@ export function useTaskBatch(toast: ToastApi) {
     const ids = Array.from(useUIStore.getState().selectedTaskIds)
     if (ids.length === 0) return
     try {
-      await Promise.all(ids.map(id => api.updateTask(id, { list_id: listId })))
+      await Promise.all(ids.map((id) => api.updateTask(id, { list_id: listId })))
       await useTaskStore.getState().loadTasks()
       toast.success(`已移动 ${ids.length} 个任务`)
       useUIStore.getState().clearSelection()
@@ -71,7 +71,7 @@ export function useTaskBatch(toast: ToastApi) {
     const ids = Array.from(useUIStore.getState().selectedTaskIds)
     if (ids.length === 0) return
     try {
-      await Promise.all(ids.map(id => api.updateTask(id, { archived: true })))
+      await Promise.all(ids.map((id) => api.updateTask(id, { archived: true })))
       await useTaskStore.getState().loadTasks()
       toast.success(`已归档 ${ids.length} 个任务`)
       useUIStore.getState().clearSelection()
@@ -82,11 +82,14 @@ export function useTaskBatch(toast: ToastApi) {
   }
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
-  return useMemo(() => ({
-    handleBatchComplete,
-    handleBatchDelete,
-    handleBatchPriority,
-    handleBatchMoveList,
-    handleBatchArchive,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      handleBatchComplete,
+      handleBatchDelete,
+      handleBatchPriority,
+      handleBatchMoveList,
+      handleBatchArchive,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }

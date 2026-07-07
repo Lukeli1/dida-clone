@@ -7,8 +7,7 @@ import type { TaskTemplate, CreateTemplateRequest, UpdateTemplateRequest } from 
  */
 export const templateApi = {
   /** 获取所有模板（含子任务模板） */
-  getTemplates: (): Promise<TaskTemplate[]> =>
-    invoke<TaskTemplate[]>('get_templates'),
+  getTemplates: (): Promise<TaskTemplate[]> => invoke<TaskTemplate[]>('get_templates'),
 
   /** 创建模板，返回后端生成的完整 TaskTemplate（含 id） */
   createTemplate: (req: CreateTemplateRequest): Promise<TaskTemplate> =>
@@ -19,8 +18,7 @@ export const templateApi = {
     invoke<TaskTemplate>('update_template', { req }),
 
   /** 删除模板（子任务模板因 ON DELETE CASCADE 自动清除） */
-  deleteTemplate: (id: number): Promise<void> =>
-    invoke<void>('delete_template', { id }),
+  deleteTemplate: (id: number): Promise<void> => invoke<void>('delete_template', { id }),
 
   /** 从模板创建任务（含子任务），返回创建的主任务 */
   applyTemplate: (templateId: number, listId: number): Promise<void> =>

@@ -96,10 +96,9 @@ pub(crate) fn load_sync_config(app_data_dir: &str) -> Result<Option<SyncConfig>,
     if !path.exists() {
         return Ok(None);
     }
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| format!("读取同步配置失败: {}", e))?;
-    let mut config: SyncConfig = serde_json::from_str(&content)
-        .map_err(|e| format!("解析同步配置失败: {}", e))?;
+    let content = std::fs::read_to_string(&path).map_err(|e| format!("读取同步配置失败: {}", e))?;
+    let mut config: SyncConfig =
+        serde_json::from_str(&content).map_err(|e| format!("解析同步配置失败: {}", e))?;
     // 运行时填充 local_path
     config.local_path = get_sync_dir(app_data_dir);
     Ok(Some(config))
@@ -118,10 +117,9 @@ pub fn get_sync_config(app_data_dir: String) -> Result<Option<SyncConfigDto>, St
 #[tauri::command]
 pub fn save_sync_config(config: SyncConfigDto, app_data_dir: String) -> Result<(), String> {
     let path = get_sync_config_path(&app_data_dir);
-    let content = serde_json::to_string_pretty(&config)
-        .map_err(|e| format!("序列化同步配置失败: {}", e))?;
-    std::fs::write(&path, content)
-        .map_err(|e| format!("写入同步配置失败: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(&config).map_err(|e| format!("序列化同步配置失败: {}", e))?;
+    std::fs::write(&path, content).map_err(|e| format!("写入同步配置失败: {}", e))?;
     Ok(())
 }
 
@@ -130,10 +128,9 @@ pub fn save_sync_config(config: SyncConfigDto, app_data_dir: String) -> Result<(
 pub fn init_sync_repo(config: SyncConfigDto, app_data_dir: String) -> Result<(), String> {
     // 1. 保存配置
     let path = get_sync_config_path(&app_data_dir);
-    let content = serde_json::to_string_pretty(&config)
-        .map_err(|e| format!("序列化同步配置失败: {}", e))?;
-    std::fs::write(&path, content)
-        .map_err(|e| format!("写入同步配置失败: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(&config).map_err(|e| format!("序列化同步配置失败: {}", e))?;
+    std::fs::write(&path, content).map_err(|e| format!("写入同步配置失败: {}", e))?;
 
     // 2. 构造 SyncConfig（填充 local_path）
     let sync_dir = get_sync_dir(&app_data_dir);
@@ -165,8 +162,7 @@ pub async fn sync_now(app_data_dir: String) -> Result<SyncStatusDto, String> {
 /// sync_now 的阻塞实现
 fn do_sync_now(app_data_dir: &str) -> Result<SyncStatusDto, String> {
     // 1. 加载配置
-    let config = load_sync_config(app_data_dir)?
-        .ok_or("未配置同步")?;
+    let config = load_sync_config(app_data_dir)?.ok_or("未配置同步")?;
 
     // 2. 打开/初始化仓库
     let repo = sync::init_sync_repo(&config)?;
@@ -274,7 +270,10 @@ const CONFLICT_DEFAULT_REMOTE_PATH: &str = "/dida-clone/dida.db";
 fn build_webdav_config_from_config(config: &SyncConfig) -> Result<WebDavConfig, String> {
     Ok(WebDavConfig {
         url: config.webdav_url.clone().ok_or("未配置 WebDAV URL")?,
-        username: config.webdav_username.clone().ok_or("未配置 WebDAV 用户名")?,
+        username: config
+            .webdav_username
+            .clone()
+            .ok_or("未配置 WebDAV 用户名")?,
         password: config.webdav_password.clone().unwrap_or_default(),
         remote_path: config
             .webdav_remote_path
@@ -298,12 +297,8 @@ fn write_webdav_last_sync(app_data_dir: &str) {
 ///
 /// 根据 sync_type 自动选择 Git 或 WebDAV 执行方式。
 #[tauri::command]
-pub async fn resolve_sync_conflict(
-    strategy: String,
-    app_data_dir: String,
-) -> Result<(), String> {
-    let config = load_sync_config(&app_data_dir)?
-        .ok_or("未配置同步")?;
+pub async fn resolve_sync_conflict(strategy: String, app_data_dir: String) -> Result<(), String> {
+    let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     match strategy.as_str() {
         "local" | "remote" | "backup" => {}

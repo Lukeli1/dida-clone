@@ -1,13 +1,5 @@
 import { useMemo } from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { dateKey } from './constants'
 
 /* ============ 趋势视图折线图 ============ */
@@ -26,9 +18,7 @@ interface TrendPoint {
  * 主线为实线，7 天移动平均线为虚线（avg 在前 6 天为 null，不绘制）。
  * 线条颜色取主题强调色 var(--color-accent)，适配深色模式。
  */
-export function TrendChart({ records }: {
-  records: Record<string, number>
-}) {
+export function TrendChart({ records }: { records: Record<string, number> }) {
   const trendData = useMemo<TrendPoint[]>(() => {
     const today = new Date()
     const data: TrendPoint[] = Array.from({ length: 30 }, (_, i) => {
@@ -48,10 +38,7 @@ export function TrendChart({ records }: {
   }, [records])
 
   return (
-    <div
-      className="p-3 bg-[var(--color-bg-secondary)] rounded-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="p-3 bg-[var(--color-bg-secondary)] rounded-lg" onClick={(e) => e.stopPropagation()}>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" />
@@ -118,8 +105,7 @@ export function TrendChart({ records }: {
           每日打卡
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-4 border-t border-dashed border-[var(--color-accent)] opacity-60" />
-          7 日均值
+          <span className="inline-block w-4 border-t border-dashed border-[var(--color-accent)] opacity-60" />7 日均值
         </span>
       </div>
     </div>

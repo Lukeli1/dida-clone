@@ -1,7 +1,14 @@
 import { useMemo, useState, useRef } from 'react'
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isToday, getISOWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  isSameMonth,
+  isToday,
+  getISOWeek,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
@@ -26,8 +33,18 @@ interface MonthViewProps {
 }
 
 export function MonthView({
-  currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask,
-  onPrevMonth, onNextMonth, onToday, onMoveTask, onCreateTask, onCreateTaskOnRange,
+  currentDate,
+  tasks,
+  lists,
+  onDateClick,
+  onTaskClick,
+  onToggleTask,
+  onPrevMonth,
+  onNextMonth,
+  onToday,
+  onMoveTask,
+  onCreateTask,
+  onCreateTaskOnRange,
 }: MonthViewProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
@@ -56,7 +73,7 @@ export function MonthView({
       }
     })
     // 每天的任务排序：未完成在前，然后按时间
-    map.forEach(arr => {
+    map.forEach((arr) => {
       arr.sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1
         if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
@@ -100,9 +117,10 @@ export function MonthView({
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
     if (taskId) {
-      const task = tasks.find(t => t.id === taskId)
+      const task = tasks.find((t) => t.id === taskId)
       const [year, month, day] = dateKey.split('-').map(Number)
-      let hour = 9, minute = 0
+      let hour = 9,
+        minute = 0
       if (task?.due_date) {
         const oldDate = new Date(task.due_date)
         hour = oldDate.getHours()
@@ -144,22 +162,43 @@ export function MonthView({
       {/* 月份导航栏 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
-          <button onClick={onPrevMonth} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            onClick={onPrevMonth}
+            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+          >
+            <svg
+              className="w-5 h-5 text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] min-w-[100px] text-center">
             {format(currentDate, 'M月', { locale: zhCN })}
-            <span className="text-sm font-normal text-[var(--color-text-tertiary)] ml-1">{format(currentDate, 'yyyy')}</span>
+            <span className="text-sm font-normal text-[var(--color-text-tertiary)] ml-1">
+              {format(currentDate, 'yyyy')}
+            </span>
           </h3>
-          <button onClick={onNextMonth} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            onClick={onNextMonth}
+            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+          >
+            <svg
+              className="w-5 h-5 text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
-        <button onClick={onToday} className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors font-medium">
+        <button
+          onClick={onToday}
+          className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors font-medium"
+        >
           今天
         </button>
       </div>
@@ -167,7 +206,9 @@ export function MonthView({
       {/* 星期标题行 */}
       <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         {weekDays.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-medium text-[var(--color-text-tertiary)]">{day}</div>
+          <div key={day} className="py-2 text-center text-xs font-medium text-[var(--color-text-tertiary)]">
+            {day}
+          </div>
         ))}
       </div>
 
@@ -176,9 +217,15 @@ export function MonthView({
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
           return (
-            <div key={ri} className="grid grid-cols-7 border-b border-[var(--color-border-light)] relative flex-1" style={{ minHeight: '110px' }}>
+            <div
+              key={ri}
+              className="grid grid-cols-7 border-b border-[var(--color-border-light)] relative flex-1"
+              style={{ minHeight: '110px' }}
+            >
               {ri === 0 && (
-                <div className="absolute -left-0 top-0 text-[10px] text-[var(--color-text-tertiary)] px-1 py-0.5 z-10 hidden">{weekNum}周</div>
+                <div className="absolute -left-0 top-0 text-[10px] text-[var(--color-text-tertiary)] px-1 py-0.5 z-10 hidden">
+                  {weekNum}周
+                </div>
               )}
               {week.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
@@ -202,20 +249,22 @@ export function MonthView({
                       isDragOver
                         ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
                         : !inMonth
-                        ? 'bg-[var(--color-bg-secondary)]/40'
-                        : 'hover:bg-[var(--color-accent-light)]/20'
+                          ? 'bg-[var(--color-bg-secondary)]/40'
+                          : 'hover:bg-[var(--color-accent-light)]/20'
                     }`}
                   >
                     {/* 日期头部：日期数字 + 农历 + 添加按钮 */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex flex-col items-start leading-tight">
-                        <span className={`flex items-center justify-center text-[15px] font-medium rounded-full transition-colors ${
-                          today
-                            ? 'bg-[var(--color-accent)] text-white w-7 h-7'
-                            : !inMonth
-                            ? 'text-[var(--color-text-tertiary)] w-7 h-7'
-                            : 'text-[var(--color-text-secondary)] w-7 h-7 hover:bg-[var(--color-bg-tertiary)]'
-                        }`}>
+                        <span
+                          className={`flex items-center justify-center text-[15px] font-medium rounded-full transition-colors ${
+                            today
+                              ? 'bg-[var(--color-accent)] text-white w-7 h-7'
+                              : !inMonth
+                                ? 'text-[var(--color-text-tertiary)] w-7 h-7'
+                                : 'text-[var(--color-text-secondary)] w-7 h-7 hover:bg-[var(--color-bg-tertiary)]'
+                          }`}
+                        >
                           {format(day, 'd')}
                         </span>
                         {inMonth && !today && (
@@ -223,7 +272,10 @@ export function MonthView({
                         )}
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleQuickAdd(key) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleQuickAdd(key)
+                        }}
                         className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded transition-all"
                         title="快速添加任务"
                       >
@@ -244,12 +296,20 @@ export function MonthView({
                           dragged={draggedTaskId === task.id}
                           timeLabel={task.due_date ? formatTaskTime(task.due_date) : undefined}
                           onDragStart={(e) => handleDragStart(e, task.id)}
-                          onTaskClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }}
-                          onToggle={(e) => { e.stopPropagation(); onToggleTask(task.id) }}
+                          onTaskClick={(e) => {
+                            e.stopPropagation()
+                            onTaskClick(task.id)
+                          }}
+                          onToggle={(e) => {
+                            e.stopPropagation()
+                            onToggleTask(task.id)
+                          }}
                         />
                       ))}
                       {dayTasks.length > 4 && (
-                        <div className="text-[10px] text-[var(--color-text-tertiary)] px-1.5 py-0.5">+{dayTasks.length - 4} 项</div>
+                        <div className="text-[10px] text-[var(--color-text-tertiary)] px-1.5 py-0.5">
+                          +{dayTasks.length - 4} 项
+                        </div>
                       )}
                       {isCreating && (
                         <input
@@ -258,7 +318,10 @@ export function MonthView({
                           onChange={(e) => setNewTitle(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleQuickAddSubmit(key)
-                            if (e.key === 'Escape') { setCreatingDate(null); setNewTitle('') }
+                            if (e.key === 'Escape') {
+                              setCreatingDate(null)
+                              setNewTitle('')
+                            }
                           }}
                           onBlur={() => handleQuickAddSubmit(key)}
                           placeholder="标题..."

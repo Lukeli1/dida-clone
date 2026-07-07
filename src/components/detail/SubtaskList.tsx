@@ -46,7 +46,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
         <div className="rounded-lg bg-[var(--color-bg-secondary)]/60 p-3 space-y-1">
           {subtasks.length > 0 && (
             <div className="space-y-0.5 mb-1">
-              {subtasks.map(subtask => (
+              {subtasks.map((subtask) => (
                 <div key={subtask.id} className="group flex items-center gap-2 py-1">
                   <button
                     onMouseDown={(e) => e.preventDefault()}
@@ -114,7 +114,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
           {/* 子任务进度统计 */}
           {subtasks.length > 0 && (
             <div className="text-xs text-[var(--color-text-tertiary)] px-1">
-              {subtasks.filter(s => s.completed).length}/{subtasks.length} 已完成
+              {subtasks.filter((s) => s.completed).length}/{subtasks.length} 已完成
             </div>
           )}
           {/* 添加子任务输入框 */}
@@ -180,7 +180,7 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
   // 添加单个 AI 建议子任务
   function handleAddSuggestion(idx: number, suggestion: SubtaskSuggestion) {
     onCreateSubtask(task.id, suggestion.title)
-    setAddedSuggestions(prev => new Set(prev).add(idx))
+    setAddedSuggestions((prev) => new Set(prev).add(idx))
   }
 
   // 一键添加所有 AI 建议子任务
@@ -203,7 +203,9 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
     try {
       const result = await suggestPriority(task.title, task.notes)
       onUpdate(task.id, { priority: result.priority })
-      toast.info(`AI 建议优先级：${result.priority === 1 ? '高' : result.priority === 2 ? '中' : '低'}（${result.reason}）`)
+      toast.info(
+        `AI 建议优先级：${result.priority === 1 ? '高' : result.priority === 2 ? '中' : '低'}（${result.reason}）`,
+      )
     } catch (e: any) {
       toast.error(`AI 建议失败: ${e.message || e}`)
     } finally {
@@ -233,7 +235,12 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
                 </svg>
               ) : (
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
                 </svg>
               )}
               AI 建议优先级
@@ -261,14 +268,21 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
           {aiSuggestions.length > 0 && (
             <div className="space-y-1.5">
               {aiSuggestions.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-surface)] border border-purple-100">
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-surface)] border border-purple-100"
+                >
                   <span className="flex-1 text-sm text-[var(--color-text-secondary)]">{s.title}</span>
                   {s.priority && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      s.priority === 1 ? 'bg-[var(--color-priority-high)]/10 text-[var(--color-priority-high)]' :
-                      s.priority === 2 ? 'bg-[var(--color-priority-medium)]/10 text-[var(--color-priority-medium)]' :
-                      'bg-[var(--color-priority-low)]/10 text-[var(--color-priority-low)]'
-                    }`}>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded ${
+                        s.priority === 1
+                          ? 'bg-[var(--color-priority-high)]/10 text-[var(--color-priority-high)]'
+                          : s.priority === 2
+                            ? 'bg-[var(--color-priority-medium)]/10 text-[var(--color-priority-medium)]'
+                            : 'bg-[var(--color-priority-low)]/10 text-[var(--color-priority-low)]'
+                      }`}
+                    >
                       {s.priority === 1 ? '高' : s.priority === 2 ? '中' : '低'}
                     </span>
                   )}

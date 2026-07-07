@@ -23,9 +23,18 @@ interface DayViewTaskProps {
 }
 
 export function DayViewTask({
-  task, lists, dragged, draggable = true, top, height,
-  isResizing, resizePreview,
-  onDragStart, onTaskClick, onToggleTask, onResizeStart,
+  task,
+  lists,
+  dragged,
+  draggable = true,
+  top,
+  height,
+  isResizing,
+  resizePreview,
+  onDragStart,
+  onTaskClick,
+  onToggleTask,
+  onResizeStart,
 }: DayViewTaskProps) {
   return (
     <div

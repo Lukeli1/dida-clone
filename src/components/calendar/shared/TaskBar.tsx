@@ -28,8 +28,18 @@ export interface TaskBarProps {
 }
 
 export function TaskBar({
-  task, lists, variant, dragged, timeLabel, style,
-  draggable = true, dataTask, children, onDragStart, onTaskClick, onToggle,
+  task,
+  lists,
+  variant,
+  dragged,
+  timeLabel,
+  style,
+  draggable = true,
+  dataTask,
+  children,
+  onDragStart,
+  onTaskClick,
+  onToggle,
 }: TaskBarProps) {
   const color = getTaskColor(task, lists)
 
@@ -45,11 +55,13 @@ export function TaskBar({
         } ${dragged ? 'opacity-40' : ''}`}
         style={{
           ...style,
-          ...(task.completed ? {} : {
-            backgroundColor: hexToRgba(color, 0.15),
-            color,
-            borderLeftColor: color,
-          }),
+          ...(task.completed
+            ? {}
+            : {
+                backgroundColor: hexToRgba(color, 0.15),
+                color,
+                borderLeftColor: color,
+              }),
         }}
       >
         {children}
@@ -85,7 +97,9 @@ export function TaskBar({
         className={`flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${
           task.completed
             ? 'bg-white/30 border-white/50'
-            : light ? 'border-[var(--color-text-tertiary)]' : 'border-white/60'
+            : light
+              ? 'border-[var(--color-text-tertiary)]'
+              : 'border-white/60'
         }`}
       >
         {task.completed && (

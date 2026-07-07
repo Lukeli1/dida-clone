@@ -18,13 +18,15 @@ export function useSearchHistory() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       return saved ? JSON.parse(saved) : []
-    } catch { return [] }
+    } catch {
+      return []
+    }
   })
 
   const addHistory = useCallback((term: string) => {
     if (!term.trim()) return
-    setHistory(prev => {
-      const filtered = prev.filter(h => h !== term)
+    setHistory((prev) => {
+      const filtered = prev.filter((h) => h !== term)
       const next = [term, ...filtered].slice(0, MAX_HISTORY)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       return next
@@ -32,8 +34,8 @@ export function useSearchHistory() {
   }, [])
 
   const removeHistory = useCallback((term: string) => {
-    setHistory(prev => {
-      const next = prev.filter(h => h !== term)
+    setHistory((prev) => {
+      const next = prev.filter((h) => h !== term)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       return next
     })

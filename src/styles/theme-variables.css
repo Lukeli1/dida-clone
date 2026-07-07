@@ -96,7 +96,7 @@
   --color-text-secondary: #9aa0a6;
   /* 对比度修复：原 #5f6368（约 2.8:1，低于 WCAG AA 4.5:1），
      改为 #9CA3AF（约 6.6:1，达标）。保留 --color-text-muted 供更弱化的装饰性文字使用。 */
-  --color-text-tertiary: #9CA3AF;
+  --color-text-tertiary: #9ca3af;
   --color-text-inverse: #0f1115;
   --color-text-muted: #6b7280;
 

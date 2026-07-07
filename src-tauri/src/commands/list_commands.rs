@@ -2,8 +2,8 @@ use rusqlite::{params, Result};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::DbState;
 use super::now_rfc3339;
+use crate::db::DbState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct List {
@@ -78,7 +78,11 @@ pub fn create_list(state: State<DbState>, req: CreateListRequest) -> Result<List
 }
 
 #[tauri::command]
-pub fn update_list(state: State<DbState>, id: i64, updates: UpdateListRequest) -> Result<(), String> {
+pub fn update_list(
+    state: State<DbState>,
+    id: i64,
+    updates: UpdateListRequest,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let now = now_rfc3339();
 
@@ -118,7 +122,11 @@ pub fn delete_list(state: State<DbState>, id: i64) -> Result<(), String> {
 
     // 不允许删除默认清单
     let is_default: bool = conn
-        .query_row("SELECT is_default FROM lists WHERE id = ?1", params![id], |row| row.get(0))
+        .query_row(
+            "SELECT is_default FROM lists WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
         .map_err(|e| e.to_string())?;
     if is_default {
         return Err("无法删除默认清单".to_string());
@@ -126,10 +134,15 @@ pub fn delete_list(state: State<DbState>, id: i64) -> Result<(), String> {
 
     // 将该清单下的任务移到默认清单
     let default_id: i64 = conn
-        .query_row("SELECT id FROM lists WHERE is_default = 1", [], |row| row.get(0))
+        .query_row("SELECT id FROM lists WHERE is_default = 1", [], |row| {
+            row.get(0)
+        })
         .map_err(|e| e.to_string())?;
-    conn.execute("UPDATE tasks SET list_id = ?1 WHERE list_id = ?2", params![default_id, id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE tasks SET list_id = ?1 WHERE list_id = ?2",
+        params![default_id, id],
+    )
+    .map_err(|e| e.to_string())?;
 
     // 删除清单
     conn.execute("DELETE FROM lists WHERE id = ?1", params![id])

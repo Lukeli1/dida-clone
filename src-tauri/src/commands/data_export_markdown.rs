@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use tauri::State;
 
-use crate::db::*;
 use super::data_export_csv::priority_label;
+use crate::db::*;
 
 // ---------------------------------------------------------------------------
 // export_markdown — 导出任务为 Markdown（按清单分组）
@@ -51,6 +51,7 @@ pub fn export_markdown(state: State<DbState>) -> Result<String, String> {
     drop(stmt);
 
     // 按 list_id 分组
+    #[allow(clippy::type_complexity)]
     let mut grouped: HashMap<i64, Vec<&(i64, String, i64, Option<String>, bool, i64)>> =
         HashMap::new();
     for task in &tasks {
@@ -80,7 +81,12 @@ pub fn export_markdown(state: State<DbState>) -> Result<String, String> {
                     if parts.is_empty() {
                         md.push_str(&format!("- {} {}\n", checkbox, title));
                     } else {
-                        md.push_str(&format!("- {} {} ({})\n", checkbox, title, parts.join("，")));
+                        md.push_str(&format!(
+                            "- {} {} ({})\n",
+                            checkbox,
+                            title,
+                            parts.join("，")
+                        ));
                     }
                 }
             }
@@ -107,7 +113,12 @@ pub fn export_markdown(state: State<DbState>) -> Result<String, String> {
                     if parts.is_empty() {
                         md.push_str(&format!("- {} {}\n", checkbox, title));
                     } else {
-                        md.push_str(&format!("- {} {} ({})\n", checkbox, title, parts.join("，")));
+                        md.push_str(&format!(
+                            "- {} {} ({})\n",
+                            checkbox,
+                            title,
+                            parts.join("，")
+                        ));
                     }
                 }
             }

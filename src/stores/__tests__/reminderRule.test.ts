@@ -161,9 +161,7 @@ describe('createTask 自动填充 reminder', () => {
       due_date: FIXED_DUE,
     })
 
-    expect(api.createTask).toHaveBeenCalledWith(
-      expect.not.objectContaining({ reminder: expect.anything() }),
-    )
+    expect(api.createTask).toHaveBeenCalledWith(expect.not.objectContaining({ reminder: expect.anything() }))
   })
 })
 

@@ -92,10 +92,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   }
 
   return (
-    <div
-      className={`fixed inset-0 z-[80] ${open ? '' : 'pointer-events-none'}`}
-      aria-hidden={!open}
-    >
+    <div className={`fixed inset-0 z-[80] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
       {/* 背景遮罩 */}
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
@@ -126,12 +123,8 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
                 d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
               />
             </svg>
-            <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              通知中心
-            </h2>
-            {hasUnread && (
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-danger, #ef4444)]" />
-            )}
+            <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">通知中心</h2>
+            {hasUnread && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-danger, #ef4444)]" />}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -205,9 +198,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
                             {formatRelativeTime(n.timestamp)}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 line-clamp-2">
-                          {n.message}
-                        </p>
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 line-clamp-2">{n.message}</p>
                       </div>
                     </button>
                   ))}
@@ -220,9 +211,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         {/* 底部提示 */}
         {notifications.length > 0 && (
           <div className="px-4 py-2 border-t border-[var(--color-border-light)] flex items-center justify-center gap-1.5 shrink-0">
-            <span className="text-xs text-[var(--color-text-tertiary)]">
-              点击通知可跳转到对应任务
-            </span>
+            <span className="text-xs text-[var(--color-text-tertiary)]">点击通知可跳转到对应任务</span>
           </div>
         )}
       </aside>

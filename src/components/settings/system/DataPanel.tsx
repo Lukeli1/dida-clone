@@ -33,7 +33,9 @@ export function DataPanel({ exporting, onExport, onSelectFile }: DataPanelProps)
                 {ext}
               </span>
               <span className="text-sm font-medium text-[var(--color-text-primary)]">{label}</span>
-              <span className="text-xs text-[var(--color-text-tertiary)]">{exporting === format ? '导出中...' : desc}</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">
+                {exporting === format ? '导出中...' : desc}
+              </span>
             </button>
           ))}
         </div>
@@ -51,7 +53,12 @@ export function DataPanel({ exporting, onExport, onSelectFile }: DataPanelProps)
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors text-sm font-medium text-[var(--color-text-secondary)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              />
             </svg>
             选择文件导入
           </button>

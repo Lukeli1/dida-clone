@@ -29,7 +29,10 @@ export function HabitEditor(props: HabitEditorProps) {
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onCancel}>
-        <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+        <div
+          className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] p-6 w-full max-w-md mx-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">编辑习惯</h3>
           <div className="space-y-4">
             {/* 图标 + 名称（并排） */}
@@ -49,7 +52,12 @@ export function HabitEditor(props: HabitEditorProps) {
                   className="absolute -bottom-1 -right-1 w-5 h-5 bg-[var(--color-surface)] rounded-full shadow flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
                   </svg>
                 </button>
               </div>
@@ -57,8 +65,10 @@ export function HabitEditor(props: HabitEditorProps) {
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && canSave) onSave() }}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSave) onSave()
+                }}
                 autoFocus
                 className="flex-1 px-4 py-3 text-base border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
               />
@@ -83,13 +93,13 @@ export function HabitEditor(props: HabitEditorProps) {
                   type="number"
                   min={1}
                   value={goal}
-                  onChange={e => setGoal(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+                  onChange={(e) => setGoal(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
                   className="w-20 px-3 py-3 text-base border border-[var(--color-border)] rounded-xl text-center focus:outline-none focus:border-[var(--color-accent)]"
                 />
                 <input
                   type="text"
                   value={unit}
-                  onChange={e => setUnit(e.target.value)}
+                  onChange={(e) => setUnit(e.target.value)}
                   placeholder="次/杯/分钟"
                   className="flex-1 px-4 py-3 text-base border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)]"
                 />
@@ -109,7 +119,7 @@ export function HabitEditor(props: HabitEditorProps) {
             <div className="flex items-center gap-4">
               <label className="w-16 text-base text-[var(--color-text-secondary)] flex-shrink-0">颜色</label>
               <div className="flex-1 flex items-center gap-2 flex-wrap">
-                {PRESET_COLORS.map(c => (
+                {PRESET_COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"

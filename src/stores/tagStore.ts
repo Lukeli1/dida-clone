@@ -56,11 +56,7 @@ export const useTagStore = create<TagState>((set) => ({
       // 本地同步更新 taskStore 中的 tag_ids，无需手动 reloadTasks
       const { useTaskStore } = await import('./taskStore')
       useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId
-            ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] }
-            : t
-        ),
+        tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t)),
       }))
       return true
     } catch (error) {
@@ -76,9 +72,7 @@ export const useTagStore = create<TagState>((set) => ({
       const { useTaskStore } = await import('./taskStore')
       useTaskStore.setState((state) => ({
         tasks: state.tasks.map((t) =>
-          t.id === taskId
-            ? { ...t, tag_ids: t.tag_ids?.filter((tid) => tid !== tagId) || [] }
-            : t
+          t.id === taskId ? { ...t, tag_ids: t.tag_ids?.filter((tid) => tid !== tagId) || [] } : t,
         ),
       }))
       return true

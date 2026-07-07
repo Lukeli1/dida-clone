@@ -1,10 +1,5 @@
 /** 半自动操作指令协议 */
-export type ActionType =
-  | 'create_task'
-  | 'update_task'
-  | 'delete_task'
-  | 'complete_task'
-  | 'create_subtask'
+export type ActionType = 'create_task' | 'update_task' | 'delete_task' | 'complete_task' | 'create_subtask'
 
 export interface ActionOp {
   type: ActionType

@@ -28,9 +28,9 @@ interface CalendarPanelProps {
 }
 
 export function CalendarPanel({ selectedTask, actions }: CalendarPanelProps) {
-  const tasks = useTaskStore(s => s.tasks)
-  const lists = useListStore(s => s.lists)
-  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const tasks = useTaskStore((s) => s.tasks)
+  const lists = useListStore((s) => s.lists)
+  const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
 
   return (
     <main className="flex-1 flex overflow-hidden">
@@ -39,7 +39,7 @@ export function CalendarPanel({ selectedTask, actions }: CalendarPanelProps) {
           tasks={tasks}
           lists={lists}
           onTaskClick={(id) => setSelectedTaskId(id)}
-          onToggleTask={(id) => actions.handleToggleTask(tasks.find(t => t.id === id)!)}
+          onToggleTask={(id) => actions.handleToggleTask(tasks.find((t) => t.id === id)!)}
           onMoveTask={actions.handleMoveTask}
           onCreateTask={actions.handleCreateTaskOnDate}
           onCreateTaskOnRange={actions.handleCreateTaskOnRange}
@@ -47,9 +47,7 @@ export function CalendarPanel({ selectedTask, actions }: CalendarPanelProps) {
           actions={actions}
         />
       </div>
-      {selectedTask && (
-        <DetailPanel task={selectedTask} actions={actions} />
-      )}
+      {selectedTask && <DetailPanel task={selectedTask} actions={actions} />}
     </main>
   )
 }

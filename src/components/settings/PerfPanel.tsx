@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '../Toast'
-import {
-  getPerfStats,
-  clearPerfRecords,
-  MAX_RECORDS,
-  type PerfStat,
-} from '../../utils/perfMonitor'
+import { getPerfStats, clearPerfRecords, MAX_RECORDS, type PerfStat } from '../../utils/perfMonitor'
 
 /**
  * 性能监控面板（P12-07）
@@ -102,13 +97,8 @@ export function PerfPanel() {
                 </thead>
                 <tbody>
                   {stats.map((stat) => (
-                    <tr
-                      key={stat.name}
-                      className="border-b border-[var(--color-border-light)] last:border-0"
-                    >
-                      <td className="py-2.5 pr-4 text-[var(--color-text-primary)] font-mono text-xs">
-                        {stat.name}
-                      </td>
+                    <tr key={stat.name} className="border-b border-[var(--color-border-light)] last:border-0">
+                      <td className="py-2.5 pr-4 text-[var(--color-text-primary)] font-mono text-xs">{stat.name}</td>
                       <td className="py-2.5 px-4 text-right text-[var(--color-text-primary)] tabular-nums">
                         {stat.count}
                       </td>

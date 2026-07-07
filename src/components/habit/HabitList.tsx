@@ -74,11 +74,23 @@ export interface HabitListProps {
 /** 习惯列表：加载 / 空 / 无活跃 / 卡片列表 + 归档切换 */
 export function HabitList(props: HabitListProps) {
   const {
-    loading, habits, visibleHabits, showCreateForm,
-    expandedId, todayStr, weekDays, today,
-    showArchived, archivedCount,
-    onToggle, onDelete, onEdit, onArchive, onRecordChange,
-    onToggleArchived, onShowArchived,
+    loading,
+    habits,
+    visibleHabits,
+    showCreateForm,
+    expandedId,
+    todayStr,
+    weekDays,
+    today,
+    showArchived,
+    archivedCount,
+    onToggle,
+    onDelete,
+    onEdit,
+    onArchive,
+    onRecordChange,
+    onToggleArchived,
+    onShowArchived,
   } = props
 
   // 加载中
@@ -96,7 +108,7 @@ export function HabitList(props: HabitListProps) {
   return (
     <>
       <div className="space-y-3">
-        {visibleHabits.map(habit => (
+        {visibleHabits.map((habit) => (
           <HabitCard
             key={habit.id}
             habit={habit}

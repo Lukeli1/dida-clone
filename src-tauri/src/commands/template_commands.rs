@@ -6,8 +6,8 @@ use rusqlite::{params, Result};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::{DbState, Task};
 use super::now_rfc3339;
+use crate::db::{DbState, Task};
 
 // ============ 结构体 ============
 
@@ -79,7 +79,10 @@ fn row_to_subtask_template(row: &rusqlite::Row) -> rusqlite::Result<SubtaskTempl
 }
 
 /// 查询某模板的所有子任务模板
-fn get_subtask_templates(conn: &rusqlite::Connection, template_id: i64) -> std::result::Result<Vec<SubtaskTemplate>, String> {
+fn get_subtask_templates(
+    conn: &rusqlite::Connection,
+    template_id: i64,
+) -> std::result::Result<Vec<SubtaskTemplate>, String> {
     let mut stmt = conn
         .prepare("SELECT id, template_id, title, sort_order FROM subtask_templates WHERE template_id = ?1 ORDER BY sort_order ASC, id ASC")
         .map_err(|e| e.to_string())?;
@@ -110,7 +113,10 @@ fn row_to_template(row: &rusqlite::Row) -> rusqlite::Result<TaskTemplate> {
 }
 
 /// 根据 id 查询单个模板（含子任务模板）
-fn get_template_by_id(conn: &rusqlite::Connection, id: i64) -> std::result::Result<TaskTemplate, String> {
+fn get_template_by_id(
+    conn: &rusqlite::Connection,
+    id: i64,
+) -> std::result::Result<TaskTemplate, String> {
     let mut template = conn
         .query_row(
             "SELECT id, name, description, icon, title_template, notes_template, priority, reminder_minutes, sort_order, created_at, updated_at FROM templates WHERE id = ?1",
@@ -149,13 +155,20 @@ pub fn get_templates(state: State<DbState>) -> Result<Vec<TaskTemplate>, String>
 
 /// 创建模板（含子任务模板）
 #[tauri::command]
-pub fn create_template(state: State<DbState>, req: CreateTemplateRequest) -> Result<TaskTemplate, String> {
+pub fn create_template(
+    state: State<DbState>,
+    req: CreateTemplateRequest,
+) -> Result<TaskTemplate, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let now = now_rfc3339();
 
     // 计算排序值：取当前最大值 +1
     let max_sort: i32 = conn
-        .query_row("SELECT COALESCE(MAX(sort_order), -1) FROM templates", [], |row| row.get(0))
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) FROM templates",
+            [],
+            |row| row.get(0),
+        )
         .unwrap_or(-1);
 
     conn.execute(
@@ -192,7 +205,10 @@ pub fn create_template(state: State<DbState>, req: CreateTemplateRequest) -> Res
 
 /// 更新模板（含替换子任务模板）
 #[tauri::command]
-pub fn update_template(state: State<DbState>, req: UpdateTemplateRequest) -> Result<TaskTemplate, String> {
+pub fn update_template(
+    state: State<DbState>,
+    req: UpdateTemplateRequest,
+) -> Result<TaskTemplate, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let now = now_rfc3339();
 
@@ -232,7 +248,10 @@ pub fn update_template(state: State<DbState>, req: UpdateTemplateRequest) -> Res
     set_clauses.push("updated_at = ?".to_string());
     params_vec.push(Box::new(now));
 
-    let sql = format!("UPDATE templates SET {} WHERE id = ?", set_clauses.join(", "));
+    let sql = format!(
+        "UPDATE templates SET {} WHERE id = ?",
+        set_clauses.join(", ")
+    );
     params_vec.push(Box::new(req.id));
 
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
@@ -271,7 +290,11 @@ pub fn delete_template(state: State<DbState>, id: i64) -> Result<(), String> {
 
 /// 从模板创建任务（含子任务），返回创建的主任务
 #[tauri::command]
-pub fn apply_template(state: State<DbState>, template_id: i64, list_id: i64) -> Result<Task, String> {
+pub fn apply_template(
+    state: State<DbState>,
+    template_id: i64,
+    list_id: i64,
+) -> Result<Task, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     // 开启事务

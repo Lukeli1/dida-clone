@@ -11,13 +11,14 @@
 
 **三个方向并行推进，让软件从"能用"升级到"好用+可靠"。**
 
-| 方向 | 核心目标 | 量化指标 |
-|---|---|---|
-| A. 继续拆分剩余大文件 | 0 个文件超过 500 行 | 9 个 → 0 个 |
+| 方向                     | 核心目标                   | 量化指标                |
+| ------------------------ | -------------------------- | ----------------------- |
+| A. 继续拆分剩余大文件    | 0 个文件超过 500 行        | 9 个 → 0 个             |
 | B. 习惯数据迁移到 SQLite | 数据持久化、可备份、可查询 | localStorage → rusqlite |
-| C. 引入单元测试 | 关键逻辑有测试覆盖 | 0 个 → 30+ 个测试 |
+| C. 引入单元测试          | 关键逻辑有测试覆盖         | 0 个 → 30+ 个测试       |
 
 **原则**：
+
 - A 方向：纯重构，零功能变更（同 Phase 2）
 - B 方向：功能升级，需要数据迁移脚本（旧 localStorage 数据自动导入 SQLite）
 - C 方向：新增基础设施，不改现有代码
@@ -28,31 +29,33 @@
 
 ### 2.1 仍超过 500 行的文件（9 个）
 
-| 文件 | 行数 | 问题 |
-|---|---|---|
-| `Sidebar.tsx` | 722 | 清单管理+标签管理+视图切换+头像+底部设置区 |
-| `TaskItem.tsx` | 707 | 任务行+内联编辑+批量选择+拖拽+右键菜单+子任务展开 |
-| `TaskListPanel.tsx` | 628 | P2-06 新拆出的，收纳了较多列表逻辑+MiniCalendar |
-| `WeekView.tsx` | 600 | 周视图+任务条+拖拽+点击交互 |
-| `PomodoroView.tsx` | 572 | 番茄钟+统计+设置+任务选择全在一起 |
-| `MonthView.tsx` | 531 | 月视图+任务条+拖拽+农历 |
-| `AIAssistant.tsx` | 430 | 对话+技能+操作解析 |
-| `CalendarView.tsx` | 473 | 容器+ViewToggle+MoreOptions+TaskSidebar |
-| `DayView.tsx` | 430 | 日视图+任务条+拖拽 |
+| 文件                | 行数 | 问题                                              |
+| ------------------- | ---- | ------------------------------------------------- |
+| `Sidebar.tsx`       | 722  | 清单管理+标签管理+视图切换+头像+底部设置区        |
+| `TaskItem.tsx`      | 707  | 任务行+内联编辑+批量选择+拖拽+右键菜单+子任务展开 |
+| `TaskListPanel.tsx` | 628  | P2-06 新拆出的，收纳了较多列表逻辑+MiniCalendar   |
+| `WeekView.tsx`      | 600  | 周视图+任务条+拖拽+点击交互                       |
+| `PomodoroView.tsx`  | 572  | 番茄钟+统计+设置+任务选择全在一起                 |
+| `MonthView.tsx`     | 531  | 月视图+任务条+拖拽+农历                           |
+| `AIAssistant.tsx`   | 430  | 对话+技能+操作解析                                |
+| `CalendarView.tsx`  | 473  | 容器+ViewToggle+MoreOptions+TaskSidebar           |
+| `DayView.tsx`       | 430  | 日视图+任务条+拖拽                                |
 
 ### 2.2 Rust 后端
 
-| 文件 | 行数 | 问题 |
-|---|---|---|
-| `commands.rs` | 857 | 23 个 Tauri command 全在一个文件 |
-| `db.rs` | 166 | 表结构+索引+初始化（合理） |
+| 文件          | 行数 | 问题                             |
+| ------------- | ---- | -------------------------------- |
+| `commands.rs` | 857  | 23 个 Tauri command 全在一个文件 |
+| `db.rs`       | 166  | 表结构+索引+初始化（合理）       |
 
 ### 2.3 测试现状
+
 - ❌ 无任何测试文件
 - ❌ 未配置 vitest
 - ❌ 无 CI/CD
 
 ### 2.4 习惯打卡数据存储
+
 - `localStorage['habits_data']` 存储所有习惯数据
 - 无备份能力、无跨设备同步能力、数据量大时可能卡顿
 
@@ -69,6 +72,7 @@
 **当前**：`src/components/Sidebar.tsx` 722 行
 
 **拆分方案**：
+
 ```
 src/components/sidebar/
 ├── Sidebar.tsx (200 行) — 容器：布局 + 各区域编排
@@ -80,6 +84,7 @@ src/components/sidebar/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/sidebar/` 目录
 2. 提取 ViewType 类型定义到 `types.ts`
 3. 提取视图切换按钮组到 `ViewSwitcher.tsx`
@@ -91,6 +96,7 @@ src/components/sidebar/
 9. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `Sidebar.tsx` ≤ 300 行
 - [ ] 每个子组件 ≤ 150 行
 - [ ] 清单 CRUD / 标签 CRUD / 视图切换 / 头像设置全部正常
@@ -103,6 +109,7 @@ src/components/sidebar/
 **当前**：`src/components/TaskItem.tsx` 707 行
 
 **拆分方案**：
+
 ```
 src/components/task-item/
 ├── TaskItem.tsx (200 行) — 容器：任务行主体 + 子组件编排
@@ -113,6 +120,7 @@ src/components/task-item/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/task-item/` 目录
 2. 提取内联编辑逻辑到 `TaskInlineEditor.tsx`
 3. 提取批量选择工具栏到 `TaskBatchActions.tsx`
@@ -123,6 +131,7 @@ src/components/task-item/
 8. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `TaskItem.tsx` ≤ 300 行
 - [ ] 每个子组件 ≤ 150 行
 - [ ] 内联编辑 / 批量操作 / 右键菜单 / 子任务展开全部正常
@@ -135,6 +144,7 @@ src/components/task-item/
 **当前**：`src/components/TaskListPanel.tsx` 628 行（P2-06 拆出来的，偏大）
 
 **拆分方案**：
+
 ```
 src/components/task-list/
 ├── TaskListPanel.tsx (200 行) — 容器：输入栏 + 列表 + 过滤栏
@@ -145,6 +155,7 @@ src/components/task-list/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/task-list/` 目录
 2. 提取 MiniCalendarDropzone（已在文件末尾）到独立文件
 3. 提取新建任务输入栏到 `TaskInputBar.tsx`
@@ -155,6 +166,7 @@ src/components/task-list/
 8. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `TaskListPanel.tsx` ≤ 300 行
 - [ ] 每个子组件 ≤ 100 行
 - [ ] 新建任务 / 过滤 / 批量操作 / 拖拽到日历全部正常
@@ -167,6 +179,7 @@ src/components/task-list/
 **当前**：`src/components/PomodoroView.tsx` 572 行
 
 **拆分方案**：
+
 ```
 src/components/pomodoro/
 ├── PomodoroView.tsx (200 行) — 容器：计时器 + 任务选择 + 统计
@@ -177,6 +190,7 @@ src/components/pomodoro/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/pomodoro/` 目录
 2. 提取 localStorage 操作到 `storage.ts`
 3. 提取统计面板到 `PomodoroStats.tsx`
@@ -187,6 +201,7 @@ src/components/pomodoro/
 8. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `PomodoroView.tsx` ≤ 250 行
 - [ ] 每个子组件 ≤ 150 行
 - [ ] 计时器 / 设置 / 统计 / 任务选择全部正常
@@ -199,6 +214,7 @@ src/components/pomodoro/
 **当前**：`src-tauri/src/commands.rs` 857 行，23 个 Tauri command
 
 **拆分方案**：
+
 ```
 src-tauri/src/
 ├── commands.rs (50 行) — mod 声明 + re-export
@@ -212,6 +228,7 @@ src-tauri/src/
 ```
 
 **操作步骤**：
+
 1. 创建 `src-tauri/src/commands/` 目录
 2. 按职责把 23 个函数分到 5 个子模块
 3. 每个子模块 `pub use` 导出所有 Tauri command 函数
@@ -220,11 +237,13 @@ src-tauri/src/
 6. 验证：`cargo check` 通过
 
 **注意**：
+
 - `habit_commands.rs` 是为 P3-06 新习惯表预留的，先创建空文件 + 注释
 - 拆分时保持所有 `#[tauri::command]` 注解不变
 - `DbState` 和 `Task` 等共享类型保持在 `db.rs` 中，各子模块 `use crate::db::*`
 
 **验收**：
+
 - [ ] `commands.rs` ≤ 50 行（仅 mod + re-export）
 - [ ] 每个子模块 ≤ 200 行
 - [ ] `cargo check` 通过
@@ -241,6 +260,7 @@ src-tauri/src/
 **目标**：在 SQLite 中新建 `habits` 和 `habit_records` 表，提供 Tauri command 让前端读写习惯数据。
 
 **数据库表设计**：
+
 ```sql
 -- habits 表
 CREATE TABLE IF NOT EXISTS habits (
@@ -277,6 +297,7 @@ CREATE INDEX IF NOT EXISTS idx_habit_records_date ON habit_records(date);
 ```
 
 **Rust 端新增的 Tauri command**（在 `commands/habit_commands.rs` 中）：
+
 ```rust
 #[tauri::command]
 pub fn get_habits(state: State<DbState>, include_archived: Option<bool>) -> Result<Vec<Habit>, String>
@@ -304,6 +325,7 @@ pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -
 ```
 
 **操作步骤**：
+
 1. 在 `db.rs` 中添加 `habits` 和 `habit_records` 表的 CREATE TABLE 语句 + 索引
 2. 在 `db.rs` 中定义 `Habit` 和 `HabitRecord` 结构体
 3. 在 `commands/habit_commands.rs` 中实现 8 个 Tauri command
@@ -312,6 +334,7 @@ pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -
 6. 验证：启动应用后 SQLite 文件中能看到 habits 和 habit_records 表
 
 **验收**：
+
 - [ ] `db.rs` 新增 habits + habit_records 表 + 索引
 - [ ] `habit_commands.rs` 实现 8 个 command
 - [ ] `lib.rs` 注册 8 个新 command
@@ -325,7 +348,9 @@ pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -
 **目标**：`HabitView` 从 localStorage 切换到 Tauri command，并提供旧数据自动迁移。
 
 **前端改动**：
+
 1. 新建 `src/api.ts` 中添加习惯相关 API 封装：
+
    ```typescript
    // api.ts 新增
    export const habitApi = {
@@ -334,8 +359,10 @@ pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -
      updateHabit: (id: number, req: UpdateHabitRequest) => invoke<Habit>('update_habit', { id, req }),
      deleteHabit: (id: number) => invoke<void>('delete_habit', { id }),
      archiveHabit: (id: number, archived: boolean) => invoke<void>('archive_habit', { id, archived }),
-     getRecords: (habitId: number, startDate?: string, endDate?: string) => invoke<HabitRecord[]>('get_habit_records', { habitId, startDate, endDate }),
-     upsertRecord: (habitId: number, date: string, count: number, note?: string) => invoke<HabitRecord>('upsert_habit_record', { habitId, date, count, note }),
+     getRecords: (habitId: number, startDate?: string, endDate?: string) =>
+       invoke<HabitRecord[]>('get_habit_records', { habitId, startDate, endDate }),
+     upsertRecord: (habitId: number, date: string, count: number, note?: string) =>
+       invoke<HabitRecord>('upsert_habit_record', { habitId, date, count, note }),
      deleteRecord: (habitId: number, date: string) => invoke<void>('delete_habit_record', { habitId, date }),
    }
    ```
@@ -350,11 +377,12 @@ pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -
 6. 添加 TanStack Query 缓存习惯数据（项目已有 `@tanstack/react-query`）
 
 **数据迁移脚本**（首次启动自动执行）：
+
 ```typescript
 // src/utils/migrateHabits.ts
 export async function migrateHabitsFromLocalStorage(): Promise<void> {
   const oldData = localStorage.getItem('habits_data')
-  if (!oldData) return  // 无旧数据，跳过
+  if (!oldData) return // 无旧数据，跳过
 
   try {
     const oldHabits = JSON.parse(oldData)
@@ -392,6 +420,7 @@ export async function migrateHabitsFromLocalStorage(): Promise<void> {
 ```
 
 **操作步骤**：
+
 1. 在 `types.ts` 添加 `Habit` / `HabitRecord` / `CreateHabitRequest` / `UpdateHabitRequest` 类型
 2. 在 `api.ts` 添加 `habitApi` 对象
 3. 新建 `src/utils/migrateHabits.ts`
@@ -402,6 +431,7 @@ export async function migrateHabitsFromLocalStorage(): Promise<void> {
 8. 验证：新建/编辑/删除/打卡/归档全部正常
 
 **验收**：
+
 - [ ] 旧 localStorage 数据自动迁移到 SQLite
 - [ ] 新建习惯 → SQLite 中能查到
 - [ ] 打卡 → SQLite 中能查到记录
@@ -421,6 +451,7 @@ export async function migrateHabitsFromLocalStorage(): Promise<void> {
 **目标**：配置 vitest，为 `utils/` 下的纯函数写单元测试。
 
 **操作步骤**：
+
 1. 安装依赖：
    ```powershell
    npm install -D vitest @vitest/ui @testing-library/react @testing-library/jest-dom jsdom
@@ -468,6 +499,7 @@ export async function migrateHabitsFromLocalStorage(): Promise<void> {
    ```
 
 **smartDate 测试用例（示例）**：
+
 ```typescript
 import { describe, it, expect } from 'vitest'
 import { parseSmartDate } from '../smartDate'
@@ -500,6 +532,7 @@ describe('parseSmartDate', () => {
 ```
 
 **验收**：
+
 - [ ] `npm run test` 能跑通
 - [ ] 至少 20 个测试用例
 - [ ] 覆盖 smartDate / priority / appearance / avatar
@@ -512,6 +545,7 @@ describe('parseSmartDate', () => {
 **目标**：为 `stores/` 下的状态管理写测试。
 
 **操作步骤**：
+
 1. 安装依赖（如未装）：
    ```powershell
    npm install -D @vitest/coverage-v8
@@ -524,6 +558,7 @@ describe('parseSmartDate', () => {
    ```
 
 **taskStore 测试用例（示例）**：
+
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useTaskStore } from '../taskStore'
@@ -547,6 +582,7 @@ describe('taskStore', () => {
 ```
 
 **验收**：
+
 - [ ] 至少 15 个测试用例
 - [ ] 覆盖 taskStore / filterStore / uiStore
 - [ ] `npm run test` 全部通过
@@ -558,6 +594,7 @@ describe('taskStore', () => {
 **目标**：为 `utils/llm.ts` 和 `utils/prompts/` 写测试。
 
 **操作步骤**：
+
 1. 写测试文件：
    ```
    src/utils/__tests__/llm.test.ts          — 配置读写/错误处理（5+ 用例）
@@ -567,6 +604,7 @@ describe('taskStore', () => {
 3. 验证每个 prompt 模板返回非空字符串且包含关键变量
 
 **prompts 测试用例（示例）**：
+
 ```typescript
 import { describe, it, expect } from 'vitest'
 import { todaySummary, weeklyReport, smartSearch } from '../index'
@@ -591,6 +629,7 @@ describe('AI Prompts', () => {
 ```
 
 **验收**：
+
 - [ ] 至少 15 个测试用例
 - [ ] 覆盖 llm.ts 核心函数 + 10 个 prompt 模板
 - [ ] `npm run test` 全部通过
@@ -622,6 +661,7 @@ describe('AI Prompts', () => {
 ```
 
 **每批完成后**：
+
 1. `tsc --noEmit` 通过
 2. `cargo check` 通过
 3. `npm run test` 通过
@@ -750,16 +790,19 @@ npm run test 全部通过。总测试数 ≥50。"
 ## 六、验收清单（最终）
 
 ### 编译
+
 - [ ] `tsc --noEmit` 通过
 - [ ] `cargo check` 通过
 - [ ] `npm run test` 全部通过（≥50 用例）
 - [ ] `npm run test:coverage` 覆盖率报告生成
 
 ### 文件行数
+
 - [ ] 没有任何 `.tsx` / `.ts` 文件超过 500 行
 - [ ] 没有任何 `.rs` 文件超过 300 行（commands.rs ≤50 行）
 
 ### 功能回归（全量）
+
 - [ ] 任务 CRUD + 子任务 + 拖拽 + 批量
 - [ ] 日历视图（月/周/日/甘特/看板）
 - [ ] AI 助手 10 个技能
@@ -769,18 +812,21 @@ npm run test 全部通过。总测试数 ≥50。"
 - [ ] 设置全部面板
 
 ### 习惯数据迁移
+
 - [ ] 旧 localStorage 数据自动迁移到 SQLite
 - [ ] 迁移后 localStorage 保留备份 7 天
 - [ ] SQLite 中 habits 和 habit_records 表有数据
 - [ ] 新建/编辑/删除/打卡操作写入 SQLite
 
 ### 测试覆盖
+
 - [ ] 工具函数（smartDate/priority/appearance/avatar）≥20 用例
 - [ ] Store（taskStore/filterStore/uiStore）≥15 用例
 - [ ] LLM（llm.ts/prompts）≥15 用例
 - [ ] 总测试数 ≥50
 
 ### 版本管理
+
 - [ ] 版本号 bump 到 v1.23.0
 - [ ] README 更新日志
 - [ ] git commit + push
@@ -789,15 +835,16 @@ npm run test 全部通过。总测试数 ≥50。"
 
 ## 七、风险控制
 
-| 风险 | 概率 | 影响 | 缓解 |
-|---|---|---|---|
-| P3-07 数据迁移丢失 | 中 | 高 | 保留 localStorage 备份 7 天 |
-| P3-05 Rust 模块拆分编译错误 | 低 | 中 | cargo check 立即报错 |
-| P3-08 vitest 配置与 Vite 冲突 | 低 | 低 | vitest.config.ts 独立于 vite.config.ts |
-| P3-06 SQLite 表结构设计不合理 | 低 | 中 | 先用最小字段集，后续可 ALTER TABLE |
-| P3-07 TanStack Query 缓存策略不当 | 中 | 低 | 用 staleTime + invalidateQueries 控制 |
+| 风险                              | 概率 | 影响 | 缓解                                   |
+| --------------------------------- | ---- | ---- | -------------------------------------- |
+| P3-07 数据迁移丢失                | 中   | 高   | 保留 localStorage 备份 7 天            |
+| P3-05 Rust 模块拆分编译错误       | 低   | 中   | cargo check 立即报错                   |
+| P3-08 vitest 配置与 Vite 冲突     | 低   | 低   | vitest.config.ts 独立于 vite.config.ts |
+| P3-06 SQLite 表结构设计不合理     | 低   | 中   | 先用最小字段集，后续可 ALTER TABLE     |
+| P3-07 TanStack Query 缓存策略不当 | 中   | 低   | 用 staleTime + invalidateQueries 控制  |
 
 **回滚策略**：
+
 - A 方向（P3-01~05）：每任务一个 commit，出问题直接 revert
 - B 方向（P3-06~07）：独立 commit，数据迁移有 localStorage 备份
 - C 方向（P3-08~10）：独立 commit，测试不影响功能

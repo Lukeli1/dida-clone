@@ -21,7 +21,7 @@ export function GoalView() {
   const confirm = useConfirm()
   const toast = useToast()
   // 次要数据是否已就绪：未就绪时显示局部 loading，避免渲染空状态
-  const secondaryDataLoaded = useUIStore(s => s.secondaryDataLoaded)
+  const secondaryDataLoaded = useUIStore((s) => s.secondaryDataLoaded)
   const today = new Date()
 
   const loadGoals = useCallback(async () => {
@@ -37,10 +37,12 @@ export function GoalView() {
     }
   }, [])
 
-  useEffect(() => { loadGoals() }, [loadGoals])
+  useEffect(() => {
+    loadGoals()
+  }, [loadGoals])
 
-  const visibleGoals = showArchived ? goals : goals.filter(g => g.status !== 'archived')
-  const archivedCount = goals.filter(g => g.status === 'archived').length
+  const visibleGoals = showArchived ? goals : goals.filter((g) => g.status !== 'archived')
+  const archivedCount = goals.filter((g) => g.status === 'archived').length
 
   function handleCreate() {
     setEditingGoal(null)
@@ -52,7 +54,10 @@ export function GoalView() {
     setShowEditor(true)
   }
 
-  async function handleEditorSave(payload: { create?: CreateGoalRequest; update?: { id: number; updates: UpdateGoalRequest } }) {
+  async function handleEditorSave(payload: {
+    create?: CreateGoalRequest
+    update?: { id: number; updates: UpdateGoalRequest }
+  }) {
     try {
       if (payload.create) {
         await goalApi.create(payload.create)
@@ -86,7 +91,7 @@ export function GoalView() {
     if (!ok) return
     try {
       await goalApi.delete(goal.id)
-      setGoals(prev => prev.filter(g => g.id !== goal.id))
+      setGoals((prev) => prev.filter((g) => g.id !== goal.id))
       toast.success('目标已删除')
     } catch (e) {
       console.error('删除目标失败:', e)
@@ -98,7 +103,7 @@ export function GoalView() {
     const newStatus = goal.status === 'archived' ? 'active' : 'archived'
     try {
       await goalApi.update(goal.id, { status: newStatus })
-      setGoals(prev => prev.map(g => (g.id === goal.id ? { ...g, status: newStatus } : g)))
+      setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, status: newStatus } : g)))
       toast.success(newStatus === 'archived' ? '目标已归档' : '目标已恢复')
     } catch (e) {
       console.error('归档目标失败:', e)
@@ -106,7 +111,10 @@ export function GoalView() {
     }
   }
 
-  function handleProgressChange(_goalId: number, _progress: { total_tasks: number; completed_tasks: number; progress_percent: number }) {
+  function handleProgressChange(
+    _goalId: number,
+    _progress: { total_tasks: number; completed_tasks: number; progress_percent: number },
+  ) {
     // 进度变化时由 GoalCard 内部维护本地进度状态，无需在此处刷新
     // 预留接口：未来若需汇总全局进度可在此实现
   }
@@ -133,76 +141,70 @@ export function GoalView() {
       </header>
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-5xl mx-auto">
-        {/* 加载中 */}
-        {loading || !secondaryDataLoaded ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-sm text-[var(--color-text-tertiary)]">加载中...</p>
-          </div>
-        ) : goals.length === 0 ? (
-          /* 空状态 */
-          <EmptyState
-            icon={
-              <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            }
-            title="暂无目标"
-            subtitle="创建年度 / 季度 / 月度目标，关联任务并跟踪完成进度"
-          />
-        ) : (
-          <>
-            {/* 归档切换 */}
-            {archivedCount > 0 && (
-              <div className="mb-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowArchived(!showArchived)}
-                  className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
-                >
-                  {showArchived ? '隐藏归档' : `查看归档（${archivedCount}）`}
-                </button>
-              </div>
-            )}
+          {/* 加载中 */}
+          {loading || !secondaryDataLoaded ? (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-sm text-[var(--color-text-tertiary)]">加载中...</p>
+            </div>
+          ) : goals.length === 0 ? (
+            /* 空状态 */
+            <EmptyState
+              icon={
+                <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              }
+              title="暂无目标"
+              subtitle="创建年度 / 季度 / 月度目标，关联任务并跟踪完成进度"
+            />
+          ) : (
+            <>
+              {/* 归档切换 */}
+              {archivedCount > 0 && (
+                <div className="mb-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowArchived(!showArchived)}
+                    className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
+                  >
+                    {showArchived ? '隐藏归档' : `查看归档（${archivedCount}）`}
+                  </button>
+                </div>
+              )}
 
-            {/* 目标卡片网格 */}
-            {visibleGoals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-sm text-[var(--color-text-tertiary)]">没有进行中的目标</p>
-                <button
-                  type="button"
-                  onClick={() => setShowArchived(true)}
-                  className="mt-2 text-xs text-[var(--color-accent)] hover:underline"
-                >
-                  查看归档目标
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {visibleGoals.map(goal => (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    onEdit={handleEdit}
-                    onArchive={handleArchive}
-                    onDelete={handleDelete}
-                    onProgressChange={handleProgressChange}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+              {/* 目标卡片网格 */}
+              {visibleGoals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <p className="text-sm text-[var(--color-text-tertiary)]">没有进行中的目标</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowArchived(true)}
+                    className="mt-2 text-xs text-[var(--color-accent)] hover:underline"
+                  >
+                    查看归档目标
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visibleGoals.map((goal) => (
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      onEdit={handleEdit}
+                      onArchive={handleArchive}
+                      onDelete={handleDelete}
+                      onProgressChange={handleProgressChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
       {/* 创建/编辑弹窗 */}
-      {showEditor && (
-        <GoalEditor
-          goal={editingGoal}
-          onSave={handleEditorSave}
-          onCancel={handleEditorCancel}
-        />
-      )}
+      {showEditor && <GoalEditor goal={editingGoal} onSave={handleEditorSave} onCancel={handleEditorCancel} />}
     </div>
   )
 }

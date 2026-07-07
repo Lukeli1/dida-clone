@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 #[path = "sync_ops.rs"]
 mod sync_ops;
-pub use sync_ops::{init_sync_repo, pull_changes, push_changes, fetch_remote};
+pub use sync_ops::{fetch_remote, init_sync_repo, pull_changes, push_changes};
 
 /// 同步配置（持久化到 sync_config.json）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,22 +62,16 @@ pub fn get_sync_status(repo: &Repository, branch: &str) -> Result<SyncStatus, St
     if let Ok(mut remote) = repo.find_remote("origin") {
         let mut opts = FetchOptions::new();
         let mut callbacks = RemoteCallbacks::new();
-        let _ = callbacks.credentials(|_, _, _| {
-            git2::Cred::default().map_err(|e| e)
-        });
+        let _ = callbacks.credentials(|_, _, _| git2::Cred::default());
         opts.remote_callbacks(callbacks);
         let _ = remote.fetch(&[branch], Some(&mut opts), None);
     }
 
-    let local_oid = repo
-        .head()
-        .ok()
-        .and_then(|h| h.target())
-        .or_else(|| {
-            repo.revparse_single(&format!("refs/heads/{}", branch))
-                .ok()
-                .map(|o| o.id())
-        });
+    let local_oid = repo.head().ok().and_then(|h| h.target()).or_else(|| {
+        repo.revparse_single(&format!("refs/heads/{}", branch))
+            .ok()
+            .map(|o| o.id())
+    });
 
     let remote_ref = repo
         .find_reference(&format!("refs/remotes/origin/{}", branch))
@@ -92,7 +86,12 @@ pub fn get_sync_status(repo: &Repository, branch: &str) -> Result<SyncStatus, St
     let has_conflict = repo.state() != git2::RepositoryState::Clean;
     let last_sync = read_last_sync(repo);
 
-    Ok(SyncStatus { ahead, behind, last_sync, has_conflict })
+    Ok(SyncStatus {
+        ahead,
+        behind,
+        last_sync,
+        has_conflict,
+    })
 }
 
 /// 处理数据库冲突：备份本地 dida.db，用远程版本覆盖本地

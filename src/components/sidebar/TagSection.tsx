@@ -20,7 +20,7 @@ export function TagSection({
   const [tagContextMenu, setTagContextMenu] = useState<{ tagId: number; x: number; y: number } | null>(null)
   const tagContextMenuRef = useRef<HTMLDivElement>(null)
   const newTagInputRef = useRef<HTMLInputElement>(null)
-  const [adjustedTagMenuPos, setAdjustedTagMenuPos] = useState<{x:number,y:number} | null>(null)
+  const [adjustedTagMenuPos, setAdjustedTagMenuPos] = useState<{ x: number; y: number } | null>(null)
   const confirm = useConfirm()
   const toast = useToast()
 
@@ -35,7 +35,10 @@ export function TagSection({
 
   // 标签右键菜单边界检测
   useLayoutEffect(() => {
-    if (!tagContextMenu || !tagContextMenuRef.current) { setAdjustedTagMenuPos(null); return }
+    if (!tagContextMenu || !tagContextMenuRef.current) {
+      setAdjustedTagMenuPos(null)
+      return
+    }
     const rect = tagContextMenuRef.current.getBoundingClientRect()
     let { x, y } = tagContextMenu
     const margin = 8
@@ -80,7 +83,13 @@ export function TagSection({
 
   async function handleDeleteTag(tagId: number) {
     setTagContextMenu(null)
-    const ok = await confirm({ title: '删除标签', message: '确定删除此标签吗？', danger: true, confirmText: '删除', cancelText: '取消' })
+    const ok = await confirm({
+      title: '删除标签',
+      message: '确定删除此标签吗？',
+      danger: true,
+      confirmText: '删除',
+      cancelText: '取消',
+    })
     if (ok) {
       onDeleteTag(tagId)
     }
@@ -89,9 +98,7 @@ export function TagSection({
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-2 px-3">
-        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">
-          标签
-        </p>
+        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">标签</p>
         <button
           onClick={() => setIsCreatingTag(true)}
           className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors active:scale-90"
@@ -117,7 +124,10 @@ export function TagSection({
               onChange={(e) => setNewTagName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreateTag()
-                if (e.key === 'Escape') { setIsCreatingTag(false); setNewTagName('') }
+                if (e.key === 'Escape') {
+                  setIsCreatingTag(false)
+                  setNewTagName('')
+                }
               }}
               placeholder="标签名称"
               tabIndex={isCreatingTag ? 0 : -1}
@@ -132,9 +142,13 @@ export function TagSection({
                 className="w-full px-2 py-1 text-xs border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] text-[var(--color-text-secondary)]"
               >
                 <option value="">顶级标签</option>
-                {tags.filter(t => !t.parent_id).map(tag => (
-                  <option key={tag.id} value={tag.id}>隶属于: {tag.name}</option>
-                ))}
+                {tags
+                  .filter((t) => !t.parent_id)
+                  .map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      隶属于: {tag.name}
+                    </option>
+                  ))}
               </select>
             )}
             <div className="flex gap-1.5 flex-wrap">
@@ -149,8 +163,24 @@ export function TagSection({
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={handleCreateTag} tabIndex={isCreatingTag ? 0 : -1} className="px-3 py-1 text-xs bg-[var(--color-accent)] text-white rounded-md hover:bg-[var(--color-accent-hover)] transition-colors active:scale-[0.97]">创建</button>
-              <button onClick={() => { setIsCreatingTag(false); setNewTagName(''); setNewTagParentId(null) }} tabIndex={isCreatingTag ? 0 : -1} className="px-3 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-md transition-colors active:scale-[0.97]">取消</button>
+              <button
+                onClick={handleCreateTag}
+                tabIndex={isCreatingTag ? 0 : -1}
+                className="px-3 py-1 text-xs bg-[var(--color-accent)] text-white rounded-md hover:bg-[var(--color-accent-hover)] transition-colors active:scale-[0.97]"
+              >
+                创建
+              </button>
+              <button
+                onClick={() => {
+                  setIsCreatingTag(false)
+                  setNewTagName('')
+                  setNewTagParentId(null)
+                }}
+                tabIndex={isCreatingTag ? 0 : -1}
+                className="px-3 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-md transition-colors active:scale-[0.97]"
+              >
+                取消
+              </button>
             </div>
           </div>
         </div>
@@ -158,64 +188,74 @@ export function TagSection({
 
       <ul className="space-y-0.5">
         {/* 一级标签（无 parent_id） */}
-        {tags.filter(t => !t.parent_id).map((tag) => {
-          const childTags = tags.filter(t => t.parent_id === tag.id)
-          return (
-          <li key={tag.id}>
-            <button
-              onClick={() => { onViewChange('tasks'); onSelectTag(tag.id); onSelectList(null) }}
-              onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
-              className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
-                selectedTagId === tag.id
-                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
-              }`}
-            >
-              {selectedTagId === tag.id && (
-                <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
-                  style={{ backgroundColor: tag.color || '#9aa0a6' }}
-                />
-              )}
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-white/50"
-                style={{ backgroundColor: tag.color || '#9aa0a6' }}
-              />
-              <span className="truncate">{tag.name}</span>
-            </button>
-            {/* 二级标签 */}
-            {childTags.length > 0 && (
-              <ul className="ml-4 border-l border-[var(--color-border-light)] pl-1 mt-0.5 space-y-0.5">
-                {childTags.map(child => (
-                  <li key={child.id}>
-                    <button
-                      onClick={() => { onViewChange('tasks'); onSelectTag(child.id); onSelectList(null) }}
-                      onContextMenu={(e) => handleTagContextMenu(e, child.id)}
-                      className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
-                        selectedTagId === child.id
-                          ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
-                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
-                      }`}
-                    >
-                      {selectedTagId === child.id && (
-                        <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
-                          style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
-                        />
-                      )}
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-white/50"
-                        style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
-                      />
-                      <span className="truncate text-[13px]">{child.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-          )
-        })}
+        {tags
+          .filter((t) => !t.parent_id)
+          .map((tag) => {
+            const childTags = tags.filter((t) => t.parent_id === tag.id)
+            return (
+              <li key={tag.id}>
+                <button
+                  onClick={() => {
+                    onViewChange('tasks')
+                    onSelectTag(tag.id)
+                    onSelectList(null)
+                  }}
+                  onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
+                  className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
+                    selectedTagId === tag.id
+                      ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
+                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+                  }`}
+                >
+                  {selectedTagId === tag.id && (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
+                      style={{ backgroundColor: tag.color || '#9aa0a6' }}
+                    />
+                  )}
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-white/50"
+                    style={{ backgroundColor: tag.color || '#9aa0a6' }}
+                  />
+                  <span className="truncate">{tag.name}</span>
+                </button>
+                {/* 二级标签 */}
+                {childTags.length > 0 && (
+                  <ul className="ml-4 border-l border-[var(--color-border-light)] pl-1 mt-0.5 space-y-0.5">
+                    {childTags.map((child) => (
+                      <li key={child.id}>
+                        <button
+                          onClick={() => {
+                            onViewChange('tasks')
+                            onSelectTag(child.id)
+                            onSelectList(null)
+                          }}
+                          onContextMenu={(e) => handleTagContextMenu(e, child.id)}
+                          className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
+                            selectedTagId === child.id
+                              ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
+                              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+                          }`}
+                        >
+                          {selectedTagId === child.id && (
+                            <span
+                              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
+                              style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
+                            />
+                          )}
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-white/50"
+                            style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
+                          />
+                          <span className="truncate text-[13px]">{child.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
       </ul>
 
       {/* 标签右键菜单 */}
@@ -223,14 +263,23 @@ export function TagSection({
         <div
           ref={tagContextMenuRef}
           className="fixed z-50 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] py-1 min-w-[120px] animate-scale-in origin-top-left"
-          style={{ left: adjustedTagMenuPos?.x ?? tagContextMenu.x, top: adjustedTagMenuPos?.y ?? tagContextMenu.y, boxShadow: 'var(--shadow-dropdown)' }}
+          style={{
+            left: adjustedTagMenuPos?.x ?? tagContextMenu.x,
+            top: adjustedTagMenuPos?.y ?? tagContextMenu.y,
+            boxShadow: 'var(--shadow-dropdown)',
+          }}
         >
           <button
             onClick={() => handleDeleteTag(tagContextMenu.tagId)}
             className="w-full text-left px-4 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 active:bg-[var(--color-danger)]/15 transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
             </svg>
             删除标签
           </button>

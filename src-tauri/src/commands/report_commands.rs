@@ -79,8 +79,7 @@ pub fn get_reports(
     sql.push_str(" ORDER BY created_at DESC LIMIT ?");
     params_vec.push(Box::new(limit));
 
-    let params_refs: Vec<&dyn rusqlite::ToSql> =
-        params_vec.iter().map(|p| p.as_ref()).collect();
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let reports = stmt
         .query_map(params_refs.as_slice(), row_to_report)

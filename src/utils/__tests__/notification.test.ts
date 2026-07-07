@@ -135,9 +135,7 @@ describe('Tauri 环境', () => {
   it('sendTestNotification 调用 sendNotification 并返回 true', async () => {
     const result = await sendTestNotification()
     expect(result).toBe(true)
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ title: '滴答清单' }),
-    )
+    expect(mocks.sendNotification).toHaveBeenCalledWith(expect.objectContaining({ title: '滴答清单' }))
   })
 
   it('sendTestNotification 异常时返回 false', async () => {

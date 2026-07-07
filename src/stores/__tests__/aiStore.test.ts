@@ -152,10 +152,7 @@ describe('aiStore', () => {
 
   // 16. 初始化时从 localStorage 读取已保存的消息与偏好
   it('初始化时从 localStorage 读取已保存的消息与偏好', async () => {
-    localStorage.setItem(
-      MESSAGES_KEY,
-      JSON.stringify([makeMsg('saved-user'), makeMsg('saved-ai', 'assistant')]),
-    )
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify([makeMsg('saved-user'), makeMsg('saved-ai', 'assistant')]))
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(['saved-pref']))
     // 重置模块并重新导入，触发 loadMessages / loadPreferences
     vi.resetModules()

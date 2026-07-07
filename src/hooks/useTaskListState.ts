@@ -24,61 +24,58 @@ import type { TaskActions } from './useTaskActions'
  *      避免显示与实际筛选不一致。本 hook 仅暴露 filters 对象（供筛选下拉框读写）。
  *   4. 不改变任何 store 的结构、不改变 action 的行为，仅做“状态读取点的搬迁”。
  */
-export function useTaskListState(
-  createTaskAction: TaskActions['handleCreateTask'],
-  incompleteTaskTree: Task[],
-) {
+export function useTaskListState(createTaskAction: TaskActions['handleCreateTask'], incompleteTaskTree: Task[]) {
   // ===== 本地输入状态 =====
   const [newTaskTitle, setNewTaskTitle] = useState('')
 
   // ===== 搜索 =====
-  const searchQuery = useUIStore(s => s.searchQuery)
-  const setSearchQuery = useUIStore(s => s.setSearchQuery)
+  const searchQuery = useUIStore((s) => s.searchQuery)
+  const setSearchQuery = useUIStore((s) => s.setSearchQuery)
 
   // ===== 批量选择 =====
-  const batchMode = useUIStore(s => s.batchMode)
-  const selectedTaskIds = useUIStore(s => s.selectedTaskIds)
-  const toggleBatchMode = useUIStore(s => s.toggleBatchMode)
-  const toggleTaskSelection = useUIStore(s => s.toggleTaskSelection)
-  const selectAllTasksAction = useUIStore(s => s.selectAllTasks)
-  const clearSelection = useUIStore(s => s.clearSelection)
+  const batchMode = useUIStore((s) => s.batchMode)
+  const selectedTaskIds = useUIStore((s) => s.selectedTaskIds)
+  const toggleBatchMode = useUIStore((s) => s.toggleBatchMode)
+  const toggleTaskSelection = useUIStore((s) => s.toggleTaskSelection)
+  const selectAllTasksAction = useUIStore((s) => s.selectAllTasks)
+  const clearSelection = useUIStore((s) => s.clearSelection)
 
   // ===== 组合筛选 =====
-  const showFilters = useUIStore(s => s.showFilters)
-  const toggleFilters = useUIStore(s => s.toggleFilters)
+  const showFilters = useUIStore((s) => s.showFilters)
+  const toggleFilters = useUIStore((s) => s.toggleFilters)
   const filters = useFilterStore()
 
   // ===== AI 自然语言输入 =====
-  const aiMode = useUIStore(s => s.aiMode)
-  const aiParsing = useUIStore(s => s.aiParsing)
-  const setAiMode = useUIStore(s => s.setAiMode)
+  const aiMode = useUIStore((s) => s.aiMode)
+  const aiParsing = useUIStore((s) => s.aiParsing)
+  const setAiMode = useUIStore((s) => s.setAiMode)
 
   // ===== 折叠 / 子任务输入 =====
-  const expandedTasks = useUIStore(s => s.expandedTasks)
-  const subtaskInputs = useUIStore(s => s.subtaskInputs)
-  const toggleTaskExpand = useUIStore(s => s.toggleTaskExpand)
-  const setSubtaskInput = useUIStore(s => s.setSubtaskInput)
+  const expandedTasks = useUIStore((s) => s.expandedTasks)
+  const subtaskInputs = useUIStore((s) => s.subtaskInputs)
+  const toggleTaskExpand = useUIStore((s) => s.toggleTaskExpand)
+  const setSubtaskInput = useUIStore((s) => s.setSubtaskInput)
 
   // ===== 显示控制 =====
-  const showCompleted = useUIStore(s => s.showCompleted)
-  const showOverdue = useUIStore(s => s.showOverdue)
-  const setShowCompleted = useUIStore(s => s.setShowCompleted)
-  const setShowOverdue = useUIStore(s => s.setShowOverdue)
+  const showCompleted = useUIStore((s) => s.showCompleted)
+  const showOverdue = useUIStore((s) => s.showOverdue)
+  const setShowCompleted = useUIStore((s) => s.setShowCompleted)
+  const setShowOverdue = useUIStore((s) => s.setShowOverdue)
 
   // ===== 选中任务 =====
-  const selectedTaskId = useUIStore(s => s.selectedTaskId)
-  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const selectedTaskId = useUIStore((s) => s.selectedTaskId)
+  const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
 
   // ===== 视图 / 清单 =====
-  const currentView = useUIStore(s => s.currentView)
-  const selectedListId = useUIStore(s => s.selectedListId)
+  const currentView = useUIStore((s) => s.currentView)
+  const selectedListId = useUIStore((s) => s.selectedListId)
 
   // ===== 拖拽迷你日历 =====
-  const isDraggingTask = useUIStore(s => s.isDraggingTask)
-  const miniCalendarDate = useUIStore(s => s.miniCalendarDate)
-  const dragOverCalendarDate = useUIStore(s => s.dragOverCalendarDate)
-  const setMiniCalendarDate = useUIStore(s => s.setMiniCalendarDate)
-  const setDragOverCalendarDate = useUIStore(s => s.setDragOverCalendarDate)
+  const isDraggingTask = useUIStore((s) => s.isDraggingTask)
+  const miniCalendarDate = useUIStore((s) => s.miniCalendarDate)
+  const dragOverCalendarDate = useUIStore((s) => s.dragOverCalendarDate)
+  const setMiniCalendarDate = useUIStore((s) => s.setMiniCalendarDate)
+  const setDragOverCalendarDate = useUIStore((s) => s.setDragOverCalendarDate)
 
   // ===== 派生操作（与原 App.tsx 中的 handleCreateTask / selectAllTasks 行为完全一致）=====
   async function handleCreateTask() {
@@ -88,7 +85,7 @@ export function useTaskListState(
   }
 
   function selectAllTasks() {
-    selectAllTasksAction(incompleteTaskTree.map(t => t.id))
+    selectAllTasksAction(incompleteTaskTree.map((t) => t.id))
   }
 
   return {

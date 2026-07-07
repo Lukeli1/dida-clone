@@ -2,8 +2,8 @@ use rusqlite::{params, Result};
 use serde::Deserialize;
 use tauri::State;
 
-use crate::db::{DbState, Task};
 use super::super::now_rfc3339;
+use crate::db::{DbState, Task};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTaskRequest {

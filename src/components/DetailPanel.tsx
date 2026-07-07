@@ -28,9 +28,9 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ task, actions }: DetailPanelProps) {
-  const tags = useTagStore(s => s.tags)
-  const lists = useListStore(s => s.lists)
-  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const tags = useTagStore((s) => s.tags)
+  const lists = useListStore((s) => s.lists)
+  const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
   const { isNarrow } = useWindowSize()
 
   // 动画状态：mounted 控制 DOM 是否存在，visible 控制 CSS 类切换
@@ -134,9 +134,7 @@ export function DetailPanel({ task, actions }: DetailPanelProps) {
           <span className="text-sm font-medium text-[var(--color-text-primary)]">任务详情</span>
         </header>
         {/* 强制内部 TaskDetail 的 aside 撑满全屏宽度并去掉左侧边框 */}
-        <div className="flex-1 min-h-0 [&>aside]:w-full [&>aside]:h-full [&>aside]:border-l-0">
-          {taskDetail}
-        </div>
+        <div className="flex-1 min-h-0 [&>aside]:w-full [&>aside]:h-full [&>aside]:border-l-0">{taskDetail}</div>
       </div>
     )
   }

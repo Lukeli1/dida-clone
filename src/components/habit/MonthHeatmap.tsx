@@ -15,9 +15,7 @@ import { dateKey, isFutureDay } from './constants'
  *
  * 背景层与文字层分离：opacity 只作用于背景层，保证白色日期文字始终清晰可读。
  */
-export function MonthHeatmap({ records }: {
-  records: Record<string, number>
-}) {
+export function MonthHeatmap({ records }: { records: Record<string, number> }) {
   const now = new Date()
   const year = now.getFullYear()
   const monthIdx = now.getMonth()
@@ -55,10 +53,7 @@ export function MonthHeatmap({ records }: {
   }
 
   return (
-    <div
-      className="p-3 bg-[var(--color-bg-secondary)] rounded-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="p-3 bg-[var(--color-bg-secondary)] rounded-lg" onClick={(e) => e.stopPropagation()}>
       {/* 月份标题 */}
       <div className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">
         {year}年{monthIdx + 1}月
@@ -66,8 +61,10 @@ export function MonthHeatmap({ records }: {
 
       {/* 星期标题行 */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {['日', '一', '二', '三', '四', '五', '六'].map(d => (
-          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">{d}</div>
+        {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+          <div key={d} className="text-xs text-center text-[var(--color-text-tertiary)]">
+            {d}
+          </div>
         ))}
       </div>
 
@@ -97,10 +94,7 @@ export function MonthHeatmap({ records }: {
                 />
               )}
               {/* 文字层 */}
-              <span
-                className="relative"
-                style={{ color: count > 0 ? '#ffffff' : 'var(--color-text-tertiary)' }}
-              >
+              <span className="relative" style={{ color: count > 0 ? '#ffffff' : 'var(--color-text-tertiary)' }}>
                 {date.getDate()}
               </span>
             </div>
@@ -111,7 +105,7 @@ export function MonthHeatmap({ records }: {
       {/* 图例 */}
       <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-[var(--color-text-tertiary)]">
         <span>少</span>
-        {[0, 1, 2, 3].map(level => {
+        {[0, 1, 2, 3].map((level) => {
           const opacity = cellOpacity(level)
           return (
             <span
@@ -120,10 +114,7 @@ export function MonthHeatmap({ records }: {
               style={{ backgroundColor: opacity === null ? 'var(--color-bg-tertiary)' : 'transparent' }}
             >
               {opacity !== null && (
-                <span
-                  className="absolute inset-0"
-                  style={{ backgroundColor: 'var(--color-accent)', opacity }}
-                />
+                <span className="absolute inset-0" style={{ backgroundColor: 'var(--color-accent)', opacity }} />
               )}
             </span>
           )

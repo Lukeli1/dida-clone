@@ -61,9 +61,7 @@ export function ViewRenderer(props: ViewRendererProps) {
 
   // 甘特图视图
   if (viewMode === 'gantt') {
-    return (
-      <GanttView tasks={tasks} lists={lists} onTaskClick={onTaskClick} onMoveTask={onMoveTask} />
-    )
+    return <GanttView tasks={tasks} lists={lists} onTaskClick={onTaskClick} onMoveTask={onMoveTask} />
   }
 
   // 看板视图

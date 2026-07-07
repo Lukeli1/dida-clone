@@ -23,7 +23,10 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onStop}>
-      <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] p-8 w-full max-w-sm mx-4 text-center" onClick={e => e.stopPropagation()}>
+      <div
+        className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] p-8 w-full max-w-sm mx-4 text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="text-5xl mb-3">{icon}</div>
         <p className="text-[var(--color-text-primary)] font-semibold mb-1">{habit.name}</p>
         <p className="text-sm text-[var(--color-text-secondary)] mb-6">专注中...</p>
@@ -32,7 +35,9 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
           <svg className="w-40 h-40 -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="#f3f4f6" strokeWidth="8" />
             <circle
-              cx="50" cy="50" r="42"
+              cx="50"
+              cy="50"
+              r="42"
               fill="none"
               stroke={color}
               strokeWidth="8"
@@ -50,13 +55,15 @@ export function HabitFocusTimer({ habit, seconds, targetSeconds, onSetTarget, on
         </div>
         {/* 快捷时长 */}
         <div className="flex items-center justify-center gap-2 mb-5">
-          {[15, 25, 45].map(t => (
+          {[15, 25, 45].map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => onSetTarget(t * 60)}
               className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                targetSeconds === t * 60 ? 'text-white' : 'text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)]'
+                targetSeconds === t * 60
+                  ? 'text-white'
+                  : 'text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)]'
               }`}
               style={targetSeconds === t * 60 ? { backgroundColor: color } : undefined}
             >

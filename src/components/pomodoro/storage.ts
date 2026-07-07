@@ -60,17 +60,13 @@ export function loadSettings(): PomodoroSettings {
       const parsed = JSON.parse(raw) as Partial<PomodoroSettings>
       return {
         focusTime:
-          typeof parsed.focusTime === 'number' && parsed.focusTime > 0
-            ? parsed.focusTime
-            : DEFAULT_SETTINGS.focusTime,
+          typeof parsed.focusTime === 'number' && parsed.focusTime > 0 ? parsed.focusTime : DEFAULT_SETTINGS.focusTime,
         shortBreak:
           typeof parsed.shortBreak === 'number' && parsed.shortBreak > 0
             ? parsed.shortBreak
             : DEFAULT_SETTINGS.shortBreak,
         longBreak:
-          typeof parsed.longBreak === 'number' && parsed.longBreak > 0
-            ? parsed.longBreak
-            : DEFAULT_SETTINGS.longBreak,
+          typeof parsed.longBreak === 'number' && parsed.longBreak > 0 ? parsed.longBreak : DEFAULT_SETTINGS.longBreak,
         longBreakInterval:
           typeof parsed.longBreakInterval === 'number' && parsed.longBreakInterval > 0
             ? parsed.longBreakInterval
@@ -97,8 +93,7 @@ export function loadStats(): PomodoroStats {
     const raw = localStorage.getItem(STORAGE_STATS_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PomodoroStats>
-      const totalSessions =
-        typeof parsed.totalSessions === 'number' ? parsed.totalSessions : 0
+      const totalSessions = typeof parsed.totalSessions === 'number' ? parsed.totalSessions : 0
       // 同一天：保留当日数据；跨天：重置当日计数，保留累计
       if (parsed.date === today) {
         return {

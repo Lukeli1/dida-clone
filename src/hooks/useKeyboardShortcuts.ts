@@ -25,7 +25,7 @@ export function useKeyboardShortcuts(
   newTaskInputRef: RefObject<HTMLInputElement>,
   searchInputRef: RefObject<HTMLInputElement>,
 ) {
-  const customShortcuts = useUIStore(s => s.customShortcuts)
+  const customShortcuts = useUIStore((s) => s.customShortcuts)
 
   // 合并默认和自定义快捷键，构建 combo → id 映射
   const bindings = useMemo(() => {
@@ -39,7 +39,15 @@ export function useKeyboardShortcuts(
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const { setSelectedTaskId, setSearchQuery, setCurrentView, setSelectedListId, setSelectedTagId, setShortcutsHelpOpen, toggleSidebar } = useUIStore.getState()
+      const {
+        setSelectedTaskId,
+        setSearchQuery,
+        setCurrentView,
+        setSelectedListId,
+        setSelectedTagId,
+        setShortcutsHelpOpen,
+        toggleSidebar,
+      } = useUIStore.getState()
 
       // F1 始终打开快捷键帮助（不在自定义范围内）
       if (e.key === 'F1') {
@@ -68,10 +76,7 @@ export function useKeyboardShortcuts(
 
       // 检查当前焦点是否在输入框中
       const target = e.target as HTMLElement
-      const isEditing =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
+      const isEditing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
       e.preventDefault()
 

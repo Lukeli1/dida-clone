@@ -11,15 +11,15 @@
 
 **把 5 个超大文件拆成可维护的小模块，不改变任何功能行为。**
 
-| 指标 | 当前 | 目标 |
-|---|---|---|
-| >500 行的文件 | 6 个 | 0 个 |
-| >300 行的组件 | 10 个 | ≤3 个 |
-| App.tsx | 778 行 | ≤200 行 |
-| HabitView.tsx | 1439 行 | ≤300 行 |
-| SettingsView.tsx | 842 行 | ≤200 行 |
-| useTaskActions.ts | 467 行 | ≤100 行（聚合 re-export） |
-| llm.ts | 492 行 | ≤150 行 |
+| 指标              | 当前    | 目标                      |
+| ----------------- | ------- | ------------------------- |
+| >500 行的文件     | 6 个    | 0 个                      |
+| >300 行的组件     | 10 个   | ≤3 个                     |
+| App.tsx           | 778 行  | ≤200 行                   |
+| HabitView.tsx     | 1439 行 | ≤300 行                   |
+| SettingsView.tsx  | 842 行  | ≤200 行                   |
+| useTaskActions.ts | 467 行  | ≤100 行（聚合 re-export） |
+| llm.ts            | 492 行  | ≤150 行                   |
 
 **原则**：纯重构，零功能变更，零行为变更。拆完后 `tsc --noEmit` + `cargo check` + 全量功能回归通过。
 
@@ -29,20 +29,20 @@
 
 ### 2.1 文件行数排行
 
-| 文件 | 行数 | 问题 |
-|---|---|---|
-| `HabitView.tsx` | 1439 | 类型定义+常量+列表+卡片+编辑器+日历+统计全塞一个文件 |
-| `SettingsView.tsx` | 842 | 6 个设置模块平铺，每个模块逻辑耦合 |
-| `App.tsx` | 778 | God Component，37 个 selector + 20 个 action + JSX 路由 |
-| `Sidebar.tsx` | 722 | 清单管理+标签管理+视图切换+底部设置区全在一起 |
-| `TaskDetail.tsx` | 712 | 任务详情+子任务+备注+标签+附件+评论全在一起 |
-| `TaskItem.tsx` | 707 | 任务行+内联编辑+批量选择+拖拽+右键菜单+子任务展开 |
-| `WeekView.tsx` | 600 | 周视图+任务条渲染+拖拽+点击交互 |
-| `PomodoroView.tsx` | 572 | 番茄钟+统计+设置+任务选择 |
-| `MonthView.tsx` | 531 | 月视图+任务条+拖拽 |
-| `AIAssistant.tsx` | 430 | 对话+技能+操作解析 |
-| `useTaskActions.ts` | 467 | 26 个 action 挤一个 hook |
-| `llm.ts` | 492 | 10 个 prompt 模板内联 |
+| 文件                | 行数 | 问题                                                    |
+| ------------------- | ---- | ------------------------------------------------------- |
+| `HabitView.tsx`     | 1439 | 类型定义+常量+列表+卡片+编辑器+日历+统计全塞一个文件    |
+| `SettingsView.tsx`  | 842  | 6 个设置模块平铺，每个模块逻辑耦合                      |
+| `App.tsx`           | 778  | God Component，37 个 selector + 20 个 action + JSX 路由 |
+| `Sidebar.tsx`       | 722  | 清单管理+标签管理+视图切换+底部设置区全在一起           |
+| `TaskDetail.tsx`    | 712  | 任务详情+子任务+备注+标签+附件+评论全在一起             |
+| `TaskItem.tsx`      | 707  | 任务行+内联编辑+批量选择+拖拽+右键菜单+子任务展开       |
+| `WeekView.tsx`      | 600  | 周视图+任务条渲染+拖拽+点击交互                         |
+| `PomodoroView.tsx`  | 572  | 番茄钟+统计+设置+任务选择                               |
+| `MonthView.tsx`     | 531  | 月视图+任务条+拖拽                                      |
+| `AIAssistant.tsx`   | 430  | 对话+技能+操作解析                                      |
+| `useTaskActions.ts` | 467  | 26 个 action 挤一个 hook                                |
+| `llm.ts`            | 492  | 10 个 prompt 模板内联                                   |
 
 ### 2.2 架构问题
 
@@ -63,6 +63,7 @@
 **目标**：核心调用逻辑 ≤150 行，每个 prompt 独立文件
 
 **拆分方案**：
+
 ```
 src/utils/
 ├── llm.ts (150 行) — 核心调用/配置/错误处理/流式接口
@@ -81,6 +82,7 @@ src/utils/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/utils/prompts/` 目录
 2. 从 `llm.ts` 中提取每个 prompt 函数到独立文件
 3. `prompts/index.ts` 统一 re-export
@@ -89,6 +91,7 @@ src/utils/
 6. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `llm.ts` ≤ 150 行
 - [ ] 每个 prompt 文件 ≤ 50 行
 - [ ] 所有 import 路径正确
@@ -104,6 +107,7 @@ src/utils/
 **目标**：主文件 ≤100 行（聚合 re-export），每个子 hook ≤120 行
 
 **拆分方案**：
+
 ```
 src/hooks/
 ├── useTaskActions.ts (100 行) — 聚合 re-export + 返回统一 actions 对象
@@ -115,6 +119,7 @@ src/hooks/
 ```
 
 **操作步骤**：
+
 1. 按职责把 26 个函数分到 5 个子 hook
 2. 每个子 hook 返回自己的函数集合
 3. `useTaskActions.ts` 调用 5 个子 hook，合并返回
@@ -122,12 +127,14 @@ src/hooks/
 5. 验证：`tsc --noEmit` 通过
 
 **依赖关系**：
+
 - `useTaskCRUD` 和 `useTaskReorder` 无互相依赖
 - `useTaskBatch` 依赖 `useTaskCRUD` 的 delete/archive
 - `useTaskSubtask` 独立
 - `useTaskInlineEdit` 独立
 
 **验收**：
+
 - [ ] `useTaskActions.ts` ≤ 100 行
 - [ ] 每个子 hook ≤ 120 行
 - [ ] `App.tsx` 里的 `actions.handleXxx` 调用方式不变
@@ -143,6 +150,7 @@ src/hooks/
 **目标**：主文件 ≤300 行，每个子组件 ≤300 行
 
 **拆分方案**：
+
 ```
 src/components/habit/
 ├── HabitView.tsx (250 行) — 容器：状态管理 + 列表渲染 + 新建表单
@@ -154,6 +162,7 @@ src/components/habit/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/habit/` 目录
 2. 提取常量到 `constants.ts`
 3. 提取图标选择器到 `HabitIconPicker.tsx`（含 emoji 网格 + 文字图标输入）
@@ -165,11 +174,13 @@ src/components/habit/
 9. 验证：`tsc --noEmit` 通过
 
 **注意**：
+
 - HabitView 用 localStorage 存储数据，这次**不迁移到 SQLite**（那是 Phase 3 的事）
 - 所有 props/state 类型定义跟着组件走
 - 右键菜单逻辑跟着 HabitCard 走
 
 **验收**：
+
 - [ ] `HabitView.tsx` ≤ 300 行
 - [ ] 每个子组件 ≤ 350 行
 - [ ] 习惯打卡/编辑/删除/归档/专注计时器全部正常
@@ -185,6 +196,7 @@ src/components/habit/
 **目标**：主文件 ≤150 行，每个面板 ≤250 行
 
 **拆分方案**：
+
 ```
 src/components/settings/
 ├── SettingsView.tsx (120 行) — Tab 容器 + 面板切换
@@ -197,6 +209,7 @@ src/components/settings/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/settings/` 目录
 2. 按 Tab 分割代码到各面板文件
 3. 每个面板独立 export，接收必要的 props（或直接用 store）
@@ -205,10 +218,12 @@ src/components/settings/
 6. 验证：`tsc --noEmit` 通过
 
 **注意**：
+
 - LLMApiPanel 最复杂（API 配置/测试连接/模型选择/厂商管理），保持完整逻辑不拆
 - 各面板共享的状态（如主题设置）通过 store 传递，不走 props
 
 **验收**：
+
 - [ ] `SettingsView.tsx` ≤ 150 行
 - [ ] `LLMApiPanel.tsx` ≤ 250 行
 - [ ] 每个面板功能正常（切换设置项立即生效）
@@ -225,6 +240,7 @@ src/components/settings/
 **目标**：主文件 ≤250 行，每个子组件 ≤250 行
 
 **拆分方案**：
+
 ```
 src/components/detail/
 ├── TaskDetail.tsx (200 行) — 容器：任务基本信息 + 子组件编排
@@ -234,6 +250,7 @@ src/components/detail/
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/detail/` 目录
 2. 提取子任务列表到 `SubtaskList.tsx`
 3. 提取备注区到 `TaskNotes.tsx`（含 Markdown 编辑/预览）
@@ -243,6 +260,7 @@ src/components/detail/
 7. 验证：`tsc --noEmit` 通过
 
 **验收**：
+
 - [ ] `TaskDetail.tsx` ≤ 250 行
 - [ ] 子任务增删改查/双击编辑/进度统计正常
 - [ ] Markdown 备注编辑/预览正常
@@ -258,6 +276,7 @@ src/components/detail/
 **目标**：主文件 ≤200 行，每个子组件 ≤200 行
 
 **拆分方案**：
+
 ```
 src/
 ├── App.tsx (150 行) — 布局容器 + Provider + 视图路由
@@ -271,6 +290,7 @@ src/
 ```
 
 **操作步骤**：
+
 1. 先做 P2-01 ~ P2-05（降低 App.tsx 的依赖复杂度）
 2. 提取 `useTaskListState.ts`：把 App.tsx 里的 newTaskTitle + 搜索 + 批量选择 + 过滤逻辑集中
 3. 提取 `useTaskListActions.ts`：把 App.tsx 里的 handleCreateTask / selectAllTasks 等列表专属 action 集中
@@ -281,11 +301,13 @@ src/
 8. 验证：`tsc --noEmit` + 全量功能回归
 
 **注意**：
+
 - 这是风险最高的任务，因为 App.tsx 是所有组件的汇聚点
 - **必须最后做**，等 P2-01 ~ P2-05 把子组件拆完后，App.tsx 的依赖才足够清晰
 - 拆完后 App.tsx 应该只有布局 + 路由，不直接持有任何业务状态
 
 **验收**：
+
 - [ ] `App.tsx` ≤ 200 行
 - [ ] 没有任何组件超过 500 行
 - [ ] 所有视图切换正常（今日/全部/日历/看板/四象限/番茄钟/习惯/统计/设置/归档）
@@ -315,6 +337,7 @@ src/
 ```
 
 **每批完成后**：
+
 1. `tsc --noEmit` 通过
 2. `npm run dev` 启动应用手动测试
 3. git commit（不要一次提交太多）
@@ -428,10 +451,12 @@ src/
 ## 六、验收清单（最终）
 
 ### 编译
+
 - [ ] `tsc --noEmit` 通过（0 错误 0 警告）
 - [ ] `cargo check` 通过
 
 ### 文件行数
+
 - [ ] 没有任何 `.tsx` / `.ts` 文件超过 500 行
 - [ ] `App.tsx` ≤ 200 行
 - [ ] `HabitView.tsx` ≤ 300 行
@@ -441,6 +466,7 @@ src/
 - [ ] `llm.ts` ≤ 150 行
 
 ### 功能回归（全量）
+
 - [ ] 任务 CRUD + 子任务 + 拖拽排序 + 批量操作
 - [ ] 日历视图（月/周/日/甘特）+ 看板 + 四象限
 - [ ] AI 助手 10 个技能全部正常
@@ -450,6 +476,7 @@ src/
 - [ ] 系统托盘 + 开机自启
 
 ### 版本管理
+
 - [ ] 版本号 bump 到 v1.22.0（架构重构是 Minor 级别）
 - [ ] README 更新日志
 - [ ] git commit + push
@@ -458,13 +485,13 @@ src/
 
 ## 七、风险控制
 
-| 风险 | 概率 | 影响 | 缓解 |
-|---|---|---|---|
-| 拆分后 import 路径错误 | 高 | 低 | tsc 立即报错，修 import 即可 |
-| Props 传递遗漏 | 中 | 中 | 拆分时先保持 props 不变，纯搬移 |
-| Context 依赖断裂 | 低 | 高 | TaskActionContext 保持不变 |
-| 循环依赖 | 低 | 中 | 子组件不互相 import，只通过父组件传递 |
-| App.tsx 拆分后状态丢失 | 中 | 高 | 必须最后做，全量回归测试 |
+| 风险                   | 概率 | 影响 | 缓解                                  |
+| ---------------------- | ---- | ---- | ------------------------------------- |
+| 拆分后 import 路径错误 | 高   | 低   | tsc 立即报错，修 import 即可          |
+| Props 传递遗漏         | 中   | 中   | 拆分时先保持 props 不变，纯搬移       |
+| Context 依赖断裂       | 低   | 高   | TaskActionContext 保持不变            |
+| 循环依赖               | 低   | 中   | 子组件不互相 import，只通过父组件传递 |
+| App.tsx 拆分后状态丢失 | 中   | 高   | 必须最后做，全量回归测试              |
 
 **回滚策略**：每批一个 commit，如果出问题直接 `git revert` 回滚整批。
 

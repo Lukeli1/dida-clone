@@ -2,7 +2,12 @@ import { useState, useMemo } from 'react'
 import type { SubMenuProps } from './menuItems'
 import { useTaskActionContext } from '../../../contexts/TaskActionContext'
 import { useMenuKeyboard, useMenuScope, type MenuItemInfo } from '../../../hooks/useMenuKeyboard'
-import { getReminderTime, toDatetimeLocalValue, fromDatetimeLocalValue, formatReminderDisplay } from '../../../utils/reminder'
+import {
+  getReminderTime,
+  toDatetimeLocalValue,
+  fromDatetimeLocalValue,
+  formatReminderDisplay,
+} from '../../../utils/reminder'
 
 /**
  * 提醒子菜单：5 分钟 / 15 分钟 / 30 分钟 / 1 小时 / 1 天后 / 自定义 / 清除。
@@ -47,9 +52,7 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
     setShowCustom(true)
     // 如果已有 reminder，预填当前值；否则默认为当前时间
     setCustomDatetime(
-      task.reminder
-        ? toDatetimeLocalValue(task.reminder)
-        : toDatetimeLocalValue(new Date().toISOString()),
+      task.reminder ? toDatetimeLocalValue(task.reminder) : toDatetimeLocalValue(new Date().toISOString()),
     )
   }
 
@@ -83,10 +86,7 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
   const selectedId = items[selectedIndex]?.id
 
   return (
-    <div
-      onMouseEnter={activate}
-      onMouseLeave={deactivate}
-    >
+    <div onMouseEnter={activate} onMouseLeave={deactivate}>
       <div className="border-t border-[var(--color-border-light)] my-1" />
       <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">提醒</div>
 
@@ -97,7 +97,10 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
             value={customDatetime}
             onChange={(e) => setCustomDatetime(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleCustomApply() }
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleCustomApply()
+              }
             }}
             className="w-full text-sm border border-[var(--color-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 bg-[var(--color-surface)]"
             autoFocus
@@ -129,7 +132,12 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
                 title={`${opt.label}后提醒`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">{opt.label}</span>
               </button>
@@ -144,7 +152,12 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
               title="自定义提醒时间"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">自定义</span>
             </button>
@@ -165,7 +178,12 @@ export function ReminderMenu({ task, onClose }: SubMenuProps) {
             <div className="px-3 pb-1">
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
                 {formatReminderDisplay(task.reminder)}
               </span>

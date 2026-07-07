@@ -27,12 +27,10 @@ export interface TimeStat {
  */
 export const timeTrackingApi = {
   /** 开始计时，返回新插入的 time_entry id */
-  startTimeTracking: (taskId: number): Promise<number> =>
-    invoke<number>('start_time_tracking', { taskId }),
+  startTimeTracking: (taskId: number): Promise<number> => invoke<number>('start_time_tracking', { taskId }),
 
   /** 停止计时，计算时长并写入数据库，返回更新后的条目 */
-  stopTimeTracking: (entryId: number): Promise<TimeEntry> =>
-    invoke<TimeEntry>('stop_time_tracking', { entryId }),
+  stopTimeTracking: (entryId: number): Promise<TimeEntry> => invoke<TimeEntry>('stop_time_tracking', { entryId }),
 
   /** 查询时间追踪记录（可按任务与日期范围筛选） */
   getTimeEntries: (taskId?: number, dateStart?: string, dateEnd?: string): Promise<TimeEntry[]> =>
@@ -43,8 +41,7 @@ export const timeTrackingApi = {
     }),
 
   /** 删除指定时间追踪记录 */
-  deleteTimeEntry: (entryId: number): Promise<void> =>
-    invoke<void>('delete_time_entry', { entryId }),
+  deleteTimeEntry: (entryId: number): Promise<void> => invoke<void>('delete_time_entry', { entryId }),
 
   /** 按维度统计时间分布（groupBy: 'task' | 'list' | 'day'） */
   getTimeStats: (groupBy: string, dateStart?: string, dateEnd?: string): Promise<TimeStat[]> =>

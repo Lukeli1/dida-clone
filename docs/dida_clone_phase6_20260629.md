@@ -12,11 +12,11 @@
 
 **Phase 6 聚焦两件事：Git 数据同步 + 拆完最后 2 个超 300 行的 Rust 文件。**
 
-| 方向 | 核心目标 | 量化指标 |
-|---|---|---|
+| 方向                           | 核心目标                                  | 量化指标       |
+| ------------------------------ | ----------------------------------------- | -------------- |
 | A. Git 数据同步（⭐ 用户指定） | dida.db 通过私有 Git 仓库在多台电脑间同步 | 2 台电脑可同步 |
-| B. Rust 文件收尾 | 0 个 .rs 文件超过 300 行 | 2 个 → 0 个 |
-| C. 同步 UI + 设置入口 | 设置页有"同步"面板 | 1 个新面板 |
+| B. Rust 文件收尾               | 0 个 .rs 文件超过 300 行                  | 2 个 → 0 个    |
+| C. 同步 UI + 设置入口          | 设置页有"同步"面板                        | 1 个新面板     |
 
 ---
 
@@ -30,6 +30,7 @@ app_data_dir/                          ← Tauri 管理的应用数据目录
 ```
 
 **路径来源**（`lib.rs` L26-30）：
+
 ```rust
 let app_data_dir = app.path().app_data_dir()?;
 std::fs::create_dir_all(&app_data_dir)?;
@@ -56,10 +57,10 @@ let db = db::init_db(app_data_dir.to_str().unwrap())?;
 
 ### 2.4 仍超 300 行的 .rs 文件
 
-| 文件 | 行数 | 备注 |
-|---|---|---|
-| data_export.rs | 387 | Phase 4 新增，导出 JSON/CSV/Markdown |
-| task_crud.rs | 343 | Phase 2 拆分产物，任务 CRUD |
+| 文件           | 行数 | 备注                                 |
+| -------------- | ---- | ------------------------------------ |
+| data_export.rs | 387  | Phase 4 新增，导出 JSON/CSV/Markdown |
+| task_crud.rs   | 343  | Phase 2 拆分产物，任务 CRUD          |
 
 ---
 
@@ -79,6 +80,7 @@ let db = db::init_db(app_data_dir.to_str().unwrap())?;
 ```
 
 **为什么用独立仓库**：
+
 - 代码仓库 `.gitignore` 排除了 `*.db`，不能直接放
 - 数据和代码分离，互不干扰
 - 数据仓库可以设为 Private，只你一个人能访问
@@ -107,6 +109,7 @@ let db = db::init_db(app_data_dir.to_str().unwrap())?;
 **场景**：两台电脑同时修改，push 时冲突。
 
 **处理策略**（简单实用）：
+
 1. `git pull --rebase` 尝试自动合并
 2. 如果 dida.db 二进制冲突（SQLite 是二进制文件，Git 无法 merge）：
    - 保留远程版本（`theirs`），本地版本备份为 `dida.db.local.bak`
@@ -114,6 +117,7 @@ let db = db::init_db(app_data_dir.to_str().unwrap())?;
 3. 用户可以手动用导出/导入功能合并数据
 
 **为什么不用 SQLite 的同步机制**：
+
 - SQLite 是单文件数据库，不适合多端写入
 - 真正的多端实时同步需要 CRDT 或服务端，复杂度过高
 - Git 同步对自用场景够用，冲突时保留备份即可
@@ -131,6 +135,7 @@ let db = db::init_db(app_data_dir.to_str().unwrap())?;
 **目标**：在 Rust 后端实现 Git 同步核心逻辑。
 
 **新增依赖**（`Cargo.toml`）：
+
 ```toml
 git2 = "0.19"           # libgit2 绑定
 ```
@@ -138,6 +143,7 @@ git2 = "0.19"           # libgit2 绑定
 **新增文件**：`src-tauri/src/sync.rs`
 
 **核心函数**：
+
 ```rust
 use git2::{Repository, RepositoryInitOptions, Signature, Index, Oid};
 use std::path::{Path, PathBuf};
@@ -308,17 +314,20 @@ fn count_ahead_behind(repo: &Repository, local: Oid, remote: Oid) -> Result<(usi
 ```
 
 **操作步骤**：
+
 1. 在 `Cargo.toml` 添加 `git2 = "0.19"` 依赖
 2. 创建 `src-tauri/src/sync.rs`，实现上述函数
 3. 在 `lib.rs` 中 `mod sync;`
 4. 验证 `cargo check` 通过（**注意：Windows 需要安装 libgit2，`git2` crate 默认会编译 bundled 版本**）
 
 **注意事项**：
+
 - `git2` crate 默认使用 bundled libgit2，不需要系统安装
 - 但需要 cmake（Windows 一般已有）
 - 如果编译失败，检查是否安装了 Visual Studio Build Tools
 
 **验收**：
+
 - [ ] `sync.rs` 创建，包含 init/pull/push/status/conflict 处理函数
 - [ ] `cargo check` 通过
 - [ ] 无编译警告
@@ -332,6 +341,7 @@ fn count_ahead_behind(repo: &Repository, local: Oid, remote: Oid) -> Result<(usi
 **新增文件**：`src-tauri/src/commands/sync_commands.rs`
 
 **核心代码**：
+
 ```rust
 use tauri::State;
 use std::path::PathBuf;
@@ -520,6 +530,7 @@ fn get_sync_config_path() -> Result<PathBuf, String> {
 ```
 
 **修改 `lib.rs`**：
+
 ```rust
 // 在 invoke_handler 中注册新命令
 .invoke_handler(tauri::generate_handler![
@@ -533,6 +544,7 @@ fn get_sync_config_path() -> Result<PathBuf, String> {
 ```
 
 **验收**：
+
 - [ ] `sync_commands.rs` 创建，5 个 Tauri command 实现
 - [ ] `lib.rs` 注册 5 个新命令
 - [ ] `cargo check` 通过
@@ -586,6 +598,7 @@ fn get_sync_config_path() -> Result<PathBuf, String> {
 **注意**：需要在 `Cargo.toml` 添加 `tokio = { version = "1", features = ["time"] }`（如果 Tauri 没有自带）。
 
 **验收**：
+
 - [ ] 启动时自动 pull（延迟 10 秒）
 - [ ] 运行中定时 push（默认 5 分钟）
 - [ ] 可通过配置关闭自动同步
@@ -622,24 +635,21 @@ export interface SyncStatus {
 ```
 
 **修改 `src/api.ts`**，新增同步 API：
+
 ```typescript
 import type { SyncConfig, SyncStatus } from './types/sync'
 
 export const syncApi = {
-  getConfig: (): Promise<SyncConfig | null> =>
-    invoke<SyncConfig | null>('get_sync_config'),
-  saveConfig: (config: SyncConfig): Promise<void> =>
-    invoke<void>('save_sync_config', { config }),
-  initRepo: (config: SyncConfig): Promise<void> =>
-    invoke<void>('init_sync_repo', { config }),
-  syncNow: (): Promise<SyncStatus> =>
-    invoke<SyncStatus>('sync_now'),
-  getStatus: (): Promise<SyncStatus> =>
-    invoke<SyncStatus>('get_sync_status_cmd'),
+  getConfig: (): Promise<SyncConfig | null> => invoke<SyncConfig | null>('get_sync_config'),
+  saveConfig: (config: SyncConfig): Promise<void> => invoke<void>('save_sync_config', { config }),
+  initRepo: (config: SyncConfig): Promise<void> => invoke<void>('init_sync_repo', { config }),
+  syncNow: (): Promise<SyncStatus> => invoke<SyncStatus>('sync_now'),
+  getStatus: (): Promise<SyncStatus> => invoke<SyncStatus>('get_sync_status_cmd'),
 }
 ```
 
 **验收**：
+
 - [ ] `types/sync.ts` 创建
 - [ ] `api.ts` 新增 `syncApi`
 - [ ] `tsc --noEmit` 通过
@@ -653,6 +663,7 @@ export const syncApi = {
 **新增文件**：`src/components/settings/SyncPanel.tsx`
 
 **UI 设计**：
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ 数据同步                                         │
@@ -695,6 +706,7 @@ export const syncApi = {
 ```
 
 **操作步骤**：
+
 1. 创建 `src/components/settings/SyncPanel.tsx`
 2. 使用 `useTheme()` 的 CSS 变量，保持与其他面板风格一致
 3. 在 `SettingsView.tsx` 中注册"数据同步"面板
@@ -704,6 +716,7 @@ export const syncApi = {
    - 冲突：显示警告 + 备份文件路径
 
 **验收**：
+
 - [ ] `SyncPanel.tsx` 创建
 - [ ] `SettingsView.tsx` 注册新面板
 - [ ] 可配置 Git 仓库 URL + 分支 + 自动同步
@@ -723,6 +736,7 @@ export const syncApi = {
 **当前**：`src-tauri/src/commands/data_export.rs` 387 行
 
 **拆分方案**：
+
 ```
 src-tauri/src/commands/
 ├── data_export.rs (15 行) — mod + re-export
@@ -732,12 +746,14 @@ src-tauri/src/commands/
 ```
 
 **操作步骤**：
+
 1. 按 3 个导出格式拆分到 3 个子模块
 2. `data_export.rs` 改为 mod 声明 + re-export
 3. `commands/mod.rs` 的 import 路径不变
 4. 验证 `cargo check` 通过
 
 **验收**：
+
 - [ ] `data_export.rs` ≤ 20 行
 - [ ] 每个子模块 ≤ 150 行
 - [ ] `cargo check` 通过
@@ -750,6 +766,7 @@ src-tauri/src/commands/
 **当前**：`src-tauri/src/commands/task_crud.rs` 343 行
 
 **拆分方案**：
+
 ```
 src-tauri/src/commands/
 ├── task_crud.rs (15 行) — mod + re-export
@@ -759,12 +776,14 @@ src-tauri/src/commands/
 ```
 
 **操作步骤**：
+
 1. 按操作类型拆分到 3 个子模块
 2. `task_crud.rs` 改为 mod 声明 + re-export
 3. `commands/mod.rs` 的 import 路径不变
 4. 验证 `cargo check` 通过
 
 **验收**：
+
 - [ ] `task_crud.rs` ≤ 20 行
 - [ ] 每个子模块 ≤ 150 行
 - [ ] `cargo check` 通过
@@ -877,12 +896,14 @@ cargo check 通过。纯重构。"
 ## 七、验收清单（最终）
 
 ### 编译
+
 - [ ] `tsc --noEmit` 通过
 - [ ] `cargo check` 通过
 - [ ] `npm run test` 全部通过（≥188 用例）
 - [ ] GitHub Actions CI 绿
 
 ### Git 同步（⭐ 核心验收）
+
 - [ ] 设置页有"数据同步"面板
 - [ ] 可配置 Git 仓库 URL + 分支 + 自动同步
 - [ ] 点击"初始化同步仓库"可 clone 远程仓库
@@ -892,10 +913,12 @@ cargo check 通过。纯重构。"
 - [ ] 冲突时保留远程版本 + 本地备份
 
 ### 文件行数
+
 - [ ] 没有任何 `.rs` 文件超过 300 行
 - [ ] 没有任何 `.tsx` / `.ts` 文件超过 500 行
 
 ### 功能回归
+
 - [ ] 任务 CRUD + 子任务 + 拖拽 + 批量
 - [ ] 日历视图（月/周/日/甘特/看板）
 - [ ] AI 助手 + 流式打字机 + 取消
@@ -905,6 +928,7 @@ cargo check 通过。纯重构。"
 - [ ] 6 套主题 + 自定义强调色
 
 ### 版本管理
+
 - [ ] 版本号 bump 到 v1.26.0
 - [ ] README 更新日志
 - [ ] git commit + push
@@ -913,15 +937,16 @@ cargo check 通过。纯重构。"
 
 ## 八、风险控制
 
-| 风险 | 概率 | 影响 | 缓解 |
-|---|---|---|---|
-| git2 crate 编译失败 | 中 | 高 | Windows 需 VS Build Tools + cmake，文档注明 |
-| Git 凭证在非交互环境失败 | 中 | 高 | 使用 Windows Credential Manager，git2 默认支持 |
-| dida.db 二进制冲突 | 中 | 中 | 保留远程版本 + 本地备份，提示用户手动合并 |
-| 自动同步定时器泄漏 | 低 | 低 | 应用退出时自动取消 |
-| 同步时数据库被占用 | 中 | 中 | 同步前复制 dida.db 到临时目录，Git 操作临时文件 |
+| 风险                     | 概率 | 影响 | 缓解                                            |
+| ------------------------ | ---- | ---- | ----------------------------------------------- |
+| git2 crate 编译失败      | 中   | 高   | Windows 需 VS Build Tools + cmake，文档注明     |
+| Git 凭证在非交互环境失败 | 中   | 高   | 使用 Windows Credential Manager，git2 默认支持  |
+| dida.db 二进制冲突       | 中   | 中   | 保留远程版本 + 本地备份，提示用户手动合并       |
+| 自动同步定时器泄漏       | 低   | 低   | 应用退出时自动取消                              |
+| 同步时数据库被占用       | 中   | 中   | 同步前复制 dida.db 到临时目录，Git 操作临时文件 |
 
 **回滚策略**：
+
 - A 方向：同步功能独立模块，出问题可禁用而不影响主功能
 - B 方向：UI 面板独立，可隐藏
 - C 方向：纯重构，每任务一个 commit

@@ -148,7 +148,7 @@ describe('getChildTasks', () => {
     const child2 = makeTask({ id: 3, title: '子2', parent_id: 1 })
     const other = makeTask({ id: 4, title: '其他', parent_id: 99 })
     const all = [parent, child1, child2, other]
-    expect(getChildTasks(parent, all).map(t => t.id)).toEqual([2, 3])
+    expect(getChildTasks(parent, all).map((t) => t.id)).toEqual([2, 3])
   })
 
   it('没有子任务时返回空数组', () => {

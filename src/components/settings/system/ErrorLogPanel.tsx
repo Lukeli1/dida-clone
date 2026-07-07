@@ -3,12 +3,7 @@ import { isTauri } from '../../../api'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import type { ToastApi } from '../../Toast'
-import {
-  loadErrorLogs,
-  clearErrorLogs,
-  exportErrorLogs,
-  type ErrorLog,
-} from '../../../utils/errorLogger'
+import { loadErrorLogs, clearErrorLogs, exportErrorLogs, type ErrorLog } from '../../../utils/errorLogger'
 
 /** 显示最近 N 条错误日志 */
 const DISPLAY_COUNT = 10
@@ -88,7 +83,9 @@ export function ErrorLogPanel({ toast }: ErrorLogPanelProps) {
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--color-border-light)]">
         <div>
           <p className="text-sm font-medium text-[var(--color-text-primary)]">错误日志</p>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">查看最近的运行时错误（最多 {DISPLAY_COUNT} 条）</p>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+            查看最近的运行时错误（最多 {DISPLAY_COUNT} 条）
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -112,8 +109,18 @@ export function ErrorLogPanel({ toast }: ErrorLogPanelProps) {
       <div className="px-4 py-3.5">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <svg className="w-10 h-10 mb-2 text-[var(--color-text-tertiary)] opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-10 h-10 mb-2 text-[var(--color-text-tertiary)] opacity-40"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <p className="text-sm text-[var(--color-text-tertiary)]">暂无错误日志</p>
           </div>
@@ -122,10 +129,7 @@ export function ErrorLogPanel({ toast }: ErrorLogPanelProps) {
             {logs.map((log) => {
               const expanded = expandedId === log.id
               return (
-                <li
-                  key={log.id}
-                  className="rounded-lg border border-[var(--color-border)] overflow-hidden"
-                >
+                <li key={log.id} className="rounded-lg border border-[var(--color-border)] overflow-hidden">
                   {/* 摘要行（可点击展开） */}
                   <button
                     onClick={() => setExpandedId(expanded ? null : log.id)}
@@ -133,7 +137,9 @@ export function ErrorLogPanel({ toast }: ErrorLogPanelProps) {
                   >
                     <svg
                       className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[var(--color-text-tertiary)] transition-transform ${expanded ? 'rotate-90' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

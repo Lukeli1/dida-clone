@@ -221,12 +221,16 @@ export function DayViewGrid({
 
             {/* 快速添加弹窗（轻量） */}
             {createPopup?.isQuickAdd && (
-              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-lg shadow-xl border border-[var(--color-accent-light)] dark:border-[var(--color-accent)] p-3 w-64"
+              <div
+                className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-lg shadow-xl border border-[var(--color-accent-light)] dark:border-[var(--color-accent)] p-3 w-64"
                 style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: '20px' }}
-                onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs text-[var(--color-accent)] dark:text-[var(--color-accent)] font-medium">
-                    {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
+                    {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} -{' '}
+                    {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                   </span>
                   <button
                     onClick={onCyclePriority}
@@ -234,45 +238,92 @@ export function DayViewGrid({
                     title={priorityFlags[popupPriority].label}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5v9" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5v9"
+                      />
                     </svg>
                   </button>
                 </div>
-                <input ref={popupInputRef} value={popupTitle} onChange={(e) => onPopupTitleChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') onPopupSubmit(); if (e.key === 'Escape') onPopupClose() }}
+                <input
+                  ref={popupInputRef}
+                  value={popupTitle}
+                  onChange={(e) => onPopupTitleChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onPopupSubmit()
+                    if (e.key === 'Escape') onPopupClose()
+                  }}
                   placeholder="任务标题，回车保存"
-                  className="w-full px-2.5 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]" />
+                  className="w-full px-2.5 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+                />
               </div>
             )}
 
             {/* 详细创建弹窗（拖选后） */}
             {createPopup && !createPopup.isQuickAdd && (
-              <div className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-xl shadow-xl border border-[var(--color-border)] dark:border-[var(--color-border)] p-4 w-72"
+              <div
+                className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-xl shadow-xl border border-[var(--color-border)] dark:border-[var(--color-border)] p-4 w-72"
                 style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: '20px' }}
-                onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <svg
+                    className="w-4 h-4 text-[var(--color-accent)]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
                   <span className="text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-primary)]">
-                    {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} - {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
+                    {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} -{' '}
+                    {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
                   </span>
                 </div>
 
-                <input ref={popupInputRef} value={popupTitle} onChange={(e) => onPopupTitleChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') onPopupSubmit(); if (e.key === 'Escape') onPopupClose() }}
-                  placeholder="任务标题" className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-2" />
+                <input
+                  ref={popupInputRef}
+                  value={popupTitle}
+                  onChange={(e) => onPopupTitleChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onPopupSubmit()
+                    if (e.key === 'Escape') onPopupClose()
+                  }}
+                  placeholder="任务标题"
+                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-2"
+                />
 
-                <textarea value={popupNotes} onChange={(e) => onPopupNotesChange(e.target.value)}
-                  placeholder="备注（可选）" rows={2}
-                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none" />
+                <textarea
+                  value={popupNotes}
+                  onChange={(e) => onPopupNotesChange(e.target.value)}
+                  placeholder="备注（可选）"
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none"
+                />
 
                 <div className="mb-3">
-                  <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">优先级</label>
+                  <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">
+                    优先级
+                  </label>
                   <div className="flex gap-1.5">
                     {priorityOptions.map((opt) => (
-                      <button key={opt.value} onClick={() => onPopupPriorityChange(opt.value)}
+                      <button
+                        key={opt.value}
+                        onClick={() => onPopupPriorityChange(opt.value)}
                         className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                          popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)] dark:bg-[var(--color-bg-tertiary)]` : 'text-[var(--color-text-tertiary)] dark:text-[var(--color-text-tertiary)] border-[var(--color-border)] dark:border-[var(--color-border)] hover:border-[var(--color-border)] dark:hover:border-[var(--color-border-focus)]'
-                        }`}>
+                          popupPriority === opt.value
+                            ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)] dark:bg-[var(--color-bg-tertiary)]`
+                            : 'text-[var(--color-text-tertiary)] dark:text-[var(--color-text-tertiary)] border-[var(--color-border)] dark:border-[var(--color-border)] hover:border-[var(--color-border)] dark:hover:border-[var(--color-border-focus)]'
+                        }`}
+                      >
                         {opt.label}
                       </button>
                     ))}
@@ -281,17 +332,36 @@ export function DayViewGrid({
 
                 {lists.length > 1 && (
                   <div className="mb-3">
-                    <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">清单</label>
-                    <select value={popupListId || defaultListId} onChange={(e) => onPopupListChange(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
-                      {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    <label className="block text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] mb-1.5">
+                      清单
+                    </label>
+                    <select
+                      value={popupListId || defaultListId}
+                      onChange={(e) => onPopupListChange(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+                    >
+                      {lists.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
 
                 <div className="flex gap-2">
-                  <button onClick={onPopupSubmit} className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium">创建任务</button>
-                  <button onClick={onPopupClose} className="px-3 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">取消</button>
+                  <button
+                    onClick={onPopupSubmit}
+                    className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium"
+                  >
+                    创建任务
+                  </button>
+                  <button
+                    onClick={onPopupClose}
+                    className="px-3 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+                  >
+                    取消
+                  </button>
                 </div>
               </div>
             )}

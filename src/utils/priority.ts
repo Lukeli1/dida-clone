@@ -65,7 +65,9 @@ export function hexWithAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('var(')) {
     return `color-mix(in srgb, ${hex} ${Math.round(alpha * 100)}%, transparent)`
   }
-  const a = Math.round(alpha * 255).toString(16).padStart(2, '0')
+  const a = Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, '0')
   return hex + a
 }
 
@@ -74,7 +76,7 @@ export function hexWithAlpha(hex: string, alpha: number): string {
 export function getTaskColor(task: Task, lists?: List[]): string {
   // 优先使用清单颜色
   if (lists) {
-    const list = lists.find(l => l.id === task.list_id)
+    const list = lists.find((l) => l.id === task.list_id)
     if (list?.color) return list.color
   }
   // 回退到优先级色

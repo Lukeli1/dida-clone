@@ -49,13 +49,13 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
 
   async function handleDeleteList(id: number) {
     const allLists = useListStore.getState().lists
-    const defaultList = allLists.find(l => l.is_default)
+    const defaultList = allLists.find((l) => l.is_default)
     const defaultId = defaultList?.id ?? allLists[0]?.id ?? 1
 
     const success = await useListStore.getState().deleteList(id)
     if (success) {
       useTaskStore.setState((state) => ({
-        tasks: state.tasks.map(t => (t.list_id === id ? { ...t, list_id: defaultId } : t))
+        tasks: state.tasks.map((t) => (t.list_id === id ? { ...t, list_id: defaultId } : t)),
       }))
       if (useUIStore.getState().selectedListId === id) useUIStore.getState().setSelectedListId(null)
       toast.success('清单已删除')
@@ -75,7 +75,7 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     const success = await useTagStore.getState().deleteTag(id)
     if (success) {
       useTaskStore.setState((state) => ({
-        tasks: state.tasks.map(t => ({ ...t, tag_ids: t.tag_ids?.filter(tid => tid !== id) }))
+        tasks: state.tasks.map((t) => ({ ...t, tag_ids: t.tag_ids?.filter((tid) => tid !== id) })),
       }))
       if (useUIStore.getState().selectedTagId === id) useUIStore.getState().setSelectedTagId(null)
       toast.success('标签已删除')
@@ -96,56 +96,59 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
   // 返回值结构与拆分前完全一致（35 个函数，顺序保持原样）
-  return useMemo(() => ({
-    // ===== 任务 CRUD =====
-    handleToggleTask: crud.handleToggleTask,
-    handleUpdateTask: crud.handleUpdateTask,
-    handleDeleteTask: crud.handleDeleteTask,
-    handleArchiveTask: crud.handleArchiveTask,
-    handleUnarchiveTask: crud.handleUnarchiveTask,
-    // ===== 快速编辑 =====
-    handleInlineEdit: inlineEdit.handleInlineEdit,
-    // ===== 右键菜单快捷操作 =====
-    handleSetDate: inlineEdit.handleSetDate,
-    handleSetPriority: inlineEdit.handleSetPriority,
-    handleSetRepeatRule: inlineEdit.handleSetRepeatRule,
-    handleSetReminder: inlineEdit.handleSetReminder,
-    handleTogglePin: inlineEdit.handleTogglePin,
-    handleToggleTag: inlineEdit.handleToggleTag,
-    handleDuplicateTask: crud.handleDuplicateTask,
-    handleCreateNewTagFromMenu: inlineEdit.handleCreateNewTagFromMenu,
-    // ===== 子任务 =====
-    handleCreateSubtask: subtask.handleCreateSubtask,
-    handleToggleSubtask: subtask.handleToggleSubtask,
-    // ===== 拖拽排序 =====
-    handleReorderTasks: reorder.handleReorderTasks,
-    // ===== 拖拽到日历 =====
-    handleDropToCalendarDate: reorder.handleDropToCalendarDate,
-    handleDragStartGlobal: reorder.handleDragStartGlobal,
-    handleDragEndGlobal: reorder.handleDragEndGlobal,
-    // ===== 日历视图创建任务 =====
-    handleMoveTask: reorder.handleMoveTask,
-    handleCreateTaskOnDate: reorder.handleCreateTaskOnDate,
-    handleCreateTaskOnRange: reorder.handleCreateTaskOnRange,
-    // ===== 清单管理 =====
-    handleCreateList,
-    handleUpdateList,
-    handleDeleteList,
-    // ===== 标签管理 =====
-    handleCreateTag,
-    handleDeleteTag,
-    handleAddTagToTask,
-    handleRemoveTagFromTask,
-    // ===== 批量操作 =====
-    handleBatchComplete: batch.handleBatchComplete,
-    handleBatchDelete: batch.handleBatchDelete,
-    handleBatchPriority: batch.handleBatchPriority,
-    handleBatchMoveList: batch.handleBatchMoveList,
-    handleBatchArchive: batch.handleBatchArchive,
-    // ===== 创建任务（智能日期 / AI）=====
-    handleCreateTask: crud.handleCreateTask,
-    handleCreateTaskWithAI: crud.handleCreateTaskWithAI,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      // ===== 任务 CRUD =====
+      handleToggleTask: crud.handleToggleTask,
+      handleUpdateTask: crud.handleUpdateTask,
+      handleDeleteTask: crud.handleDeleteTask,
+      handleArchiveTask: crud.handleArchiveTask,
+      handleUnarchiveTask: crud.handleUnarchiveTask,
+      // ===== 快速编辑 =====
+      handleInlineEdit: inlineEdit.handleInlineEdit,
+      // ===== 右键菜单快捷操作 =====
+      handleSetDate: inlineEdit.handleSetDate,
+      handleSetPriority: inlineEdit.handleSetPriority,
+      handleSetRepeatRule: inlineEdit.handleSetRepeatRule,
+      handleSetReminder: inlineEdit.handleSetReminder,
+      handleTogglePin: inlineEdit.handleTogglePin,
+      handleToggleTag: inlineEdit.handleToggleTag,
+      handleDuplicateTask: crud.handleDuplicateTask,
+      handleCreateNewTagFromMenu: inlineEdit.handleCreateNewTagFromMenu,
+      // ===== 子任务 =====
+      handleCreateSubtask: subtask.handleCreateSubtask,
+      handleToggleSubtask: subtask.handleToggleSubtask,
+      // ===== 拖拽排序 =====
+      handleReorderTasks: reorder.handleReorderTasks,
+      // ===== 拖拽到日历 =====
+      handleDropToCalendarDate: reorder.handleDropToCalendarDate,
+      handleDragStartGlobal: reorder.handleDragStartGlobal,
+      handleDragEndGlobal: reorder.handleDragEndGlobal,
+      // ===== 日历视图创建任务 =====
+      handleMoveTask: reorder.handleMoveTask,
+      handleCreateTaskOnDate: reorder.handleCreateTaskOnDate,
+      handleCreateTaskOnRange: reorder.handleCreateTaskOnRange,
+      // ===== 清单管理 =====
+      handleCreateList,
+      handleUpdateList,
+      handleDeleteList,
+      // ===== 标签管理 =====
+      handleCreateTag,
+      handleDeleteTag,
+      handleAddTagToTask,
+      handleRemoveTagFromTask,
+      // ===== 批量操作 =====
+      handleBatchComplete: batch.handleBatchComplete,
+      handleBatchDelete: batch.handleBatchDelete,
+      handleBatchPriority: batch.handleBatchPriority,
+      handleBatchMoveList: batch.handleBatchMoveList,
+      handleBatchArchive: batch.handleBatchArchive,
+      // ===== 创建任务（智能日期 / AI）=====
+      handleCreateTask: crud.handleCreateTask,
+      handleCreateTaskWithAI: crud.handleCreateTaskWithAI,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /**

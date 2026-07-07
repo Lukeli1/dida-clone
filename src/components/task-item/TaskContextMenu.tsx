@@ -90,13 +90,34 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
     }
     if (isArchivedView) {
       return [
-        { id: 'unarchive', label: '恢复任务', onClick: () => { ctx.onUnarchive(task.id); onClose() } },
+        {
+          id: 'unarchive',
+          label: '恢复任务',
+          onClick: () => {
+            ctx.onUnarchive(task.id)
+            onClose()
+          },
+        },
         { id: 'delete', label: '删除任务', onClick: handleDeleteClick },
       ]
     }
     return [
-      { id: 'rename', label: '重命名', onClick: () => { onClose(); onRename() } },
-      { id: 'archive', label: '归档', onClick: () => { ctx.onArchive(task.id); onClose() } },
+      {
+        id: 'rename',
+        label: '重命名',
+        onClick: () => {
+          onClose()
+          onRename()
+        },
+      },
+      {
+        id: 'archive',
+        label: '归档',
+        onClick: () => {
+          ctx.onArchive(task.id)
+          onClose()
+        },
+      },
       { id: 'pin', label: task.pinned ? '取消置顶' : '置顶', onClick: handlePin },
       { id: 'duplicate', label: '创建副本', onClick: handleDuplicate },
       { id: 'delete', label: '删除任务', onClick: handleDeleteClick },
@@ -158,10 +179,8 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
   }, [position])
 
   // 选中项高亮：垂直按钮用 accent-light 背景
-  const rowHighlight = (id: string) =>
-    selectedId === id ? 'bg-[var(--color-accent-light)]' : ''
-  const confirmHighlight = (id: string) =>
-    selectedId === id ? 'ring-2 ring-[var(--color-accent)]/40' : ''
+  const rowHighlight = (id: string) => (selectedId === id ? 'bg-[var(--color-accent-light)]' : '')
+  const confirmHighlight = (id: string) => (selectedId === id ? 'ring-2 ring-[var(--color-accent)]/40' : '')
 
   return (
     <div
@@ -181,56 +200,68 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
           className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors ${rowHighlight('rename')}`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
           </svg>
           重命名
         </button>
       )}
 
       {/* 归档/恢复 */}
-      {!showDeleteConfirm && (
-        isArchivedView ? (
+      {!showDeleteConfirm &&
+        (isArchivedView ? (
           <button
-            onClick={() => { ctx.onUnarchive(task.id); onClose() }}
+            onClick={() => {
+              ctx.onUnarchive(task.id)
+              onClose()
+            }}
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-success)] hover:bg-[var(--color-success)]/10 transition-colors ${rowHighlight('unarchive')}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+              />
             </svg>
             恢复任务
           </button>
         ) : (
           <button
-            onClick={() => { ctx.onArchive(task.id); onClose() }}
+            onClick={() => {
+              ctx.onArchive(task.id)
+              onClose()
+            }}
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors ${rowHighlight('archive')}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+              />
             </svg>
             归档
           </button>
-        )
-      )}
+        ))}
 
       {/* 日期快捷设置 */}
-      {!isArchivedView && !showDeleteConfirm && (
-        <DateMenu task={task} onClose={onClose} />
-      )}
+      {!isArchivedView && !showDeleteConfirm && <DateMenu task={task} onClose={onClose} />}
 
       {/* 优先级快捷设置 */}
-      {!isArchivedView && !showDeleteConfirm && (
-        <PriorityMenu task={task} onClose={onClose} />
-      )}
+      {!isArchivedView && !showDeleteConfirm && <PriorityMenu task={task} onClose={onClose} />}
 
       {/* 重复规则设置 */}
-      {!isArchivedView && !showDeleteConfirm && (
-        <RepeatMenu task={task} onClose={onClose} />
-      )}
+      {!isArchivedView && !showDeleteConfirm && <RepeatMenu task={task} onClose={onClose} />}
 
       {/* 提醒设置 */}
-      {!isArchivedView && !showDeleteConfirm && (
-        <ReminderMenu task={task} onClose={onClose} />
-      )}
+      {!isArchivedView && !showDeleteConfirm && <ReminderMenu task={task} onClose={onClose} />}
 
       {/* 置顶 */}
       {!isArchivedView && !showDeleteConfirm && (
@@ -239,11 +270,23 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
           <button
             onClick={handlePin}
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-              task.pinned ? 'text-[var(--color-warning)] bg-[var(--color-warning)]/10' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+              task.pinned
+                ? 'text-[var(--color-warning)] bg-[var(--color-warning)]/10'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
             } ${rowHighlight('pin')}`}
           >
-            <svg className="w-4 h-4" fill={task.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            <svg
+              className="w-4 h-4"
+              fill={task.pinned ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+              />
             </svg>
             {task.pinned ? '取消置顶' : '置顶'}
           </button>
@@ -251,9 +294,7 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
       )}
 
       {/* 标签子菜单 */}
-      {!isArchivedView && !showDeleteConfirm && (
-        <TagMenu task={task} onClose={onClose} />
-      )}
+      {!isArchivedView && !showDeleteConfirm && <TagMenu task={task} onClose={onClose} />}
 
       {/* 创建副本 */}
       {!isArchivedView && !showDeleteConfirm && (
@@ -262,7 +303,12 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
           className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors ${rowHighlight('duplicate')}`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
           </svg>
           创建副本
         </button>
@@ -294,7 +340,12 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
           className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors ${rowHighlight('delete')}`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
           删除任务
         </button>

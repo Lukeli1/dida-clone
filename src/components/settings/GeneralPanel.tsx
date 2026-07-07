@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react'
 import { Toggle } from './Toggle'
 
 export function GeneralPanel() {
-  const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() => localStorage.getItem('weekStart') === 'monday' ? 'monday' : 'sunday')
+  const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() =>
+    localStorage.getItem('weekStart') === 'monday' ? 'monday' : 'sunday',
+  )
   const [confirmDelete, setConfirmDelete] = useState(() => localStorage.getItem('confirmDelete') !== 'false')
 
-  useEffect(() => { localStorage.setItem('weekStart', weekStart) }, [weekStart])
-  useEffect(() => { localStorage.setItem('confirmDelete', String(confirmDelete)) }, [confirmDelete])
+  useEffect(() => {
+    localStorage.setItem('weekStart', weekStart)
+  }, [weekStart])
+  useEffect(() => {
+    localStorage.setItem('confirmDelete', String(confirmDelete))
+  }, [confirmDelete])
 
   return (
     <div className="space-y-6">
@@ -18,12 +24,14 @@ export function GeneralPanel() {
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">日历视图的起始日</p>
           </div>
           <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-            {(['sunday', 'monday'] as const).map(d => (
+            {(['sunday', 'monday'] as const).map((d) => (
               <button
                 key={d}
                 onClick={() => setWeekStart(d)}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  weekStart === d ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
+                  weekStart === d
+                    ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {d === 'sunday' ? '周日' : '周一'}

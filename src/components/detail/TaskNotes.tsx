@@ -63,9 +63,7 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
       {noteMode === 'preview' ? (
         <div className="min-h-[60px] text-sm text-[var(--color-text-secondary)] prose prose-sm max-w-none">
           {notes.trim() ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {notes}
-            </ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
           ) : (
             <span className="text-[var(--color-text-tertiary)] italic">暂无备注内容</span>
           )}

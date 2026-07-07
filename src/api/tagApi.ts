@@ -34,8 +34,8 @@ export const tagApi = {
         mockTags.splice(index, 1)
       }
       // 清除所有任务中该标签的关联
-      Object.keys(mockTaskTags).forEach(taskId => {
-        mockTaskTags[Number(taskId)] = mockTaskTags[Number(taskId)].filter(tid => tid !== id)
+      Object.keys(mockTaskTags).forEach((taskId) => {
+        mockTaskTags[Number(taskId)] = mockTaskTags[Number(taskId)].filter((tid) => tid !== id)
       })
       return Promise.resolve()
     }
@@ -56,7 +56,7 @@ export const tagApi = {
   removeTagFromTask: async (taskId: number, tagId: number): Promise<void> => {
     if (!isTauri) {
       if (mockTaskTags[taskId]) {
-        mockTaskTags[taskId] = mockTaskTags[taskId].filter(tid => tid !== tagId)
+        mockTaskTags[taskId] = mockTaskTags[taskId].filter((tid) => tid !== tagId)
       }
       return Promise.resolve()
     }

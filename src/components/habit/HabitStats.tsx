@@ -55,20 +55,20 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
             )}
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] mb-2">
-            <span>今日 {todayCount}/{goal}{habit.unit ? ` ${habit.unit}` : ''}</span>
+            <span>
+              今日 {todayCount}/{goal}
+              {habit.unit ? ` ${habit.unit}` : ''}
+            </span>
             {completed && <span className="text-xs text-[var(--color-success)] font-medium">已完成</span>}
           </div>
           <div className="h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${pct}%`, backgroundColor: color }}
-            />
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
           </div>
         </div>
 
         {/* 7 天迷你视图 */}
         <div className="grid grid-cols-7 gap-1 flex-shrink-0">
-          {weekDays.map(day => {
+          {weekDays.map((day) => {
             const key = dateKey(day)
             return (
               <DayCell
@@ -92,12 +92,14 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
   if (part === 'expandedCalendar') {
     return (
       <div className="grid grid-cols-7 gap-2 mb-4">
-        {weekDays.map(day => {
+        {weekDays.map((day) => {
           const key = dateKey(day)
           const count = getCount(habit, key)
           return (
             <div key={key} className="flex flex-col items-center gap-1.5">
-              <span className="text-xs text-[var(--color-text-tertiary)]">{format(day, 'EEEEE', { locale: zhCN })}</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">
+                {format(day, 'EEEEE', { locale: zhCN })}
+              </span>
               <DayCell
                 count={count}
                 goal={goal}
@@ -108,7 +110,9 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
                 showCount
                 onClick={() => onDayClick(key, isFutureDay(day))}
               />
-              <span className={`text-xs ${isSameDay(day, today) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}>
+              <span
+                className={`text-xs ${isSameDay(day, today) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}
+              >
                 {format(day, 'd')}
               </span>
             </div>
@@ -133,7 +137,8 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
         🔥 {streak} 天连续
       </span>
       <span className="text-sm text-[var(--color-text-secondary)]">
-        今日 {todayCount}/{goal}{habit.unit ? ` ${habit.unit}` : ''}
+        今日 {todayCount}/{goal}
+        {habit.unit ? ` ${habit.unit}` : ''}
       </span>
     </div>
   )
@@ -172,7 +177,7 @@ function HabitCharts({ records }: { records: Record<string, number> }) {
 
       {/* Tab 切换 */}
       <div className="flex gap-2 mb-3">
-        {(['week', 'month', 'trend'] as const).map(v => (
+        {(['week', 'month', 'trend'] as const).map((v) => (
           <button
             key={v}
             type="button"

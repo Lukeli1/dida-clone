@@ -27,7 +27,7 @@ interface UIState {
 
   // 侧边栏响应式状态（P12-01 窗口宽度自适应）
   sidebarCollapsed: boolean // 平板/桌面折叠为图标条模式
-  sidebarOpen: boolean      // 移动端抽屉开关
+  sidebarOpen: boolean // 移动端抽屉开关
 
   // 任务交互
   expandedTasks: Set<number>
@@ -192,8 +192,7 @@ export const useUIStore = create<UIState>((set) => ({
   selectAllTasks: (ids) => set({ selectedTaskIds: new Set(ids) }),
   clearSelection: () => set({ selectedTaskIds: new Set(), batchMode: false }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  toggleBatchMode: () =>
-    set((state) => ({ batchMode: !state.batchMode, selectedTaskIds: new Set() })),
+  toggleBatchMode: () => set((state) => ({ batchMode: !state.batchMode, selectedTaskIds: new Set() })),
   toggleFilters: () => set((state) => ({ showFilters: !state.showFilters })),
 
   setSubtaskInput: (taskId, value) =>
@@ -229,9 +228,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   markNotificationRead: (id) =>
     set((state) => ({
-      notificationHistory: state.notificationHistory.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
+      notificationHistory: state.notificationHistory.map((n) => (n.id === id ? { ...n, read: true } : n)),
     })),
 
   clearNotifications: () => set({ notificationHistory: [] }),

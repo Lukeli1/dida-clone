@@ -64,7 +64,7 @@ function persistProviders(providers: LLMProvider[]) {
 export function saveProvider(name: string, config: LLMConfig, models: string[]): LLMProvider[] {
   const providers = getProviders()
   const id = config.baseUrl.replace(/\/$/, '')
-  const existingIdx = providers.findIndex(p => p.id === id)
+  const existingIdx = providers.findIndex((p) => p.id === id)
   const provider: LLMProvider = {
     id,
     name: name || deriveProviderName(config.baseUrl),
@@ -84,7 +84,7 @@ export function saveProvider(name: string, config: LLMConfig, models: string[]):
 }
 
 export function deleteProvider(id: string): LLMProvider[] {
-  const providers = getProviders().filter(p => p.id !== id)
+  const providers = getProviders().filter((p) => p.id !== id)
   persistProviders(providers)
   return providers
 }
@@ -116,13 +116,13 @@ export async function testConnection(baseUrl: string, apiKey: string): Promise<s
   const timeout = setTimeout(() => controller.abort(), 30000)
   try {
     const resp = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal: controller.signal,
     })
     clearTimeout(timeout)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const body = await resp.json() as { data?: Array<{ id: string }> }
-    const models: string[] = (body.data || []).map(m => m.id).filter(Boolean)
+    const body = (await resp.json()) as { data?: Array<{ id: string }> }
+    const models: string[] = (body.data || []).map((m) => m.id).filter(Boolean)
     if (models.length === 0) throw new Error('未找到可用模型')
     return models
   } catch (err: unknown) {
@@ -151,11 +151,7 @@ interface ChatPayload {
   temperature?: number
 }
 
-export async function chat(
-  systemPrompt: string,
-  userMessage: string,
-  history?: ChatHistoryMessage[],
-): Promise<string> {
+export async function chat(systemPrompt: string, userMessage: string, history?: ChatHistoryMessage[]): Promise<string> {
   const config = getLLMConfig()
   if (!config) throw new Error('请先在设置中配置大模型 API')
 
@@ -174,7 +170,7 @@ export async function chat(
   const url = buildUrl(config.baseUrl, '/chat/completions')
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...(history || []).map(m => ({ role: m.role, content: m.content })),
+    ...(history || []).map((m) => ({ role: m.role, content: m.content })),
     { role: 'user', content: userMessage },
   ]
   const payload: ChatPayload = { model: config.model, messages }
@@ -190,14 +186,14 @@ export async function chat(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
     })
     clearTimeout(timeout)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const body = await resp.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const body = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> }
     return body.choices?.[0]?.message?.content || ''
   } catch (err: unknown) {
     clearTimeout(timeout)
@@ -209,13 +205,16 @@ export async function chat(
 /** 将任务列表格式化为 AI 可读的文本上下文 */
 export function formatTasksContext(tasks: Task[]): string {
   if (tasks.length === 0) return '（暂无任务）'
-  return tasks.slice(0, 50).map((t, i) => {
-    const status = t.completed ? '✓' : '○'
-    const due = t.due_date ? ` 截止:${new Date(t.due_date).toLocaleString('zh-CN')}` : ''
-    const priority = t.priority ? ` P${t.priority}` : ''
-    const notes = t.notes ? ` 备注:${t.notes}` : ''
-    return `${i + 1}. ${status}${priority}${due}${notes} ${t.title}`
-  }).join('\n')
+  return tasks
+    .slice(0, 50)
+    .map((t, i) => {
+      const status = t.completed ? '✓' : '○'
+      const due = t.due_date ? ` 截止:${new Date(t.due_date).toLocaleString('zh-CN')}` : ''
+      const priority = t.priority ? ` P${t.priority}` : ''
+      const notes = t.notes ? ` 备注:${t.notes}` : ''
+      return `${i + 1}. ${status}${priority}${due}${notes} ${t.title}`
+    })
+    .join('\n')
 }
 
 // 从 prompts/ 目录 re-export
@@ -293,7 +292,12 @@ export async function suggestPriority(title: string, notes?: string): Promise<{ 
 /** 智能摘要 */
 export async function generateSummary(tasks: Task[]): Promise<string> {
   const today = new Date().toLocaleDateString('zh-CN')
-  const taskList = tasks.map((t, i) => `${i + 1}. ${t.title}${t.completed ? '（已完成）' : '（未完成）'}${t.due_date ? ` - 截止: ${new Date(t.due_date).toLocaleString('zh-CN')}` : ''}`).join('\n')
+  const taskList = tasks
+    .map(
+      (t, i) =>
+        `${i + 1}. ${t.title}${t.completed ? '（已完成）' : '（未完成）'}${t.due_date ? ` - 截止: ${new Date(t.due_date).toLocaleString('zh-CN')}` : ''}`,
+    )
+    .join('\n')
 
   const systemPrompt = `你是一个工作总结助手。根据用户的任务列表，生成一份简洁的工作摘要。包括：
 1. 今日完成情况

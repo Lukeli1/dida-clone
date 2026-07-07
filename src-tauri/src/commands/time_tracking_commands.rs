@@ -6,8 +6,8 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::DbState;
 use super::now_rfc3339;
+use crate::db::DbState;
 
 /// 时间追踪记录条目（与 time_entries 表对齐）
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -19,7 +19,11 @@ export function highlightMatch(text: string, query: string): React.ReactNode {
   return parts.map((part, i) => {
     // 用 regex.test 会有 lastIndex 问题，用简单比较
     if (part.toLowerCase() === query.toLowerCase()) {
-      return <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/40 rounded px-0.5 text-inherit">{part}</mark>
+      return (
+        <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/40 rounded px-0.5 text-inherit">
+          {part}
+        </mark>
+      )
     }
     return part
   })

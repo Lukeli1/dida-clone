@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  parseRepeatRule,
-  serializeRepeatRule,
-  getNextOccurrence,
-  getRepeatSummary,
-} from '../../types/repeat'
+import { parseRepeatRule, serializeRepeatRule, getNextOccurrence, getRepeatSummary } from '../../types/repeat'
 
 // 2026-06-15 是周一（getDay()=1），用于 WEEKLY 测试基准
 const MONDAY = new Date('2026-06-15T10:00:00')
@@ -80,9 +75,7 @@ describe('serializeRepeatRule', () => {
   })
 
   it('序列化带 count', () => {
-    expect(serializeRepeatRule({ freq: 'DAILY', interval: 1, count: 5 })).toBe(
-      'FREQ=DAILY;INTERVAL=1;COUNT=5',
-    )
+    expect(serializeRepeatRule({ freq: 'DAILY', interval: 1, count: 5 })).toBe('FREQ=DAILY;INTERVAL=1;COUNT=5')
   })
 
   it('round-trip：解析再序列化保持一致', () => {
@@ -217,15 +210,11 @@ describe('getRepeatSummary', () => {
   })
 
   it('每周一、三、五', () => {
-    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 1, byweekday: [1, 3, 5] })).toBe(
-      '每周一、三、五',
-    )
+    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 1, byweekday: [1, 3, 5] })).toBe('每周一、三、五')
   })
 
   it('每周日、六', () => {
-    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 1, byweekday: [0, 6] })).toBe(
-      '每周日、六',
-    )
+    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 1, byweekday: [0, 6] })).toBe('每周日、六')
   })
 
   it('每2周', () => {
@@ -233,9 +222,7 @@ describe('getRepeatSummary', () => {
   })
 
   it('每2周的周一、三、五', () => {
-    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 2, byweekday: [1, 3, 5] })).toBe(
-      '每2周的周一、三、五',
-    )
+    expect(getRepeatSummary({ freq: 'WEEKLY', interval: 2, byweekday: [1, 3, 5] })).toBe('每2周的周一、三、五')
   })
 
   it('每月', () => {

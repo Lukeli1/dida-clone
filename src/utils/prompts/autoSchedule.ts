@@ -8,7 +8,7 @@ export function autoSchedulePrompt(tasks: Task[]): string {
   const dateStr = tomorrow.toISOString().slice(0, 10)
 
   // 只选未完成的任务，最多取 30 条
-  const incompleteTasks = tasks.filter(t => !t.completed).slice(0, 30)
+  const incompleteTasks = tasks.filter((t) => !t.completed).slice(0, 30)
 
   return `你是智能日程助手。请根据以下未安排的任务，为明天（${dateStr}）生成一份合理的日程表。
 

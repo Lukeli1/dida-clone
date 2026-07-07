@@ -40,11 +40,7 @@ export const useListStore = create<ListState>((set) => ({
     try {
       await api.updateList(id, updates)
       set((state) => ({
-        lists: state.lists.map((l) =>
-          l.id === id
-            ? { ...l, ...updates, updated_at: new Date().toISOString() }
-            : l
-        ),
+        lists: state.lists.map((l) => (l.id === id ? { ...l, ...updates, updated_at: new Date().toISOString() } : l)),
       }))
       return true
     } catch (error) {

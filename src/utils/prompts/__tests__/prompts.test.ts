@@ -7,11 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
-import {
-  AI_SKILLS,
-  ACTION_SYSTEM_PROMPT,
-  parseActions,
-} from '../index'
+import { AI_SKILLS, ACTION_SYSTEM_PROMPT, parseActions } from '../index'
 import type { ActionOp } from '../index'
 import { todaySummary } from '../todaySummary'
 import { weeklyReport } from '../weeklyReport'
@@ -205,7 +201,8 @@ describe('prompt 模板函数', () => {
 // ============================================================
 describe('parseActions', () => {
   it('正常解析单个 action（对象格式）', () => {
-    const text = '好的，我来帮你创建任务。\n[[ACTION]]{"type":"create_task","data":{"title":"买牛奶"},"description":"创建任务：买牛奶"}[[/ACTION]]\n请确认。'
+    const text =
+      '好的，我来帮你创建任务。\n[[ACTION]]{"type":"create_task","data":{"title":"买牛奶"},"description":"创建任务：买牛奶"}[[/ACTION]]\n请确认。'
     const { actions, cleanedText } = parseActions(text)
     expect(actions).toHaveLength(1)
     expect(actions[0].type).toBe('create_task')
@@ -218,7 +215,8 @@ describe('parseActions', () => {
   })
 
   it('正常解析数组格式 action', () => {
-    const text = '[[ACTION]][{"type":"complete_task","data":{"task_id":1},"description":"完成任务1"},{"type":"delete_task","data":{"task_id":2},"description":"删除任务2"}][[/ACTION]]'
+    const text =
+      '[[ACTION]][{"type":"complete_task","data":{"task_id":1},"description":"完成任务1"},{"type":"delete_task","data":{"task_id":2},"description":"删除任务2"}][[/ACTION]]'
     const { actions } = parseActions(text)
     expect(actions).toHaveLength(2)
     expect(actions[0].type).toBe('complete_task')
@@ -267,7 +265,8 @@ describe('parseActions', () => {
   })
 
   it('解析出的 ActionOp 满足类型结构', () => {
-    const text = '[[ACTION]]{"type":"update_task","data":{"task_id":1,"updates":{"priority":2}},"description":"更新优先级"}[[/ACTION]]'
+    const text =
+      '[[ACTION]]{"type":"update_task","data":{"task_id":1,"updates":{"priority":2}},"description":"更新优先级"}[[/ACTION]]'
     const { actions } = parseActions(text)
     const op: ActionOp = actions[0]
     expect(op).toHaveProperty('type')

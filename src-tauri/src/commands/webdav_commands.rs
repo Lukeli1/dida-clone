@@ -44,13 +44,9 @@ pub async fn webdav_test_connection(
 /// 返回同步结果描述："upload" / "download" / "no-change"
 #[tauri::command]
 pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String, String> {
-    let config = load_sync_config(&app_data_dir)?
-        .ok_or("未配置同步")?;
+    let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
-    let url = config
-        .webdav_url
-        .clone()
-        .ok_or("未配置 WebDAV URL")?;
+    let url = config.webdav_url.clone().ok_or("未配置 WebDAV URL")?;
     let username = config
         .webdav_username
         .clone()
@@ -61,8 +57,7 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
         .clone()
         .unwrap_or_else(|| DEFAULT_REMOTE_PATH.to_string());
 
-    let webdav_config =
-        build_webdav_config_from_sync_config(url, username, password, remote_path);
+    let webdav_config = build_webdav_config_from_sync_config(url, username, password, remote_path);
     let client = WebDavClient::new(webdav_config);
     let local_db = Path::new(&app_data_dir).join("dida.db");
 
@@ -91,7 +86,8 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
             let remote_modified = (remote - last).num_seconds() > CONFLICT_GRACE_SECS;
             if local_modified && remote_modified {
                 return Err(
-                    "检测到同步冲突 (conflict)：本地和远程数据均已修改，请选择保留方式。".to_string(),
+                    "检测到同步冲突 (conflict)：本地和远程数据均已修改，请选择保留方式。"
+                        .to_string(),
                 );
             }
         }
@@ -134,8 +130,7 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
 /// 强制上传本地数据库到 WebDAV
 #[tauri::command]
 pub async fn webdav_upload(app_data_dir: String) -> Result<(), String> {
-    let config = load_sync_config(&app_data_dir)?
-        .ok_or("未配置同步")?;
+    let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     let url = config.webdav_url.ok_or("未配置 WebDAV URL")?;
     let username = config.webdav_username.ok_or("未配置 WebDAV 用户名")?;
@@ -144,8 +139,7 @@ pub async fn webdav_upload(app_data_dir: String) -> Result<(), String> {
         .webdav_remote_path
         .unwrap_or_else(|| DEFAULT_REMOTE_PATH.to_string());
 
-    let webdav_config =
-        build_webdav_config_from_sync_config(url, username, password, remote_path);
+    let webdav_config = build_webdav_config_from_sync_config(url, username, password, remote_path);
     let client = WebDavClient::new(webdav_config);
     let local_db = Path::new(&app_data_dir).join("dida.db");
 
@@ -162,8 +156,7 @@ pub async fn webdav_upload(app_data_dir: String) -> Result<(), String> {
 /// 强制从 WebDAV 下载远程数据库
 #[tauri::command]
 pub async fn webdav_download(app_data_dir: String) -> Result<(), String> {
-    let config = load_sync_config(&app_data_dir)?
-        .ok_or("未配置同步")?;
+    let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     let url = config.webdav_url.ok_or("未配置 WebDAV URL")?;
     let username = config.webdav_username.ok_or("未配置 WebDAV 用户名")?;
@@ -172,8 +165,7 @@ pub async fn webdav_download(app_data_dir: String) -> Result<(), String> {
         .webdav_remote_path
         .unwrap_or_else(|| DEFAULT_REMOTE_PATH.to_string());
 
-    let webdav_config =
-        build_webdav_config_from_sync_config(url, username, password, remote_path);
+    let webdav_config = build_webdav_config_from_sync_config(url, username, password, remote_path);
     let client = WebDavClient::new(webdav_config);
     let local_db = Path::new(&app_data_dir).join("dida.db");
 

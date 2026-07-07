@@ -64,9 +64,7 @@ export function SchedulePreviewDialog({ schedule, onConfirm, onCancel }: Schedul
   }
 
   // 按开始时间排序
-  const sorted = [...schedule].sort(
-    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-  )
+  const sorted = [...schedule].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 
   // 计算总时长
   const totalMinutes = sorted.reduce((sum, item) => {
@@ -123,9 +121,7 @@ export function SchedulePreviewDialog({ schedule, onConfirm, onCancel }: Schedul
         {/* 日程列表 */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {sorted.length === 0 ? (
-            <p className="text-center text-sm text-[var(--color-text-tertiary)] py-8">
-              暂无排程数据
-            </p>
+            <p className="text-center text-sm text-[var(--color-text-tertiary)] py-8">暂无排程数据</p>
           ) : (
             sorted.map((item, idx) => {
               const pri = priorityLabel(item.priority)
@@ -139,9 +135,7 @@ export function SchedulePreviewDialog({ schedule, onConfirm, onCancel }: Schedul
                     <div className="text-sm font-semibold text-[var(--color-text-primary)] tabular-nums">
                       {formatTime(item.start)}
                     </div>
-                    <div className="text-xs text-[var(--color-text-tertiary)] tabular-nums">
-                      {formatTime(item.end)}
-                    </div>
+                    <div className="text-xs text-[var(--color-text-tertiary)] tabular-nums">{formatTime(item.end)}</div>
                   </div>
 
                   {/* 时间轴竖线 */}
@@ -152,9 +146,7 @@ export function SchedulePreviewDialog({ schedule, onConfirm, onCancel }: Schedul
 
                   {/* 任务信息 */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-[var(--color-text-primary)] truncate">
-                      {item.taskTitle}
-                    </p>
+                    <p className="text-sm text-[var(--color-text-primary)] truncate">{item.taskTitle}</p>
                     <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
                       {formatDuration(item.start, item.end)}
                     </p>
@@ -178,9 +170,7 @@ export function SchedulePreviewDialog({ schedule, onConfirm, onCancel }: Schedul
 
         {/* 底部操作栏 */}
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[var(--color-border-light)]">
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            确认后将批量更新任务时间
-          </p>
+          <p className="text-xs text-[var(--color-text-tertiary)]">确认后将批量更新任务时间</p>
           <div className="flex gap-2">
             <button
               onClick={handleCancel}

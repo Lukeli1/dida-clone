@@ -17,14 +17,22 @@ interface TaskInputBarProps {
 }
 
 /** 新建任务输入栏（含 AI 模式切换 + 智能日期识别预览 + 从模板创建） */
-export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, aiMode, aiParsing, setAiMode, handleCreateTask }: TaskInputBarProps) {
+export function TaskInputBar({
+  newTaskInputRef,
+  newTaskTitle,
+  setNewTaskTitle,
+  aiMode,
+  aiParsing,
+  setAiMode,
+  handleCreateTask,
+}: TaskInputBarProps) {
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
   const [templates, setTemplates] = useState<TaskTemplate[]>([])
   const [templatesLoaded, setTemplatesLoaded] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
-  const selectedListId = useUIStore(s => s.selectedListId)
-  const loadTasks = useTaskStore(s => s.loadTasks)
+  const selectedListId = useUIStore((s) => s.selectedListId)
+  const loadTasks = useTaskStore((s) => s.loadTasks)
 
   // 点击外部关闭模板下拉
   useEffect(() => {
@@ -41,9 +49,10 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
   // 首次打开时加载模板列表
   useEffect(() => {
     if (showTemplateDropdown && !templatesLoaded) {
-      templateApi.getTemplates()
+      templateApi
+        .getTemplates()
         .then(setTemplates)
-        .catch(e => console.error('加载模板列表失败:', e))
+        .catch((e) => console.error('加载模板列表失败:', e))
         .finally(() => setTemplatesLoaded(true))
     }
   }, [showTemplateDropdown, templatesLoaded])
@@ -80,7 +89,10 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
             }`}
           />
           <button
-            onClick={() => { setAiMode(!aiMode); newTaskInputRef.current?.focus() }}
+            onClick={() => {
+              setAiMode(!aiMode)
+              newTaskInputRef.current?.focus()
+            }}
             className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 active:scale-95 ${
               aiMode
                 ? 'bg-purple-500 text-white shadow-sm hover:bg-purple-600'
@@ -94,34 +106,55 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
               </svg>
             ) : (
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
               </svg>
             )}
             AI
           </button>
           {/* 智能日期识别预览 */}
-          {!aiMode && newTaskTitle.trim() && (() => {
-            const preview = parseSmartDate(newTaskTitle.trim())
-            const hasParsed = preview.dueDate || (preview.priority !== undefined && preview.priority > 0) || preview.repeatRule
-            if (!hasParsed) return null
-            return (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-accent-light)] border border-[var(--color-accent-light)] rounded-xl px-4 py-2 text-xs text-[var(--color-accent-text)] flex items-center gap-3 z-10 shadow-sm animate-float-up">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  智能识别
-                </span>
-                {preview.dueDate && (
-                  <span className="flex items-center gap-1">📅 {new Date(preview.dueDate).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                )}
-                {preview.priority !== undefined && preview.priority > 0 && (
-                  <span>🔥 {preview.priority === 1 ? '高优先级' : preview.priority === 2 ? '中优先级' : '低优先级'}</span>
-                )}
-                {preview.repeatRule && (<span>🔁 重复</span>)}
-              </div>
-            )
-          })()}
+          {!aiMode &&
+            newTaskTitle.trim() &&
+            (() => {
+              const preview = parseSmartDate(newTaskTitle.trim())
+              const hasParsed =
+                preview.dueDate || (preview.priority !== undefined && preview.priority > 0) || preview.repeatRule
+              if (!hasParsed) return null
+              return (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-accent-light)] border border-[var(--color-accent-light)] rounded-xl px-4 py-2 text-xs text-[var(--color-accent-text)] flex items-center gap-3 z-10 shadow-sm animate-float-up">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    智能识别
+                  </span>
+                  {preview.dueDate && (
+                    <span className="flex items-center gap-1">
+                      📅{' '}
+                      {new Date(preview.dueDate).toLocaleString('zh-CN', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                  {preview.priority !== undefined && preview.priority > 0 && (
+                    <span>
+                      🔥 {preview.priority === 1 ? '高优先级' : preview.priority === 2 ? '中优先级' : '低优先级'}
+                    </span>
+                  )}
+                  {preview.repeatRule && <span>🔁 重复</span>}
+                </div>
+              )
+            })()}
         </div>
 
         {/* 从模板创建按钮 */}
@@ -133,7 +166,11 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
             title="从模板创建任务"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+              />
             </svg>
           </button>
           {/* 模板下拉列表 */}
@@ -149,7 +186,7 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
                   <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-1.5 border-b border-[var(--color-border)] mb-1">
                     从模板创建
                   </p>
-                  {templates.map(template => (
+                  {templates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => handleApplyTemplate(template)}
@@ -193,7 +230,11 @@ export function TaskInputBar({ newTaskInputRef, newTaskTitle, setNewTaskTitle, a
       {aiMode && (
         <p className="mt-2 text-xs text-purple-500 flex items-center gap-1.5 font-medium">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           AI 模式：用自然语言描述任务，AI 会自动识别时间、优先级
         </p>

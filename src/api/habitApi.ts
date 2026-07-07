@@ -11,20 +11,16 @@ export const habitApi = {
     invoke<Habit[]>('get_habits', { includeArchived: includeArchived ?? null }),
 
   /** 创建习惯，返回后端生成的完整 Habit（含 id） */
-  createHabit: (req: CreateHabitRequest): Promise<Habit> =>
-    invoke<Habit>('create_habit', { req }),
+  createHabit: (req: CreateHabitRequest): Promise<Habit> => invoke<Habit>('create_habit', { req }),
 
   /** 更新习惯字段（仅传入需要更新的字段） */
-  updateHabit: (id: number, req: UpdateHabitRequest): Promise<Habit> =>
-    invoke<Habit>('update_habit', { id, req }),
+  updateHabit: (id: number, req: UpdateHabitRequest): Promise<Habit> => invoke<Habit>('update_habit', { id, req }),
 
   /** 删除习惯（关联打卡记录因 ON DELETE CASCADE 自动清除） */
-  deleteHabit: (id: number): Promise<void> =>
-    invoke<void>('delete_habit', { id }),
+  deleteHabit: (id: number): Promise<void> => invoke<void>('delete_habit', { id }),
 
   /** 归档/取消归档习惯 */
-  archiveHabit: (id: number, archived: boolean): Promise<void> =>
-    invoke<void>('archive_habit', { id, archived }),
+  archiveHabit: (id: number, archived: boolean): Promise<void> => invoke<void>('archive_habit', { id, archived }),
 
   /** 获取某习惯的打卡记录（可按日期范围筛选） */
   getRecords: (habitId: number, startDate?: string, endDate?: string): Promise<HabitRecord[]> =>

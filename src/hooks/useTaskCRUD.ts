@@ -71,7 +71,8 @@ export function useTaskCRUD(toast: ToastApi) {
     useUIStore.getState().setAiParsing(true)
     try {
       const parsed = await parseNaturalLanguageTask(title.trim())
-      const listId = selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
+      const listId =
+        selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
       const newTask = await useTaskStore.getState().createTask({
         title: parsed.title,
         list_id: listId,
@@ -104,7 +105,8 @@ export function useTaskCRUD(toast: ToastApi) {
       return
     }
     const smartResult = parseSmartDate(title.trim())
-    const listId = selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
+    const listId =
+      selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
 
     // 若未识别到日期，默认截止到当天 23:59:59（避免当前时刻写入导致立刻过期变红）
     let dueDate = smartResult.dueDate
@@ -123,7 +125,9 @@ export function useTaskCRUD(toast: ToastApi) {
       const extras: string[] = []
       if (dueDate) {
         const d = new Date(dueDate)
-        extras.push(`时间: ${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
+        extras.push(
+          `时间: ${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`,
+        )
       }
       if (smartResult.priority && smartResult.priority > 0) {
         extras.push(`优先级: ${smartResult.priority === 1 ? '高' : smartResult.priority === 2 ? '中' : '低'}`)
@@ -136,14 +140,17 @@ export function useTaskCRUD(toast: ToastApi) {
   }
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
-  return useMemo(() => ({
-    handleToggleTask,
-    handleUpdateTask,
-    handleDeleteTask,
-    handleArchiveTask,
-    handleUnarchiveTask,
-    handleDuplicateTask,
-    handleCreateTask,
-    handleCreateTaskWithAI,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      handleToggleTask,
+      handleUpdateTask,
+      handleDeleteTask,
+      handleArchiveTask,
+      handleUnarchiveTask,
+      handleDuplicateTask,
+      handleCreateTask,
+      handleCreateTaskWithAI,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }

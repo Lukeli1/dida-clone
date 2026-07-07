@@ -92,11 +92,11 @@ export function applyThemePreset(presetId: string): void {
   const root = document.documentElement
 
   // 清除所有可能的主题变量
-  THEME_VARIABLE_KEYS.forEach(key => {
+  THEME_VARIABLE_KEYS.forEach((key) => {
     root.style.removeProperty(key)
   })
 
-  const preset = THEME_PRESETS.find(p => p.id === presetId)
+  const preset = THEME_PRESETS.find((p) => p.id === presetId)
   if (!preset) return
 
   Object.entries(preset.variables).forEach(([key, value]) => {
@@ -157,7 +157,7 @@ export function saveAccentColor(color: string | null): void {
  */
 export function clearThemeOverride(): void {
   const root = document.documentElement
-  THEME_VARIABLE_KEYS.forEach(key => {
+  THEME_VARIABLE_KEYS.forEach((key) => {
     root.style.removeProperty(key)
   })
   localStorage.removeItem(STORAGE_PRESET)

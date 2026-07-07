@@ -5,12 +5,10 @@ import { useWindowSize } from '../hooks/useWindowSize'
 
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
-  const setShortcutsHelpOpen = useUIStore(s => s.setShortcutsHelpOpen)
-  const setNotificationCenterOpen = useUIStore(s => s.setNotificationCenterOpen)
-  const setSidebarOpen = useUIStore(s => s.setSidebarOpen)
-  const hasUnreadNotifications = useUIStore(s =>
-    s.notificationHistory.some(n => !n.read)
-  )
+  const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen)
+  const setNotificationCenterOpen = useUIStore((s) => s.setNotificationCenterOpen)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const hasUnreadNotifications = useUIStore((s) => s.notificationHistory.some((n) => !n.read))
   const { isNarrow } = useWindowSize()
 
   useEffect(() => {
@@ -51,7 +49,10 @@ export function TitleBar() {
             </svg>
           </button>
         )}
-        <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
+        <div
+          className="w-5 h-5 rounded-md flex items-center justify-center"
+          style={{ backgroundColor: 'var(--color-accent)' }}
+        >
           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
@@ -72,7 +73,11 @@ export function TitleBar() {
           title="通知中心"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+            />
           </svg>
           {hasUnreadNotifications && (
             <span className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-[var(--color-danger, #ef4444)]" />
@@ -87,7 +92,11 @@ export function TitleBar() {
           title="快捷键帮助 (?)"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         </button>
         <button
@@ -112,7 +121,10 @@ export function TitleBar() {
             </svg>
           ) : (
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              <path
+                strokeLinecap="round"
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
             </svg>
           )}
         </button>

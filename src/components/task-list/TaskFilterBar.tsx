@@ -49,8 +49,10 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters, filtered
         className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="">全部标签</option>
-        {tags.map(tag => (
-          <option key={tag.id} value={tag.id}>{tag.name}</option>
+        {tags.map((tag) => (
+          <option key={tag.id} value={tag.id}>
+            {tag.name}
+          </option>
         ))}
       </select>
       {/* 清单筛选 */}
@@ -60,8 +62,10 @@ export function TaskFilterBar({ filters, tags, lists, hasActiveFilters, filtered
         className="px-2 py-1 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 hover:border-[var(--color-accent)] transition-colors"
       >
         <option value="">全部清单</option>
-        {lists.map(list => (
-          <option key={list.id} value={list.id}>{list.name}</option>
+        {lists.map((list) => (
+          <option key={list.id} value={list.id}>
+            {list.name}
+          </option>
         ))}
       </select>
       {hasActiveFilters && (

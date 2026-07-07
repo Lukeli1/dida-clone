@@ -179,9 +179,7 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       {/* 标题行 */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-[var(--color-text-tertiary)]">时间追踪</span>
-        <span className="text-xs text-[var(--color-text-tertiary)]">
-          累计 {formatDuration(totalSeconds)}
-        </span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">累计 {formatDuration(totalSeconds)}</span>
       </div>
 
       {/* 计时控制区 */}

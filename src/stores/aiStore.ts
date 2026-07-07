@@ -69,15 +69,15 @@ export const useAIStore = create<AIStore>((set, get) => ({
   messages: loadMessages(),
   preferences: loadPreferences(),
 
-  setMessages: (updater) => set((state) => {
-    const next = typeof updater === 'function'
-      ? (updater as (prev: UIMessage[]) => UIMessage[])(state.messages)
-      : updater
-    // 始终只保留最近 MAX_MESSAGES 条，避免无限增长
-    const truncated = next.slice(-MAX_MESSAGES)
-    persistMessages(truncated)
-    return { messages: truncated }
-  }),
+  setMessages: (updater) =>
+    set((state) => {
+      const next =
+        typeof updater === 'function' ? (updater as (prev: UIMessage[]) => UIMessage[])(state.messages) : updater
+      // 始终只保留最近 MAX_MESSAGES 条，避免无限增长
+      const truncated = next.slice(-MAX_MESSAGES)
+      persistMessages(truncated)
+      return { messages: truncated }
+    }),
 
   clearMessages: () => {
     persistMessages([])
@@ -95,12 +95,13 @@ export const useAIStore = create<AIStore>((set, get) => ({
     })
   },
 
-  removePreference: (index) => set((state) => {
-    if (index < 0 || index >= state.preferences.length) return state
-    const next = state.preferences.filter((_, i) => i !== index)
-    persistPreferences(next)
-    return { preferences: next }
-  }),
+  removePreference: (index) =>
+    set((state) => {
+      if (index < 0 || index >= state.preferences.length) return state
+      const next = state.preferences.filter((_, i) => i !== index)
+      persistPreferences(next)
+      return { preferences: next }
+    }),
 
   clearPreferences: () => {
     persistPreferences([])

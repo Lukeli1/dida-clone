@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  PRIORITY_STYLES,
-  getPriorityStyle,
-  hexWithAlpha,
-  hexToRgba,
-  getTaskColor,
-} from '../priority'
+import { PRIORITY_STYLES, getPriorityStyle, hexWithAlpha, hexToRgba, getTaskColor } from '../priority'
 import type { Task, List } from '../../types'
 
 /** 构造一个最小可用 Task，默认 priority=0、list_id=1 */

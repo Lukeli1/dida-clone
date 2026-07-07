@@ -14,8 +14,8 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   async function handleReorderTasks(draggedId: number, targetId: number) {
     if (draggedId === targetId) return
     const tree = incompleteTaskTreeRef.current ?? []
-    const draggedIndex = tree.findIndex(t => t.id === draggedId)
-    const targetIndex = tree.findIndex(t => t.id === targetId)
+    const draggedIndex = tree.findIndex((t) => t.id === draggedId)
+    const targetIndex = tree.findIndex((t) => t.id === targetId)
     if (draggedIndex === -1 || targetIndex === -1) return
 
     const newOrder = [...tree]
@@ -23,9 +23,9 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
     newOrder.splice(targetIndex, 0, moved)
 
     const reorderItems: ReorderItem[] = newOrder.map((task, index) => ({ id: task.id, sort_order: index }))
-    const sortOrderMap = new Map(reorderItems.map(item => [item.id, item.sort_order]))
+    const sortOrderMap = new Map(reorderItems.map((item) => [item.id, item.sort_order]))
     useTaskStore.setState((state) => ({
-      tasks: state.tasks.map(t => sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t)
+      tasks: state.tasks.map((t) => (sortOrderMap.has(t.id) ? { ...t, sort_order: sortOrderMap.get(t.id)! } : t)),
     }))
 
     const success = await useTaskStore.getState().reorderTasks(reorderItems)
@@ -59,7 +59,8 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   // ===== 日历视图创建任务 =====
   async function handleCreateTaskOnDate(date: string, title?: string) {
     const selectedListId = useUIStore.getState().selectedListId
-    const listId = selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
+    const listId =
+      selectedListId ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
     const newTask = await useTaskStore.getState().createTask({
       title: title || '新任务',
       list_id: listId,
@@ -73,7 +74,17 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
     }
   }
 
-  async function handleCreateTaskOnRange(data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) {
+  async function handleCreateTaskOnRange(data: {
+    dateKey: string
+    title: string
+    notes?: string
+    priority: number
+    listId: number
+    startHour: number
+    startMin: number
+    endHour: number
+    endMin: number
+  }) {
     try {
       const [year, month, day] = data.dateKey.split('-').map(Number)
       const dueDate = new Date(year, month - 1, day, data.startHour, data.startMin)
@@ -100,13 +111,16 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   }
 
   // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
-  return useMemo(() => ({
-    handleReorderTasks,
-    handleDropToCalendarDate,
-    handleDragStartGlobal,
-    handleDragEndGlobal,
-    handleMoveTask,
-    handleCreateTaskOnDate,
-    handleCreateTaskOnRange,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({
+      handleReorderTasks,
+      handleDropToCalendarDate,
+      handleDragStartGlobal,
+      handleDragEndGlobal,
+      handleMoveTask,
+      handleCreateTaskOnDate,
+      handleCreateTaskOnRange,
+    }),
+    [],
+  ) // eslint-disable-line react-hooks/exhaustive-deps
 }

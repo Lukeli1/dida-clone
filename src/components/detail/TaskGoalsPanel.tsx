@@ -61,14 +61,12 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
   }, [showPicker])
 
   // 可关联的目标 = 所有 active 目标 - 已关联的目标
-  const availableGoals = allGoals.filter(
-    g => !linkedGoals.some(lg => lg.id === g.id),
-  )
+  const availableGoals = allGoals.filter((g) => !linkedGoals.some((lg) => lg.id === g.id))
 
   async function handleLink(goal: Goal) {
     try {
       await goalApi.linkTask(goal.id, taskId)
-      setLinkedGoals(prev => [...prev, goal])
+      setLinkedGoals((prev) => [...prev, goal])
       // 关联后不关闭选择器，允许继续关联多个目标
     } catch (e) {
       console.error('关联目标失败:', e)
@@ -78,7 +76,7 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
   async function handleUnlink(goal: Goal) {
     try {
       await goalApi.unlinkTask(goal.id, taskId)
-      setLinkedGoals(prev => prev.filter(g => g.id !== goal.id))
+      setLinkedGoals((prev) => prev.filter((g) => g.id !== goal.id))
     } catch (e) {
       console.error('解除关联失败:', e)
     }
@@ -97,7 +95,7 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
       {/* 已关联目标的 pill 列表 */}
       <div className="flex flex-wrap gap-1.5 items-center">
         {linkedGoals.length > 0 ? (
-          linkedGoals.map(goal => {
+          linkedGoals.map((goal) => {
             const color = goal.color ?? '#3B82F6'
             return (
               <span
@@ -129,7 +127,7 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
 
         {/* 添加目标按钮 */}
         <button
-          onClick={() => setShowPicker(v => !v)}
+          onClick={() => setShowPicker((v) => !v)}
           className="w-5 h-5 flex items-center justify-center rounded-full border border-[var(--color-border)] hover:border-[var(--color-accent)] text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
           title="关联目标"
         >
@@ -145,7 +143,7 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
           {loading ? (
             <p className="text-xs text-[var(--color-text-tertiary)] px-2 py-1">加载中...</p>
           ) : availableGoals.length > 0 ? (
-            availableGoals.map(goal => {
+            availableGoals.map((goal) => {
               const color = goal.color ?? '#3B82F6'
               return (
                 <button
@@ -153,15 +151,20 @@ export function TaskGoalsPanel({ taskId }: TaskGoalsPanelProps) {
                   onClick={() => handleLink(goal)}
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left transition-colors"
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm text-[var(--color-text-secondary)] truncate">{goal.title}</span>
-                    <span className="block text-[10px] text-[var(--color-text-tertiary)]">{TYPE_LABELS[goal.type]}</span>
+                    <span className="block text-[10px] text-[var(--color-text-tertiary)]">
+                      {TYPE_LABELS[goal.type]}
+                    </span>
                   </span>
-                  <svg className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <svg
+                    className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.8}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                 </button>

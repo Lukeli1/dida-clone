@@ -9,8 +9,8 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::*;
 use super::super::{List, Tag};
+use crate::db::*;
 
 // ---------------------------------------------------------------------------
 // import_json 专用结构
@@ -43,7 +43,11 @@ pub struct ImportResult {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn import_json(state: State<DbState>, json: String, mode: String) -> Result<ImportResult, String> {
+pub fn import_json(
+    state: State<DbState>,
+    json: String,
+    mode: String,
+) -> Result<ImportResult, String> {
     // 解析 JSON
     let data: ImportData = serde_json::from_str(&json).map_err(|e| e.to_string())?;
 

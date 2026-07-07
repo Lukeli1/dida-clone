@@ -10,6 +10,8 @@ dist-ssr/
 # Tauri
 src-tauri/target/
 src-tauri/WrapperApp/
+# Tauri 自动生成的 schema（构建产物，不应追踪）
+src-tauri/gen/
 
 # Patches (cargo registry patches, not project code)
 patches/
@@ -45,3 +47,17 @@ lerna-debug.log*
 # Database
 *.db
 *.sqlite
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Generated Vite config artifacts (compiled from vite.config.ts by tsc -b)
+vite.config.js
+vite.config.d.ts
+
+# Test reports
+playwright-report/
+coverage/
+
+# Runtime/output artifacts
+output/

@@ -6,7 +6,7 @@ import type { Task } from '../../types'
 export function stripActionsLive(text: string): string {
   return text
     .replace(/\[\[ACTION\]\][\s\S]*?\[\[\/ACTION\]\]/g, '')
-    .replace(/\[\[ACTION\]\][\s\S]*$/, '')   // 流式中尚未闭合的块
+    .replace(/\[\[ACTION\]\][\s\S]*$/, '') // 流式中尚未闭合的块
     .replace(/\n{3,}/g, '\n\n')
 }
 
@@ -45,7 +45,7 @@ export async function executeAction(action: ActionOp, tasks: Task[]): Promise<st
         title: data.title,
         priority: data.priority ?? 0,
         parent_id: data.parent_id,
-        list_id: tasks.find(t => t.id === data.parent_id)?.list_id ?? 1,
+        list_id: tasks.find((t) => t.id === data.parent_id)?.list_id ?? 1,
       })
       return `✅ 已为任务 #${data.parent_id} 添加子任务：${data.title}`
     }

@@ -39,7 +39,20 @@ export interface HabitActionsProps {
  * - 'overlays': 右键菜单 + 专注计时器（自包含专注计时器状态）
  */
 export function HabitActions(props: HabitActionsProps) {
-  const { habit, color, part, onIncrement, onDecrement, onDelete, onEdit, onArchive, showCalendar, onToggleCalendar, contextMenu, onCloseContextMenu } = props
+  const {
+    habit,
+    color,
+    part,
+    onIncrement,
+    onDecrement,
+    onDelete,
+    onEdit,
+    onArchive,
+    showCalendar,
+    onToggleCalendar,
+    contextMenu,
+    onCloseContextMenu,
+  } = props
 
   // 专注计时器（自包含状态：开始/停止/计时）
   const [focusTimer, setFocusTimer] = useState<{ seconds: number; targetSeconds: number } | null>(null)
@@ -51,14 +64,17 @@ export function HabitActions(props: HabitActionsProps) {
 
   function stopFocus() {
     setFocusTimer(null)
-    if (focusInterval) { clearInterval(focusInterval); setFocusInterval(null) }
+    if (focusInterval) {
+      clearInterval(focusInterval)
+      setFocusInterval(null)
+    }
   }
 
   // 专注计时器：每秒 +1
   useEffect(() => {
     if (focusTimer) {
       const id = setInterval(() => {
-        setFocusTimer(prev => {
+        setFocusTimer((prev) => {
           if (!prev) return null
           const next = prev.seconds + 1
           if (next >= prev.targetSeconds) {
@@ -94,12 +110,20 @@ export function HabitActions(props: HabitActionsProps) {
         {/* 删除（悬停显示） */}
         <button
           type="button"
-          onClick={e => { e.stopPropagation(); onDelete?.(habit.id) }}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete?.(habit.id)
+          }}
           className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 flex-shrink-0"
           title="删除习惯"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
         </button>
       </>
@@ -140,7 +164,10 @@ export function HabitActions(props: HabitActionsProps) {
     return (
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); onToggleCalendar?.() }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleCalendar?.()
+        }}
         className="text-xs text-[var(--color-accent)] hover:underline mt-3"
       >
         {showCalendar ? '收起日历' : '📅 查看历史日历'}
@@ -155,38 +182,80 @@ export function HabitActions(props: HabitActionsProps) {
         <div className="fixed inset-0 z-50" onClick={onCloseContextMenu}>
           <div
             className="absolute bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--color-border)] py-1.5 min-w-[180px]"
-            style={{ left: Math.min(contextMenu.x, window.innerWidth - 190), top: Math.min(contextMenu.y, window.innerHeight - 200) }}
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 190),
+              top: Math.min(contextMenu.y, window.innerHeight - 200),
+            }}
           >
             {/* 编辑 */}
             <button
               type="button"
-              onClick={() => { onEdit?.(habit); onCloseContextMenu() }}
+              onClick={() => {
+                onEdit?.(habit)
+                onCloseContextMenu()
+              }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg
+                className="w-4 h-4 text-[var(--color-text-tertiary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
               <span>编辑</span>
             </button>
             {/* 开始专注 */}
             <button
               type="button"
-              onClick={() => { startFocus(); onCloseContextMenu() }}
+              onClick={() => {
+                startFocus()
+                onCloseContextMenu()
+              }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              <svg
+                className="w-4 h-4 text-[var(--color-text-tertiary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                />
               </svg>
               <span>开始专注</span>
             </button>
             {/* 归档 */}
             <button
               type="button"
-              onClick={() => { onArchive?.(habit.id); onCloseContextMenu() }}
+              onClick={() => {
+                onArchive?.(habit.id)
+                onCloseContextMenu()
+              }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
             >
-              <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              <svg
+                className="w-4 h-4 text-[var(--color-text-tertiary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                />
               </svg>
               <span>{habit.archived ? '取消归档' : '归档'}</span>
             </button>
@@ -195,11 +264,19 @@ export function HabitActions(props: HabitActionsProps) {
             {/* 删除 */}
             <button
               type="button"
-              onClick={() => { onDelete?.(habit.id); onCloseContextMenu() }}
+              onClick={() => {
+                onDelete?.(habit.id)
+                onCloseContextMenu()
+              }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors text-left"
             >
               <svg className="w-4 h-4 text-[var(--color-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
               <span>删除</span>
             </button>

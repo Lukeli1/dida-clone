@@ -12,15 +12,13 @@ import type { Task } from '../../types'
  * 便于 LLM 在结果中引用真实可查的 task_id。
  */
 export function relatedTasksPrompt(currentTask: Task, allTasks: Task[]): string {
-  const otherTasks = allTasks
-    .filter(t => t.id !== currentTask.id && !t.completed)
-    .slice(0, 50)
+  const otherTasks = allTasks.filter((t) => t.id !== currentTask.id && !t.completed).slice(0, 50)
 
   const candidateText =
     otherTasks.length === 0
       ? '（无候选任务）'
       : otherTasks
-          .map(t => {
+          .map((t) => {
             const parts = [`[${t.id}] ${t.title}`]
             if (t.notes) parts.push(`备注:${t.notes}`)
             parts.push(`清单ID:${t.list_id}`)

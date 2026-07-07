@@ -25,11 +25,34 @@ interface DayViewProps {
   onNextDay: () => void
   onToday: () => void
   onMoveTask: (taskId: number, newDate: string) => void
-  onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
+  onCreateTaskOnRange: (data: {
+    dateKey: string
+    title: string
+    notes?: string
+    priority: number
+    listId: number
+    startHour: number
+    startMin: number
+    endHour: number
+    endMin: number
+  }) => void
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
 }
 
-export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, onToggleTask, onPrevDay, onNextDay, onToday, onMoveTask, onCreateTaskOnRange, onUpdateTask }: DayViewProps) {
+export function DayView({
+  currentDate,
+  tasks,
+  lists,
+  onDateClick,
+  onTaskClick,
+  onToggleTask,
+  onPrevDay,
+  onNextDay,
+  onToday,
+  onMoveTask,
+  onCreateTaskOnRange,
+  onUpdateTask,
+}: DayViewProps) {
   // 拖拽与选区状态
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -49,7 +72,7 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
   const dateKey = format(currentDate, 'yyyy-MM-dd')
 
   const dayTasks = useMemo(() => {
-    return tasks.filter(task => {
+    return tasks.filter((task) => {
       if (!task.due_date) return false
       return format(new Date(task.due_date), 'yyyy-MM-dd') === dateKey
     })
@@ -82,29 +105,32 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
   }, [])
 
   // 时间列鼠标交互：抬起结束选区 → 构建创建弹窗
-  const handleTimeMouseUp = useCallback((e: React.MouseEvent) => {
-    if (!selectingRef.current || selStartRef.current === null) {
+  const handleTimeMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      if (!selectingRef.current || selStartRef.current === null) {
+        selectingRef.current = false
+        return
+      }
+      const minute = getMinuteFromY(e.clientY, columnRef.current)
+      if (minute === null) {
+        selectingRef.current = false
+        setSelection(null)
+        return
+      }
+      const startMinute = Math.min(selStartRef.current, minute)
+      const endMinute = Math.max(selStartRef.current, minute)
       selectingRef.current = false
-      return
-    }
-    const minute = getMinuteFromY(e.clientY, columnRef.current)
-    if (minute === null) {
-      selectingRef.current = false
+      selStartRef.current = null
       setSelection(null)
-      return
-    }
-    const startMinute = Math.min(selStartRef.current, minute)
-    const endMinute = Math.max(selStartRef.current, minute)
-    selectingRef.current = false
-    selStartRef.current = null
-    setSelection(null)
-    setCreatePopup(makeCreatePopup(startMinute, endMinute))
-    setPopupTitle('')
-    setPopupNotes('')
-    setPopupPriority(2)
-    setPopupListId(defaultListId)
-    setTimeout(() => popupInputRef.current?.focus(), 50)
-  }, [defaultListId])
+      setCreatePopup(makeCreatePopup(startMinute, endMinute))
+      setPopupTitle('')
+      setPopupNotes('')
+      setPopupPriority(2)
+      setPopupListId(defaultListId)
+      setTimeout(() => popupInputRef.current?.focus(), 50)
+    },
+    [defaultListId],
+  )
 
   // 全局抬起：清除异常选区
   const handleGlobalMouseUp = useCallback(() => {
@@ -176,17 +202,42 @@ export function DayView({ currentDate, tasks, lists, onDateClick, onTaskClick, o
     <div className="flex flex-col h-full dark:bg-[var(--color-bg-secondary)]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-secondary)]">
         <div className="flex items-center gap-2">
-          <button onClick={onPrevDay} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <button
+            onClick={onPrevDay}
+            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+          >
+            <svg
+              className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] min-w-[140px] text-center">
             {format(currentDate, 'M月d日 EEEE', { locale: zhCN })}
           </h3>
-          <button onClick={onNextDay} className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">
-            <svg className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <button
+            onClick={onNextDay}
+            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+          >
+            <svg
+              className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
-        <button onClick={onToday} className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] dark:hover:bg-[var(--color-accent-light)] rounded-lg transition-colors">今天</button>
+        <button
+          onClick={onToday}
+          className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] dark:hover:bg-[var(--color-accent-light)] rounded-lg transition-colors"
+        >
+          今天
+        </button>
       </div>
 
       <DayViewGrid

@@ -27,7 +27,18 @@ export interface HabitCardProps {
 }
 
 /** 单个习惯卡片：展示 + 打卡 + 7 天日历，包含右键菜单与专注计时器 */
-export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle, onDelete, onEdit, onArchive, onRecordChange }: HabitCardProps) {
+export function HabitCard({
+  habit,
+  expanded,
+  todayStr,
+  weekDays,
+  today,
+  onToggle,
+  onDelete,
+  onEdit,
+  onArchive,
+  onRecordChange,
+}: HabitCardProps) {
   const goal = habit.target_count
   // 兼容后端可选字段：color / icon 缺省时回退默认值，保持 UI 不变
   const color = habit.color ?? '#6B7280'
@@ -53,8 +64,12 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
   // 右键菜单：点击外部 / ESC 关闭
   useEffect(() => {
     if (!contextMenu) return
-    function onDown() { closeContextMenu() }
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') closeContextMenu() }
+    function onDown() {
+      closeContextMenu()
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeContextMenu()
+    }
     document.addEventListener('click', onDown)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -135,7 +150,10 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
       <div
         className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] hover:border-[var(--color-border)] transition-colors p-4 group cursor-pointer"
         onClick={() => onToggle(habit.id)}
-        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          setContextMenu({ x: e.clientX, y: e.clientY })
+        }}
       >
         <div className="flex items-center gap-4">
           {/* 图标 */}
@@ -147,7 +165,15 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
           </div>
 
           {/* 名称 + 今日进度 + 进度条 + 7 天迷你视图 */}
-          <HabitStats part="header" habit={habit} todayStr={todayStr} weekDays={weekDays} today={today} color={color} onDayClick={handleDayClick} />
+          <HabitStats
+            part="header"
+            habit={habit}
+            todayStr={todayStr}
+            weekDays={weekDays}
+            today={today}
+            color={color}
+            onDayClick={handleDayClick}
+          />
           {/* 今日 +1 / 删除 */}
           <HabitActions part="header" habit={habit} color={color} onIncrement={handleIncrement} onDelete={onDelete} />
         </div>
@@ -156,19 +182,55 @@ export function HabitCard({ habit, expanded, todayStr, weekDays, today, onToggle
         {expanded && (
           <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] animate-slide-in-top">
             {/* 7 天日历视图 */}
-            <HabitStats part="expandedCalendar" habit={habit} todayStr={todayStr} weekDays={weekDays} today={today} color={color} onDayClick={handleDayClick} />
+            <HabitStats
+              part="expandedCalendar"
+              habit={habit}
+              todayStr={todayStr}
+              weekDays={weekDays}
+              today={today}
+              color={color}
+              onDayClick={handleDayClick}
+            />
 
             {/* 连续天数 + 今日快捷操作 */}
             <div className="flex items-center justify-between">
-              <HabitStats part="expandedSummary" habit={habit} todayStr={todayStr} weekDays={weekDays} today={today} color={color} onDayClick={handleDayClick} />
-              <HabitActions part="checkin" habit={habit} color={color} onIncrement={handleIncrement} onDecrement={handleDecrement} />
+              <HabitStats
+                part="expandedSummary"
+                habit={habit}
+                todayStr={todayStr}
+                weekDays={weekDays}
+                today={today}
+                color={color}
+                onDayClick={handleDayClick}
+              />
+              <HabitActions
+                part="checkin"
+                habit={habit}
+                color={color}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+              />
             </div>
 
             {/* 统计图表：周 / 月 / 趋势（Tab 切换） */}
-            <HabitStats part="expandedCharts" habit={habit} todayStr={todayStr} weekDays={weekDays} today={today} color={color} onDayClick={handleDayClick} />
+            <HabitStats
+              part="expandedCharts"
+              habit={habit}
+              todayStr={todayStr}
+              weekDays={weekDays}
+              today={today}
+              color={color}
+              onDayClick={handleDayClick}
+            />
 
             {/* 历史日历切换 */}
-            <HabitActions part="toggle" habit={habit} color={color} showCalendar={showCalendar} onToggleCalendar={() => setShowCalendar(!showCalendar)} />
+            <HabitActions
+              part="toggle"
+              habit={habit}
+              color={color}
+              showCalendar={showCalendar}
+              onToggleCalendar={() => setShowCalendar(!showCalendar)}
+            />
 
             {showCalendar && (
               <HabitCalendar

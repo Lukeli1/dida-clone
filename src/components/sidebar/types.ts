@@ -1,11 +1,20 @@
 import type { List, Tag } from '../../types'
 
-export type ViewType = 'tasks' | 'today' | 'calendar' | 'stats' | 'settings' | 'ai' | 'archived' | 'quadrant' | 'pomodoro' | 'habit' | 'template' | 'goals'
+export type ViewType =
+  | 'tasks'
+  | 'today'
+  | 'calendar'
+  | 'stats'
+  | 'settings'
+  | 'ai'
+  | 'archived'
+  | 'quadrant'
+  | 'pomodoro'
+  | 'habit'
+  | 'template'
+  | 'goals'
 
-export const PRESET_COLORS = [
-  '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',
-  '#F59E0B', '#10B981', '#06B6D4', '#6B7280',
-]
+export const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#6B7280']
 
 export interface SidebarProps {
   lists: List[]

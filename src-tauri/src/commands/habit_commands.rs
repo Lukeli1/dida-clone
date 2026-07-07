@@ -5,8 +5,8 @@ use rusqlite::{params, Result};
 use serde::Deserialize;
 use tauri::State;
 
-use crate::db::{DbState, Habit, HabitRecord};
 use super::now_rfc3339;
+use crate::db::{DbState, Habit, HabitRecord};
 
 /// 创建习惯的请求体
 #[derive(Debug, Deserialize)]
@@ -82,7 +82,10 @@ fn get_habit_by_id(conn: &rusqlite::Connection, id: i64) -> std::result::Result<
 
 /// 获取习惯列表
 #[tauri::command]
-pub fn get_habits(state: State<DbState>, include_archived: Option<bool>) -> Result<Vec<Habit>, String> {
+pub fn get_habits(
+    state: State<DbState>,
+    include_archived: Option<bool>,
+) -> Result<Vec<Habit>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     let sql = if include_archived.unwrap_or(false) {
@@ -133,7 +136,11 @@ pub fn create_habit(state: State<DbState>, req: CreateHabitRequest) -> Result<Ha
 
 /// 更新习惯
 #[tauri::command]
-pub fn update_habit(state: State<DbState>, id: i64, req: UpdateHabitRequest) -> Result<Habit, String> {
+pub fn update_habit(
+    state: State<DbState>,
+    id: i64,
+    req: UpdateHabitRequest,
+) -> Result<Habit, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let now = now_rfc3339();
 
@@ -188,7 +195,8 @@ pub fn update_habit(state: State<DbState>, id: i64, req: UpdateHabitRequest) -> 
         let sql = format!("UPDATE habits SET {} WHERE id = ?", set_clauses.join(", "));
         params_vec.push(Box::new(id));
 
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
 
         conn.execute(&sql, params_refs.as_slice())
             .map_err(|e| e.to_string())?;
@@ -286,7 +294,11 @@ pub fn upsert_habit_record(
 
 /// 删除打卡记录
 #[tauri::command]
-pub fn delete_habit_record(state: State<DbState>, habit_id: i64, date: String) -> Result<(), String> {
+pub fn delete_habit_record(
+    state: State<DbState>,
+    habit_id: i64,
+    date: String,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM habit_records WHERE habit_id = ?1 AND date = ?2",

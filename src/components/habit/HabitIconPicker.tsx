@@ -22,7 +22,7 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30" onClick={onClose}>
       <div
         className="bg-[var(--color-surface)] rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {showTextInput ? (
           /* ---- 文字图标模式 ---- */
@@ -39,13 +39,23 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
             </div>
             {/* 文字输入 */}
             <div className="mb-5">
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2 text-center">输入文字（1-2个字符）</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2 text-center">
+                输入文字（1-2个字符）
+              </label>
               <input
                 type="text"
                 value={customText}
-                onChange={e => { if (!composingRef.current) setCustomText(e.target.value.slice(0, 2)); else setCustomText(e.target.value) }}
-                onCompositionStart={() => { composingRef.current = true }}
-                onCompositionEnd={e => { composingRef.current = false; setCustomText((e.target as HTMLInputElement).value.slice(0, 2)) }}
+                onChange={(e) => {
+                  if (!composingRef.current) setCustomText(e.target.value.slice(0, 2))
+                  else setCustomText(e.target.value)
+                }}
+                onCompositionStart={() => {
+                  composingRef.current = true
+                }}
+                onCompositionEnd={(e) => {
+                  composingRef.current = false
+                  setCustomText((e.target as HTMLInputElement).value.slice(0, 2))
+                }}
                 placeholder="如：早、水、阅"
                 className="w-full px-4 py-3 text-center text-lg font-medium border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
                 autoFocus
@@ -53,9 +63,11 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
             </div>
             {/* 颜色选择 */}
             <div className="mb-6">
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2 text-center">选择颜色</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-2 text-center">
+                选择颜色
+              </label>
               <div className="flex justify-center gap-3">
-                {PRESET_COLORS.map(c => (
+                {PRESET_COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"
@@ -73,7 +85,10 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setShowTextInput(false); setCustomText('') }}
+                onClick={() => {
+                  setShowTextInput(false)
+                  setCustomText('')
+                }}
                 className="flex-1 py-3 text-sm font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-secondary)] transition-colors"
               >
                 取消
@@ -98,14 +113,20 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
           <>
             {/* 当前选中 + 文字图标按钮 */}
             <div className="p-5 pb-4 border-b border-[var(--color-border-light)] flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl" style={{ backgroundColor: hexWithAlpha(color, 0.15) }}>
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-3xl"
+                style={{ backgroundColor: hexWithAlpha(color, 0.15) }}
+              >
                 {icon}
               </div>
               <button
                 type="button"
-                onClick={() => { setShowTextInput(true); setCustomText(icon.length <= 2 ? icon : '') }}
+                onClick={() => {
+                  setShowTextInput(true)
+                  setCustomText(icon.length <= 2 ? icon : '')
+                }}
                 className={`w-14 h-14 rounded-full border-2 flex items-center justify-center transition-all ${
-                  icon.length <= 2 && !ICON_PRESETS.some(p => p.emoji === icon)
+                  icon.length <= 2 && !ICON_PRESETS.some((p) => p.emoji === icon)
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)] bg-[var(--color-accent-light)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border)]'
                 }`}
@@ -116,7 +137,7 @@ export function HabitIconPicker({ icon, color, onIconChange, onColorChange, onCl
             </div>
             {/* 图标网格 */}
             <div className="px-5 py-5 grid grid-cols-10 gap-y-4 gap-x-1 overflow-y-auto max-h-[55vh]">
-              {ICON_PRESETS.map(preset => (
+              {ICON_PRESETS.map((preset) => (
                 <button
                   key={preset.emoji}
                   type="button"

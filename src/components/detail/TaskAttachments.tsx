@@ -42,7 +42,9 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
       }
     }
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [task.id])
 
   // 选择文件并添加为附件
@@ -58,7 +60,7 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
       const dir = await appDataDir()
       setAdding(true)
       const attachment = await attachmentApi.addAttachment(task.id, filePath, dir)
-      setAttachments(prev => [...prev, attachment])
+      setAttachments((prev) => [...prev, attachment])
       toast.info('附件已添加')
     } catch (e: any) {
       toast.error(`添加附件失败: ${e.message || e}`)
@@ -71,7 +73,7 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
   async function handleDelete(attachmentId: number) {
     try {
       await attachmentApi.deleteAttachment(attachmentId)
-      setAttachments(prev => prev.filter(a => a.id !== attachmentId))
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId))
       toast.info('附件已删除')
     } catch (e: any) {
       toast.error(`删除附件失败: ${e.message || e}`)
@@ -107,7 +109,7 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
         <p className="text-xs text-[var(--color-text-tertiary)] italic">暂无附件</p>
       ) : (
         <div className="space-y-2">
-          {attachments.map(att => (
+          {attachments.map((att) => (
             <div
               key={att.id}
               className="group flex items-center gap-2 p-2 rounded-lg bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
@@ -128,7 +130,12 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
                   title="打开文件"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                 </button>
               )}
@@ -142,9 +149,7 @@ export function TaskAttachments({ task }: TaskAttachmentsProps) {
                 >
                   {att.file_name}
                 </button>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
-                  {formatFileSize(att.file_size)}
-                </span>
+                <span className="text-xs text-[var(--color-text-tertiary)]">{formatFileSize(att.file_size)}</span>
               </div>
 
               {/* 删除按钮 */}

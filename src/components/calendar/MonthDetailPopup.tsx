@@ -56,10 +56,18 @@ export function MonthDetailPopup({ dateKey, lists, defaultListId, onSubmit, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={onClose}>
-      <div className="bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--color-border-light)] p-5 w-80" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--color-border-light)] p-5 w-80"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-2 mb-4">
           <svg className="w-5 h-5 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
           <span className="text-sm font-medium text-[var(--color-text-secondary)]">
             {format(new Date(dateKey), 'M月d日 EEEE', { locale: zhCN })} 新建任务
@@ -70,7 +78,10 @@ export function MonthDetailPopup({ dateKey, lists, defaultListId, onSubmit, onCl
           ref={detailInputRef}
           value={popupTitle}
           onChange={(e) => setPopupTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleDetailSubmit(); if (e.key === 'Escape') onClose() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleDetailSubmit()
+            if (e.key === 'Escape') onClose()
+          }}
           placeholder="任务标题"
           className="w-full px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3"
         />
@@ -78,11 +89,23 @@ export function MonthDetailPopup({ dateKey, lists, defaultListId, onSubmit, onCl
         <div className="mb-3">
           <label className="block text-xs text-[var(--color-text-secondary)] mb-1.5">时间</label>
           <div className="flex items-center gap-2">
-            <select value={popupHour} onChange={(e) => setPopupHour(Number(e.target.value))} className="px-2 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
-              {Array.from({ length: 24 }, (_, i) => (<option key={i} value={i}>{String(i).padStart(2, '0')}</option>))}
+            <select
+              value={popupHour}
+              onChange={(e) => setPopupHour(Number(e.target.value))}
+              className="px-2 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>
+                  {String(i).padStart(2, '0')}
+                </option>
+              ))}
             </select>
             <span className="text-[var(--color-text-tertiary)]">:</span>
-            <select value={popupMinute} onChange={(e) => setPopupMinute(Number(e.target.value))} className="px-2 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
+            <select
+              value={popupMinute}
+              onChange={(e) => setPopupMinute(Number(e.target.value))}
+              className="px-2 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+            >
               <option value={0}>00</option>
               <option value={15}>15</option>
               <option value={30}>30</option>
@@ -91,13 +114,25 @@ export function MonthDetailPopup({ dateKey, lists, defaultListId, onSubmit, onCl
           </div>
         </div>
 
-        <textarea value={popupNotes} onChange={(e) => setPopupNotes(e.target.value)} placeholder="备注（可选）" rows={2} className="w-full px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none" />
+        <textarea
+          value={popupNotes}
+          onChange={(e) => setPopupNotes(e.target.value)}
+          placeholder="备注（可选）"
+          rows={2}
+          className="w-full px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none"
+        />
 
         <div className="mb-3">
           <label className="block text-xs text-[var(--color-text-secondary)] mb-1.5">优先级</label>
           <div className="flex gap-1.5">
             {priorityOptions.map((opt) => (
-              <button key={opt.value} onClick={() => setPopupPriority(opt.value)} className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)]` : 'text-[var(--color-text-tertiary)] border-[var(--color-border)] hover:border-[var(--color-border)]'}`}>{opt.label}</button>
+              <button
+                key={opt.value}
+                onClick={() => setPopupPriority(opt.value)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)]` : 'text-[var(--color-text-tertiary)] border-[var(--color-border)] hover:border-[var(--color-border)]'}`}
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
         </div>
@@ -105,15 +140,33 @@ export function MonthDetailPopup({ dateKey, lists, defaultListId, onSubmit, onCl
         {lists.length > 1 && (
           <div className="mb-4">
             <label className="block text-xs text-[var(--color-text-secondary)] mb-1.5">清单</label>
-            <select value={popupListId || defaultListId} onChange={(e) => setPopupListId(Number(e.target.value))} className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]">
-              {lists.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
+            <select
+              value={popupListId || defaultListId}
+              onChange={(e) => setPopupListId(Number(e.target.value))}
+              className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+            >
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
             </select>
           </div>
         )}
 
         <div className="flex gap-2">
-          <button onClick={handleDetailSubmit} className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium">创建任务</button>
-          <button onClick={onClose} className="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors">取消</button>
+          <button
+            onClick={handleDetailSubmit}
+            className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium"
+          >
+            创建任务
+          </button>
+          <button
+            onClick={onClose}
+            className="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+          >
+            取消
+          </button>
         </div>
       </div>
     </div>

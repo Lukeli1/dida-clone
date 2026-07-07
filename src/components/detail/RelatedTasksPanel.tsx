@@ -80,7 +80,7 @@ export function RelatedTasksPanel({ task, allTasks, onTaskClick }: RelatedTasksP
       <h4 className="text-xs text-[var(--color-text-tertiary)] mb-2">相关任务</h4>
       <div className="space-y-1">
         {related.map(({ task_id, reason }) => {
-          const t = allTasks.find(x => x.id === task_id)
+          const t = allTasks.find((x) => x.id === task_id)
           if (!t) return null
           return (
             <button

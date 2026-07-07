@@ -48,6 +48,5 @@ export const reportApi = {
     }),
 
   /** 删除指定 id 的报告 */
-  delete: (id: number): Promise<void> =>
-    invoke<void>('delete_report', { id }),
+  delete: (id: number): Promise<void> => invoke<void>('delete_report', { id }),
 }

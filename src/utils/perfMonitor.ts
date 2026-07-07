@@ -121,10 +121,7 @@ function round2(n: number): number {
 export function getPerfStats(): PerfStat[] {
   try {
     const records = getPerfRecords()
-    const map = new Map<
-      string,
-      { count: number; total: number; max: number; last: number }
-    >()
+    const map = new Map<string, { count: number; total: number; max: number; last: number }>()
     for (const r of records) {
       const existing = map.get(r.name)
       if (existing) {

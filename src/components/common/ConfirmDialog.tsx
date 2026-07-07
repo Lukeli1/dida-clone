@@ -35,14 +35,17 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     })
   }, [])
 
-  const handleClose = useCallback((result: boolean) => {
-    setClosing(true)
-    timeoutRef.current = setTimeout(() => {
-      state?.resolve(result)
-      setState(null)
-      setClosing(false)
-    }, 150)
-  }, [state])
+  const handleClose = useCallback(
+    (result: boolean) => {
+      setClosing(true)
+      timeoutRef.current = setTimeout(() => {
+        state?.resolve(result)
+        setState(null)
+        setClosing(false)
+      }, 150)
+    },
+    [state],
+  )
 
   const handleConfirm = () => handleClose(true)
   const handleCancel = () => handleClose(false)
@@ -54,7 +57,9 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
         <div
           className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-opacity duration-150 ${closing ? 'opacity-0' : 'opacity-100'}`}
           onClick={handleCancel}
-          onKeyDown={(e) => { if (e.key === 'Escape') handleCancel() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') handleCancel()
+          }}
         >
           <div className="absolute inset-0 bg-[var(--color-mask)]" />
           <div
@@ -68,9 +73,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             <h3 id="confirm-title" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
               {state.title || '确认操作'}
             </h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-5 leading-relaxed">
-              {state.message}
-            </p>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-5 leading-relaxed">{state.message}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={handleCancel}

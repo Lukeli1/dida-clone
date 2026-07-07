@@ -7,18 +7,15 @@ import type { Attachment } from '../types/attachment'
  */
 export const attachmentApi = {
   /** 获取指定任务的所有附件 */
-  getAttachments: (taskId: number): Promise<Attachment[]> =>
-    invoke<Attachment[]>('get_attachments', { taskId }),
+  getAttachments: (taskId: number): Promise<Attachment[]> => invoke<Attachment[]>('get_attachments', { taskId }),
 
   /** 添加附件（将源文件复制到应用数据目录，返回后端生成的完整 Attachment） */
   addAttachment: (taskId: number, filePath: string, appDataDir: string): Promise<Attachment> =>
     invoke<Attachment>('add_attachment', { taskId, filePath, appDataDir }),
 
   /** 删除附件（删除数据库记录并清理文件） */
-  deleteAttachment: (attachmentId: number): Promise<void> =>
-    invoke<void>('delete_attachment', { attachmentId }),
+  deleteAttachment: (attachmentId: number): Promise<void> => invoke<void>('delete_attachment', { attachmentId }),
 
   /** 使用系统默认程序打开附件 */
-  openAttachment: (attachmentId: number): Promise<void> =>
-    invoke<void>('open_attachment', { attachmentId }),
+  openAttachment: (attachmentId: number): Promise<void> => invoke<void>('open_attachment', { attachmentId }),
 }

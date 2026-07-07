@@ -3,9 +3,9 @@
 use rusqlite::{params, Result};
 use tauri::State;
 
+use super::now_rfc3339;
 use crate::db::DbState;
 use crate::repeat;
-use super::now_rfc3339;
 
 /// 完成重复任务。
 ///
@@ -22,6 +22,7 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // 1. 查询任务详情
+    #[allow(clippy::type_complexity)]
     let task: (
         String,         // title
         Option<String>, // notes

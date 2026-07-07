@@ -71,10 +71,7 @@ describe('avatar 头像工具', () => {
         onload: null as ((e: unknown) => void) | null,
         onerror: null as ((e: unknown) => void) | null,
         readAsDataURL: function () {
-          setTimeout(
-            () => this.onload && this.onload({ target: { result: fakeDataUrl } }),
-            0
-          )
+          setTimeout(() => this.onload && this.onload({ target: { result: fakeDataUrl } }), 0)
         },
       }
       vi.stubGlobal('FileReader', function () {

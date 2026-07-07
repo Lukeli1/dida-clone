@@ -2,8 +2,8 @@ use rusqlite::{params, Result};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::DbState;
 use super::now_rfc3339;
+use crate::db::DbState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tag {
@@ -54,7 +54,8 @@ pub fn create_tag(state: State<DbState>, req: CreateTagRequest) -> Result<Tag, S
     conn.execute(
         "INSERT INTO tags (name, color, parent_id, created_at) VALUES (?1, ?2, ?3, ?4)",
         params![req.name, req.color, req.parent_id, now],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     let id = conn.last_insert_rowid();
 
@@ -84,16 +85,22 @@ pub fn add_tag_to_task(state: State<DbState>, task_id: i64, tag_id: i64) -> Resu
     conn.execute(
         "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
         params![task_id, tag_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub fn remove_tag_from_task(state: State<DbState>, task_id: i64, tag_id: i64) -> Result<(), String> {
+pub fn remove_tag_from_task(
+    state: State<DbState>,
+    task_id: i64,
+    tag_id: i64,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "DELETE FROM task_tags WHERE task_id = ?1 AND tag_id = ?2",
         params![task_id, tag_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }

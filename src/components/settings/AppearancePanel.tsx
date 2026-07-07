@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { getFontSetting, saveFontSetting, applyFont, type AppFontSetting } from '../../utils/font'
 import {
-  getFontSetting, saveFontSetting, applyFont,
-  type AppFontSetting,
-} from '../../utils/font'
-import {
-  getAppearance, saveAppearance, applyAppearance,
-  type FontSizeLevel, type SidebarDensity, type AppearanceSetting,
+  getAppearance,
+  saveAppearance,
+  applyAppearance,
+  type FontSizeLevel,
+  type SidebarDensity,
+  type AppearanceSetting,
 } from '../../utils/appearance'
 import { api } from '../../api'
 import { useTheme } from '../../hooks/useTheme'
@@ -73,7 +74,12 @@ export function AppearancePanel() {
   }
 
   async function handleResetTheme() {
-    const ok = await confirm({ title: '重置为默认', message: '确定要将主题和强调色重置为默认设置吗？', confirmText: '重置', cancelText: '取消' })
+    const ok = await confirm({
+      title: '重置为默认',
+      message: '确定要将主题和强调色重置为默认设置吗？',
+      confirmText: '重置',
+      cancelText: '取消',
+    })
     if (ok) resetTheme()
   }
 
@@ -143,9 +149,9 @@ export function AppearancePanel() {
               ) : (
                 <ul className="py-1">
                   {systemFonts
-                    .filter(name => !fontSearch || name.toLowerCase().includes(fontSearch.toLowerCase()))
+                    .filter((name) => !fontSearch || name.toLowerCase().includes(fontSearch.toLowerCase()))
                     .slice(0, 200)
-                    .map(name => (
+                    .map((name) => (
                       <li key={name}>
                         <button
                           onClick={() => handleSelectSystemFont(name)}
@@ -157,7 +163,12 @@ export function AppearancePanel() {
                         >
                           <span style={{ fontFamily: `"${name}", sans-serif` }}>{name}</span>
                           {fontSetting.type === 'system' && fontSetting.name === name && (
-                            <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg
+                              className="w-4 h-4 text-[var(--color-accent)]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           )}

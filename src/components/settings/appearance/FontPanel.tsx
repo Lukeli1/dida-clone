@@ -34,8 +34,10 @@ export function FontPanel({
               }}
               className="px-3 py-1.5 text-sm border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
             >
-              {PRESET_FONTS.map(f => (
-                <option key={f.key} value={f.key}>{f.displayName}</option>
+              {PRESET_FONTS.map((f) => (
+                <option key={f.key} value={f.key}>
+                  {f.displayName}
+                </option>
               ))}
             </select>
             {isTauri && (
@@ -54,9 +56,7 @@ export function FontPanel({
             {fontSetting.name}
           </div>
         )}
-        <p className="text-xs text-[var(--color-text-tertiary)] mt-1.5">
-          滴答清单 · ABC abc 123
-        </p>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-1.5">滴答清单 · ABC abc 123</p>
       </div>
 
       {/* 字体大小 */}
@@ -66,16 +66,20 @@ export function FontPanel({
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">全局字号按比例缩放</p>
         </div>
         <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-          {([
-            { key: 'normal', label: '正常' },
-            { key: 'large', label: '大' },
-            { key: 'xlarge', label: '超大' },
-          ] as const).map(item => (
+          {(
+            [
+              { key: 'normal', label: '正常' },
+              { key: 'large', label: '大' },
+              { key: 'xlarge', label: '超大' },
+            ] as const
+          ).map((item) => (
             <button
               key={item.key}
               onClick={() => onFontSizeChange(item.key)}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                fontSize === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
+                fontSize === item.key
+                  ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
               }`}
             >
               {item.label}

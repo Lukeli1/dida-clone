@@ -74,6 +74,7 @@ pub async fn test_llm_connection(base_url: String, api_key: String) -> Result<Ve
 
 /// 调用大模型对话接口（支持多轮对话）
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn llm_chat(
     base_url: String,
     api_key: String,
@@ -94,9 +95,8 @@ pub async fn llm_chat(
     let effort = reasoning_effort.unwrap_or_else(|| "medium".to_string());
 
     // 构建消息列表：system + history + user
-    let mut messages: Vec<serde_json::Value> = vec![
-        serde_json::json!({"role": "system", "content": system_prompt})
-    ];
+    let mut messages: Vec<serde_json::Value> =
+        vec![serde_json::json!({"role": "system", "content": system_prompt})];
     if let Some(hist) = &history {
         for msg in hist {
             messages.push(serde_json::json!({"role": msg.role, "content": msg.content}));
@@ -196,7 +196,11 @@ pub async fn llm_chat_stream(
     let mut buffer = String::new();
     let mut full_content = String::new();
 
-    while let Some(chunk) = response.chunk().await.map_err(|e| format!("读取流失败: {}", e))? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("读取流失败: {}", e))?
+    {
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
         // SSE 格式：每个事件以 \n\n 结尾。
@@ -214,7 +218,8 @@ pub async fn llm_chat_stream(
                 };
 
                 if json_str == "[DONE]" {
-                    app.emit("llm-chat-done", &full_content).map_err(|e| e.to_string())?;
+                    app.emit("llm-chat-done", &full_content)
+                        .map_err(|e| e.to_string())?;
                     return Ok(());
                 }
 
@@ -224,7 +229,8 @@ pub async fn llm_chat_stream(
                     if let Some(delta) = parsed["choices"][0]["delta"]["content"].as_str() {
                         if !delta.is_empty() {
                             full_content.push_str(delta);
-                            app.emit("llm-chat-chunk", delta).map_err(|e| e.to_string())?;
+                            app.emit("llm-chat-chunk", delta)
+                                .map_err(|e| e.to_string())?;
                         }
                     }
                 }
@@ -233,6 +239,7 @@ pub async fn llm_chat_stream(
     }
 
     // 流自然结束（未收到 [DONE]）也要发送完成事件
-    app.emit("llm-chat-done", &full_content).map_err(|e| e.to_string())?;
+    app.emit("llm-chat-done", &full_content)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

@@ -14,33 +14,54 @@ export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }:
     <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
       <div className={`flex gap-2.5 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
         {/* 头像 */}
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-          msg.role === 'user'
-            ? 'bg-[var(--color-accent)]'
-            : 'bg-[var(--color-ai)]'
-        }`}>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            msg.role === 'user' ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-ai)]'
+          }`}
+        >
           {msg.role === 'user' ? (
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
             </svg>
           ) : (
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
             </svg>
           )}
         </div>
         {/* 消息内容 */}
-        <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-          msg.role === 'user'
-            ? 'bg-[var(--color-accent)] text-white rounded-tr-sm'
-            : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded-tl-sm'
-        }`}>
+        <div
+          className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+            msg.role === 'user'
+              ? 'bg-[var(--color-accent)] text-white rounded-tr-sm'
+              : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded-tl-sm'
+          }`}
+        >
           {msg.isStreaming && !msg.content ? (
             /* 等待首个 token：三个跳动的点 */
             <div className="flex gap-1 py-1">
-              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span
+                className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce"
+                style={{ animationDelay: '0ms' }}
+              />
+              <span
+                className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce"
+                style={{ animationDelay: '150ms' }}
+              />
+              <span
+                className="w-2 h-2 bg-[var(--color-text-tertiary)] rounded-full animate-bounce"
+                style={{ animationDelay: '300ms' }}
+              />
             </div>
           ) : (
             <>
@@ -60,7 +81,9 @@ export function ChatMessageItem({ msg, index, onExecuteAction, onRejectAction }:
                 </div>
               </div>
               <div className="bg-[var(--color-bg-secondary)] rounded-lg p-2 mb-2.5">
-                <pre className="text-xs text-[var(--color-text-secondary)] overflow-x-auto">{JSON.stringify(msg.pendingAction.data, null, 2)}</pre>
+                <pre className="text-xs text-[var(--color-text-secondary)] overflow-x-auto">
+                  {JSON.stringify(msg.pendingAction.data, null, 2)}
+                </pre>
               </div>
               <div className="flex gap-2">
                 <button

@@ -33,38 +33,43 @@ function splitRemotePath(remotePath: string): { dirs: string[]; filename: string
 
 describe('WebDAV URL 拼接', () => {
   it('正常拼接：base 带尾斜杠 + path 带首斜杠', () => {
-    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', '/dida-clone/dida.db'))
-      .toBe('https://dav.jianguoyun.com/dav/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', '/dida-clone/dida.db')).toBe(
+      'https://dav.jianguoyun.com/dav/dida-clone/dida.db',
+    )
   })
 
   it('无尾斜杠的 base', () => {
-    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav', '/dida-clone/dida.db'))
-      .toBe('https://dav.jianguoyun.com/dav/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav', '/dida-clone/dida.db')).toBe(
+      'https://dav.jianguoyun.com/dav/dida-clone/dida.db',
+    )
   })
 
   it('无首斜杠的 path', () => {
-    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', 'dida-clone/dida.db'))
-      .toBe('https://dav.jianguoyun.com/dav/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', 'dida-clone/dida.db')).toBe(
+      'https://dav.jianguoyun.com/dav/dida-clone/dida.db',
+    )
   })
 
   it('多个尾斜杠的 base', () => {
-    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav///', '/dida-clone/dida.db'))
-      .toBe('https://dav.jianguoyun.com/dav/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav///', '/dida-clone/dida.db')).toBe(
+      'https://dav.jianguoyun.com/dav/dida-clone/dida.db',
+    )
   })
 
   it('Nextcloud 风格 URL', () => {
-    expect(buildWebDavUrl('https://cloud.example.com/remote.php/dav/files/user/', '/dida-clone/dida.db'))
-      .toBe('https://cloud.example.com/remote.php/dav/files/user/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://cloud.example.com/remote.php/dav/files/user/', '/dida-clone/dida.db')).toBe(
+      'https://cloud.example.com/remote.php/dav/files/user/dida-clone/dida.db',
+    )
   })
 
   it('群晖 NAS 风格 URL（带端口号）', () => {
-    expect(buildWebDavUrl('https://nas.local:5006/', '/dida-clone/dida.db'))
-      .toBe('https://nas.local:5006/dida-clone/dida.db')
+    expect(buildWebDavUrl('https://nas.local:5006/', '/dida-clone/dida.db')).toBe(
+      'https://nas.local:5006/dida-clone/dida.db',
+    )
   })
 
   it('空 path 返回 base', () => {
-    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', ''))
-      .toBe('https://dav.jianguoyun.com/dav')
+    expect(buildWebDavUrl('https://dav.jianguoyun.com/dav/', '')).toBe('https://dav.jianguoyun.com/dav')
   })
 })
 

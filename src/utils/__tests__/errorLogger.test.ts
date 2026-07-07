@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  loadErrorLogs,
-  logError,
-  clearErrorLogs,
-  exportErrorLogs,
-  MAX_LOGS,
-} from '../errorLogger'
+import { loadErrorLogs, logError, clearErrorLogs, exportErrorLogs, MAX_LOGS } from '../errorLogger'
 
 describe('errorLogger 错误日志持久化', () => {
   beforeEach(() => {
@@ -19,9 +13,7 @@ describe('errorLogger 错误日志持久化', () => {
     })
 
     it('已存储数据时正确读回', () => {
-      const logs = [
-        { id: '1', timestamp: '2026-01-01T00:00:00.000Z', message: 'err1', url: '', userAgent: '' },
-      ]
+      const logs = [{ id: '1', timestamp: '2026-01-01T00:00:00.000Z', message: 'err1', url: '', userAgent: '' }]
       localStorage.setItem('error_logs', JSON.stringify(logs))
       expect(loadErrorLogs()).toEqual(logs)
     })

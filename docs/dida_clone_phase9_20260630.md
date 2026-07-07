@@ -13,6 +13,7 @@
 ### 当前项目状态（v1.29.0）
 
 经过 8 个 Phase 的迭代，项目已具备：
+
 - ✅ 完整的任务管理（CRUD + 子任务 + 优先级 + 日期 + 标签 + 清单）
 - ✅ 日历视图（月/周/日/甘特/看板 + 拖拽）
 - ✅ AI 助手（10 个预设技能 + 流式对话 + 半自动操作）
@@ -23,11 +24,11 @@
 
 ### Phase 9 核心方向
 
-| 方向 | 内容 | 优先级 |
-|---|---|---|
-| 🆕 功能模块 | 任务模板系统、习惯统计图表、日历时间轴 | P0 |
-| 🎨 UI/UX 优化 | 新用户引导教程、通知中心面板 | P1 |
-| 🏗️ 架构优化 | E2E 测试框架、虚拟列表性能调优 | P2 |
+| 方向          | 内容                                   | 优先级 |
+| ------------- | -------------------------------------- | ------ |
+| 🆕 功能模块   | 任务模板系统、习惯统计图表、日历时间轴 | P0     |
+| 🎨 UI/UX 优化 | 新用户引导教程、通知中心面板           | P1     |
+| 🏗️ 架构优化   | E2E 测试框架、虚拟列表性能调优         | P2     |
 
 ---
 
@@ -35,27 +36,27 @@
 
 ### 方向 A：功能模块开发（4 个任务）
 
-| ID | 内容 | 优先级 | 工作量 | 执行者 |
-|---|---|---|---|---|
-| P9-01 | 任务模板系统（创建/应用/管理模板） | P0 | 5h | Trae GLM 5.2 |
-| P9-02 | 习惯周/月统计图表（recharts 柱状图+热力图） | P0 | 4h | Trae GLM 5.2 |
-| P9-03 | 周/日视图时间轴优化（小时刻度 + 当前时间红线） | P1 | 3h | Workbuddy V4 Pro |
-| P9-04 | 任务附件支持（上传图片/文件，本地存储） | P2 | 4h | Trae GLM 5.2 |
+| ID    | 内容                                           | 优先级 | 工作量 | 执行者           |
+| ----- | ---------------------------------------------- | ------ | ------ | ---------------- |
+| P9-01 | 任务模板系统（创建/应用/管理模板）             | P0     | 5h     | Trae GLM 5.2     |
+| P9-02 | 习惯周/月统计图表（recharts 柱状图+热力图）    | P0     | 4h     | Trae GLM 5.2     |
+| P9-03 | 周/日视图时间轴优化（小时刻度 + 当前时间红线） | P1     | 3h     | Workbuddy V4 Pro |
+| P9-04 | 任务附件支持（上传图片/文件，本地存储）        | P2     | 4h     | Trae GLM 5.2     |
 
 ### 方向 B：UI/UX 优化（3 个任务）
 
-| ID | 内容 | 优先级 | 工作量 | 执行者 |
-|---|---|---|---|---|
-| P9-05 | 新用户引导教程（react-joyride，5 步核心功能引导） | P1 | 3h | Workbuddy V4 Pro |
-| P9-06 | 通知中心面板（提醒历史 + 提前量自定义） | P1 | 3h | Workbuddy V4 Pro |
-| P9-07 | 快捷键自定义面板（设置页新增分类） | P2 | 2h | Flash |
+| ID    | 内容                                              | 优先级 | 工作量 | 执行者           |
+| ----- | ------------------------------------------------- | ------ | ------ | ---------------- |
+| P9-05 | 新用户引导教程（react-joyride，5 步核心功能引导） | P1     | 3h     | Workbuddy V4 Pro |
+| P9-06 | 通知中心面板（提醒历史 + 提前量自定义）           | P1     | 3h     | Workbuddy V4 Pro |
+| P9-07 | 快捷键自定义面板（设置页新增分类）                | P2     | 2h     | Flash            |
 
 ### 方向 C：架构优化（2 个任务）
 
-| ID | 内容 | 优先级 | 工作量 | 执行者 |
-|---|---|---|---|---|
-| P9-08 | E2E 测试框架（Playwright，5 个核心流程测试） | P2 | 4h | Workbuddy V4 Pro |
-| P9-09 | 性能调优（虚拟列表 `estimateSize` 调优 + 大列表分页加载） | P2 | 2h | Flash |
+| ID    | 内容                                                      | 优先级 | 工作量 | 执行者           |
+| ----- | --------------------------------------------------------- | ------ | ------ | ---------------- |
+| P9-08 | E2E 测试框架（Playwright，5 个核心流程测试）              | P2     | 4h     | Workbuddy V4 Pro |
+| P9-09 | 性能调优（虚拟列表 `estimateSize` 调优 + 大列表分页加载） | P2     | 2h     | Flash            |
 
 **总计**：9 个任务，~30h，分 4 批执行
 
@@ -257,6 +258,7 @@ export interface UpdateTemplateRequest {
 #### 功能描述
 
 当前 `HabitStats.tsx` 只显示简单的文字统计（连续打卡天数、总打卡天数）。需要增加：
+
 1. 周视图：最近 7 天打卡柱状图
 2. 月视图：当月打卡日历热力图
 3. 趋势图：最近 30 天打卡率折线图
@@ -278,7 +280,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 function HabitStats({ habit, records }: { habit: Habit; records: Record<string, number> }) {
   const [chartView, setChartView] = useState<'week' | 'month' | 'trend'>('week')
-  
+
   // 周数据：最近 7 天
   const weekData = useMemo(() => {
     const today = new Date()
@@ -291,18 +293,25 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
   }, [records])
 
   // 月数据：当月每天
-  const monthData = useMemo(() => { /* 生成当月日期数组 + records 映射 */ }, [records, habit])
+  const monthData = useMemo(() => {
+    /* 生成当月日期数组 + records 映射 */
+  }, [records, habit])
 
   // 趋势数据：最近 30 天打卡率
-  const trendData = useMemo(() => { /* 计算每天是否打卡，生成 0/1 数组 */ }, [records])
+  const trendData = useMemo(() => {
+    /* 计算每天是否打卡，生成 0/1 数组 */
+  }, [records])
 
   return (
     <div className="space-y-4">
       {/* 切换 Tabs */}
       <div className="flex gap-2">
-        {['week', 'month', 'trend'].map(v => (
-          <button key={v} onClick={() => setChartView(v as any)}
-            className={`px-3 py-1 rounded-lg text-xs ${chartView === v ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)]'}`}>
+        {['week', 'month', 'trend'].map((v) => (
+          <button
+            key={v}
+            onClick={() => setChartView(v as any)}
+            className={`px-3 py-1 rounded-lg text-xs ${chartView === v ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)]'}`}
+          >
             {v === 'week' ? '本周' : v === 'month' ? '本月' : '趋势'}
           </button>
         ))}
@@ -334,6 +343,7 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
 **Step 3**：新建 `src/components/habit/MonthHeatmap.tsx`
 
 用 CSS Grid 实现月历热力图（类似 GitHub Contributions 图）：
+
 - 每个日期格子根据打卡次数显示不同深浅的颜色
 - 颜色从 `theme.accent` 的浅色到深色渐变
 - 显示当月打卡天数和打卡率
@@ -341,6 +351,7 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
 **Step 4**：新建 `src/components/habit/TrendChart.tsx`
 
 用 `recharts` 的 `LineChart` 展示最近 30 天打卡趋势：
+
 - X 轴：日期
 - Y 轴：打卡次数
 - 增加 7 天移动平均线
@@ -363,6 +374,7 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
 #### 功能描述
 
 当前 `WeekView.tsx` 和 `DayView.tsx` 的任务块按时段显示，但缺少：
+
 1. 左侧小时时间轴刻度（8:00-22:00）
 2. 当前时间红线（实时更新，指示现在时刻）
 3. 时间格高度统一（当前动态计算可能不一致）
@@ -374,9 +386,11 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
 在顶部添加小时刻度列：
 
 ```tsx
-{/* 左侧时间轴 */}
-<div className="w-16 flex-shrink-0 border-r border-[var(--color-border-light)]">
-  {HOURS.map(h => (
+{
+  /* 左侧时间轴 */
+}
+;<div className="w-16 flex-shrink-0 border-r border-[var(--color-border-light)]">
+  {HOURS.map((h) => (
     <div key={h} className="h-16 flex items-start justify-end pr-2 text-xs text-[var(--color-text-tertiary)]">
       {h}:00
     </div>
@@ -389,20 +403,24 @@ function HabitStats({ habit, records }: { habit: Habit; records: Record<string, 
 **Step 2**：在 `WeekView.tsx` 中添加当前时间红线：
 
 ```tsx
-{/* 当前时间红线 */}
-{isToday && (
-  <div
-    className="absolute left-0 right-0 z-20 pointer-events-none"
-    style={{ top: `${currentMinutesFromMidnight / 4}px` }} // 每小时 60px / 4 = 15px per 15min
-  >
-    <div className="flex items-center">
-      <div className="w-16 pr-2 flex justify-end">
-        <div className="w-2 h-2 rounded-full bg-red-500" />
+{
+  /* 当前时间红线 */
+}
+{
+  isToday && (
+    <div
+      className="absolute left-0 right-0 z-20 pointer-events-none"
+      style={{ top: `${currentMinutesFromMidnight / 4}px` }} // 每小时 60px / 4 = 15px per 15min
+    >
+      <div className="flex items-center">
+        <div className="w-16 pr-2 flex justify-end">
+          <div className="w-2 h-2 rounded-full bg-red-500" />
+        </div>
+        <div className="flex-1 border-t-2 border-red-500" />
       </div>
-      <div className="flex-1 border-t-2 border-red-500" />
     </div>
-  </div>
-)}
+  )
+}
 ```
 
 `currentMinutesFromMidnight` 通过 `new Date().getHours() * 60 + new Date().getMinutes()` 计算，并通过 `setInterval` 每分钟更新。
@@ -447,6 +465,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);
 ```
 
 **Step 2**：新建 `src-tauri/src/commands/attachment_commands.rs`，实现：
+
 - `add_attachment(task_id, file_path)`: 将文件复制到应用数据目录，记录到数据库
 - `get_attachments(task_id)`: 获取任务的所有附件
 - `delete_attachment(attachment_id)`: 删除数据库记录 + 删除文件
@@ -457,6 +476,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);
 **Step 4**：前端新建 `src/api/attachmentApi.ts`。
 
 **Step 5**：在 `TaskDetail.tsx` 的备注区域下方添加附件区域：
+
 - 显示附件列表（文件名 + 大小 + 图标）
 - "添加附件"按钮（调用 `tauri-plugin-dialog` 选择文件）
 - 点击附件预览（图片 inline 预览）或打开（其他文件）
@@ -477,6 +497,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);
 #### 功能描述
 
 首次启动应用时，自动弹出引导教程，分 5 步介绍核心功能：
+
 1. 创建任务
 2. 设置日期和优先级
 3. 管理清单和标签
@@ -579,6 +600,7 @@ export function OnboardingTour() {
 #### 功能描述
 
 当前提醒功能依赖系统通知，但用户无法查看提醒历史，也无法自定义提醒提前量（目前可能是固定时间）。需要：
+
 1. 通知中心面板（侧边栏右滑出或弹窗），显示近期提醒历史
 2. 任务编辑区增加"提醒提前量"选择器（正点/提前5分钟/15分钟/30分钟/1小时/1天）
 3. 提醒触发时，在应用内 Toast 显示（而不仅依赖系统通知）
@@ -588,17 +610,20 @@ export function OnboardingTour() {
 **Step 1**：在 `src/stores/uiStore.ts` 中添加 `notificationHistory` state（数组，存储近期触发的提醒）。
 
 **Step 2**：在 `src/utils/notification.ts` 中封装通知触发逻辑：
+
 - 检查任务 `reminder` 字段
 - 计算提醒时间（`due_date - reminder_minutes`）
 - 到达提醒时间时，触发系统通知 + 写入 `notificationHistory`
 
 **Step 3**：新建 `src/components/NotificationCenter.tsx`：
+
 - 从 `uiStore.notificationHistory` 读取数据
 - 按日期分组显示
 - 点击可跳转到对应任务
 - 清空历史按钮
 
 **Step 4**：在 `TaskDetail.tsx` 的提醒设置区域，将简单的开关改为：
+
 - 提醒开关（toggle）
 - 提醒提前量选择器（dropdown，选项：正点/提前5分钟/15分钟/30分钟/1小时/1天/自定义分钟数）
 
@@ -630,7 +655,7 @@ export function OnboardingTour() {
 export interface ShortcutConfig {
   key: string
   label: string
-  defaultKeys: string[]  // e.g. ['Ctrl', 'N']
+  defaultKeys: string[] // e.g. ['Ctrl', 'N']
   action: () => void
 }
 
@@ -644,6 +669,7 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
 **Step 2**：在 `src/stores/uiStore.ts` 中添加 `customShortcuts` state（持久化到 localStorage）。
 
 **Step 3**：新建 `src/components/settings/ShortcutsPanel.tsx`：
+
 - 列表展示所有可自定义快捷键
 - 点击某个快捷键进入录制模式（监听下次按键）
 - 显示冲突检测（如果新快捷键与已有冲突，提示用户）
@@ -695,6 +721,7 @@ test('创建任务', async ({ page }) => {
 ```
 
 **Step 4**：编写 5 个核心流程测试：
+
 1. `task-crud.spec.ts`：创建/编辑/删除/完成任务
 2. `list-management.spec.ts`：创建/编辑/删除清单
 3. `calendar-view.spec.ts`：切换日历视图、拖拽任务
@@ -729,6 +756,7 @@ test('创建任务', async ({ page }) => {
 #### 功能描述
 
 当前任务列表使用 `@tanstack/react-virtual` 实现虚拟滚动，但在超大列表（1000+ 任务）时可能有性能问题。需要：
+
 1. 调优 `estimateSize` 让滚动更流畅
 2. 实现分页加载（每次加载 100 条，滚动到底部加载更多）
 3. 优化 `useTaskFiltering` 的性能（避免每次渲染都全量过滤）
@@ -756,6 +784,7 @@ const filteredTasks = useMemo(() => {
 ```
 
 **Step 3**：实现分页加载（可选，如果虚拟滚动性能已经足够好的话可以跳过）：
+
 - 在 `taskStore.ts` 中添加 `page` 和 `pageSize` state
 - `loadTasks` 接受 `page` 参数
 - 滚动到底部时 `setPage(page + 1)` 并追加数据
@@ -1037,37 +1066,38 @@ git commit -m "perf: Phase 9 batch 5 - virtual list tuning + filtering optimizat
 git add -A
 git commit -m "release: v1.30.0 — Phase 9 功能模块开发 + UI/UX 优化"
 ```
+
 ---
 
 ## 六、Phase 9 完成后的预期成果
 
-| 指标 | v1.29.0 | v1.30.0 |
-|---|---|---|
-| 任务模板系统 | ❌ | ✅ |
-| 习惯统计图表 | 文字统计 | **周/月/趋势 3 种图表** |
-| 日历时间轴 | 无小时刻度 | **小时刻度 + 当前时间红线** |
-| 新用户引导 | ❌ | ✅ |
-| 通知中心 | 系统通知 | **应用内通知历史面板** |
-| 快捷键自定义 | 硬编码 | ✅ |
-| 任务附件 | ❌ | ✅ |
-| E2E 测试 | ❌ | **Playwright 5 个测试** |
-| 虚拟列表性能 | 基础 | **estimateSize 优化** |
-| 测试通过数 | 189 | **194+（含 E2E）** |
+| 指标         | v1.29.0    | v1.30.0                     |
+| ------------ | ---------- | --------------------------- |
+| 任务模板系统 | ❌         | ✅                          |
+| 习惯统计图表 | 文字统计   | **周/月/趋势 3 种图表**     |
+| 日历时间轴   | 无小时刻度 | **小时刻度 + 当前时间红线** |
+| 新用户引导   | ❌         | ✅                          |
+| 通知中心     | 系统通知   | **应用内通知历史面板**      |
+| 快捷键自定义 | 硬编码     | ✅                          |
+| 任务附件     | ❌         | ✅                          |
+| E2E 测试     | ❌         | **Playwright 5 个测试**     |
+| 虚拟列表性能 | 基础       | **estimateSize 优化**       |
+| 测试通过数   | 189        | **194+（含 E2E）**          |
 
 ---
 
 ## 七、Phase 10 候选方向
 
-| 方向 | 说明 | 优先级 |
-|---|---|---|
-| 多语言 i18n | 国际化支持（中/英/日） | P1 |
-| 数据可视化增强 | 更丰富的 StatsView 图表 | P2 |
-| 任务依赖关系 | 前置任务/后置任务 | P2 |
-| 时间追踪 | 任务计时器 + 时间报告 | P2 |
-| 日历订阅 | iCalendar 格式导入/导出 | P3 |
-| 打印支持 | 任务列表/日历打印 | P3 |
-| 语音输入 | 语音转文字创建任务 | P3 |
+| 方向           | 说明                    | 优先级 |
+| -------------- | ----------------------- | ------ |
+| 多语言 i18n    | 国际化支持（中/英/日）  | P1     |
+| 数据可视化增强 | 更丰富的 StatsView 图表 | P2     |
+| 任务依赖关系   | 前置任务/后置任务       | P2     |
+| 时间追踪       | 任务计时器 + 时间报告   | P2     |
+| 日历订阅       | iCalendar 格式导入/导出 | P3     |
+| 打印支持       | 任务列表/日历打印       | P3     |
+| 语音输入       | 语音转文字创建任务      | P3     |
 
 ---
 
-*本文档由 QClaw 生成，可被 Trae / Workbuddy 直接用于执行 Phase 9 优化操作。*
+_本文档由 QClaw 生成，可被 Trae / Workbuddy 直接用于执行 Phase 9 优化操作。_

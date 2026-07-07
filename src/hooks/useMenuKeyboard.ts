@@ -47,11 +47,7 @@ const MenuScopeContext = createContext<MenuScopeContextValue>({
 /** 在菜单根部包裹，提供 activeScope 状态。 */
 export function MenuKeyboardScopeProvider({ children }: { children: ReactNode }) {
   const [activeScope, setActiveScope] = useState('main')
-  return createElement(
-    MenuScopeContext.Provider,
-    { value: { activeScope, setActiveScope } },
-    children,
-  )
+  return createElement(MenuScopeContext.Provider, { value: { activeScope, setActiveScope } }, children)
 }
 
 /**
@@ -75,11 +71,7 @@ export function useMenuScope(scopeId: string) {
 /*                              导航 Hook                                      */
 /* -------------------------------------------------------------------------- */
 
-export function useMenuKeyboard(
-  items: MenuItemInfo[],
-  onClose: () => void,
-  options?: UseMenuKeyboardOptions,
-) {
+export function useMenuKeyboard(items: MenuItemInfo[], onClose: () => void, options?: UseMenuKeyboardOptions) {
   const horizontal = options?.horizontal
   const active = options?.active ?? true
   const resetKey = options?.resetKey

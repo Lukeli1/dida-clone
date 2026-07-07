@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import {
-  applyThemePreset,
-  applyAccentColor,
-  getCurrentTheme,
-  clearThemeOverride,
-} from '../themeUtils'
+import { applyThemePreset, applyAccentColor, getCurrentTheme, clearThemeOverride } from '../themeUtils'
 
 // ============ mock localStorage ============
 // 用一个带内存存储的 mock 替换 window.localStorage：既保留真实读写行为，又可追踪调用。

@@ -30,7 +30,16 @@ export function DayCell({ count, goal, color, isFuture, isToday, size, showCount
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
         onClick={onClick}
-        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+        onKeyDown={
+          clickable
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onClick()
+                }
+              }
+            : undefined
+        }
         className={`${size} rounded-full flex items-center justify-center text-white text-xs font-semibold ${todayRing} ${cursor} ${hover} transition-transform`}
         style={{ backgroundColor: color }}
         title={`已完成 ${count}/${goal}，点击切换`}
@@ -45,7 +54,16 @@ export function DayCell({ count, goal, color, isFuture, isToday, size, showCount
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
         onClick={onClick}
-        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+        onKeyDown={
+          clickable
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onClick()
+                }
+              }
+            : undefined
+        }
         className={`${size} rounded-full flex items-center justify-center text-xs font-semibold ${todayRing} ${cursor} ${hover} transition-transform`}
         style={{
           backgroundColor: hexWithAlpha(color, 0.25),
@@ -63,7 +81,16 @@ export function DayCell({ count, goal, color, isFuture, isToday, size, showCount
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
       onClick={onClick}
-      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       className={`${size} rounded-full bg-[var(--color-bg-tertiary)] ${todayRing} ${cursor} ${hover} transition-transform`}
       title="未打卡，点击打卡"
     />

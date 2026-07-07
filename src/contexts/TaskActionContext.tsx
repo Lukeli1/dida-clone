@@ -48,11 +48,7 @@ export function TaskActionProvider({ value, children }: ProviderProps) {
   // useMemo 稳定化 Context 值，避免 Provider 重渲染时所有消费者重渲染
   // value 由 useTaskActions 返回（已 useMemo 稳定），此处仅需透传
   const stableValue = useMemo(() => value, [value])
-  return (
-    <TaskActionContext.Provider value={stableValue}>
-      {children}
-    </TaskActionContext.Provider>
-  )
+  return <TaskActionContext.Provider value={stableValue}>{children}</TaskActionContext.Provider>
 }
 
 export function useTaskActionContext(): TaskActionContextValue {

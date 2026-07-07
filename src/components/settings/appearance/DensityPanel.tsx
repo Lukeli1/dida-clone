@@ -34,16 +34,20 @@ export function DensityPanel({
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">调整侧边栏列表项间距</p>
         </div>
         <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-          {([
-            { key: 'compact', label: '紧凑' },
-            { key: 'comfortable', label: '舒适' },
-            { key: 'spacious', label: '宽松' },
-          ] as const).map(item => (
+          {(
+            [
+              { key: 'compact', label: '紧凑' },
+              { key: 'comfortable', label: '舒适' },
+              { key: 'spacious', label: '宽松' },
+            ] as const
+          ).map((item) => (
             <button
               key={item.key}
               onClick={() => onSidebarDensityChange(item.key)}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                sidebarDensity === item.key ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
+                sidebarDensity === item.key
+                  ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
               }`}
             >
               {item.label}
@@ -59,12 +63,14 @@ export function DensityPanel({
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">选择应用外观</p>
         </div>
         <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-          {(['light', 'dark', 'system'] as const).map(t => (
+          {(['light', 'dark', 'system'] as const).map((t) => (
             <button
               key={t}
               onClick={() => onThemeChange(t)}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                theme === t ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
+                theme === t
+                  ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
               }`}
             >
               {t === 'light' ? '浅色' : t === 'dark' ? '深色' : '跟随系统'}
@@ -80,7 +86,7 @@ export function DensityPanel({
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">选择应用的强调色风格</p>
         </div>
         <div className="grid grid-cols-3 gap-2.5">
-          {THEME_PRESETS.map(preset => {
+          {THEME_PRESETS.map((preset) => {
             const isSelected = presetId === preset.id && !accentColor
             return (
               <button
@@ -130,17 +136,22 @@ export function DensityPanel({
           <label className="relative cursor-pointer">
             <input
               type="color"
-              value={accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#4f86f7'}
+              value={
+                accentColor || THEME_PRESETS.find((p) => p.id === presetId)?.variables['--color-accent'] || '#4f86f7'
+              }
               onChange={(e) => onAccentColorChange(e.target.value)}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <span
               className="block w-10 h-10 rounded-lg border-2 border-[var(--color-border)] shadow-sm"
-              style={{ backgroundColor: accentColor || THEME_PRESETS.find(p => p.id === presetId)?.variables['--color-accent'] || '#4f86f7' }}
+              style={{
+                backgroundColor:
+                  accentColor || THEME_PRESETS.find((p) => p.id === presetId)?.variables['--color-accent'] || '#4f86f7',
+              }}
             />
           </label>
           <div className="flex items-center gap-1.5">
-            {THEME_PRESETS.map(preset => (
+            {THEME_PRESETS.map((preset) => (
               <button
                 key={preset.id}
                 onClick={() => onAccentColorChange(preset.variables['--color-accent'])}
@@ -158,9 +169,7 @@ export function DensityPanel({
           </button>
         </div>
         {accentColor && (
-          <p className="text-xs text-[var(--color-accent)] mt-2">
-            当前自定义强调色: {accentColor.toUpperCase()}
-          </p>
+          <p className="text-xs text-[var(--color-accent)] mt-2">当前自定义强调色: {accentColor.toUpperCase()}</p>
         )}
       </div>
     </>

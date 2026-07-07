@@ -3,12 +3,7 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, Tag } from '../../types'
 import { hexWithAlpha } from '../../utils/priority'
-import {
-  parseRepeatRule,
-  serializeRepeatRule,
-  getRepeatSummary,
-  type RepeatFrequency,
-} from '../../types/repeat'
+import { parseRepeatRule, serializeRepeatRule, getRepeatSummary, type RepeatFrequency } from '../../types/repeat'
 
 // 提醒提前量选项（单位：分钟）
 const REMINDER_OPTIONS = [
@@ -109,31 +104,44 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     <>
       {/* 日程行：折叠的日期/时间 */}
       <button
-        onClick={() => setShowScheduleEdit(v => !v)}
+        onClick={() => setShowScheduleEdit((v) => !v)}
         className="mt-2 flex items-center gap-1.5 text-sm hover:text-[var(--color-accent)] transition-colors"
       >
-        <svg className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <svg
+          className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
         </svg>
         {dueDate ? (
-          <span className={getOverdueDays() > 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-secondary)]'}>
+          <span
+            className={
+              getOverdueDays() > 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-secondary)]'
+            }
+          >
             {formatScheduleText()}
-            {getOverdueDays() > 0 && (
-              <span className="text-[var(--color-danger)]">，延期{getOverdueDays()}天</span>
-            )}
+            {getOverdueDays() > 0 && <span className="text-[var(--color-danger)]">，延期{getOverdueDays()}天</span>}
           </span>
         ) : (
           <span className="text-[var(--color-text-tertiary)]">设置日期</span>
         )}
-        {task.repeat_rule && (() => {
-          const parsed = parseRepeatRule(task.repeat_rule)
-          const summary = getRepeatSummary(parsed)
-          return summary ? (
-            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
-              {summary}
-            </span>
-          ) : null
-        })()}
+        {task.repeat_rule &&
+          (() => {
+            const parsed = parseRepeatRule(task.repeat_rule)
+            const summary = getRepeatSummary(parsed)
+            return summary ? (
+              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+                {summary}
+              </span>
+            ) : null
+          })()}
       </button>
 
       {/* 内联日程编辑面板 */}
@@ -167,7 +175,9 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
               className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
             >
               {REMINDER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
           </div>
@@ -195,14 +205,12 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
             <div className="space-y-2 bg-[var(--color-bg-tertiary)] rounded-lg p-2.5">
               {/* 快捷选项 */}
               <div className="flex flex-wrap gap-1">
-                {(
-                  [
-                    { label: '每天', freq: 'DAILY' as RepeatFrequency },
-                    { label: '每周', freq: 'WEEKLY' as RepeatFrequency },
-                    { label: '每月', freq: 'MONTHLY' as RepeatFrequency },
-                    { label: '每年', freq: 'YEARLY' as RepeatFrequency },
-                  ]
-                ).map((opt) => (
+                {[
+                  { label: '每天', freq: 'DAILY' as RepeatFrequency },
+                  { label: '每周', freq: 'WEEKLY' as RepeatFrequency },
+                  { label: '每月', freq: 'MONTHLY' as RepeatFrequency },
+                  { label: '每年', freq: 'YEARLY' as RepeatFrequency },
+                ].map((opt) => (
                   <button
                     key={opt.freq}
                     onClick={() => {
@@ -240,7 +248,9 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                   className="flex-1 text-sm border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
                 >
                   {FREQ_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -359,40 +369,37 @@ interface TaskMetaPanelProps {
 // 标签面板：内联 pill + 二级分组选择浮层
 export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPanelProps) {
   const [showTagPicker, setShowTagPicker] = useState(false)
-  const availableTags = tags.filter(t => !task.tag_ids?.includes(t.id))
+  const availableTags = tags.filter((t) => !task.tag_ids?.includes(t.id))
 
   return (
     <div className="relative">
       <div className="flex flex-wrap gap-1.5 items-center">
-        {task.tag_ids && task.tag_ids.length > 0 ? (
-          task.tag_ids.map((tagId) => {
-            const tag = tags.find(t => t.id === tagId)
-            if (!tag) return null
-            return (
-              <span
-                key={tagId}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                style={{
-                  backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12),
-                  color: tag.color || '#6B7280',
-                }}
-              >
-                {tag.name}
-                <button
-                  onClick={() => onRemoveTag(task.id, tagId)}
-                  className="hover:opacity-70"
+        {task.tag_ids && task.tag_ids.length > 0
+          ? task.tag_ids.map((tagId) => {
+              const tag = tags.find((t) => t.id === tagId)
+              if (!tag) return null
+              return (
+                <span
+                  key={tagId}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                  style={{
+                    backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12),
+                    color: tag.color || '#6B7280',
+                  }}
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </span>
-            )
-          })
-        ) : null}
+                  {tag.name}
+                  <button onClick={() => onRemoveTag(task.id, tagId)} className="hover:opacity-70">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )
+            })
+          : null}
         {/* 添加标签按钮 */}
         <button
-          onClick={() => setShowTagPicker(v => !v)}
+          onClick={() => setShowTagPicker((v) => !v)}
           className="w-5 h-5 flex items-center justify-center rounded-full border border-[var(--color-border)] hover:border-[var(--color-accent)] text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
           title="添加标签"
         >
@@ -406,44 +413,43 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
       {showTagPicker && (
         <div className="absolute z-20 mt-1 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] p-2 w-56 max-h-64 overflow-y-auto">
           {/* 一级标签（无 parent_id） */}
-          {availableTags.filter(t => !t.parent_id).length > 0 ? (
-            availableTags.filter(t => !t.parent_id).map(tag => {
-              const childTags = availableTags.filter(t => t.parent_id === tag.id)
-              return (
-                <div key={tag.id}>
-                  <button
-                    onClick={() => {
-                      onAddTag(task.id, tag.id)
-                      setShowTagPicker(false)
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: tag.color || '#6B7280' }}
-                    />
-                    <span className="text-sm text-[var(--color-text-secondary)]">{tag.name}</span>
-                  </button>
-                  {/* 二级标签 */}
-                  {childTags.map(child => (
+          {availableTags.filter((t) => !t.parent_id).length > 0 ? (
+            availableTags
+              .filter((t) => !t.parent_id)
+              .map((tag) => {
+                const childTags = availableTags.filter((t) => t.parent_id === tag.id)
+                return (
+                  <div key={tag.id}>
                     <button
-                      key={child.id}
                       onClick={() => {
-                        onAddTag(task.id, child.id)
+                        onAddTag(task.id, tag.id)
                         setShowTagPicker(false)
                       }}
-                      className="w-full flex items-center gap-2 px-4 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
                     >
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: child.color || tag.color || '#6B7280' }}
-                      />
-                      <span className="text-sm text-[var(--color-text-secondary)]">{child.name}</span>
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color || '#6B7280' }} />
+                      <span className="text-sm text-[var(--color-text-secondary)]">{tag.name}</span>
                     </button>
-                  ))}
-                </div>
-              )
-            })
+                    {/* 二级标签 */}
+                    {childTags.map((child) => (
+                      <button
+                        key={child.id}
+                        onClick={() => {
+                          onAddTag(task.id, child.id)
+                          setShowTagPicker(false)
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-1.5 rounded hover:bg-[var(--color-bg-secondary)] text-left"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: child.color || tag.color || '#6B7280' }}
+                        />
+                        <span className="text-sm text-[var(--color-text-secondary)]">{child.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              })
           ) : (
             <p className="text-xs text-[var(--color-text-tertiary)] px-2 py-1">没有可添加的标签</p>
           )}

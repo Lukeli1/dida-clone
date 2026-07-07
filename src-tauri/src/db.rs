@@ -1,5 +1,5 @@
 use rusqlite::{Connection, Result};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 pub struct DbState(pub Mutex<Connection>);
@@ -59,13 +59,22 @@ pub struct HabitRecord {
 }
 
 /// 辅助函数：检查列是否存在，不存在则添加（消除重复 PRAGMA table_info 代码）
-fn add_column_if_not_exists(conn: &Connection, table: &str, column: &str, definition: &str) -> Result<()> {
+fn add_column_if_not_exists(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> Result<()> {
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
-    let exists = stmt.query_map([], |row| row.get::<_, String>(1))?
+    let exists = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
         .filter_map(|c| c.ok())
         .any(|name| name == column);
     if !exists {
-        conn.execute(&format!("ALTER TABLE {} ADD COLUMN {} {}", table, column, definition), [])?;
+        conn.execute(
+            &format!("ALTER TABLE {} ADD COLUMN {} {}", table, column, definition),
+            [],
+        )?;
     }
     Ok(())
 }
@@ -173,8 +182,11 @@ fn init_schema(conn: &Connection) -> Result<()> {
     )?;
 
     // 如果没有默认清单，创建一个"收件箱"
-    let count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM lists WHERE is_default = 1", [], |row| row.get(0))?;
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM lists WHERE is_default = 1",
+        [],
+        |row| row.get(0),
+    )?;
     if count == 0 {
         let now = chrono::Local::now().to_rfc3339();
         conn.execute(
@@ -190,8 +202,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
     }
 
     // 如果没有标签，创建默认标签
-    let tag_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM tags", [], |row| row.get(0))?;
+    let tag_count: i64 = conn.query_row("SELECT COUNT(*) FROM tags", [], |row| row.get(0))?;
     if tag_count == 0 {
         let now = chrono::Local::now().to_rfc3339();
         conn.execute(
@@ -247,7 +258,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // P3-06: 习惯记录索引，提升查询性能
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_habit_records_habit_id ON habit_records(habit_id);
-         CREATE INDEX IF NOT EXISTS idx_habit_records_date ON habit_records(date);"
+         CREATE INDEX IF NOT EXISTS idx_habit_records_date ON habit_records(date);",
     )?;
 
     // 任务模板表
@@ -300,7 +311,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
 
     // 附件索引，提升按 task_id 查询性能
     conn.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);"
+        "CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);",
     )?;
 
     // P12-04: time_entries 时间追踪记录表
@@ -321,7 +332,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // P12-04: 时间追踪索引
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_time_entries_task ON time_entries(task_id);
-         CREATE INDEX IF NOT EXISTS idx_time_entries_start ON time_entries(start_time);"
+         CREATE INDEX IF NOT EXISTS idx_time_entries_start ON time_entries(start_time);",
     )?;
 
     // P12-05: reports 周/月报归档表
@@ -344,7 +355,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // P12-05: reports 索引，提升按 type 与时间倒序查询性能
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_reports_type ON reports(type);
-         CREATE INDEX IF NOT EXISTS idx_reports_period_start ON reports(period_start);"
+         CREATE INDEX IF NOT EXISTS idx_reports_period_start ON reports(period_start);",
     )?;
 
     // P12-06: goals 目标/OKR 表
@@ -382,7 +393,7 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // P12-06: goal_tasks 索引，提升按 goal_id / task_id 查询关联性能
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_goal_tasks_goal ON goal_tasks(goal_id);
-         CREATE INDEX IF NOT EXISTS idx_goal_tasks_task ON goal_tasks(task_id);"
+         CREATE INDEX IF NOT EXISTS idx_goal_tasks_task ON goal_tasks(task_id);",
     )?;
 
     Ok(())
@@ -412,13 +423,25 @@ mod tests {
             .collect();
 
         for expected in &[
-            "lists", "tasks", "tags", "task_tags", "habits", "habit_records",
-            "templates", "subtask_templates", "attachments", "time_entries",
-            "reports", "goals", "goal_tasks",
+            "lists",
+            "tasks",
+            "tags",
+            "task_tags",
+            "habits",
+            "habit_records",
+            "templates",
+            "subtask_templates",
+            "attachments",
+            "time_entries",
+            "reports",
+            "goals",
+            "goal_tasks",
         ] {
             assert!(
                 tables.contains(&expected.to_string()),
-                "表 {} 未创建，现有表: {:?}", expected, tables
+                "表 {} 未创建，现有表: {:?}",
+                expected,
+                tables
             );
         }
     }
@@ -443,7 +466,13 @@ mod tests {
         conn.execute(
             "INSERT INTO tasks (title, notes, priority, list_id, created_at, updated_at) \
              VALUES (?1, ?2, ?3, 1, ?4, ?5)",
-            params!["测试任务", "备注内容", 1, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+            params![
+                "测试任务",
+                "备注内容",
+                1,
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00"
+            ],
         )
         .unwrap();
         let task_id = conn.last_insert_rowid();
@@ -467,7 +496,12 @@ mod tests {
         let result = conn.execute(
             "INSERT INTO tasks (title, list_id, created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4)",
-            params!["无清单任务", 99999, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+            params![
+                "无清单任务",
+                99999,
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00"
+            ],
         );
         assert!(result.is_err(), "外键约束未生效，应拒绝插入");
     }
@@ -494,8 +528,11 @@ mod tests {
         assert_eq!(completed, 0);
 
         // 切换为已完成
-        conn.execute("UPDATE tasks SET completed = 1 WHERE id = ?1", params![task_id])
-            .unwrap();
+        conn.execute(
+            "UPDATE tasks SET completed = 1 WHERE id = ?1",
+            params![task_id],
+        )
+        .unwrap();
         let completed: i64 = conn
             .query_row(
                 "SELECT completed FROM tasks WHERE id = ?1",
@@ -540,7 +577,12 @@ mod tests {
         conn.execute(
             "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) \
              VALUES (?1, 1, ?2, ?3, ?4)",
-            params!["子任务", parent_id, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+            params![
+                "子任务",
+                parent_id,
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00"
+            ],
         )
         .unwrap();
         let subtask_id = conn.last_insert_rowid();

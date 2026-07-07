@@ -3,9 +3,9 @@
 // 包含 init_sync_repo / pull_changes / push_changes 三个核心操作函数，
 // 以及认证回调、fetch/push options 等辅助函数。
 
-use git2::{Cred, FetchOptions, Oid, PushOptions, RemoteCallbacks, Repository, Signature};
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::Config;
+use git2::{Cred, FetchOptions, Oid, PushOptions, RemoteCallbacks, Repository, Signature};
 use std::cell::Cell;
 
 use crate::sync::SyncConfig;
@@ -99,7 +99,12 @@ pub fn pull_changes(repo: &Repository, branch: &str) -> Result<(), String> {
     let head_res = repo.head();
     if head_res.is_err() {
         let oid = fetch_commit.id();
-        let _ = repo.reference(&format!("refs/heads/{}", branch), oid, true, "init from remote");
+        let _ = repo.reference(
+            &format!("refs/heads/{}", branch),
+            oid,
+            true,
+            "init from remote",
+        );
         repo.set_head(&format!("refs/heads/{}", branch))
             .map_err(|e| format!("set_head 失败: {}", e))?;
         let mut co = CheckoutBuilder::new();
@@ -183,20 +188,27 @@ pub fn push_changes(repo: &Repository, branch: &str) -> Result<(), String> {
         .iter()
         .map(|oid| repo.find_commit(*oid))
         .collect();
-    let parent_commits = parent_commits_res
-        .map_err(|e| format!("find_commit 失败: {}", e))?;
+    let parent_commits = parent_commits_res.map_err(|e| format!("find_commit 失败: {}", e))?;
     let parent_refs: Vec<&git2::Commit> = parent_commits.iter().collect();
 
     if parent_refs.is_empty() {
         repo.commit(
             Some(&format!("refs/heads/{}", branch)),
-            &sig, &sig, "sync dida.db", &tree, &[],
+            &sig,
+            &sig,
+            "sync dida.db",
+            &tree,
+            &[],
         )
         .map_err(|e| format!("commit 失败: {}", e))?;
     } else {
         repo.commit(
             Some(&format!("refs/heads/{}", branch)),
-            &sig, &sig, "sync dida.db", &tree, &parent_refs,
+            &sig,
+            &sig,
+            "sync dida.db",
+            &tree,
+            &parent_refs,
         )
         .map_err(|e| format!("commit 失败: {}", e))?;
     }

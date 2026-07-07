@@ -11,7 +11,7 @@ import type { Habit as HabitDTO } from '../../types'
  * 该字段不入库，仅存在于前端 state。
  */
 export interface Habit extends HabitDTO {
-  records: Record<string, number>  // 日期字符串(YYYY-MM-DD) -> 打卡次数
+  records: Record<string, number> // 日期字符串(YYYY-MM-DD) -> 打卡次数
 }
 
 export interface HabitViewProps {

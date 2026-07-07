@@ -2,12 +2,7 @@ import { useState, useMemo } from 'react'
 import type { SubMenuProps } from './menuItems'
 import { useTaskActionContext } from '../../../contexts/TaskActionContext'
 import { useMenuKeyboard, useMenuScope, type MenuItemInfo } from '../../../hooks/useMenuKeyboard'
-import {
-  parseRepeatRule,
-  serializeRepeatRule,
-  getRepeatSummary,
-  type RepeatFrequency,
-} from '../../../types/repeat'
+import { parseRepeatRule, serializeRepeatRule, getRepeatSummary, type RepeatFrequency } from '../../../types/repeat'
 
 /**
  * 重复规则子菜单：每天 / 每周 / 每月 / 每年 / 自定义。
@@ -55,12 +50,8 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
   const [freq, setFreq] = useState<RepeatFrequency>(existing?.freq ?? 'WEEKLY')
   const [interval, setInterval] = useState<number>(existing?.interval ?? 1)
   const [byweekday, setByweekday] = useState<number[]>(existing?.byweekday ?? [])
-  const [endType, setEndType] = useState<EndType>(
-    existing?.endDate ? 'date' : existing?.count ? 'count' : 'none',
-  )
-  const [endDate, setEndDate] = useState<string>(
-    existing?.endDate ? existing.endDate.slice(0, 10) : '',
-  )
+  const [endType, setEndType] = useState<EndType>(existing?.endDate ? 'date' : existing?.count ? 'count' : 'none')
+  const [endDate, setEndDate] = useState<string>(existing?.endDate ? existing.endDate.slice(0, 10) : '')
   const [count, setCount] = useState<number>(existing?.count ?? 3)
 
   // 悬停接管键盘作用域；自定义面板展开时暂停快捷按钮导航
@@ -81,9 +72,7 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
   }
 
   function toggleWeekday(day: number) {
-    setByweekday((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b),
-    )
+    setByweekday((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)))
   }
 
   function handleCustomApply() {
@@ -124,10 +113,7 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
   const selectedId = items[selectedIndex]?.id
 
   return (
-    <div
-      onMouseEnter={activate}
-      onMouseLeave={deactivate}
-    >
+    <div onMouseEnter={activate} onMouseLeave={deactivate}>
       <div className="border-t border-[var(--color-border-light)] my-1" />
       <div className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] font-medium">重复</div>
 
@@ -246,7 +232,11 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="4" strokeWidth="2" />
-                <path strokeWidth="2" strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+                />
               </svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">每天</span>
             </button>
@@ -267,7 +257,12 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
               title="每月"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 18h18M5 14l2-2 2 2 2-2 2 2 2-2 2 2 2-2M3 22V8a2 2 0 012-2h2V2m4 4V2m4 4V2" />
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 18h18M5 14l2-2 2 2 2-2 2 2 2-2 2 2 2-2M3 22V8a2 2 0 012-2h2V2m4 4V2m4 4V2"
+                />
               </svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">每月</span>
             </button>
@@ -277,7 +272,12 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
               title="每年"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">每年</span>
             </button>
@@ -287,8 +287,18 @@ export function RepeatMenu({ task, onClose }: SubMenuProps) {
               title="自定义"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
               <span className="text-[10px] text-[var(--color-text-secondary)]">自定义</span>
             </button>

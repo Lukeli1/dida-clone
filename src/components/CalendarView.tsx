@@ -13,12 +13,32 @@ interface CalendarViewProps {
   onToggleTask: (taskId: number) => void
   onMoveTask: (taskId: number, newDate: string) => void
   onCreateTask: (date: string, title?: string) => void
-  onCreateTaskOnRange: (data: { dateKey: string; title: string; notes?: string; priority: number; listId: number; startHour: number; startMin: number; endHour: number; endMin: number }) => void
+  onCreateTaskOnRange: (data: {
+    dateKey: string
+    title: string
+    notes?: string
+    priority: number
+    listId: number
+    startHour: number
+    startMin: number
+    endHour: number
+    endMin: number
+  }) => void
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
   actions: TaskActions
 }
 
-export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTask, onCreateTask, onCreateTaskOnRange, onUpdateTask, actions }: CalendarViewProps) {
+export function CalendarView({
+  tasks,
+  lists,
+  onTaskClick,
+  onToggleTask,
+  onMoveTask,
+  onCreateTask,
+  onCreateTaskOnRange,
+  onUpdateTask,
+  actions,
+}: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   // 任务侧边栏：保持开启状态，拖拽时不关闭
@@ -79,7 +99,7 @@ export function CalendarView({ tasks, lists, onTaskClick, onToggleTask, onMoveTa
           onNextWeek={() => setCurrentDate(nextWeek(currentDate))}
           onPrevDay={() => setCurrentDate(prevDay(currentDate))}
           onNextDay={() => setCurrentDate(nextDay(currentDate))}
-        />
+        />,
       )}
     </div>
   )

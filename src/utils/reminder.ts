@@ -73,9 +73,7 @@ export function formatReminderDisplay(reminder: string): string {
   // 计算天数差（按自然日，非 24 小时整数）
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const startOfReminder = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  const dayDiff = Math.round(
-    (startOfReminder.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24),
-  )
+  const dayDiff = Math.round((startOfReminder.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24))
 
   if (d < now) {
     return `已过期 ${timeStr}`

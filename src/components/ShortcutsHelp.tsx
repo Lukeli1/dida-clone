@@ -43,11 +43,11 @@ const NON_CUSTOMIZABLE: DisplayShortcut[] = [
  * - 支持 Esc 关闭 / 点击背景关闭
  */
 export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
-  const customShortcuts = useUIStore(s => s.customShortcuts)
+  const customShortcuts = useUIStore((s) => s.customShortcuts)
 
   // 构建显示列表：可自定义快捷键（显示当前生效的按键）+ 非自定义快捷键
   const allShortcuts = useMemo<DisplayShortcut[]>(() => {
-    const customizable: DisplayShortcut[] = DEFAULT_SHORTCUT_BINDINGS.map(b => ({
+    const customizable: DisplayShortcut[] = DEFAULT_SHORTCUT_BINDINGS.map((b) => ({
       key: customShortcuts[b.id] || b.defaultKeys,
       description: b.label,
       category: b.category,
@@ -110,9 +110,7 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
-              键盘快捷键
-            </h2>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">键盘快捷键</h2>
           </div>
           <button
             onClick={onClose}
@@ -139,12 +137,8 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
                     key={`${item.category}-${item.key}-${item.description}`}
                     className="flex items-center justify-between py-1.5"
                   >
-                    <span className="text-sm text-[var(--color-text-primary)]">
-                      {item.description}
-                    </span>
-                    <kbd
-                      className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] whitespace-nowrap ml-3"
-                    >
+                    <span className="text-sm text-[var(--color-text-primary)]">{item.description}</span>
+                    <kbd className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] whitespace-nowrap ml-3">
                       {item.key}
                     </kbd>
                   </div>
@@ -156,15 +150,11 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
 
         {/* 底部提示 */}
         <div className="px-6 py-3 border-t border-[var(--color-border)] flex items-center justify-center gap-1.5">
-          <span className="text-xs text-[var(--color-text-tertiary)]">
-            按
-          </span>
+          <span className="text-xs text-[var(--color-text-tertiary)]">按</span>
           <kbd className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
             Esc
           </kbd>
-          <span className="text-xs text-[var(--color-text-tertiary)]">
-            关闭面板
-          </span>
+          <span className="text-xs text-[var(--color-text-tertiary)]">关闭面板</span>
         </div>
       </div>
     </div>

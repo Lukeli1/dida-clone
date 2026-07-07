@@ -11,7 +11,8 @@ export const PRESET_FONTS: PresetFont[] = [
   {
     key: 'system',
     displayName: '系统默认',
-    value: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+    value:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
   },
   {
     key: 'pingfang',
@@ -45,20 +46,18 @@ export const PRESET_FONTS: PresetFont[] = [
   },
 ]
 
-export type AppFontSetting =
-  | { type: 'preset'; key: string }
-  | { type: 'system'; name: string }
+export type AppFontSetting = { type: 'preset'; key: string } | { type: 'system'; name: string }
 
 const STORAGE_KEY = 'appFont'
 
 // 根据预设 key 获取 CSS font-family 值
 export function getFontCSSValue(key: string): string {
-  return PRESET_FONTS.find(f => f.key === key)?.value || PRESET_FONTS[0].value
+  return PRESET_FONTS.find((f) => f.key === key)?.value || PRESET_FONTS[0].value
 }
 
 // 根据预设 key 获取中文显示名
 export function getFontDisplayName(key: string): string {
-  return PRESET_FONTS.find(f => f.key === key)?.displayName || '系统默认'
+  return PRESET_FONTS.find((f) => f.key === key)?.displayName || '系统默认'
 }
 
 // 从 localStorage 读取字体设置，无记录时返回默认
@@ -81,8 +80,6 @@ export function saveFontSetting(setting: AppFontSetting): void {
 
 // 将字体应用到 document.documentElement 的 CSS 变量
 export function applyFont(setting: AppFontSetting): void {
-  const fontValue = setting.type === 'preset'
-    ? getFontCSSValue(setting.key)
-    : `"${setting.name}", sans-serif`
+  const fontValue = setting.type === 'preset' ? getFontCSSValue(setting.key) : `"${setting.name}", sans-serif`
   document.documentElement.style.setProperty('--app-font-family', fontValue)
 }

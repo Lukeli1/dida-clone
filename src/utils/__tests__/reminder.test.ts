@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import {
-  getReminderTime,
-  toDatetimeLocalValue,
-  fromDatetimeLocalValue,
-  formatReminderDisplay,
-} from '../reminder'
+import { getReminderTime, toDatetimeLocalValue, fromDatetimeLocalValue, formatReminderDisplay } from '../reminder'
 
 /**
  * reminder 工具函数测试。

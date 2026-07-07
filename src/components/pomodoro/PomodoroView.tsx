@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Task } from '../../types'
 import type { TimerMode, PomodoroSettings, PomodoroStats } from './storage'
-import { DEFAULT_SETTINGS, getDurationSeconds, getTodayString, loadSettings, loadStats, saveSettings, saveStats } from './storage'
+import {
+  DEFAULT_SETTINGS,
+  getDurationSeconds,
+  getTodayString,
+  loadSettings,
+  loadStats,
+  saveSettings,
+  saveStats,
+} from './storage'
 import { MODE_CONFIG, PomodoroTimer } from './PomodoroTimer'
 import { PomodoroSettingsPanel } from './PomodoroSettings'
 import { PomodoroStatsPanel } from './PomodoroStats'
@@ -18,9 +26,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
   const [mode, setMode] = useState<TimerMode>('focus')
   const [settings, setSettings] = useState<PomodoroSettings>(loadSettings)
   const [stats, setStats] = useState<PomodoroStats>(loadStats)
-  const [secondsLeft, setSecondsLeft] = useState<number>(() =>
-    getDurationSeconds('focus', loadSettings())
-  )
+  const [secondsLeft, setSecondsLeft] = useState<number>(() => getDurationSeconds('focus', loadSettings()))
   const [isRunning, setIsRunning] = useState<boolean>(false)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState<boolean>(false)
@@ -216,14 +222,10 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
       </header>
       <div className="flex-1 overflow-y-auto p-4">
         <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
-
           {/* 轻提示通知 */}
           {notification && (
             <div className="mb-4 px-4 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm animate-slide-in-top flex items-center gap-2 max-w-full">
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: ringColor }}
-              />
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ringColor }} />
               <span className="text-sm text-[var(--color-text-secondary)]">{notification}</span>
             </div>
           )}
@@ -282,9 +284,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
                 )}
               </div>
             )}
-            {incompleteTasks.length === 0 && (
-              <EmptyState title="暂无专注任务" subtitle="先去添加一个任务吧" />
-            )}
+            {incompleteTasks.length === 0 && <EmptyState title="暂无专注任务" subtitle="先去添加一个任务吧" />}
           </div>
 
           {/* 统计卡片 */}

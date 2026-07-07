@@ -17,12 +17,10 @@ interface TaskSidebarProps {
 
 export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [expandedLists, setExpandedLists] = useState<Set<number>>(
-    new Set([lists[0]?.id].filter(Boolean) as number[])
-  )
+  const [expandedLists, setExpandedLists] = useState<Set<number>>(new Set([lists[0]?.id].filter(Boolean) as number[]))
 
   function toggleList(listId: number) {
-    setExpandedLists(prev => {
+    setExpandedLists((prev) => {
       const next = new Set(prev)
       if (next.has(listId)) {
         next.delete(listId)
@@ -35,7 +33,7 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
 
   // 按清单分组（仅未完成、未归档）
   const tasksByList = new Map<number, Task[]>()
-  tasks.forEach(t => {
+  tasks.forEach((t) => {
     if (t.completed || t.archived) return
     const arr = tasksByList.get(t.list_id) || []
     arr.push(t)
@@ -46,7 +44,7 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
   const q = searchQuery.trim().toLowerCase()
   const displayData = new Map<number, Task[]>()
   tasksByList.forEach((taskArr, listId) => {
-    const filtered = q ? taskArr.filter(t => t.title.toLowerCase().includes(q)) : taskArr
+    const filtered = q ? taskArr.filter((t) => t.title.toLowerCase().includes(q)) : taskArr
     if (filtered.length > 0) {
       displayData.set(listId, filtered)
     }
@@ -93,8 +91,18 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
             {/* 搜索框 */}
             <div className="p-2 border-b border-[var(--color-border-light)]">
               <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-tertiary)]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 <input
                   type="text"
@@ -109,7 +117,12 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
             {/* 提示 */}
             <div className="px-3 py-1.5 bg-[var(--color-accent-light)]/50 text-[11px] text-[var(--color-accent)] flex items-center gap-1 border-b border-[var(--color-accent-light)]">
               <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               拖拽任务到日历设置截止日期
             </div>
@@ -123,7 +136,7 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
                   {q ? '没有匹配的任务' : '暂无未完成任务'}
                 </div>
               ) : (
-                lists.map(list => {
+                lists.map((list) => {
                   const listTasks = displayData.get(list.id) || []
                   if (q && listTasks.length === 0) return null
                   const isExpanded = q ? true : expandedLists.has(list.id)
@@ -134,16 +147,26 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
                         onClick={() => toggleList(list.id)}
                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-bg-secondary)] transition-colors"
                       >
-                        <svg className={`w-3 h-3 text-[var(--color-text-tertiary)] transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className={`w-3 h-3 text-[var(--color-text-tertiary)] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: list.color || '#6B7280' }} />
-                        <span className="text-sm text-[var(--color-text-secondary)] flex-1 text-left truncate">{list.name}</span>
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: list.color || '#6B7280' }}
+                        />
+                        <span className="text-sm text-[var(--color-text-secondary)] flex-1 text-left truncate">
+                          {list.name}
+                        </span>
                         <span className="text-xs text-[var(--color-text-tertiary)]">{totalCount}</span>
                       </button>
                       {isExpanded && listTasks.length > 0 && (
                         <div className="pb-1">
-                          {listTasks.map(task => (
+                          {listTasks.map((task) => (
                             <div
                               key={task.id}
                               draggable
@@ -152,17 +175,30 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
                               className="flex items-center gap-2 px-3 pl-8 py-1.5 mx-1 rounded-md cursor-grab hover:bg-[var(--color-accent-light)] active:cursor-grabbing transition-colors group select-none"
                               title="拖拽到日历或点击查看详情"
                             >
-                              <svg className="w-3 h-3 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] flex-shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                              <svg
+                                className="w-3 h-3 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] flex-shrink-0 pointer-events-none"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 8h16M4 16h16"
+                                />
                               </svg>
-                              <span className={`text-xs flex-1 truncate pointer-events-none ${task.due_date ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-secondary)]'}`}>
+                              <span
+                                className={`text-xs flex-1 truncate pointer-events-none ${task.due_date ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-secondary)]'}`}
+                              >
                                 {task.title}
                               </span>
                               {task.priority > 0 && (
                                 <span
                                   className="w-1.5 h-1.5 rounded-full flex-shrink-0 pointer-events-none"
                                   style={{
-                                    backgroundColor: task.priority === 1 ? '#EF4444' : task.priority === 2 ? '#F59E0B' : '#3B82F6'
+                                    backgroundColor:
+                                      task.priority === 1 ? '#EF4444' : task.priority === 2 ? '#F59E0B' : '#3B82F6',
                                   }}
                                 />
                               )}

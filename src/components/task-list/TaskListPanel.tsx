@@ -53,25 +53,48 @@ export function TaskListPanel(props: TaskListPanelProps) {
   } = props
 
   // ===== 组件内部 store selector（不从 App 传递）=====
-  const tags = useTagStore(s => s.tags)
-  const lists = useListStore(s => s.lists)
-  const selectedTagId = useUIStore(s => s.selectedTagId)
-  const updateTask = useTaskStore(s => s.updateTask)
+  const tags = useTagStore((s) => s.tags)
+  const lists = useListStore((s) => s.lists)
+  const selectedTagId = useUIStore((s) => s.selectedTagId)
+  const updateTask = useTaskStore((s) => s.updateTask)
 
   // ===== 列表状态聚合 =====
   const listState = useTaskListState(actions.handleCreateTask, incompleteTaskTree)
   const {
-    newTaskTitle, setNewTaskTitle,
-    searchQuery, setSearchQuery,
-    batchMode, selectedTaskIds, toggleBatchMode, toggleTaskSelection, clearSelection,
-    showFilters, toggleFilters, filters,
-    aiMode, aiParsing, setAiMode,
-    expandedTasks, subtaskInputs, toggleTaskExpand, setSubtaskInput,
-    showCompleted, showOverdue, setShowCompleted, setShowOverdue,
-    selectedTaskId, setSelectedTaskId,
-    currentView, selectedListId,
-    isDraggingTask, miniCalendarDate, dragOverCalendarDate, setMiniCalendarDate, setDragOverCalendarDate,
-    handleCreateTask, selectAllTasks,
+    newTaskTitle,
+    setNewTaskTitle,
+    searchQuery,
+    setSearchQuery,
+    batchMode,
+    selectedTaskIds,
+    toggleBatchMode,
+    toggleTaskSelection,
+    clearSelection,
+    showFilters,
+    toggleFilters,
+    filters,
+    aiMode,
+    aiParsing,
+    setAiMode,
+    expandedTasks,
+    subtaskInputs,
+    toggleTaskExpand,
+    setSubtaskInput,
+    showCompleted,
+    showOverdue,
+    setShowCompleted,
+    setShowOverdue,
+    selectedTaskId,
+    setSelectedTaskId,
+    currentView,
+    selectedListId,
+    isDraggingTask,
+    miniCalendarDate,
+    dragOverCalendarDate,
+    setMiniCalendarDate,
+    setDragOverCalendarDate,
+    handleCreateTask,
+    selectAllTasks,
   } = listState
 
   // ===== 分组折叠状态（今天/已过期/今日习惯 默认展开，已完成默认隐藏）=====
@@ -101,7 +124,9 @@ export function TaskListPanel(props: TaskListPanelProps) {
   }, [contextMenu])
 
   // ===== 今日习惯数据 =====
-  const [todayHabits, setTodayHabits] = useState<Array<{ id: number; name: string; icon: string; color: string; target_count: number; todayCount: number }>>([])
+  const [todayHabits, setTodayHabits] = useState<
+    Array<{ id: number; name: string; icon: string; color: string; target_count: number; todayCount: number }>
+  >([])
 
   useEffect(() => {
     let cancelled = false
@@ -110,17 +135,28 @@ export function TaskListPanel(props: TaskListPanelProps) {
         const list = await habitApi.getHabits(false)
         const todayKey = dateKey(new Date())
         const habitsWithToday = await Promise.all(
-          list.map(async h => {
+          list.map(async (h) => {
             const records = await habitApi.getRecords(h.id, todayKey, todayKey)
-            const todayCount = records.find(r => r.date === todayKey)?.count ?? 0
-            return { id: h.id, name: h.name, icon: h.icon || '🎯', color: h.color || '#6B7280', target_count: h.target_count, todayCount }
-          })
+            const todayCount = records.find((r) => r.date === todayKey)?.count ?? 0
+            return {
+              id: h.id,
+              name: h.name,
+              icon: h.icon || '🎯',
+              color: h.color || '#6B7280',
+              target_count: h.target_count,
+              todayCount,
+            }
+          }),
         )
         if (!cancelled) setTodayHabits(habitsWithToday)
-      } catch { /* 习惯加载失败不阻塞 */ }
+      } catch {
+        /* 习惯加载失败不阻塞 */
+      }
     }
     loadTodayHabits()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // ===== 顺延：将所有过期任务的 due_date 改为今天 =====
@@ -137,8 +173,10 @@ export function TaskListPanel(props: TaskListPanelProps) {
     const newCount = todayCount >= targetCount ? 0 : targetCount
     try {
       await habitApi.upsertRecord(habitId, todayKey, newCount)
-      setTodayHabits(prev => prev.map(h => h.id === habitId ? { ...h, todayCount: newCount } : h))
-    } catch { /* 打卡失败静默 */ }
+      setTodayHabits((prev) => prev.map((h) => (h.id === habitId ? { ...h, todayCount: newCount } : h)))
+    } catch {
+      /* 打卡失败静默 */
+    }
   }, [])
 
   // ===== 搜索历史 =====
@@ -158,23 +196,32 @@ export function TaskListPanel(props: TaskListPanelProps) {
     hideHistoryTimer.current = setTimeout(() => setShowHistory(false), 200)
   }, [])
 
-  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      addHistory(searchQuery.trim())
-    }
-  }, [searchQuery, addHistory])
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && searchQuery.trim()) {
+        addHistory(searchQuery.trim())
+      }
+    },
+    [searchQuery, addHistory],
+  )
 
-  const handleHistoryClick = useCallback((term: string) => {
-    setSearchQuery(term)
-    addHistory(term)
-    setShowHistory(false)
-    searchInputRef.current?.blur()
-  }, [setSearchQuery, addHistory, searchInputRef])
+  const handleHistoryClick = useCallback(
+    (term: string) => {
+      setSearchQuery(term)
+      addHistory(term)
+      setShowHistory(false)
+      searchInputRef.current?.blur()
+    },
+    [setSearchQuery, addHistory, searchInputRef],
+  )
 
-  const handleHistoryDelete = useCallback((e: React.MouseEvent, term: string) => {
-    e.stopPropagation()
-    removeHistory(term)
-  }, [removeHistory])
+  const handleHistoryDelete = useCallback(
+    (e: React.MouseEvent, term: string) => {
+      e.stopPropagation()
+      removeHistory(term)
+    },
+    [removeHistory],
+  )
 
   // ===== 虚拟滚动：useVirtualizer 仅渲染可见区域任务，解决 200+ 任务卡顿 =====
   // 当任务数 <= 50 时使用普通列表（避免虚拟列表 absolute 定位导致区块重叠）
@@ -185,10 +232,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
-  const getItemKey = useCallback(
-    (index: number) => incompleteTaskTree[index]?.id ?? index,
-    [incompleteTaskTree],
-  )
+  const getItemKey = useCallback((index: number) => incompleteTaskTree[index]?.id ?? index, [incompleteTaskTree])
 
   const virtualizer = useVirtualizer({
     count: incompleteTaskTree.length,
@@ -209,11 +253,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
     if (!scrollEl || !listEl) return
     const measure = () => {
       // 静态偏移 = 视口偏移 + 已滚动距离（不随滚动变化）
-      const margin =
-        listEl.getBoundingClientRect().top -
-        scrollEl.getBoundingClientRect().top +
-        scrollEl.scrollTop
-      setScrollMargin(prev => (Math.abs(prev - margin) > 0.5 ? margin : prev))
+      const margin = listEl.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop
+      setScrollMargin((prev) => (Math.abs(prev - margin) > 0.5 ? margin : prev))
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -224,47 +265,58 @@ export function TaskListPanel(props: TaskListPanelProps) {
       node = node.previousElementSibling
     }
     return () => ro.disconnect()
-  }, [currentView, showOverdue, showCompleted, overdueTaskTree.length, completedTaskTree.length, incompleteTaskTree.length, filteredTasks.length])
+  }, [
+    currentView,
+    showOverdue,
+    showCompleted,
+    overdueTaskTree.length,
+    completedTaskTree.length,
+    incompleteTaskTree.length,
+    filteredTasks.length,
+  ])
 
   // ===== 当前列表名称（依赖 selectedTagId / tags / selectedListId / lists）=====
   const currentListName =
     currentView === 'today'
       ? '今日任务'
       : selectedTagId !== null
-      ? (tags.find(t => t.id === selectedTagId)?.name || '标签')
-      : selectedListId === null
-      ? '全部任务'
-      : lists.find((l) => l.id === selectedListId)?.name || '未知清单'
+        ? tags.find((t) => t.id === selectedTagId)?.name || '标签'
+        : selectedListId === null
+          ? '全部任务'
+          : lists.find((l) => l.id === selectedListId)?.name || '未知清单'
 
   // ===== Context value for TaskItem（稳定化 via useMemo）=====
-  const taskActionValue: TaskActionContextValue = useMemo(() => ({
-    tags,
-    lists,
-    batchMode,
-    isArchivedView: currentView === 'archived',
-    onToggle: actions.handleToggleTask,
-    onToggleSubtask: actions.handleToggleSubtask,
-    onClick: (taskId: number) => setSelectedTaskId(taskId),
-    onReorder: actions.handleReorderTasks,
-    onDelete: actions.handleDeleteTask,
-    onArchive: actions.handleArchiveTask,
-    onUnarchive: actions.handleUnarchiveTask,
-    onSetDate: actions.handleSetDate,
-    onSetPriority: actions.handleSetPriority,
-    onSetRepeatRule: actions.handleSetRepeatRule,
-    onSetReminder: actions.handleSetReminder,
-    onTogglePin: actions.handleTogglePin,
-    onToggleTag: actions.handleToggleTag,
-    onDuplicate: actions.handleDuplicateTask,
-    onCreateNewTag: actions.handleCreateNewTagFromMenu,
-    onInlineEdit: actions.handleInlineEdit,
-    onDragStartGlobal: actions.handleDragStartGlobal,
-    onDragEndGlobal: actions.handleDragEndGlobal,
-    onCreateSubtask: actions.handleCreateSubtask,
-    onToggleExpand: (taskId: number) => toggleTaskExpand(taskId),
-    onToggleSelect: (taskId: number) => toggleTaskSelection(taskId),
-    onSubtaskInputChange: (taskId: number, val: string) => setSubtaskInput(taskId, val),
-  }), [actions, tags, lists, batchMode, currentView, setSelectedTaskId, toggleTaskExpand, setSubtaskInput])
+  const taskActionValue: TaskActionContextValue = useMemo(
+    () => ({
+      tags,
+      lists,
+      batchMode,
+      isArchivedView: currentView === 'archived',
+      onToggle: actions.handleToggleTask,
+      onToggleSubtask: actions.handleToggleSubtask,
+      onClick: (taskId: number) => setSelectedTaskId(taskId),
+      onReorder: actions.handleReorderTasks,
+      onDelete: actions.handleDeleteTask,
+      onArchive: actions.handleArchiveTask,
+      onUnarchive: actions.handleUnarchiveTask,
+      onSetDate: actions.handleSetDate,
+      onSetPriority: actions.handleSetPriority,
+      onSetRepeatRule: actions.handleSetRepeatRule,
+      onSetReminder: actions.handleSetReminder,
+      onTogglePin: actions.handleTogglePin,
+      onToggleTag: actions.handleToggleTag,
+      onDuplicate: actions.handleDuplicateTask,
+      onCreateNewTag: actions.handleCreateNewTagFromMenu,
+      onInlineEdit: actions.handleInlineEdit,
+      onDragStartGlobal: actions.handleDragStartGlobal,
+      onDragEndGlobal: actions.handleDragEndGlobal,
+      onCreateSubtask: actions.handleCreateSubtask,
+      onToggleExpand: (taskId: number) => toggleTaskExpand(taskId),
+      onToggleSelect: (taskId: number) => toggleTaskSelection(taskId),
+      onSubtaskInputChange: (taskId: number, val: string) => setSubtaskInput(taskId, val),
+    }),
+    [actions, tags, lists, batchMode, currentView, setSelectedTaskId, toggleTaskExpand, setSubtaskInput],
+  )
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
@@ -293,7 +345,12 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 title={batchMode ? '退出批量模式' : '进入批量模式'}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                  />
                 </svg>
                 批量
               </button>
@@ -309,7 +366,12 @@ export function TaskListPanel(props: TaskListPanelProps) {
               title="组合筛选"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-3.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-3.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
               </svg>
               筛选
               {hasActiveFilters && (
@@ -317,8 +379,18 @@ export function TaskListPanel(props: TaskListPanelProps) {
               )}
             </button>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
               <input
                 ref={searchInputRef}
@@ -345,8 +417,18 @@ export function TaskListPanel(props: TaskListPanelProps) {
                           className="flex items-center justify-between px-3 py-2 hover:bg-[var(--color-surface-hover)] cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)] min-w-0">
-                            <svg className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg
+                              className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
                             </svg>
                             <span className="truncate">{term}</span>
                           </div>
@@ -356,7 +438,12 @@ export function TaskListPanel(props: TaskListPanelProps) {
                             title="删除"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -379,7 +466,13 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
         {/* 筛选面板 */}
         {showFilters && (
-          <TaskFilterBar filters={filters} tags={tags} lists={lists} hasActiveFilters={hasActiveFilters} filteredCount={filteredTasks.length} />
+          <TaskFilterBar
+            filters={filters}
+            tags={tags}
+            lists={lists}
+            hasActiveFilters={hasActiveFilters}
+            filteredCount={filteredTasks.length}
+          />
         )}
 
         {/* 批量操作工具栏 */}
@@ -398,8 +491,12 @@ export function TaskListPanel(props: TaskListPanelProps) {
       {isDraggingTask && (
         <MiniCalendarDropzone
           currentDate={miniCalendarDate}
-          onPrevMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() - 1, 1))}
-          onNextMonth={() => setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 1))}
+          onPrevMonth={() =>
+            setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() - 1, 1))
+          }
+          onNextMonth={() =>
+            setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 1))
+          }
           onDropDate={actions.handleDropToCalendarDate}
           onClose={actions.handleDragEndGlobal}
           dragOverDate={dragOverCalendarDate}
@@ -420,192 +517,303 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-      <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2" onContextMenu={handleContextMenu}>
-        {/* 归档视图：直接显示所有归档任务 */}
-        {currentView === 'archived' ? (
-          taskTree.length === 0 ? (
+        <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2" onContextMenu={handleContextMenu}>
+          {/* 归档视图：直接显示所有归档任务 */}
+          {currentView === 'archived' ? (
+            taskTree.length === 0 ? (
+              <EmptyState
+                icon={
+                  <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  </svg>
+                }
+                title="暂无归档任务"
+                subtitle="完成的任务超过 7 天后会自动归档"
+              />
+            ) : (
+              <div role="list" className="space-y-1">
+                {taskTree.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    isSelected={selectedTaskId === task.id}
+                    isExpanded={expandedTasks.has(task.id)}
+                    subtaskInput={subtaskInputs[task.id] || ''}
+                    onReorder={NOOP_REORDER}
+                  />
+                ))}
+              </div>
+            )
+          ) : incompleteTaskTree.length === 0 && overdueTaskTree.length === 0 && todayHabits.length === 0 ? (
             <EmptyState
-              icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
-              title="暂无归档任务"
-              subtitle="完成的任务超过 7 天后会自动归档"
+              icon={
+                <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                  />
+                </svg>
+              }
+              title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
             />
           ) : (
-            <div role="list" className="space-y-1">
-              {taskTree.map((task) => (
-                <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} onReorder={NOOP_REORDER} />
-              ))}
-            </div>
-          )
-        ) : incompleteTaskTree.length === 0 && overdueTaskTree.length === 0 && todayHabits.length === 0 ? (
-          <EmptyState
-            icon={<svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
-            title={hasActiveFilters ? '没有符合筛选条件的任务' : '暂无任务，开始添加你的第一个任务吧！'}
-          />
-        ) : (
-          <>
-            {/* ===== 第1组：今天 ===== */}
-            {incompleteTaskTree.length > 0 && (
-              <div className="mt-2">
-                <button
-                  onClick={() => setShowTodaySection(!showTodaySection)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
-                >
-                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showTodaySection ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                  今天 ({incompleteTaskTree.length})
-                </button>
-                {showTodaySection && (
-                  <>
-                    {useVirtual ? (
-                      <div ref={listRef} role="list" style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
-                        {virtualizer.getVirtualItems().map(virtualItem => {
-                          const task = incompleteTaskTree[virtualItem.index]
-                          return (
-                            <div
-                              key={virtualItem.key}
-                              data-index={virtualItem.index}
-                              ref={virtualizer.measureElement}
-                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
-                            >
-                              <TaskItem task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} animateOnMount={false} />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div ref={listRef} role="list" className="space-y-1">
-                        {incompleteTaskTree.map((task) => (
-                          <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* ===== 第2组：已过期 ===== */}
-            {overdueTaskTree.length > 0 && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
+            <>
+              {/* ===== 第1组：今天 ===== */}
+              {incompleteTaskTree.length > 0 && (
+                <div className="mt-2">
                   <button
-                    onClick={() => setShowOverdue(!showOverdue)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-danger)] hover:opacity-80 transition-opacity"
+                    onClick={() => setShowTodaySection(!showTodaySection)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
                   >
-                    <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showOverdue ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showTodaySection ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
-                    已过期 ({overdueTaskTree.length})
+                    今天 ({incompleteTaskTree.length})
                   </button>
-                  <button
-                    onClick={handlePostponeOverdue}
-                    className="text-xs text-[var(--color-accent)] hover:opacity-70 transition-opacity"
-                    title="将所有过期任务的截止日期改为今天"
-                  >
-                    顺延
-                  </button>
-                </div>
-                {showOverdue && (
-                  <div role="list" className="space-y-1 animate-slide-down">
-                    {overdueTaskTree.map((task) => (
-                      <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ===== 第3组：今日习惯 ===== */}
-            {todayHabits.length > 0 && (
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowHabitSection(!showHabitSection)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
-                >
-                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showHabitSection ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                  今日习惯 ({todayHabits.filter(h => h.todayCount < h.target_count).length})
-                </button>
-                {showHabitSection && (
-                  <div className="space-y-1 animate-slide-down">
-                    {todayHabits.map((h) => {
-                      const completed = h.todayCount >= h.target_count
-                      return (
+                  {showTodaySection && (
+                    <>
+                      {useVirtual ? (
                         <div
-                          key={h.id}
-                          data-task-item
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-                          onClick={() => handleHabitCheck(h.id, h.todayCount, h.target_count)}
+                          ref={listRef}
+                          role="list"
+                          style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}
                         >
-                          <span className="text-lg flex-shrink-0">{h.icon}</span>
-                          <span className={`flex-1 text-sm ${completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
-                            {h.name}
-                          </span>
-                          {completed && (
-                            <svg className="w-4 h-4 text-[var(--color-success)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: completed ? 'var(--color-success)' : h.color }}
-                          />
+                          {virtualizer.getVirtualItems().map((virtualItem) => {
+                            const task = incompleteTaskTree[virtualItem.index]
+                            return (
+                              <div
+                                key={virtualItem.key}
+                                data-index={virtualItem.index}
+                                ref={virtualizer.measureElement}
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                              >
+                                <TaskItem
+                                  task={task}
+                                  isSelected={selectedTaskId === task.id}
+                                  isExpanded={expandedTasks.has(task.id)}
+                                  subtaskInput={subtaskInputs[task.id] || ''}
+                                  isSelectedForBatch={selectedTaskIds.has(task.id)}
+                                  animateOnMount={false}
+                                />
+                              </div>
+                            )
+                          })}
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+                      ) : (
+                        <div ref={listRef} role="list" className="space-y-1">
+                          {incompleteTaskTree.map((task) => (
+                            <TaskItem
+                              key={task.id}
+                              task={task}
+                              isSelected={selectedTaskId === task.id}
+                              isExpanded={expandedTasks.has(task.id)}
+                              subtaskInput={subtaskInputs[task.id] || ''}
+                              isSelectedForBatch={selectedTaskIds.has(task.id)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
-            {/* ===== 第4组：已完成（默认隐藏，右键菜单切换显示）===== */}
-            {showCompletedSection && completedTaskTree.length > 0 && (
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-2 hover:text-[var(--color-text-primary)] transition-colors"
-                >
-                  <svg className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                  已完成 ({completedTaskTree.length})
-                </button>
-                {showCompleted && (
-                  <div role="list" className="space-y-1 animate-slide-down">
-                    {completedTaskTree.map((task) => (
-                      <TaskItem key={task.id} task={task} isSelected={selectedTaskId === task.id} isExpanded={expandedTasks.has(task.id)} subtaskInput={subtaskInputs[task.id] || ''} isSelectedForBatch={selectedTaskIds.has(task.id)} onReorder={NOOP_REORDER} />
-                    ))}
+              {/* ===== 第2组：已过期 ===== */}
+              {overdueTaskTree.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <button
+                      onClick={() => setShowOverdue(!showOverdue)}
+                      className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-danger)] hover:opacity-80 transition-opacity"
+                    >
+                      <svg
+                        className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showOverdue ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                      </svg>
+                      已过期 ({overdueTaskTree.length})
+                    </button>
+                    <button
+                      onClick={handlePostponeOverdue}
+                      className="text-xs text-[var(--color-accent)] hover:opacity-70 transition-opacity"
+                      title="将所有过期任务的截止日期改为今天"
+                    >
+                      顺延
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+                  {showOverdue && (
+                    <div role="list" className="space-y-1 animate-slide-down">
+                      {overdueTaskTree.map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          isSelected={selectedTaskId === task.id}
+                          isExpanded={expandedTasks.has(task.id)}
+                          subtaskInput={subtaskInputs[task.id] || ''}
+                          isSelectedForBatch={selectedTaskIds.has(task.id)}
+                          onReorder={NOOP_REORDER}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-      {/* 右键上下文菜单 */}
-      {contextMenu && (
-        <div
-          className="fixed z-50 min-w-[160px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 text-sm"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            onClick={() => {
-              setShowCompletedSection(!showCompletedSection)
-              if (!showCompletedSection) setShowCompleted(true)
-              setContextMenu(null)
-            }}
-            className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] transition-colors flex items-center gap-2"
-          >
-            <svg className="w-4 h-4 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showCompletedSection ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21' : 'M5 13l4 4L19 7'} />
-            </svg>
-            {showCompletedSection ? '隐藏已完成' : '显示已完成'}
-          </button>
+              {/* ===== 第3组：今日习惯 ===== */}
+              {todayHabits.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowHabitSection(!showHabitSection)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
+                  >
+                    <svg
+                      className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showHabitSection ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                    今日习惯 ({todayHabits.filter((h) => h.todayCount < h.target_count).length})
+                  </button>
+                  {showHabitSection && (
+                    <div className="space-y-1 animate-slide-down">
+                      {todayHabits.map((h) => {
+                        const completed = h.todayCount >= h.target_count
+                        return (
+                          <div
+                            key={h.id}
+                            data-task-item
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                            onClick={() => handleHabitCheck(h.id, h.todayCount, h.target_count)}
+                          >
+                            <span className="text-lg flex-shrink-0">{h.icon}</span>
+                            <span
+                              className={`flex-1 text-sm ${completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}
+                            >
+                              {h.name}
+                            </span>
+                            {completed && (
+                              <svg
+                                className="w-4 h-4 text-[var(--color-success)] flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2.5}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: completed ? 'var(--color-success)' : h.color }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ===== 第4组：已完成（默认隐藏，右键菜单切换显示）===== */}
+              {showCompletedSection && completedTaskTree.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowCompleted(!showCompleted)}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-2 hover:text-[var(--color-text-primary)] transition-colors"
+                  >
+                    <svg
+                      className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showCompleted ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                    已完成 ({completedTaskTree.length})
+                  </button>
+                  {showCompleted && (
+                    <div role="list" className="space-y-1 animate-slide-down">
+                      {completedTaskTree.map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          isSelected={selectedTaskId === task.id}
+                          isExpanded={expandedTasks.has(task.id)}
+                          subtaskInput={subtaskInputs[task.id] || ''}
+                          isSelectedForBatch={selectedTaskIds.has(task.id)}
+                          onReorder={NOOP_REORDER}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+
+        {/* 右键上下文菜单 */}
+        {contextMenu && (
+          <div
+            className="fixed z-50 min-w-[160px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 text-sm"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              onClick={() => {
+                setShowCompletedSection(!showCompletedSection)
+                if (!showCompletedSection) setShowCompleted(true)
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] transition-colors flex items-center gap-2"
+            >
+              <svg
+                className="w-4 h-4 text-[var(--color-text-tertiary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d={
+                    showCompletedSection
+                      ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
+                      : 'M5 13l4 4L19 7'
+                  }
+                />
+              </svg>
+              {showCompletedSection ? '隐藏已完成' : '显示已完成'}
+            </button>
+          </div>
+        )}
       </TaskActionProvider>
     </main>
   )

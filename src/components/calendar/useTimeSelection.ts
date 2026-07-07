@@ -30,7 +30,11 @@ interface UseTimeSelectionOpts {
 }
 
 export function useTimeSelection({
-  columnRefs, defaultListId, onCreateTaskOnRange, resizeMode, hourHeight,
+  columnRefs,
+  defaultListId,
+  onCreateTaskOnRange,
+  resizeMode,
+  hourHeight,
 }: UseTimeSelectionOpts) {
   const [selection, setSelection] = useState<Selection | null>(null)
   const [createPopup, setCreatePopup] = useState<CreatePopup | null>(null)
@@ -52,17 +56,20 @@ export function useTimeSelection({
     return Math.max(0, Math.min(24 * 60, Math.round(raw / 15) * 15))
   }
 
-  const handleTimeMouseDown = useCallback((e: React.MouseEvent, dateKey: string) => {
-    if (e.button !== 0) return
-    if (resizeMode !== null) return
-    if ((e.target as HTMLElement).closest('[data-task]')) return
-    const minute = getMinuteFromEvent(e, dateKey)
-    if (minute === null) return
-    selectingRef.current = true
-    selStartRef.current = { dateKey, minute }
-    setSelection({ dateKey, startMinute: minute, endMinute: minute })
-    setCreatePopup(null)
-  }, [resizeMode])
+  const handleTimeMouseDown = useCallback(
+    (e: React.MouseEvent, dateKey: string) => {
+      if (e.button !== 0) return
+      if (resizeMode !== null) return
+      if ((e.target as HTMLElement).closest('[data-task]')) return
+      const minute = getMinuteFromEvent(e, dateKey)
+      if (minute === null) return
+      selectingRef.current = true
+      selStartRef.current = { dateKey, minute }
+      setSelection({ dateKey, startMinute: minute, endMinute: minute })
+      setCreatePopup(null)
+    },
+    [resizeMode],
+  )
 
   const handleTimeMouseMove = useCallback((e: React.MouseEvent, dateKey: string) => {
     if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) return
@@ -75,71 +82,74 @@ export function useTimeSelection({
     })
   }, [])
 
-  const handleTimeMouseUp = useCallback((e: React.MouseEvent, dateKey: string) => {
-    if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) {
+  const handleTimeMouseUp = useCallback(
+    (e: React.MouseEvent, dateKey: string) => {
+      if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) {
+        selectingRef.current = false
+        return
+      }
+      const minute = getMinuteFromEvent(e, dateKey)
+      if (minute === null) {
+        selectingRef.current = false
+        setSelection(null)
+        return
+      }
+      const startMinute = Math.min(selStartRef.current.minute, minute)
+      const endMinute = Math.max(selStartRef.current.minute, minute)
       selectingRef.current = false
-      return
-    }
-    const minute = getMinuteFromEvent(e, dateKey)
-    if (minute === null) {
-      selectingRef.current = false
-      setSelection(null)
-      return
-    }
-    const startMinute = Math.min(selStartRef.current.minute, minute)
-    const endMinute = Math.max(selStartRef.current.minute, minute)
-    selectingRef.current = false
-    selStartRef.current = null
+      selStartRef.current = null
 
-    const colEl = columnRefs.current.get(dateKey)
-    let top = 0
-    let left = 0
-    if (colEl) {
-      top = (startMinute / 60) * hourHeight
-      left = colEl.getBoundingClientRect().width / 2
-    }
+      const colEl = columnRefs.current.get(dateKey)
+      let top = 0
+      let left = 0
+      if (colEl) {
+        top = (startMinute / 60) * hourHeight
+        left = colEl.getBoundingClientRect().width / 2
+      }
 
-    // 短按（< 15分钟）→ 快速添加弹窗（默认1小时）
-    if (endMinute - startMinute < 15) {
-      const quickStart = startMinute
-      const quickEnd = Math.min(startMinute + 60, 24 * 60)
+      // 短按（< 15分钟）→ 快速添加弹窗（默认1小时）
+      if (endMinute - startMinute < 15) {
+        const quickStart = startMinute
+        const quickEnd = Math.min(startMinute + 60, 24 * 60)
+        setSelection(null)
+        setCreatePopup({
+          dateKey,
+          startHour: Math.floor(quickStart / 60),
+          startMin: quickStart % 60,
+          endHour: Math.floor(quickEnd / 60),
+          endMin: quickEnd % 60,
+          top,
+          left,
+          isQuickAdd: true,
+        })
+        setPopupTitle('')
+        setPopupNotes('')
+        setPopupPriority(2)
+        setPopupListId(defaultListId)
+        setTimeout(() => popupInputRef.current?.focus(), 50)
+        return
+      }
+
+      // 拖选 → 详细弹窗
       setSelection(null)
       setCreatePopup({
         dateKey,
-        startHour: Math.floor(quickStart / 60),
-        startMin: quickStart % 60,
-        endHour: Math.floor(quickEnd / 60),
-        endMin: quickEnd % 60,
+        startHour: Math.floor(startMinute / 60),
+        startMin: startMinute % 60,
+        endHour: Math.floor(endMinute / 60),
+        endMin: endMinute % 60,
         top,
         left,
-        isQuickAdd: true,
+        isQuickAdd: false,
       })
       setPopupTitle('')
       setPopupNotes('')
       setPopupPriority(2)
       setPopupListId(defaultListId)
       setTimeout(() => popupInputRef.current?.focus(), 50)
-      return
-    }
-
-    // 拖选 → 详细弹窗
-    setSelection(null)
-    setCreatePopup({
-      dateKey,
-      startHour: Math.floor(startMinute / 60),
-      startMin: startMinute % 60,
-      endHour: Math.floor(endMinute / 60),
-      endMin: endMinute % 60,
-      top,
-      left,
-      isQuickAdd: false,
-    })
-    setPopupTitle('')
-    setPopupNotes('')
-    setPopupPriority(2)
-    setPopupListId(defaultListId)
-    setTimeout(() => popupInputRef.current?.focus(), 50)
-  }, [defaultListId])
+    },
+    [defaultListId],
+  )
 
   const handleGlobalMouseUp = useCallback(() => {
     if (selectingRef.current) {
@@ -185,12 +195,24 @@ export function useTimeSelection({
   }
 
   return {
-    selection, createPopup,
-    popupTitle, popupNotes, popupPriority, popupListId, popupInputRef,
-    setPopupTitle, setPopupNotes, setPopupPriority, setPopupListId,
+    selection,
+    createPopup,
+    popupTitle,
+    popupNotes,
+    popupPriority,
+    popupListId,
+    popupInputRef,
+    setPopupTitle,
+    setPopupNotes,
+    setPopupPriority,
+    setPopupListId,
     closeCreatePopup: () => setCreatePopup(null),
-    handleTimeMouseDown, handleTimeMouseMove, handleTimeMouseUp,
-    handlePopupSubmit, cyclePriority, formatMinute,
+    handleTimeMouseDown,
+    handleTimeMouseMove,
+    handleTimeMouseUp,
+    handlePopupSubmit,
+    cyclePriority,
+    formatMinute,
   }
 }
 

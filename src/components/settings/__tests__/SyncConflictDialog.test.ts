@@ -91,7 +91,8 @@ describe('冲突错误检测逻辑', () => {
   })
 
   it('Git 冲突错误信息可被检测', () => {
-    const gitConflictMsg = '检测到同步冲突 (conflict)。本地数据库已备份为 dida.db.local.bak，远程版本已加载到同步目录，请选择处理方式。'
+    const gitConflictMsg =
+      '检测到同步冲突 (conflict)。本地数据库已备份为 dida.db.local.bak，远程版本已加载到同步目录，请选择处理方式。'
     expect(isConflictError(gitConflictMsg)).toBe(true)
   })
 
