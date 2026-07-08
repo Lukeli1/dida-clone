@@ -35,13 +35,7 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     const errMsg = e instanceof Error ? e.message : String(e)
     console.error('检查更新失败:', e)
     // 404 / Not Found 表示尚未发布任何 Release，视为"无可用更新"而非错误
-    if (
-      errMsg.includes('404') ||
-      errMsg.includes('Not Found') ||
-      errMsg.includes('not found') ||
-      errMsg.includes('release') ||
-      errMsg.includes('NoSuchKey')
-    ) {
+    if (errMsg.includes('404') || errMsg.includes('Not Found') || errMsg.includes('NoSuchKey')) {
       return { available: false }
     }
     throw e

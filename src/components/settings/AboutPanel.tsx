@@ -20,8 +20,10 @@ export function AboutPanel() {
       } else {
         toast.success('已是最新版本')
       }
-    } catch {
-      toast.error('检查更新失败，请检查网络')
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e)
+      console.error('[Updater] checkForUpdate error:', e)
+      toast.error(`检查更新失败: ${errMsg}`)
     } finally {
       setChecking(false)
     }
