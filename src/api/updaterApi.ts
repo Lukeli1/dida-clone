@@ -13,6 +13,10 @@ export interface UpdateInfo {
 /**
  * 检查是否有可用更新。
  * 非 Tauri 环境返回 { available: false }。
+ *
+ * 错误处理策略：
+ * - 404 / Not Found（尚未发布 Release）→ 返回 { available: false }，视为"已是最新"
+ * - 其他网络错误 → 抛出异常，由调用方提示用户
  */
 export async function checkForUpdate(): Promise<UpdateInfo> {
   if (!isTauri) return { available: false }
@@ -28,7 +32,18 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     }
     return { available: false }
   } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e)
     console.error('检查更新失败:', e)
+    // 404 / Not Found 表示尚未发布任何 Release，视为"无可用更新"而非错误
+    if (
+      errMsg.includes('404') ||
+      errMsg.includes('Not Found') ||
+      errMsg.includes('not found') ||
+      errMsg.includes('release') ||
+      errMsg.includes('NoSuchKey')
+    ) {
+      return { available: false }
+    }
     throw e
   }
 }
