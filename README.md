@@ -912,6 +912,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 
 ## 版本更新记录
 
+### v1.36.1（2026-07-08）- 自动更新功能完善
+
+- 修复 Tauri updater 在系统代理环境下无法访问 GitHub 的问题：Rust 端启动时自动读取 Windows 注册表代理设置并同步到环境变量
+- updater endpoint 改用 `raw.githubusercontent.com` 避免 GitHub Releases 重定向问题
+- 优化 404 错误处理：未发布 Release 时显示"已是最新版本"而非报错
+- 改进 AboutPanel 错误提示：Toast 中显示完整错误信息便于排查
+- 发版脚本兼容 `.exe` 产物（新版 Tauri v2.11+ 不再生成 `.nsis.zip`）
+- 端到端验证通过：v1.36.0 → 检测到 v1.36.1 → 下载安装 → 自动重启
+
 ### v1.36.0（2026-07-08）- 自动更新功能
 
 - 新增应用内自动更新功能：基于 Tauri v2 `tauri-plugin-updater` 插件，更新包托管在 GitHub Releases

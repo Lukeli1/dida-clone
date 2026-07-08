@@ -43,9 +43,65 @@ fn fix_autostart_path() {
     }
 }
 
+/// 读取 Windows 系统代理设置并写入环境变量
+/// reqwest 默认读取 HTTP_PROXY/HTTPS_PROXY 环境变量来使用代理
+/// 但 Windows 系统代理存储在注册表中，需要手动同步
+fn setup_system_proxy() {
+    // 如果环境变量已设置，直接返回
+    if std::env::var("HTTPS_PROXY").is_ok() || std::env::var("HTTP_PROXY").is_ok() {
+        return;
+    }
+
+    // 读取 Windows 注册表中的代理设置
+    // HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+    let output = std::process::Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+            "/v",
+            "ProxyServer",
+        ])
+        .output();
+
+    if let Ok(out) = output {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        // 解析 "ProxyServer    REG_SZ    127.0.0.1:7897" 格式
+        for line in stdout.lines() {
+            if line.contains("ProxyServer") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(proxy_addr) = parts.last() {
+                    let proxy_url = if proxy_addr.starts_with("http") {
+                        proxy_addr.to_string()
+                    } else {
+                        format!("http://{}", proxy_addr)
+                    };
+                    std::env::set_var("HTTP_PROXY", &proxy_url);
+                    std::env::set_var("HTTPS_PROXY", &proxy_url);
+                    println!("[proxy] System proxy detected and set: {}", proxy_url);
+                    return;
+                }
+            }
+        }
+    }
+
+    // 如果代理被禁用（ProxyEnable=0），也检查环境变量 ALL_PROXY
+    if let Ok(all_proxy) = std::env::var("ALL_PROXY") {
+        if !all_proxy.is_empty() {
+            std::env::set_var("HTTP_PROXY", &all_proxy);
+            std::env::set_var("HTTPS_PROXY", &all_proxy);
+            println!("[proxy] ALL_PROXY detected and set: {}", all_proxy);
+        }
+    }
+}
+
 pub fn run() {
     #[cfg(debug_assertions)]
     fix_autostart_path();
+
+    // 初始化系统代理：reqwest 默认读取 HTTP_PROXY/HTTPS_PROXY 环境变量
+    // 但 Windows 系统代理配置在注册表中，环境变量可能未设置
+    // 这里读取注册表中的代理设置并写入环境变量，让 updater 的 HTTP 请求能通过代理
+    setup_system_proxy();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
