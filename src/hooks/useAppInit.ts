@@ -203,4 +203,34 @@ export function useAppInit(toast: ToastApi) {
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
     return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection)
   }, [toast])
+
+  // ===== 启动时自动检查更新（只提示一次） =====
+  // 启动 5 秒后静默检查，发现新版本时 Toast 提示一次。
+  // 用 storage facade（P2-11）记录已提示版本号，用户不点击则后续启动不再弹窗。
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const { checkForUpdate } = await import('../api/updaterApi')
+        const info = await checkForUpdate()
+        if (cancelled || !info.available) return
+
+        // 读取已提示过的版本号（通过 storage facade，符合 P2-11 规范）
+        const promptedKey = 'dida:update_prompted_version'
+        const prompted = getItem(promptedKey)
+        // 同一版本只提示一次
+        if (prompted === info.version) return
+
+        toast.info(`发现新版本 v${info.version}，可在"设置 → 关于"中更新`)
+        setItem(promptedKey, info.version!)
+      } catch {
+        // 检查失败静默处理（网络问题不打扰用户）
+      }
+    }, 5000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [toast])
 }

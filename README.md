@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.35.2-blue)
+![版本](https://img.shields.io/badge/version-1.36.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,17 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.36.0（2026-07-08）- 自动更新功能
+
+- 新增应用内自动更新功能：基于 Tauri v2 `tauri-plugin-updater` 插件，更新包托管在 GitHub Releases
+- 设置 → 关于页面新增"检查更新"按钮，支持手动检查、查看更新说明、下载安装并自动重启
+- 应用启动 5 秒后静默检查更新，发现新版本时 Toast 提示一次（同一版本不重复提示）
+- 新增 `tauri-plugin-process` 插件用于更新后自动重启应用
+- 新增 `src/api/updaterApi.ts` 封装更新检查/下载/安装逻辑
+- 新增 `scripts/publish-release.mjs` 半自动发版脚本（生成 latest.json + 上传 GitHub Release）
+- 配置 `createUpdaterArtifacts` 生成 `.nsis.zip` 更新包和 `.sig` 签名文件
+- `.gitignore` 排除 `.tauri/` 签名私钥目录
 
 ### v1.35.2（2026-07-08）- 月视图任务溢出修复 + 安全闭环发布
 

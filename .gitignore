@@ -62,3 +62,6 @@ coverage/
 
 # Runtime/output artifacts
 output/
+
+# Tauri updater 签名私钥（绝不提交）
+.tauri/
