@@ -17,6 +17,8 @@ import { TaskBar } from './shared/TaskBar'
 import { MonthDetailPopup } from './MonthDetailPopup'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
 
+const MAX_MONTH_VISIBLE_TASKS = 2
+
 interface MonthViewProps {
   currentDate: Date
   tasks: Task[]
@@ -51,6 +53,7 @@ export function MonthView({
   const [creatingDate, setCreatingDate] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [detailPopup, setDetailPopup] = useState<string | null>(null)
+  const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
@@ -157,6 +160,8 @@ export function MonthView({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
+  const expandedTasks = expandedDate ? tasksByDate.get(expandedDate) || [] : []
+
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
       {/* 月份导航栏 */}
@@ -245,7 +250,7 @@ export function MonthView({
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, key)}
-                    className={`group relative border-r border-[var(--color-border-light)] last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
+                    className={`group relative min-h-0 overflow-hidden border-r border-[var(--color-border-light)] last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
                       isDragOver
                         ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
                         : !inMonth
@@ -286,8 +291,8 @@ export function MonthView({
                     </div>
 
                     {/* 任务条带列表 */}
-                    <div className="space-y-1 flex-1 overflow-hidden">
-                      {dayTasks.slice(0, 4).map((task) => (
+                    <div className="space-y-1 flex-1 min-h-0 overflow-hidden">
+                      {dayTasks.slice(0, MAX_MONTH_VISIBLE_TASKS).map((task) => (
                         <TaskBar
                           key={task.id}
                           task={task}
@@ -306,10 +311,19 @@ export function MonthView({
                           }}
                         />
                       ))}
-                      {dayTasks.length > 4 && (
-                        <div className="text-[10px] text-[var(--color-text-tertiary)] px-1.5 py-0.5">
-                          +{dayTasks.length - 4} 项
-                        </div>
+                      {dayTasks.length > MAX_MONTH_VISIBLE_TASKS && (
+                        <button
+                          type="button"
+                          data-testid={`month-more-${key}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setExpandedDate(key)
+                          }}
+                          className="h-4 w-full rounded px-1.5 text-left text-[10px] leading-4 text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent)]"
+                          aria-label={`查看 ${key} 的其余 ${dayTasks.length - MAX_MONTH_VISIBLE_TASKS} 个任务`}
+                        >
+                          +{dayTasks.length - MAX_MONTH_VISIBLE_TASKS}
+                        </button>
                       )}
                       {isCreating && (
                         <input
@@ -337,6 +351,58 @@ export function MonthView({
           )
         })}
       </div>
+
+      {expandedDate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
+          onClick={() => setExpandedDate(null)}
+        >
+          <div
+            data-testid="month-expanded-tasks"
+            className="w-96 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  {format(new Date(expandedDate), 'M月d日 EEEE', { locale: zhCN })}
+                </div>
+                <div className="text-xs text-[var(--color-text-tertiary)]">共 {expandedTasks.length} 个任务</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpandedDate(null)}
+                className="rounded-lg px-2 py-1 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                aria-label="关闭任务列表"
+              >
+                ×
+              </button>
+            </div>
+            <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
+              {expandedTasks.map((task) => (
+                <TaskBar
+                  key={task.id}
+                  task={task}
+                  lists={lists}
+                  variant="month"
+                  dragged={draggedTaskId === task.id}
+                  timeLabel={task.due_date ? formatTaskTime(task.due_date) : undefined}
+                  onDragStart={(e) => handleDragStart(e, task.id)}
+                  onTaskClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDate(null)
+                    onTaskClick(task.id)
+                  }}
+                  onToggle={(e) => {
+                    e.stopPropagation()
+                    onToggleTask(task.id)
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 双击打开的详细创建弹窗 */}
       {detailPopup && (

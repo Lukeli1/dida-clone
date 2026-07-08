@@ -74,7 +74,8 @@ impl From<SyncConfig> for SyncConfigDto {
             sync_type: config.sync_type,
             webdav_url: config.webdav_url,
             webdav_username: config.webdav_username,
-            webdav_password: config.webdav_password,
+            // 敏感字段不返回给前端，避免旧 sync_config.json 中的明文密码再次泄漏到 UI/IPC。
+            webdav_password: None,
             webdav_remote_path: config.webdav_remote_path,
         }
     }
@@ -90,6 +91,12 @@ fn get_sync_config_path(app_data_dir: &str) -> PathBuf {
 /// 返回同步仓库的本地目录（app_data_dir/sync_repo）
 fn get_sync_dir(app_data_dir: &str) -> PathBuf {
     Path::new(app_data_dir).join("sync_repo")
+}
+
+/// 同步配置落盘前的安全净化：WebDAV 密码必须走 secret 存储，不能写入 sync_config.json。
+fn sanitize_sync_config_for_persist(mut config: SyncConfigDto) -> SyncConfigDto {
+    config.webdav_password = None;
+    config
 }
 
 /// 从 sync_config.json 读取同步配置，并填充 local_path
@@ -119,6 +126,7 @@ pub fn get_sync_config(app_data_dir: String) -> Result<Option<SyncConfigDto>, St
 #[tauri::command]
 pub fn save_sync_config(config: SyncConfigDto, app_data_dir: String) -> Result<(), String> {
     let path = get_sync_config_path(&app_data_dir);
+    let config = sanitize_sync_config_for_persist(config);
     let content =
         serde_json::to_string_pretty(&config).map_err(|e| format!("序列化同步配置失败: {}", e))?;
     std::fs::write(&path, content).map_err(|e| format!("写入同步配置失败: {}", e))?;
@@ -128,8 +136,9 @@ pub fn save_sync_config(config: SyncConfigDto, app_data_dir: String) -> Result<(
 /// 初始化同步仓库：clone 远程仓库 + 如果有 dida.db 则复制到 app_data_dir
 #[tauri::command]
 pub fn init_sync_repo(config: SyncConfigDto, app_data_dir: String) -> Result<(), String> {
-    // 1. 保存配置
+    // 1. 保存配置（落盘前剔除 WebDAV 密码，密码必须走 secret 存储）
     let path = get_sync_config_path(&app_data_dir);
+    let config = sanitize_sync_config_for_persist(config);
     let content =
         serde_json::to_string_pretty(&config).map_err(|e| format!("序列化同步配置失败: {}", e))?;
     std::fs::write(&path, content).map_err(|e| format!("写入同步配置失败: {}", e))?;
@@ -424,4 +433,78 @@ async fn resolve_webdav_conflict(
         _ => return Err("无效的冲突解决策略".to_string()),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn sample_dto_with_password() -> SyncConfigDto {
+        SyncConfigDto {
+            repo_url: "https://example.com/repo.git".to_string(),
+            branch: "main".to_string(),
+            auto_sync: true,
+            auto_sync_interval_secs: 900,
+            sync_type: "webdav".to_string(),
+            webdav_url: Some("https://dav.example.com/".to_string()),
+            webdav_username: Some("alice".to_string()),
+            webdav_password: Some("plain-secret".to_string()),
+            webdav_remote_path: Some("/dida-clone/dida.db".to_string()),
+        }
+    }
+
+    #[test]
+    fn sanitize_sync_config_for_persist_strips_webdav_password() {
+        let sanitized = sanitize_sync_config_for_persist(sample_dto_with_password());
+
+        assert_eq!(sanitized.sync_type, "webdav");
+        assert_eq!(sanitized.webdav_username.as_deref(), Some("alice"));
+        assert!(sanitized.webdav_password.is_none());
+    }
+
+    #[test]
+    fn sync_config_dto_from_internal_config_never_exposes_webdav_password() {
+        let dto = SyncConfigDto::from(SyncConfig {
+            repo_url: "https://example.com/repo.git".to_string(),
+            branch: "main".to_string(),
+            local_path: PathBuf::from("sync_repo"),
+            auto_sync: true,
+            auto_sync_interval_secs: 900,
+            sync_type: "webdav".to_string(),
+            webdav_url: Some("https://dav.example.com/".to_string()),
+            webdav_username: Some("alice".to_string()),
+            webdav_password: Some("plain-secret".to_string()),
+            webdav_remote_path: Some("/dida-clone/dida.db".to_string()),
+        });
+
+        assert!(dto.webdav_password.is_none());
+    }
+
+    #[test]
+    fn save_sync_config_never_writes_plain_webdav_password() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "dida_sync_config_test_{}_{}",
+            std::process::id(),
+            suffix
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        save_sync_config(
+            sample_dto_with_password(),
+            dir.to_string_lossy().to_string(),
+        )
+        .unwrap();
+        let content = std::fs::read_to_string(dir.join("sync_config.json")).unwrap();
+
+        assert!(!content.contains("plain-secret"));
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert!(json.get("webdav_password").unwrap().is_null());
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

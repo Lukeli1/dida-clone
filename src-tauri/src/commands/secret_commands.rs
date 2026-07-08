@@ -47,12 +47,29 @@ fn save_fallback(
     Ok(())
 }
 
+/// 清理文件 fallback 中的同名凭据。
+///
+/// 即使 OS keychain 操作成功，也必须清理 fallback，避免历史降级文件中的旧 secret
+/// 在后续内部读取（如 WebDAV 密码）时被误用。
+fn remove_fallback_key(app: &AppHandle, key: &str) -> Result<(), String> {
+    let mut map = load_fallback(app);
+    if map.remove(key).is_some() {
+        save_fallback(app, &map)?;
+    }
+    Ok(())
+}
+
 /// 写入凭据到 OS keychain（失败时回退到文件存储并警告）
 #[tauri::command]
 pub fn set_secret(app: AppHandle, key: String, value: String) -> Result<(), String> {
     match Entry::new(SERVICE_NAME, &key) {
         Ok(entry) => match entry.set_password(&value) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                if let Err(e) = remove_fallback_key(&app, &key) {
+                    eprintln!("[secret] keychain 写入成功，但清理 fallback 失败: {}", e);
+                }
+                Ok(())
+            }
             Err(e) => {
                 eprintln!("[secret] keychain set_password 失败，回退到文件存储: {}", e);
                 let mut map = load_fallback(&app);
@@ -75,7 +92,7 @@ pub fn get_secret(app: AppHandle, key: String) -> Result<Option<String>, String>
     match Entry::new(SERVICE_NAME, &key) {
         Ok(entry) => match entry.get_password() {
             Ok(v) => Ok(Some(v)),
-            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(keyring::Error::NoEntry) => Ok(load_fallback(&app).get(&key).cloned()),
             Err(e) => {
                 eprintln!("[secret] keychain get_password 失败，尝试文件回退: {}", e);
                 Ok(load_fallback(&app).get(&key).cloned())
@@ -91,24 +108,25 @@ pub fn get_secret(app: AppHandle, key: String) -> Result<Option<String>, String>
 /// 从 OS keychain 删除凭据（失败时回退到文件存储）
 #[tauri::command]
 pub fn delete_secret(app: AppHandle, key: String) -> Result<(), String> {
-    match Entry::new(SERVICE_NAME, &key) {
+    let keyring_result = match Entry::new(SERVICE_NAME, &key) {
         Ok(entry) => match entry.delete_credential() {
-            Ok(()) => Ok(()),
-            Err(keyring::Error::NoEntry) => Ok(()),
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => {
-                eprintln!("[secret] keychain delete 失败，回退文件清理: {}", e);
-                let mut map = load_fallback(&app);
-                map.remove(&key);
-                save_fallback(&app, &map)
+                eprintln!(
+                    "[secret] keychain delete 失败，仍会继续清理 fallback: {}",
+                    e
+                );
+                Err(format!("删除 keychain 凭据失败: {}", e))
             }
         },
         Err(e) => {
-            eprintln!("[secret] keychain 不可用，回退文件清理: {}", e);
-            let mut map = load_fallback(&app);
-            map.remove(&key);
-            save_fallback(&app, &map)
+            eprintln!("[secret] keychain 不可用，仍会继续清理 fallback: {}", e);
+            Ok(())
         }
-    }
+    };
+
+    remove_fallback_key(&app, &key)?;
+    keyring_result
 }
 
 /// 内部同步读取凭据（供其他后端模块调用，如 webdav_commands 取 webdav_password）。

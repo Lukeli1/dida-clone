@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { syncApi, isTauri } from '../../api'
-import { getSecret, setSecret, SECRET_KEYS } from '../../api/secretApi'
+import { deleteSecret, getSecret, setSecret, SECRET_KEYS } from '../../api/secretApi'
 import type { SyncConfig, SyncStatus, SyncType } from '../../types/sync'
 import { Toggle } from './Toggle'
 import { SyncStatusPanel } from './SyncStatusPanel'
@@ -103,13 +103,21 @@ export default function SyncPanel() {
     }
   }
 
+  async function persistWebdavPassword(deleteWhenEmpty: boolean) {
+    const password = webdavPassword
+    if (password) {
+      await setSecret(SECRET_KEYS.webdavPassword, password)
+    } else if (deleteWhenEmpty) {
+      await deleteSecret(SECRET_KEYS.webdavPassword)
+    }
+  }
+
   async function saveConfig() {
     try {
       const cfg = buildConfig()
-      // WebDAV 密码单独存到后端 secret
-      if (webdavPassword) {
-        await setSecret(SECRET_KEYS.webdavPassword, webdavPassword)
-      }
+      // WebDAV 密码单独存到后端 secret。自动保存配置时不因初始化空值误删旧密码；
+      // 显式保存 WebDAV 配置时若密码为空，则删除旧 secret。
+      await persistWebdavPassword(false)
       await syncApi.saveConfig(cfg)
       setConfig(cfg)
     } catch (e) {
@@ -153,10 +161,8 @@ export default function SyncPanel() {
     setSuccess(null)
     try {
       const cfg = buildConfig('webdav')
-      // WebDAV 密码存后端 secret（与通用 saveConfig 一致，避免明文进 sync_config.json）
-      if (webdavPassword) {
-        await setSecret(SECRET_KEYS.webdavPassword, webdavPassword)
-      }
+      // 显式保存 WebDAV 配置：非空则写入 secret，清空则删除旧 secret。
+      await persistWebdavPassword(true)
       await syncApi.saveConfig(cfg)
       setConfig(cfg)
       setSuccess('WebDAV 配置已保存')

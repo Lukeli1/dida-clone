@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.35.1-blue)
+![版本](https://img.shields.io/badge/version-1.35.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,13 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.35.2（2026-07-08）- 月视图任务溢出修复 + 安全闭环发布
+
+- 修复日历月视图单日任务过多时任务卡片溢出日期格、覆盖下方日期的问题
+- 月格内默认展示 2 条任务，超出部分显示 +N 折叠入口，点击可展开查看当天全部任务
+- 为月视图任务折叠新增组件级回归测试，覆盖 5 条任务时的折叠与展开行为
+- 合并 WebDAV 密码明文落盘/返回、secret fallback 清理、Cargo.lock 版本同步等安全闭环修复
 
 ### v1.35.1（2026-07-08）- 代码审核反馈修复（安全增强 + E2E 修复 + 架构补全）
 
