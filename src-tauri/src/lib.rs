@@ -50,7 +50,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
             // 拦截关闭事件：改为隐藏窗口，不退出应用

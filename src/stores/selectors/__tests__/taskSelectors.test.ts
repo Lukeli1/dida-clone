@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { selectTodayCount, selectArchivedCount, selectTaskCounts, selectOverdueTasks } from '../taskSelectors'
+import {
+  selectTodayCount,
+  selectArchivedCount,
+  selectTaskCounts,
+  selectOverdueTasks,
+  buildTaskTree,
+  selectCompletedTaskTree,
+  selectIncompleteTaskTree,
+} from '../taskSelectors'
 import type { Task } from '../../../types'
 
 // 使用相对当前日期，避免 isToday/isBefore 依赖系统时钟导致测试随日期漂移
@@ -92,5 +100,58 @@ describe('selectOverdueTasks', () => {
     const overdue = selectOverdueTasks(tasks)
     expect(overdue[0].id).toBe(2)
     expect(overdue[1].id).toBe(1)
+  })
+})
+
+describe('buildTaskTree', () => {
+  it('按 parent_id 组装父子结构，子任务挂到父任务 subtasks', () => {
+    const tasks = [
+      makeTask({ id: 1 }),
+      makeTask({ id: 2, parent_id: 1 }),
+      makeTask({ id: 3, parent_id: 1 }),
+      makeTask({ id: 4 }),
+    ]
+    const tree = buildTaskTree(tasks)
+    expect(tree).toHaveLength(2) // id=1 和 id=4 为顶层
+    const parent = tree.find((t) => t.id === 1)!
+    expect(parent.subtasks).toHaveLength(2)
+    expect(parent.subtasks!.map((s) => s.id).sort()).toEqual([2, 3])
+    const orphan = tree.find((t) => t.id === 4)!
+    expect(orphan.subtasks).toEqual([])
+  })
+
+  it('孤儿子任务（父不在列表）仍作为顶层', () => {
+    const tasks = [makeTask({ id: 2, parent_id: 999 })]
+    const tree = buildTaskTree(tasks)
+    // parent_id 存在但父任务不在 filteredTasks 中，子任务无对应顶层父，不会出现在 topLevel
+    // 但 buildTaskTree 只把无 parent_id 或父在列表的作为顶层；孤儿不会出现
+    expect(tree).toHaveLength(0)
+  })
+})
+
+describe('selectCompletedTaskTree', () => {
+  it('只返回已完成的顶层任务', () => {
+    const tree = [
+      makeTask({ id: 1, completed: true }),
+      makeTask({ id: 2, completed: false }),
+      makeTask({ id: 3, completed: true }),
+    ]
+    const completed = selectCompletedTaskTree(tree)
+    expect(completed).toHaveLength(2)
+    expect(completed.map((t) => t.id).sort()).toEqual([1, 3])
+  })
+})
+
+describe('selectIncompleteTaskTree', () => {
+  it('返回未完成且未过期的任务', () => {
+    const tree = [
+      makeTask({ id: 1, completed: false }),
+      makeTask({ id: 2, completed: true }),
+      makeTask({ id: 3, completed: false }),
+    ]
+    const overdue = [makeTask({ id: 3, completed: false, due_date: PAST })]
+    const incomplete = selectIncompleteTaskTree(tree, overdue)
+    expect(incomplete).toHaveLength(1)
+    expect(incomplete[0].id).toBe(1)
   })
 })

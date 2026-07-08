@@ -64,11 +64,12 @@ export async function saveLLMConfig(config: LLMConfig): Promise<void> {
   }
 }
 
-/** 已保存的厂商配置 */
+/** 已保存的厂商配置（apiKey 字段在 localStorage 中为空占位，真实值存后端 secret） */
 export interface LLMProvider {
   id: string
   name: string
   baseUrl: string
+  /** localStorage 中恒为空字符串；真实 apiKey 通过 getProviderApiKey 异步从 secret 读取 */
   apiKey: string
   models: string[]
   lastModel: string
@@ -77,21 +78,38 @@ export interface LLMProvider {
 
 const PROVIDERS_KEY = 'llm_providers'
 
+/** provider apiKey 的 secret key 前缀（按 provider id 隔离） */
+function providerApiKeySecretKey(providerId: string): string {
+  return `${SECRET_KEYS.llmApiKey}:${providerId}`
+}
+
 export function getProviders(): LLMProvider[] {
   try {
     const raw = getItem(PROVIDERS_KEY)
     if (!raw) return []
-    return JSON.parse(raw)
+    const list = JSON.parse(raw) as LLMProvider[]
+    // 防御：迁移旧数据——若旧 provider 仍含明文 apiKey，清空并标记（真实值应由用户重新保存）
+    for (const p of list) {
+      if (p.apiKey) p.apiKey = ''
+    }
+    return list
   } catch {
     return []
   }
 }
 
-function persistProviders(providers: LLMProvider[]) {
-  setItem(PROVIDERS_KEY, JSON.stringify(providers))
+/** 异步读取某个 provider 的 apiKey（从后端 secret） */
+export async function getProviderApiKey(providerId: string): Promise<string> {
+  return (await getSecret(providerApiKeySecretKey(providerId))) || ''
 }
 
-export function saveProvider(name: string, config: LLMConfig, models: string[]): LLMProvider[] {
+function persistProviders(providers: LLMProvider[]) {
+  // 持久化前确保 apiKey 字段为空（真实值存 secret，不进 localStorage）
+  const safe = providers.map((p) => ({ ...p, apiKey: '' }))
+  setItem(PROVIDERS_KEY, JSON.stringify(safe))
+}
+
+export async function saveProvider(name: string, config: LLMConfig, models: string[]): Promise<LLMProvider[]> {
   const providers = getProviders()
   const id = config.baseUrl.replace(/\/$/, '')
   const existingIdx = providers.findIndex((p) => p.id === id)
@@ -99,7 +117,7 @@ export function saveProvider(name: string, config: LLMConfig, models: string[]):
     id,
     name: name || deriveProviderName(config.baseUrl),
     baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
+    apiKey: '',
     models,
     lastModel: config.model,
     savedAt: new Date().toISOString(),
@@ -109,11 +127,19 @@ export function saveProvider(name: string, config: LLMConfig, models: string[]):
   } else {
     providers.push(provider)
   }
+  // apiKey 存后端 secret（按 provider id 隔离），不进 localStorage
+  if (config.apiKey) {
+    await setSecret(providerApiKeySecretKey(id), config.apiKey)
+  } else {
+    await deleteSecret(providerApiKeySecretKey(id))
+  }
   persistProviders(providers)
   return providers
 }
 
-export function deleteProvider(id: string): LLMProvider[] {
+export async function deleteProvider(id: string): Promise<LLMProvider[]> {
+  // 同时清理该 provider 的 apiKey secret
+  await deleteSecret(providerApiKeySecretKey(id))
   const providers = getProviders().filter((p) => p.id !== id)
   persistProviders(providers)
   return providers

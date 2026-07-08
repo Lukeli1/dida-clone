@@ -153,6 +153,10 @@ export default function SyncPanel() {
     setSuccess(null)
     try {
       const cfg = buildConfig('webdav')
+      // WebDAV 密码存后端 secret（与通用 saveConfig 一致，避免明文进 sync_config.json）
+      if (webdavPassword) {
+        await setSecret(SECRET_KEYS.webdavPassword, webdavPassword)
+      }
       await syncApi.saveConfig(cfg)
       setConfig(cfg)
       setSuccess('WebDAV 配置已保存')

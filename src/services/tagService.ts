@@ -8,13 +8,15 @@
 import { useTagStore } from '../stores/tagStore'
 import { useTaskStore } from '../stores/taskStore'
 
-/** 给任务添加标签：调用 tag API 并同步更新 taskStore 的 tag_ids */
+/** 给任务添加标签：调用 tag API 并同步更新 taskStore 的 tag_ids（去重，避免重复 tag） */
 export async function addTagToTask(taskId: number, tagId: number): Promise<boolean> {
   const success = await useTagStore.getState().addTagToTask(taskId, tagId)
   if (!success) return false
-  // 同步更新 taskStore 的 tag_ids（原先由 tagStore 动态 import taskStore 完成，现下沉到 service）
+  // 同步更新 taskStore 的 tag_ids（Set 去重，防止重复调用产生重复 tag id）
   useTaskStore.setState((state) => ({
-    tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t)),
+    tasks: state.tasks.map((t) =>
+      t.id === taskId ? { ...t, tag_ids: Array.from(new Set([...(t.tag_ids || []), tagId])) } : t,
+    ),
   }))
   return true
 }

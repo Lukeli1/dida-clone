@@ -7,6 +7,13 @@ export const taskApi = {
     list_id?: number
     include_completed?: boolean
     include_archived?: boolean
+    /** P3-12 分页：limit>0 生效 */
+    limit?: number
+    offset?: number
+    /** P3-12 视图过滤：'today' | 'archived' */
+    view?: string
+    /** P3-12 标签过滤 */
+    tag_id?: number
   }): Promise<Task[]> => {
     if (!isTauri) {
       return Promise.resolve(mockTasks.map((t) => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })))
@@ -15,6 +22,10 @@ export const taskApi = {
       listId: filter?.list_id ?? null,
       includeCompleted: filter?.include_completed ?? null,
       includeArchived: filter?.include_archived ?? null,
+      limit: filter?.limit ?? null,
+      offset: filter?.offset ?? null,
+      view: filter?.view ?? null,
+      tagId: filter?.tag_id ?? null,
     })
   },
 

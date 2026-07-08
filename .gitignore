@@ -57,6 +57,7 @@ vite.config.d.ts
 
 # Test reports
 playwright-report/
+test-results/
 coverage/
 
 # Runtime/output artifacts

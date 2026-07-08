@@ -5,18 +5,68 @@ use tauri::State;
 use super::super::now_rfc3339;
 use crate::db::{DbState, Task};
 
+/// 查询任务列表。
+///
+/// 分页参数（P3-12）：
+/// - `limit` / `offset`：None 或 0 表示不分页（返回全部，向后兼容）
+/// - `view`：today=今日到期未完成，archived=仅归档，None=按 include_archived
+/// - `tag_id`：只返回含该标签的任务
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn get_tasks(
     state: State<DbState>,
     list_id: Option<i64>,
     include_completed: Option<bool>,
     include_archived: Option<bool>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+    view: Option<String>,
+    tag_id: Option<i64>,
 ) -> Result<Vec<Task>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
     // 动态构建 WHERE 条件：None 表示不过滤，Some 表示按值过滤
     let mut conditions: Vec<String> = Vec::new();
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    // 视图过滤（today/archived）
+    if let Some(ref v) = view {
+        match v.as_str() {
+            "today" => {
+                // 今日到期且未完成且未归档：用 RFC3339 格式的今日起止时间
+                let now = chrono::Local::now();
+                let today_start = now
+                    .date_naive()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(chrono::Local)
+                    .unwrap();
+                let today_end = now
+                    .date_naive()
+                    .and_hms_opt(23, 59, 59)
+                    .unwrap()
+                    .and_local_timezone(chrono::Local)
+                    .unwrap();
+                conditions.push("due_date IS NOT NULL".to_string());
+                conditions.push("due_date >= ?".to_string());
+                conditions.push("due_date <= ?".to_string());
+                conditions.push("completed = 0".to_string());
+                conditions.push("archived = 0".to_string());
+                params_vec.push(Box::new(today_start.to_rfc3339()));
+                params_vec.push(Box::new(today_end.to_rfc3339()));
+            }
+            "archived" => {
+                conditions.push("archived = 1".to_string());
+            }
+            _ => {}
+        }
+    } else {
+        // 无 view 时按原有 include_archived 过滤
+        if let Some(archived) = include_archived {
+            conditions.push("archived = ?".to_string());
+            params_vec.push(Box::new(archived));
+        }
+    }
 
     if let Some(lid) = list_id {
         conditions.push("list_id = ?".to_string());
@@ -26,9 +76,11 @@ pub fn get_tasks(
         conditions.push("completed = ?".to_string());
         params_vec.push(Box::new(completed));
     }
-    if let Some(archived) = include_archived {
-        conditions.push("archived = ?".to_string());
-        params_vec.push(Box::new(archived));
+
+    // 标签过滤：子查询
+    if let Some(tid) = tag_id {
+        conditions.push("id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)".to_string());
+        params_vec.push(Box::new(tid));
     }
 
     let where_clause = if conditions.is_empty() {
@@ -37,9 +89,18 @@ pub fn get_tasks(
         format!("WHERE {}", conditions.join(" AND "))
     };
 
+    // 分页：limit 为 Some 且 > 0 时才加 LIMIT/OFFSET
+    let limit_clause = match limit {
+        Some(l) if l > 0 => {
+            let off = offset.unwrap_or(0);
+            format!("LIMIT {} OFFSET {}", l, off)
+        }
+        _ => String::new(),
+    };
+
     let sql = format!(
-        "SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC",
-        where_clause
+        "SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC {}",
+        where_clause, limit_clause
     );
 
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
@@ -348,5 +409,97 @@ mod tests {
 
         assert_eq!(tag_map.get(&t1).unwrap().len(), 2);
         assert_eq!(tag_map.get(&t2).unwrap().len(), 1);
+    }
+
+    /// P3-12 分页测试：limit + offset 返回不重复的任务子集
+    #[test]
+    fn test_pagination_limit_offset() {
+        let conn = setup_db();
+        // 插入 10 个任务
+        for i in 0..10 {
+            insert_task(&conn, &format!("任务{}", i));
+        }
+
+        // 第 1 页：limit=4, offset=0
+        let page1: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks ORDER BY id ASC LIMIT 4 OFFSET 0")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        // 第 2 页：limit=4, offset=4
+        let page2: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks ORDER BY id ASC LIMIT 4 OFFSET 4")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert_eq!(page1.len(), 4);
+        assert_eq!(page2.len(), 4);
+        // 两页无重复
+        let mut all = page1.clone();
+        all.extend(page2.iter());
+        let unique: std::collections::HashSet<i64> = all.into_iter().collect();
+        assert_eq!(unique.len(), 8, "两页任务 ID 不应重复");
+    }
+
+    /// P3-12 archived 视图过滤准确
+    #[test]
+    fn test_archived_view_filter() {
+        let conn = setup_db();
+        let t1 = insert_task(&conn, "普通任务");
+        let t2 = insert_task(&conn, "归档任务");
+        // 标记 t2 为归档
+        conn.execute("UPDATE tasks SET archived = 1 WHERE id = ?1", params![t2])
+            .unwrap();
+
+        let archived_ids: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks WHERE archived = 1")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(archived_ids, vec![t2]);
+
+        let active_ids: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks WHERE archived = 0")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(active_ids, vec![t1]);
+    }
+
+    /// P3-12 completed 过滤准确
+    #[test]
+    fn test_completed_filter() {
+        let conn = setup_db();
+        let t1 = insert_task(&conn, "未完成");
+        let t2 = insert_task(&conn, "已完成");
+        conn.execute("UPDATE tasks SET completed = 1 WHERE id = ?1", params![t2])
+            .unwrap();
+
+        let completed: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks WHERE completed = 1")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(completed, vec![t2]);
+
+        let incomplete: Vec<i64> = conn
+            .prepare("SELECT id FROM tasks WHERE completed = 0")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(incomplete, vec![t1]);
     }
 }

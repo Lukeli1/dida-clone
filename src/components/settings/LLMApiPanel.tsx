@@ -6,6 +6,7 @@ import {
   getProviders,
   saveProvider,
   deleteProvider,
+  getProviderApiKey,
   deriveProviderName,
   type LLMProvider,
 } from '../../utils/llm'
@@ -67,7 +68,7 @@ export function LLMApiPanel() {
     await saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort })
   }
 
-  function handleSaveProvider() {
+  async function handleSaveProvider() {
     if (!llmBaseUrl || !llmApiKey) {
       setTestResult({ ok: false, msg: '请先填写 API 地址和密钥' })
       return
@@ -77,7 +78,7 @@ export function LLMApiPanel() {
       return
     }
     const name = providerName.trim() || deriveProviderName(llmBaseUrl)
-    const updated = saveProvider(name, { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel }, llmModels)
+    const updated = await saveProvider(name, { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel }, llmModels)
     setProviders(updated)
     setActiveProviderId(llmBaseUrl.replace(/\/$/, ''))
     setProviderName('')
@@ -86,17 +87,19 @@ export function LLMApiPanel() {
 
   async function handleSelectProvider(provider: LLMProvider) {
     setLlmBaseUrl(provider.baseUrl)
-    setLlmApiKey(provider.apiKey)
+    // provider.apiKey 在 localStorage 中为空占位，需从后端 secret 异步加载
+    const apiKey = await getProviderApiKey(provider.id)
+    setLlmApiKey(apiKey)
     setLlmModel(provider.lastModel)
     setLlmModels(provider.models)
     setActiveProviderId(provider.id)
-    await saveLLMConfig({ baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.lastModel })
+    await saveLLMConfig({ baseUrl: provider.baseUrl, apiKey, model: provider.lastModel })
     setTestResult({ ok: true, msg: `已切换到「${provider.name}」` })
   }
 
-  function handleDeleteProvider(id: string, e: React.MouseEvent) {
+  async function handleDeleteProvider(id: string, e: React.MouseEvent) {
     e.stopPropagation()
-    const updated = deleteProvider(id)
+    const updated = await deleteProvider(id)
     setProviders(updated)
     if (activeProviderId === id) setActiveProviderId(null)
   }

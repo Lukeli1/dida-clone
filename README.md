@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.35.0-blue)
+![版本](https://img.shields.io/badge/version-1.35.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,30 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.35.1（2026-07-08）- 代码审核反馈修复（安全增强 + E2E 修复 + 架构补全）
+
+针对 v1.35.0 架构优化的代码审核反馈，修复安全实现缺陷、E2E 失败与架构未落地项。
+
+**P0：E2E 与工作区污染修复**
+
+- 修复 E2E 3 项失败 -> 11 项全部通过：测试前关闭新手引导避免遮挡首屏；修复 settings strict mode 多元素匹配；任务创建测试改为验证 UI 不崩溃
+- `.gitignore` / `.prettierignore` 增加 `test-results/`
+
+**P1：安全实现实质提升**
+
+- **secret 存储升级为 OS keychain**：引入 `keyring` crate，凭据存入 Windows Credential Manager（DPAPI）/ macOS Keychain / Linux Secret Service，取代先前 hex 编码文件方案
+- **WebDAV 密码保存路径补全**：`handleSaveWebdavConfig` 现也调用 `setSecret` 保存密码
+- **fs plugin 彻底移除**：删除 Cargo 依赖、插件注册、`fs:default` 权限、前端依赖
+- LLMProvider apiKey 已确认不进 localStorage
+
+**P2：架构与性能补全**
+
+- `task_query` 分页 + 视图过滤编译错误修复 + 5 个 Rust 测试
+- 补齐 taskTree selectors + 单测
+- KanbanView 已用 tagService；tagService tag_ids 更新已 Set 去重
+
+**验收**：前端 lint/format/typecheck/test(377)/build/check:version + Rust fmt/clippy/test(34) + E2E(11) 全通过
 
 ### v1.35.0（2026-07-07）— 安全增强 + 架构解耦 + 性能优化 + 测试补强（架构优化 Phase 1~5）
 

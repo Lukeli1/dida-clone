@@ -6,6 +6,7 @@ import { TaskActionProvider, type TaskActionContextValue } from '../contexts/Tas
 import { useTagStore } from '../stores/tagStore'
 import { useListStore } from '../stores/listStore'
 import { useTaskStore } from '../stores/taskStore'
+import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import { useToast } from './Toast'
 import type { TaskActions } from '../hooks/useTaskActions'
 
@@ -115,7 +116,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
     if (column === 'todo') {
       // 移出「进行中」：移除标签
       if (inProgressTagId != null && task.tag_ids?.includes(inProgressTagId)) {
-        await useTagStore.getState().removeTagFromTask(taskId, inProgressTagId)
+        await removeTagFromTask(taskId, inProgressTagId)
         toast.info('已移至待处理')
       }
     } else if (column === 'inprogress') {
@@ -123,7 +124,7 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
       if (inProgressTagId == null || !task.tag_ids?.includes(inProgressTagId)) {
         const tagId = await ensureInProgressTag()
         if (tagId != null) {
-          await useTagStore.getState().addTagToTask(taskId, tagId)
+          await addTagToTask(taskId, tagId)
           toast.info('已移至进行中')
         }
       }

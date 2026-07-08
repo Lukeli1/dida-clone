@@ -1,19 +1,22 @@
-//! 凭据安全存储命令（P1-08）
+//! 凭据安全存储命令（P1-08，P1-03 升级为 OS keychain）
 //!
-//! 将 LLM API Key、WebDAV 密码等敏感凭据从 localStorage / sync_config.json 明文存储
-//! 迁移到后端。后端在 app_data_dir 下维护 `secrets.json`，值以 base64 编码存储
-//! （与明文隔离，且文件位于用户专属目录，不随 sync_config 同步）。
+//! 使用 `keyring` crate 接入操作系统级凭据存储：
+//! - Windows：Credential Manager（DPAPI 加密）
+//! - macOS：Keychain
+//! - Linux：Secret Service（GNOME Keyring / KWallet）
 //!
-//! 命令：
-//! - `set_secret(key, value)`：写入凭据
-//! - `get_secret(key)`：读取凭据，不存在返回 null
-//! - `delete_secret(key)`：删除凭据
+//! 相比之前的 hex 编码文件存储，OS keychain 提供真正的加密与系统级访问控制。
+//! 若 keyring 在当前环境不可用（如无头 Linux 无 D-Bus），回退到 app_data_dir 下的
+//! secrets 文件（仅作降级，不保证安全，会记录警告）。
 
-use std::collections::HashMap;
+use keyring::Entry;
 use tauri::{AppHandle, Manager};
 
-/// 返回 secrets.json 的路径（app_data_dir/secrets.json）
-fn secrets_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+/// keyring service 名（统一命名空间）
+const SERVICE_NAME: &str = "com.dida.local";
+
+/// keyring 不可用时的文件回退路径
+fn fallback_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
@@ -22,84 +25,99 @@ fn secrets_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir.join("secrets.json"))
 }
 
-/// 读取整个 secrets map（key -> hex 编码的值）
-fn load_all(app: &AppHandle) -> HashMap<String, String> {
-    let path = match secrets_path(app) {
+fn load_fallback(app: &AppHandle) -> std::collections::HashMap<String, String> {
+    let path = match fallback_path(app) {
         Ok(p) => p,
-        Err(_) => return HashMap::new(),
+        Err(_) => return std::collections::HashMap::new(),
     };
     if !path.exists() {
-        return HashMap::new();
+        return std::collections::HashMap::new();
     }
     let content = std::fs::read_to_string(&path).unwrap_or_default();
-    serde_json::from_str::<HashMap<String, String>>(&content).unwrap_or_default()
+    serde_json::from_str::<std::collections::HashMap<String, String>>(&content).unwrap_or_default()
 }
 
-/// 写入整个 secrets map
-fn save_all(app: &AppHandle, map: &HashMap<String, String>) -> Result<(), String> {
-    let path = secrets_path(app)?;
+fn save_fallback(
+    app: &AppHandle,
+    map: &std::collections::HashMap<String, String>,
+) -> Result<(), String> {
+    let path = fallback_path(app)?;
     let content = serde_json::to_string_pretty(map).map_err(|e| format!("序列化失败: {}", e))?;
     std::fs::write(&path, content).map_err(|e| format!("写入 secrets.json 失败: {}", e))?;
     Ok(())
 }
 
-/// base64 编码（使用标准 base64 字符集，避免控制字符）
-fn b64_encode(input: &str) -> String {
-    // 使用一种简单的 base64 编码：依赖标准库无，这里手写替代——
-    // 实际上用 serde 不便引入 base64 crate，改用 hex 编码同样能达到"不明文"目的。
-    // 但 hex 体积翻倍；为简洁起见用 Rust 内置的 format 转义不可见字符不可行。
-    // 这里采用 byte -> hex 双字符编码。
-    let bytes = input.as_bytes();
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        out.push_str(&format!("{:02x}", b));
-    }
-    out
-}
-
-fn b64_decode(input: &str) -> Result<String, String> {
-    if !input.len().is_multiple_of(2) {
-        return Err("编码长度非法".to_string());
-    }
-    let mut bytes = Vec::with_capacity(input.len() / 2);
-    let chars: Vec<char> = input.chars().collect();
-    for i in (0..chars.len()).step_by(2) {
-        let hex = format!("{}{}", chars[i], chars[i + 1]);
-        let b = u8::from_str_radix(&hex, 16).map_err(|e| format!("解码失败: {}", e))?;
-        bytes.push(b);
-    }
-    String::from_utf8(bytes).map_err(|e| format!("UTF-8 解码失败: {}", e))
-}
-
+/// 写入凭据到 OS keychain（失败时回退到文件存储并警告）
 #[tauri::command]
 pub fn set_secret(app: AppHandle, key: String, value: String) -> Result<(), String> {
-    let mut map = load_all(&app);
-    map.insert(key, b64_encode(&value));
-    save_all(&app, &map)
-}
-
-#[tauri::command]
-pub fn get_secret(app: AppHandle, key: String) -> Result<Option<String>, String> {
-    let map = load_all(&app);
-    match map.get(&key) {
-        Some(encoded) => {
-            let value = b64_decode(encoded)?;
-            Ok(Some(value))
+    match Entry::new(SERVICE_NAME, &key) {
+        Ok(entry) => match entry.set_password(&value) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                eprintln!("[secret] keychain set_password 失败，回退到文件存储: {}", e);
+                let mut map = load_fallback(&app);
+                map.insert(key, value);
+                save_fallback(&app, &map)
+            }
+        },
+        Err(e) => {
+            eprintln!("[secret] keychain 不可用，回退到文件存储: {}", e);
+            let mut map = load_fallback(&app);
+            map.insert(key, value);
+            save_fallback(&app, &map)
         }
-        None => Ok(None),
     }
 }
 
+/// 从 OS keychain 读取凭据（失败时回退到文件存储）
+#[tauri::command]
+pub fn get_secret(app: AppHandle, key: String) -> Result<Option<String>, String> {
+    match Entry::new(SERVICE_NAME, &key) {
+        Ok(entry) => match entry.get_password() {
+            Ok(v) => Ok(Some(v)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => {
+                eprintln!("[secret] keychain get_password 失败，尝试文件回退: {}", e);
+                Ok(load_fallback(&app).get(&key).cloned())
+            }
+        },
+        Err(e) => {
+            eprintln!("[secret] keychain 不可用，尝试文件回退: {}", e);
+            Ok(load_fallback(&app).get(&key).cloned())
+        }
+    }
+}
+
+/// 从 OS keychain 删除凭据（失败时回退到文件存储）
 #[tauri::command]
 pub fn delete_secret(app: AppHandle, key: String) -> Result<(), String> {
-    let mut map = load_all(&app);
-    map.remove(&key);
-    save_all(&app, &map)
+    match Entry::new(SERVICE_NAME, &key) {
+        Ok(entry) => match entry.delete_credential() {
+            Ok(()) => Ok(()),
+            Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => {
+                eprintln!("[secret] keychain delete 失败，回退文件清理: {}", e);
+                let mut map = load_fallback(&app);
+                map.remove(&key);
+                save_fallback(&app, &map)
+            }
+        },
+        Err(e) => {
+            eprintln!("[secret] keychain 不可用，回退文件清理: {}", e);
+            let mut map = load_fallback(&app);
+            map.remove(&key);
+            save_fallback(&app, &map)
+        }
+    }
 }
 
 /// 内部同步读取凭据（供其他后端模块调用，如 webdav_commands 取 webdav_password）。
-/// 不经过 Tauri command 调用栈，直接读 secrets.json。
+/// 优先 keychain，失败回退文件。
 pub fn get_secret_internal(app: &AppHandle, key: &str) -> Option<String> {
-    let map = load_all(app);
-    map.get(key).and_then(|encoded| b64_decode(encoded).ok())
+    if let Ok(entry) = Entry::new(SERVICE_NAME, key) {
+        if let Ok(v) = entry.get_password() {
+            return Some(v);
+        }
+    }
+    load_fallback(app).get(key).cloned()
 }

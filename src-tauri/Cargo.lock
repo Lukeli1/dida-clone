@@ -775,11 +775,12 @@ dependencies = [
 
 [[package]]
 name = "dida-clone"
-version = "1.34.2"
+version = "1.35.0"
 dependencies = [
  "chrono",
  "font-loader",
  "git2",
+ "keyring",
  "open",
  "quick-xml 0.36.2",
  "reqwest 0.12.28",
@@ -790,7 +791,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-autostart",
  "tauri-plugin-dialog",
- "tauri-plugin-fs",
  "tauri-plugin-notification",
  "tokio",
 ]
@@ -2126,6 +2126,16 @@ dependencies = [
  "bitflags 2.13.0",
  "serde",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "keyring"
+version = "3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+dependencies = [
+ "log",
+ "zeroize",
 ]
 
 [[package]]

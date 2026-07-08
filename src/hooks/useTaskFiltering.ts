@@ -11,7 +11,14 @@ import { useTaskStore } from '../stores/taskStore'
 import { useFilterStore } from '../stores/filterStore'
 import { useUIStore } from '../stores/uiStore'
 import { matchTaskBySearch } from '../utils/taskSearch'
-import { selectTodayCount, selectArchivedCount, selectTaskCounts } from '../stores/selectors/taskSelectors'
+import {
+  selectTodayCount,
+  selectArchivedCount,
+  selectTaskCounts,
+  buildTaskTree,
+  selectCompletedTaskTree,
+  selectIncompleteTaskTree,
+} from '../stores/selectors/taskSelectors'
 
 /**
  * 统一的任务筛选 + 排序 + 树组装 hook
@@ -92,20 +99,8 @@ export function useTaskFiltering() {
   }, [tasks, selectedListId, selectedTagId, currentView, searchQuery, filters, hasActiveFilters])
 
   // ===== 树组装 =====
-  const taskTree = useMemo(() => {
-    const subtaskMap = new Map<number, Task[]>()
-    const topLevel: Task[] = []
-    for (const task of filteredTasks) {
-      if (task.parent_id) {
-        const arr = subtaskMap.get(task.parent_id)
-        if (arr) arr.push(task)
-        else subtaskMap.set(task.parent_id, [task])
-      } else {
-        topLevel.push(task)
-      }
-    }
-    return topLevel.map((task) => ({ ...task, subtasks: subtaskMap.get(task.id) || [] }))
-  }, [filteredTasks])
+  // ===== 任务树组装（调用 selector 纯函数，便于单测）=====
+  const taskTree = useMemo(() => buildTaskTree(filteredTasks), [filteredTasks])
 
   // ===== 过期任务 =====
   // 今日视图从全量 tasks 提取过期任务；全部任务视图从已筛选的 taskTree 提取
@@ -128,11 +123,11 @@ export function useTaskFiltering() {
       })
   }, [tasks, taskTree, currentView])
 
-  const completedTaskTree = useMemo(() => taskTree.filter((t) => t.completed), [taskTree])
-  const incompleteTaskTree = useMemo(() => {
-    const overdueIds = new Set(overdueTaskTree.map((t) => t.id))
-    return taskTree.filter((t) => !t.completed && !overdueIds.has(t.id))
-  }, [taskTree, overdueTaskTree])
+  const completedTaskTree = useMemo(() => selectCompletedTaskTree(taskTree), [taskTree])
+  const incompleteTaskTree = useMemo(
+    () => selectIncompleteTaskTree(taskTree, overdueTaskTree),
+    [taskTree, overdueTaskTree],
+  )
 
   // ===== 统计（调用 selectors 纯函数，便于单测覆盖）=====
   const todayCount = useMemo(() => selectTodayCount(tasks), [tasks])

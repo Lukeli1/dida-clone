@@ -44,3 +44,33 @@ export function selectOverdueTasks(tasks: Task[]): Task[] {
       return b.created_at.localeCompare(a.created_at)
     })
 }
+
+/**
+ * 任务树组装：把扁平任务列表按 parent_id 组装为顶层任务 + 子任务结构。
+ * 子任务挂到对应父任务的 subtasks 数组；无父的任务作为顶层。
+ */
+export function buildTaskTree(tasks: Task[]): Task[] {
+  const subtaskMap = new Map<number, Task[]>()
+  const topLevel: Task[] = []
+  for (const task of tasks) {
+    if (task.parent_id) {
+      const arr = subtaskMap.get(task.parent_id)
+      if (arr) arr.push(task)
+      else subtaskMap.set(task.parent_id, [task])
+    } else {
+      topLevel.push(task)
+    }
+  }
+  return topLevel.map((task) => ({ ...task, subtasks: subtaskMap.get(task.id) || [] }))
+}
+
+/** 已完成任务树（从 taskTree 过滤 completed） */
+export function selectCompletedTaskTree(taskTree: Task[]): Task[] {
+  return taskTree.filter((t) => t.completed)
+}
+
+/** 未完成且未过期的任务树（排除已完成与过期，过期由独立分组展示） */
+export function selectIncompleteTaskTree(taskTree: Task[], overdueTaskTree: Task[]): Task[] {
+  const overdueIds = new Set(overdueTaskTree.map((t) => t.id))
+  return taskTree.filter((t) => !t.completed && !overdueIds.has(t.id))
+}
