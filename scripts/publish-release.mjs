@@ -9,6 +9,10 @@
  * 1. 已设置环境变量 TAURI_SIGNING_PRIVATE_KEY 和 TAURI_SIGNING_PRIVATE_KEY_PASSWORD
  * 2. 已执行 npm run tauri build 生成了 bundle 产物
  * 3. 已安装 gh CLI 并登录（gh auth login）
+ *
+ * Tauri v2 updater 产物说明：
+ * - createUpdaterArtifacts: true 时，Tauri 生成 .exe 安装包 + .exe.sig 签名文件
+ * - 部分版本生成 .nsis.zip + .nsis.zip.sig，本脚本兼容两种情况
  */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -26,18 +30,30 @@ if (!version) {
 }
 
 const bundleDir = join(root, 'src-tauri/target/release/bundle/nsis')
-
-// 用 Node.js fs 查找 .nsis.zip 和 .sig 文件（兼容 Windows）
 const files = readdirSync(bundleDir)
-const zipFileName = files.find((f) => f.endsWith('.nsis.zip') && !f.endsWith('.sig'))
-const sigFileName = files.find((f) => f.endsWith('.nsis.zip.sig'))
 
-if (!zipFileName || !sigFileName) {
-  console.error('未找到 .nsis.zip 或 .sig 文件，请先执行 npm run tauri build')
+// 优先查找 .nsis.zip（旧版 Tauri），找不到则用 .exe（新版 Tauri v2.11+）
+let installerFileName = files.find((f) => f.endsWith('.nsis.zip') && !f.endsWith('.sig'))
+let sigFileName = files.find((f) => f.endsWith('.nsis.zip.sig'))
+
+if (!installerFileName) {
+  // 新版 Tauri：使用 .exe + .exe.sig
+  installerFileName = files.find(
+    (f) => f.endsWith('-setup.exe') && f.includes(version) && !f.endsWith('.sig'),
+  )
+  sigFileName = files.find(
+    (f) => f.endsWith('-setup.exe.sig') && f.includes(version),
+  )
+}
+
+if (!installerFileName || !sigFileName) {
+  console.error('未找到安装包或签名文件，请先执行 npm run tauri build')
+  console.error('查找目录:', bundleDir)
+  console.error('目录文件:', files)
   process.exit(1)
 }
 
-const zipFile = join(bundleDir, zipFileName)
+const installerFile = join(bundleDir, installerFileName)
 const sigFile = join(bundleDir, sigFileName)
 
 const signature = readFileSync(sigFile, 'utf8').trim()
@@ -51,7 +67,7 @@ const latestJson = {
   platforms: {
     'windows-x86_64': {
       signature,
-      url: `https://github.com/Lukeli1/dida-clone/releases/download/v${version}/${zipFileName}`,
+      url: `https://github.com/Lukeli1/dida-clone/releases/download/v${version}/${installerFileName}`,
     },
   },
 }
@@ -59,14 +75,22 @@ const latestJson = {
 const outputPath = join(root, 'latest.json')
 writeFileSync(outputPath, JSON.stringify(latestJson, null, 2))
 console.log(`✅ 已生成 ${outputPath}`)
+console.log(`   安装包: ${installerFileName}`)
+console.log(`   签名文件: ${sigFileName}`)
 
 // 上传到 GitHub Release
 const tag = `v${version}`
 console.log(`\n📦 创建 GitHub Release ${tag}...`)
-execSync(`gh release create ${tag} --title "v${version}" --notes "${notes}"`, { stdio: 'inherit', cwd: root })
+execSync(`gh release create ${tag} --title "v${version}" --notes "${notes}"`, {
+  stdio: 'inherit',
+  cwd: root,
+})
 
 console.log(`\n📤 上传安装包和 latest.json...`)
-execSync(`gh release upload ${tag} "${zipFile}" "${outputPath}"`, { stdio: 'inherit', cwd: root })
+execSync(`gh release upload ${tag} "${installerFile}" "${outputPath}"`, {
+  stdio: 'inherit',
+  cwd: root,
+})
 
 console.log(`\n✅ 发版完成！v${version} 已发布到 GitHub Releases`)
 console.log(`   用户启动应用后将自动检测到新版本`)
