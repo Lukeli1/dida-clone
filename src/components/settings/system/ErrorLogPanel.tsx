@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { isTauri } from '../../../api'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { exportTextFile } from '../../../api/fileApi'
 import type { ToastApi } from '../../Toast'
 import { loadErrorLogs, clearErrorLogs, exportErrorLogs, type ErrorLog } from '../../../utils/errorLogger'
 
@@ -49,28 +47,17 @@ export function ErrorLogPanel({ toast }: ErrorLogPanelProps) {
     toast.success('已清除错误日志')
   }
 
-  // ===== 导出日志：Tauri 环境使用原生保存对话框，否则浏览器下载 =====
+  // ===== 导出日志：通过后端受控命令保存（浏览器环境回退到 Blob 下载）=====
   async function handleExport() {
     const data = exportErrorLogs()
     const fileName = `error-logs-${new Date().toISOString().slice(0, 10)}.json`
     try {
-      if (isTauri) {
-        const filePath = await save({
-          defaultPath: fileName,
-          filters: [{ name: 'JSON', extensions: ['json'] }],
-        })
-        if (!filePath) return // 用户取消
-        await writeTextFile(filePath, data)
-      } else {
-        const blob = new Blob([data], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        a.click()
-        URL.revokeObjectURL(url)
-      }
-      toast.success('已导出错误日志')
+      const savedPath = await exportTextFile({
+        defaultName: fileName,
+        filters: [{ name: 'JSON', extensions: 'json' }],
+        content: data,
+      })
+      if (savedPath) toast.success('已导出错误日志')
     } catch (e) {
       console.error('导出错误日志失败', e)
       toast.error(`导出失败：${e instanceof Error ? e.message : String(e)}`)

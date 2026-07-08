@@ -53,11 +53,8 @@ export const useTagStore = create<TagState>((set) => ({
   addTagToTask: async (taskId, tagId) => {
     try {
       await api.addTagToTask(taskId, tagId)
-      // 本地同步更新 taskStore 中的 tag_ids，无需手动 reloadTasks
-      const { useTaskStore } = await import('./taskStore')
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, tag_ids: [...(t.tag_ids || []), tagId] } : t)),
-      }))
+      // 注意：taskStore 的 tag_ids 同步由 services/tagService.ts 统一负责，
+      // 此处不再动态 import taskStore（解耦 Store 互相修改，消除分包 dynamic import 警告）。
       return true
     } catch (error) {
       console.error('Failed to add tag to task:', error)
@@ -68,13 +65,7 @@ export const useTagStore = create<TagState>((set) => ({
   removeTagFromTask: async (taskId, tagId) => {
     try {
       await api.removeTagFromTask(taskId, tagId)
-      // 本地同步更新 taskStore 中的 tag_ids，无需手动 reloadTasks
-      const { useTaskStore } = await import('./taskStore')
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, tag_ids: t.tag_ids?.filter((tid) => tid !== tagId) || [] } : t,
-        ),
-      }))
+      // 同上，taskStore 同步交给 tagService
       return true
     } catch (error) {
       console.error('Failed to remove tag from task:', error)

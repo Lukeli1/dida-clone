@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.34.2-blue)
+![版本](https://img.shields.io/badge/version-1.35.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,44 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.35.0（2026-07-07）— 安全增强 + 架构解耦 + 性能优化 + 测试补强（架构优化 Phase 1~5）
+
+本次为向下兼容的 Minor 版本，聚焦安全边界、数据语义、架构解耦、查询性能与测试体系，无破坏性 API 改动。
+
+**Phase 1：数据语义与安全边界**
+
+- **任务字段清空语义修正**：后端 `task_update` 引入 `Option<Option<T>>` 双层 Patch DTO，区分"不更新 / 清空（NULL）/ 更新"三种语义；前端清空日期/提醒/重复规则时传 `null`，数据库正确存为 `NULL` 而非空字符串
+- **收紧 Tauri 文件权限**：新增后端 `file_commands`（`export_text_file`/`import_text_file` 受控读写，系统对话框 + 扩展名限制 + 拒绝目录）；移除前端 `@tauri-apps/plugin-fs` 直用；`capabilities/default.json` 删除 `fs:allow-write-text-file`/`read-text-file` 的 `"path": "**"` 任意路径权限
+- **凭据迁移后端安全存储**：新增后端 `secret_commands`（`set_secret`/`get_secret`/`delete_secret`，存 app_data_dir/secrets.json，hex 编码不明文）；LLM API Key 与 WebDAV 密码不再存 localStorage / sync_config.json 明文；前端 `secretApi` 统一访问
+
+**Phase 2：解耦 API / Store / localStorage**
+
+- **统一 invoke client**：新增 `src/api/invokeClient.ts`，所有 API 子模块通过统一入口调用 Tauri command（含错误归一化），非测试文件不再直接依赖 `@tauri-apps/api/core`
+- **service 层**：新增 `src/services/tagService.ts`，跨 Store 操作（给任务加/移标签后同步 taskStore）统一在 service 层完成，`tagStore` 不再动态 import `taskStore`，消除分包 dynamic import 警告
+- **统一 localStorage facade**：新增 `src/utils/storage.ts`（getItem/setItem/removeItem/getJSON/setJSON + 敏感 key 拒绝写入），业务代码不再裸用 `localStorage.*`
+
+**Phase 3：性能与可扩展性**
+
+- **任务查询优化**：`task_query` 标签关系从全表扫描 `SELECT ... FROM task_tags` 改为 `WHERE task_id IN (...)` 按需查询，只取当前任务 ID 的标签关系；新增 1000 任务 + 3000 标签关系测试
+- **前端 selector 优化**：新增 `src/stores/selectors/taskSelectors.ts`（todayCount/archivedCount/taskCounts/overdueTasks 纯函数），`useTaskFiltering` 调用 selectors，新增 7 个 selector 单测
+- **分包优化**：移除未用依赖 `rehype-raw`；函数式 `manualChunks` 把 react/react-dom 独立为 vendor chunk；**主入口 gzip 从 110KB 降至 81KB**（< 90KB 目标达成）
+
+**Phase 4：测试体系补强**
+
+- Playwright `webServer` 自动启动 dev server，无需手动 `npm run dev`
+- 关键组件加 `data-testid`（task-input / nav-calendar / nav-ai / nav-settings / sidebar-lists），E2E 改用 `getByTestId` 替代脆弱 CSS class 选择器
+- 扩充 E2E 覆盖：任务创建、视图切换、清单显示等关键路径
+
+**Phase 5：文档与发布治理**
+
+- 新增 `scripts/check-version.mjs` 版本一致性检查脚本，校验 package.json / Cargo.toml / tauri.conf.json / README badge 四处版本一致
+
+**验收结果**
+
+- 前端：lint(0 error) / format:check / typecheck / test(377 passed) / build / check:version 全部通过
+- Rust：cargo fmt / clippy(-D warnings) / test(31 passed) 全部通过
+- 安全：无 `localStorage.setItem('llm_api_key')`、无 `@tauri-apps/plugin-fs` 直用、无 `"path": "**"` 权限、无 `await import('./taskStore')`
 
 ### v1.34.2（2026-07-07）— 工具链与质量门禁修复（架构优化 Phase 0）
 

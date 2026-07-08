@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { getItem, setItem, removeItem } from '../utils/storage'
 import type { ViewType } from '../components/sidebar/types'
 
 /** 通知中心单条通知项 */
@@ -148,7 +149,7 @@ export const useUIStore = create<UIState>((set) => ({
   // 默认提醒偏移初始值从 localStorage 读取
   defaultReminderOffset: (() => {
     try {
-      const saved = localStorage.getItem('default_reminder_offset')
+      const saved = getItem('default_reminder_offset')
       const num = saved ? Number(saved) : 0
       return Number.isFinite(num) ? num : 0
     } catch {
@@ -159,7 +160,7 @@ export const useUIStore = create<UIState>((set) => ({
   // 初始值从 localStorage 读取
   customShortcuts: (() => {
     try {
-      const savedShortcuts = localStorage.getItem('customShortcuts')
+      const savedShortcuts = getItem('customShortcuts')
       return savedShortcuts ? JSON.parse(savedShortcuts) : {}
     } catch {
       return {}
@@ -239,7 +240,7 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => {
       const next = { ...state.customShortcuts, [id]: keys }
       try {
-        localStorage.setItem('customShortcuts', JSON.stringify(next))
+        setItem('customShortcuts', JSON.stringify(next))
       } catch {
         // 忽略 localStorage 写入失败
       }
@@ -248,7 +249,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   resetShortcuts: () => {
     try {
-      localStorage.removeItem('customShortcuts')
+      removeItem('customShortcuts')
     } catch {
       // 忽略 localStorage 删除失败
     }
@@ -261,7 +262,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   setDefaultReminderOffset: (offset) => {
     try {
-      localStorage.setItem('default_reminder_offset', String(offset))
+      setItem('default_reminder_offset', String(offset))
     } catch {
       // 忽略 localStorage 写入失败
     }

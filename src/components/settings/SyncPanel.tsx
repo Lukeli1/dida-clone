@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { syncApi, isTauri } from '../../api'
+import { getSecret, setSecret, SECRET_KEYS } from '../../api/secretApi'
 import type { SyncConfig, SyncStatus, SyncType } from '../../types/sync'
 import { Toggle } from './Toggle'
 import { SyncStatusPanel } from './SyncStatusPanel'
@@ -73,7 +74,9 @@ export default function SyncPanel() {
         setSyncType(cfg.sync_type === 'webdav' ? 'webdav' : 'git')
         setWebdavUrl(cfg.webdav_url || DEFAULT_WEBDAV_URL)
         setWebdavUsername(cfg.webdav_username || '')
-        setWebdavPassword(cfg.webdav_password || '')
+        // WebDAV 密码从后端 secret 读取（不再从 sync_config.json 明文读取）
+        const savedPwd = await getSecret(SECRET_KEYS.webdavPassword)
+        setWebdavPassword(savedPwd || '')
         setWebdavRemotePath(cfg.webdav_remote_path || DEFAULT_WEBDAV_REMOTE_PATH)
       }
       setStatus(st)
@@ -93,7 +96,9 @@ export default function SyncPanel() {
       sync_type: type,
       webdav_url: webdavUrl.trim() || null,
       webdav_username: webdavUsername.trim() || null,
-      webdav_password: webdavPassword || null,
+      // 密码不存入 sync_config.json（明文风险），改由后端 secret 存储；
+      // 此处置 null，后端 webdav 操作时从 secret 读取
+      webdav_password: null,
       webdav_remote_path: webdavRemotePath.trim() || DEFAULT_WEBDAV_REMOTE_PATH,
     }
   }
@@ -101,6 +106,10 @@ export default function SyncPanel() {
   async function saveConfig() {
     try {
       const cfg = buildConfig()
+      // WebDAV 密码单独存到后端 secret
+      if (webdavPassword) {
+        await setSecret(SECRET_KEYS.webdavPassword, webdavPassword)
+      }
       await syncApi.saveConfig(cfg)
       setConfig(cfg)
     } catch (e) {

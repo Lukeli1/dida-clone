@@ -3,10 +3,12 @@
 // 封装 sync.rs 核心函数为 Tauri command，供前端调用。
 // 配置文件路径使用 Tauri app_data_dir，不硬编码 Windows APPDATA。
 
+use crate::commands::secret_commands::get_secret_internal;
 use crate::sync::{self, SyncConfig, SyncStatus};
 use crate::webdav_sync::{WebDavClient, WebDavConfig};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 /// 同步配置 DTO（前端交互用，不含 local_path）
 #[derive(Debug, Serialize, Deserialize)]
@@ -266,15 +268,31 @@ pub fn get_sync_status_cmd(app_data_dir: String) -> Result<SyncStatusDto, String
 /// 默认 WebDAV 远程路径
 const CONFLICT_DEFAULT_REMOTE_PATH: &str = "/dida-clone/dida.db";
 
+/// WebDAV 密码的 secret key（与前端一致）
+const WEBDAV_PASSWORD_SECRET_KEY: &str = "webdav_password";
+
+/// 取 WebDAV 密码：优先用 sync_config 中的，为空则从后端 secret 读取。
+fn resolve_webdav_password(app: &AppHandle, config_password: &Option<String>) -> String {
+    if let Some(p) = config_password {
+        if !p.is_empty() {
+            return p.clone();
+        }
+    }
+    get_secret_internal(app, WEBDAV_PASSWORD_SECRET_KEY).unwrap_or_default()
+}
+
 /// 从 SyncConfig 构建 WebDavConfig
-fn build_webdav_config_from_config(config: &SyncConfig) -> Result<WebDavConfig, String> {
+fn build_webdav_config_from_config(
+    app: &AppHandle,
+    config: &SyncConfig,
+) -> Result<WebDavConfig, String> {
     Ok(WebDavConfig {
         url: config.webdav_url.clone().ok_or("未配置 WebDAV URL")?,
         username: config
             .webdav_username
             .clone()
             .ok_or("未配置 WebDAV 用户名")?,
-        password: config.webdav_password.clone().unwrap_or_default(),
+        password: resolve_webdav_password(app, &config.webdav_password),
         remote_path: config
             .webdav_remote_path
             .clone()
@@ -297,7 +315,11 @@ fn write_webdav_last_sync(app_data_dir: &str) {
 ///
 /// 根据 sync_type 自动选择 Git 或 WebDAV 执行方式。
 #[tauri::command]
-pub async fn resolve_sync_conflict(strategy: String, app_data_dir: String) -> Result<(), String> {
+pub async fn resolve_sync_conflict(
+    app: AppHandle,
+    strategy: String,
+    app_data_dir: String,
+) -> Result<(), String> {
     let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     match strategy.as_str() {
@@ -306,7 +328,7 @@ pub async fn resolve_sync_conflict(strategy: String, app_data_dir: String) -> Re
     }
 
     if config.is_webdav() {
-        resolve_webdav_conflict(&strategy, &config, &app_data_dir).await
+        resolve_webdav_conflict(&app, &strategy, &config, &app_data_dir).await
     } else {
         // Git 操作为阻塞调用，放到 spawn_blocking 中执行
         let strategy_clone = strategy.clone();
@@ -369,11 +391,12 @@ fn resolve_git_conflict(
 
 /// WebDAV 冲突解决（异步操作）
 async fn resolve_webdav_conflict(
+    app: &AppHandle,
     strategy: &str,
     config: &SyncConfig,
     app_data_dir: &str,
 ) -> Result<(), String> {
-    let webdav_config = build_webdav_config_from_config(config)?;
+    let webdav_config = build_webdav_config_from_config(app, config)?;
     let client = WebDavClient::new(webdav_config);
     let local_db = Path::new(app_data_dir).join("dida.db");
 

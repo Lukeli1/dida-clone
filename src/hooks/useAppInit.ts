@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../utils/storage'
 import { useEffect, useRef } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { api } from '../api'
@@ -53,7 +54,7 @@ export function useAppInit(toast: ToastApi) {
     // 习惯与模板数据由 HabitView / TemplateView 在视图挂载时按需加载，天然不阻塞首屏渲染；
     // 当前不存在 habitStore / templateStore，遵循“方法不存在则跳过”原则，不在此预加载。
 
-    const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system'
+    const savedTheme = (getItem('theme') as 'light' | 'dark' | 'system') || 'system'
     const root = document.documentElement
     if (
       savedTheme === 'dark' ||
@@ -84,8 +85,8 @@ export function useAppInit(toast: ToastApi) {
   // 通过 localStorage 标记确保只在首次启动时弹出权限请求，避免每次启动打扰用户。
   useEffect(() => {
     const requestedKey = 'notification_permission_requested'
-    if (localStorage.getItem(requestedKey)) return
-    localStorage.setItem(requestedKey, 'true')
+    if (getItem(requestedKey)) return
+    setItem(requestedKey, 'true')
 
     let cancelled = false
     async function initNotifications() {
@@ -162,14 +163,14 @@ export function useAppInit(toast: ToastApi) {
       // 周一作为本周 key（与 reports.period_start 一致）
       const [weekStart] = getWeekRange()
       const key = `weekly_report_${weekStart.toISOString().slice(0, 10)}`
-      if (localStorage.getItem(key)) return
+      if (getItem(key)) return
 
       // 始终用最新 store 状态，避免闭包捕获过期 tasks
       const tasks = useTaskStore.getState().tasks
       const id = await generateWeeklyReport(tasks)
       if (cancelled) return
       if (id !== null) {
-        localStorage.setItem(key, '1')
+        setItem(key, '1')
         toast.success('周报已生成，可在统计面板查看')
       }
     }

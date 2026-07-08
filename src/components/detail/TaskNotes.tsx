@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../../utils/storage'
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -13,7 +14,7 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
   const [notes, setNotes] = useState(task.notes || '')
   // 从 localStorage 读取用户偏好的模式，默认预览模式
   const [noteMode, setNoteMode] = useState<'edit' | 'preview'>(() => {
-    const saved = localStorage.getItem('taskNoteMode')
+    const saved = getItem('taskNoteMode')
     return saved === 'edit' ? 'edit' : 'preview'
   })
 
@@ -28,7 +29,7 @@ export function TaskNotes({ task, onUpdate }: TaskNotesProps) {
   // 切换模式并持久化用户偏好
   function handleModeChange(mode: 'edit' | 'preview') {
     setNoteMode(mode)
-    localStorage.setItem('taskNoteMode', mode)
+    setItem('taskNoteMode', mode)
   }
 
   return (

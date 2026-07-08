@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../utils/storage'
 // 主题持久化 hook：统一管理模式（浅色/深色/系统）+ 预设 + 强调色
 
 import { useState, useEffect, useCallback } from 'react'
@@ -34,13 +35,13 @@ function applyDarkClass(mode: ThemeMode): void {
 
 export function useTheme() {
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    return (localStorage.getItem(STORAGE_MODE) as ThemeMode) || 'system'
+    return (getItem(STORAGE_MODE) as ThemeMode) || 'system'
   })
   const [presetId, setPresetIdState] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_PRESET) || DEFAULT_PRESET_ID
+    return getItem(STORAGE_PRESET) || DEFAULT_PRESET_ID
   })
   const [accentColor, setAccentColorState] = useState<string | null>(() => {
-    return localStorage.getItem(STORAGE_ACCENT)
+    return getItem(STORAGE_ACCENT)
   })
 
   // 监听系统主题变化（system 模式下自动切换）
@@ -59,7 +60,7 @@ export function useTheme() {
 
   const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode)
-    localStorage.setItem(STORAGE_MODE, newMode)
+    setItem(STORAGE_MODE, newMode)
     applyDarkClass(newMode)
   }, [])
 

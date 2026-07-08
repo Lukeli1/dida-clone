@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from '../../utils/storage'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Task } from '../../types'
 import type { TimeEntry } from '../../api/timeTrackingApi'
@@ -58,7 +59,7 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
   /** 读取 localStorage 恢复计时状态 */
   const restoreTracking = useCallback(() => {
     try {
-      const raw = localStorage.getItem(storageKey)
+      const raw = getItem(storageKey)
       if (!raw) return
       const saved: TrackingState = JSON.parse(raw)
       if (saved && typeof saved.entryId === 'number' && typeof saved.startTs === 'number') {
@@ -129,7 +130,7 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       startTsRef.current = startTs
       setElapsed(0)
       const state: TrackingState = { entryId, startTs }
-      localStorage.setItem(storageKey, JSON.stringify(state))
+      setItem(storageKey, JSON.stringify(state))
     } catch (e: any) {
       toast.error(`开始计时失败: ${e.message || e}`)
     } finally {
@@ -143,7 +144,7 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
     setToggling(true)
     try {
       await timeTrackingApi.stopTimeTracking(activeEntryId)
-      localStorage.removeItem(storageKey)
+      removeItem(storageKey)
       setActiveEntryId(null)
       startTsRef.current = null
       setElapsed(0)

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 
 /**
  * 时间追踪记录（与后端 TimeEntry 结构体对齐）

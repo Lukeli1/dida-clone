@@ -1,6 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 import { isTauri, mockTasks, mockTaskTags, mockCounters } from './_shared'
-import type { Task, CreateTaskRequest, ReorderItem, CompleteResult } from '../types'
+import type { Task, CreateTaskRequest, ReorderItem, CompleteResult, UpdateTaskRequest } from '../types'
 
 export const taskApi = {
   getTasks: async (filter?: {
@@ -45,7 +45,7 @@ export const taskApi = {
     return await invoke<Task>('create_task', { req })
   },
 
-  updateTask: async (id: number, updates: Partial<Task>): Promise<void> => {
+  updateTask: async (id: number, updates: UpdateTaskRequest): Promise<void> => {
     if (!isTauri) {
       const index = mockTasks.findIndex((t) => t.id === id)
       if (index !== -1) {

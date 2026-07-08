@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 import type { Habit, HabitRecord, CreateHabitRequest, UpdateHabitRequest } from '../types'
 
 /**

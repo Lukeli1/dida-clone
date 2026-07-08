@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from '../../api/invokeClient'
 import { useWindowSize } from '../../hooks/useWindowSize'
 import {
   chat,
-  getLLMConfig,
+  getLLMConfigAsync,
   AI_SKILLS,
   formatTasksContext,
   ACTION_SYSTEM_PROMPT,
@@ -106,7 +106,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     // 开始新一轮对话，清除上一轮的偏好提示条
     setPendingPrefs(null)
 
-    const config = getLLMConfig()
+    const config = await getLLMConfigAsync()
     if (!config) {
       setMessages((prev) => [
         ...prev,

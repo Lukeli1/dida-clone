@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 import { listen } from '@tauri-apps/api/event'
 import type { ChatMessage } from '../types'
 import type { LLMConfig } from '../utils/llm'

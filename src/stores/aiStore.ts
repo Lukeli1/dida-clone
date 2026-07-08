@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { getItem, setItem } from '../utils/storage'
 import type { UIMessage } from '../components/ai/types'
 
 /** 最多保留的对话消息条数 */
@@ -9,7 +10,7 @@ const PREFERENCES_KEY = 'ai_preferences'
 /** 从 localStorage 读取历史对话，并截断到上限 */
 function loadMessages(): UIMessage[] {
   try {
-    const raw = localStorage.getItem(MESSAGES_KEY)
+    const raw = getItem(MESSAGES_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -22,7 +23,7 @@ function loadMessages(): UIMessage[] {
 /** 从 localStorage 读取用户偏好 */
 function loadPreferences(): string[] {
   try {
-    const raw = localStorage.getItem(PREFERENCES_KEY)
+    const raw = getItem(PREFERENCES_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -34,7 +35,7 @@ function loadPreferences(): string[] {
 
 function persistMessages(messages: UIMessage[]) {
   try {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages))
+    setItem(MESSAGES_KEY, JSON.stringify(messages))
   } catch {
     // 忽略 localStorage 写入失败（如隐私模式 / 配额超限）
   }
@@ -42,7 +43,7 @@ function persistMessages(messages: UIMessage[]) {
 
 function persistPreferences(preferences: string[]) {
   try {
-    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences))
+    setItem(PREFERENCES_KEY, JSON.stringify(preferences))
   } catch {
     // 忽略 localStorage 写入失败
   }

@@ -4,6 +4,7 @@ import { useTaskStore } from '../stores/taskStore'
 import { useListStore } from '../stores/listStore'
 import { useTagStore } from '../stores/tagStore'
 import { useUIStore } from '../stores/uiStore'
+import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import type { ToastApi } from '../components/Toast'
 import { useTaskCRUD } from './useTaskCRUD'
 import { useTaskReorder } from './useTaskReorder'
@@ -84,13 +85,14 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
     }
   }
 
+  // 给任务加/移除标签：改用 tagService 统一协调 tag API 与 taskStore（P2-10 解耦）
   async function handleAddTagToTask(taskId: number, tagId: number) {
-    const success = await useTagStore.getState().addTagToTask(taskId, tagId)
+    const success = await addTagToTask(taskId, tagId)
     if (!success) toast.error('添加标签失败')
   }
 
   async function handleRemoveTagFromTask(taskId: number, tagId: number) {
-    const success = await useTagStore.getState().removeTagFromTask(taskId, tagId)
+    const success = await removeTagFromTask(taskId, tagId)
     if (!success) toast.error('移除标签失败')
   }
 

@@ -18,6 +18,7 @@ export default tseslint.config(
       'vite.config.js',
       'vite.config.d.ts',
       '*.tsbuildinfo',
+      'scripts/**',
     ],
   },
   js.configs.recommended,

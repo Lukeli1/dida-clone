@@ -1,3 +1,4 @@
+import { getItem, setItem } from './storage'
 // 字体切换工具：预设列表、系统字体、持久化、应用
 
 export interface PresetFont {
@@ -63,7 +64,7 @@ export function getFontDisplayName(key: string): string {
 // 从 localStorage 读取字体设置，无记录时返回默认
 export function getFontSetting(): AppFontSetting {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = getItem(STORAGE_KEY)
     if (!raw) return { type: 'preset', key: 'system' }
     const parsed = JSON.parse(raw) as AppFontSetting
     if (parsed.type === 'preset' || parsed.type === 'system') return parsed
@@ -75,7 +76,7 @@ export function getFontSetting(): AppFontSetting {
 
 // 写入 localStorage
 export function saveFontSetting(setting: AppFontSetting): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(setting))
+  setItem(STORAGE_KEY, JSON.stringify(setting))
 }
 
 // 将字体应用到 document.documentElement 的 CSS 变量

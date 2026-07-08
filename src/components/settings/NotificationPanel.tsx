@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../../utils/storage'
 import { useState, useEffect } from 'react'
 import { Toggle } from './Toggle'
 import { useUIStore } from '../../stores/uiStore'
@@ -31,8 +32,8 @@ const PERMISSION_STATUS_META: Record<
 
 export function NotificationPanel() {
   const toast = useToast()
-  const [notifications, setNotifications] = useState(() => localStorage.getItem('notifications') !== 'false')
-  const [reminderSound, setReminderSound] = useState(() => localStorage.getItem('reminderSound') !== 'false')
+  const [notifications, setNotifications] = useState(() => getItem('notifications') !== 'false')
+  const [reminderSound, setReminderSound] = useState(() => getItem('reminderSound') !== 'false')
 
   // 默认提醒偏移由 uiStore 统一管理（含 localStorage 持久化）
   const defaultReminderOffset = useUIStore((s) => s.defaultReminderOffset)
@@ -44,10 +45,10 @@ export function NotificationPanel() {
   const [testing, setTesting] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem('notifications', String(notifications))
+    setItem('notifications', String(notifications))
   }, [notifications])
   useEffect(() => {
-    localStorage.setItem('reminderSound', String(reminderSound))
+    setItem('reminderSound', String(reminderSound))
   }, [reminderSound])
 
   // 组件挂载时获取权限状态

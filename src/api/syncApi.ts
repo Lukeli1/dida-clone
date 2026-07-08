@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 import { isTauri } from './_shared'
 import type { SyncConfig, SyncStatus, WebDavSyncResult } from '../types/sync'
 

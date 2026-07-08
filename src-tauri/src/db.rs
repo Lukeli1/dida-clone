@@ -96,7 +96,7 @@ pub fn init_db(app_data_dir: &str) -> Result<Connection> {
 /// 初始化数据库 schema：创建所有表、索引，并写入默认数据（默认清单与标签）。
 /// 从 init_db 中提取，便于单元测试使用内存数据库验证。
 #[allow(dead_code)]
-fn init_schema(conn: &Connection) -> Result<()> {
+pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
     // P0-1: 启用外键约束和 WAL 模式
     conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
 

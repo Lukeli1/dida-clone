@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { getItem, setItem, removeItem } from '../utils/storage'
 
 const MAX_HISTORY = 10
 const STORAGE_KEY = 'search_history'
@@ -16,7 +17,7 @@ const STORAGE_KEY = 'search_history'
 export function useSearchHistory() {
   const [history, setHistory] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const saved = getItem(STORAGE_KEY)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
@@ -28,7 +29,7 @@ export function useSearchHistory() {
     setHistory((prev) => {
       const filtered = prev.filter((h) => h !== term)
       const next = [term, ...filtered].slice(0, MAX_HISTORY)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      setItem(STORAGE_KEY, JSON.stringify(next))
       return next
     })
   }, [])
@@ -36,13 +37,13 @@ export function useSearchHistory() {
   const removeHistory = useCallback((term: string) => {
     setHistory((prev) => {
       const next = prev.filter((h) => h !== term)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      setItem(STORAGE_KEY, JSON.stringify(next))
       return next
     })
   }, [])
 
   const clearHistory = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY)
+    removeItem(STORAGE_KEY)
     setHistory([])
   }, [])
 

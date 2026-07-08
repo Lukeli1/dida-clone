@@ -1,5 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from '../api/invokeClient'
 import { isTauri } from '../api'
+import { getSecret, setSecret, deleteSecret, SECRET_KEYS } from '../api/secretApi'
+import { getItem, setItem } from './storage'
 import type { Task } from '../types'
 
 export interface LLMConfig {
@@ -14,24 +16,52 @@ const DEFAULT_BASE_URL = ''
 const DEFAULT_API_KEY = ''
 const DEFAULT_MODEL = ''
 
+/**
+ * 同步读取 LLM 配置（不含 apiKey，apiKey 改由 getLLMConfigAsync 异步从后端 secret 读取）。
+ *
+ * 用于“是否已配置 baseUrl + model”的快速判断，不涉及敏感凭据。
+ * 返回的 config.apiKey 始终为空字符串占位，真实 apiKey 请用 getLLMConfigAsync。
+ */
 export function getLLMConfig(): LLMConfig | null {
-  const baseUrl = localStorage.getItem('llm_base_url') || DEFAULT_BASE_URL
-  const apiKey = localStorage.getItem('llm_api_key') || DEFAULT_API_KEY
-  const model = localStorage.getItem('llm_model') || DEFAULT_MODEL
-  if (baseUrl && apiKey && model) {
-    const reasoning = localStorage.getItem('llm_reasoning') === 'true'
-    const reasoningEffort = (localStorage.getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
-    return { baseUrl, apiKey, model, reasoning, reasoningEffort }
+  const baseUrl = getItem('llm_base_url') || DEFAULT_BASE_URL
+  const model = getItem('llm_model') || DEFAULT_MODEL
+  if (baseUrl && model) {
+    const reasoning = getItem('llm_reasoning') === 'true'
+    const reasoningEffort = (getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
+    return { baseUrl, apiKey: '', model, reasoning, reasoningEffort }
   }
   return null
 }
 
-export function saveLLMConfig(config: LLMConfig) {
-  localStorage.setItem('llm_base_url', config.baseUrl)
-  localStorage.setItem('llm_api_key', config.apiKey)
-  localStorage.setItem('llm_model', config.model)
-  localStorage.setItem('llm_reasoning', String(config.reasoning ?? false))
-  localStorage.setItem('llm_reasoning_effort', config.reasoningEffort || 'medium')
+/**
+ * 异步读取完整 LLM 配置（含从后端 secret 存储读取的 apiKey）。
+ * 用于实际发起 LLM 请求（chat / llm_chat / llm_chat_stream）。
+ */
+export async function getLLMConfigAsync(): Promise<LLMConfig | null> {
+  const baseUrl = getItem('llm_base_url') || DEFAULT_BASE_URL
+  const model = getItem('llm_model') || DEFAULT_MODEL
+  if (!baseUrl || !model) return null
+  const apiKey = (await getSecret(SECRET_KEYS.llmApiKey)) || DEFAULT_API_KEY
+  if (!apiKey) return null
+  const reasoning = getItem('llm_reasoning') === 'true'
+  const reasoningEffort = (getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
+  return { baseUrl, apiKey, model, reasoning, reasoningEffort }
+}
+
+/**
+ * 保存 LLM 配置：baseUrl/model/reasoning 存 localStorage，apiKey 存后端 secret。
+ */
+export async function saveLLMConfig(config: LLMConfig): Promise<void> {
+  setItem('llm_base_url', config.baseUrl)
+  setItem('llm_model', config.model)
+  setItem('llm_reasoning', String(config.reasoning ?? false))
+  setItem('llm_reasoning_effort', config.reasoningEffort || 'medium')
+  // apiKey 走后端 secret 存储，不再写入 localStorage
+  if (config.apiKey) {
+    await setSecret(SECRET_KEYS.llmApiKey, config.apiKey)
+  } else {
+    await deleteSecret(SECRET_KEYS.llmApiKey)
+  }
 }
 
 /** 已保存的厂商配置 */
@@ -49,7 +79,7 @@ const PROVIDERS_KEY = 'llm_providers'
 
 export function getProviders(): LLMProvider[] {
   try {
-    const raw = localStorage.getItem(PROVIDERS_KEY)
+    const raw = getItem(PROVIDERS_KEY)
     if (!raw) return []
     return JSON.parse(raw)
   } catch {
@@ -58,7 +88,7 @@ export function getProviders(): LLMProvider[] {
 }
 
 function persistProviders(providers: LLMProvider[]) {
-  localStorage.setItem(PROVIDERS_KEY, JSON.stringify(providers))
+  setItem(PROVIDERS_KEY, JSON.stringify(providers))
 }
 
 export function saveProvider(name: string, config: LLMConfig, models: string[]): LLMProvider[] {
@@ -152,7 +182,7 @@ interface ChatPayload {
 }
 
 export async function chat(systemPrompt: string, userMessage: string, history?: ChatHistoryMessage[]): Promise<string> {
-  const config = getLLMConfig()
+  const config = await getLLMConfigAsync()
   if (!config) throw new Error('请先在设置中配置大模型 API')
 
   if (isTauri) {
@@ -261,7 +291,7 @@ export interface SubtaskSuggestion {
   priority?: number
 }
 
-export async function breakdownTask(title: string, notes?: string): Promise<SubtaskSuggestion[]> {
+export async function breakdownTask(title: string, notes?: string | null): Promise<SubtaskSuggestion[]> {
   const systemPrompt = `你是一个任务拆解助手。用户会给你一个任务，你需要将它拆解为 3-7 个具体的子任务。以 JSON 数组格式返回：
 [
   {"title": "子任务1", "priority": 2},
@@ -277,7 +307,10 @@ export async function breakdownTask(title: string, notes?: string): Promise<Subt
 }
 
 /** 优先级建议 */
-export async function suggestPriority(title: string, notes?: string): Promise<{ priority: number; reason: string }> {
+export async function suggestPriority(
+  title: string,
+  notes?: string | null,
+): Promise<{ priority: number; reason: string }> {
   const systemPrompt = `你是一个任务优先级顾问。根据任务标题和备注，建议一个优先级。以 JSON 格式返回：
 {"priority": 1, "reason": "建议原因"}
 优先级：1=高（紧急/重要），2=中，3=低。只返回 JSON。`

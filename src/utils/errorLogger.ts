@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from './storage'
 /**
  * 错误日志持久化工具（P11-09）
  *
@@ -34,7 +35,7 @@ export const MAX_LOGS = 50
  */
 export function loadErrorLogs(): ErrorLog[] {
   try {
-    const data = localStorage.getItem(LOG_KEY)
+    const data = getItem(LOG_KEY)
     return data ? (JSON.parse(data) as ErrorLog[]) : []
   } catch {
     return []
@@ -59,7 +60,7 @@ export function logError(error: Error, componentStack?: string): void {
     })
     // 限制最多 MAX_LOGS 条
     if (logs.length > MAX_LOGS) logs.length = MAX_LOGS
-    localStorage.setItem(LOG_KEY, JSON.stringify(logs))
+    setItem(LOG_KEY, JSON.stringify(logs))
   } catch {
     // localStorage 满或不可用时静默丢弃，避免日志记录本身引发二次错误
   }
@@ -70,7 +71,7 @@ export function logError(error: Error, componentStack?: string): void {
  */
 export function clearErrorLogs(): void {
   try {
-    localStorage.removeItem(LOG_KEY)
+    removeItem(LOG_KEY)
   } catch {
     // 忽略
   }

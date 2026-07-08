@@ -1,3 +1,4 @@
+import { getItem, setItem } from './storage'
 // 外观设置：字体大小、侧边栏密度
 
 export type FontSizeLevel = 'normal' | 'large' | 'xlarge'
@@ -32,7 +33,7 @@ export const DEFAULT_APPEARANCE: AppearanceSetting = {
 // 从 localStorage 读取
 export function getAppearance(): AppearanceSetting {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_APPEARANCE
     const parsed = JSON.parse(raw)
     return {
@@ -46,7 +47,7 @@ export function getAppearance(): AppearanceSetting {
 
 // 写入 localStorage
 export function saveAppearance(setting: AppearanceSetting): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(setting))
+  setItem(STORAGE_KEY, JSON.stringify(setting))
 }
 
 // 应用字体大小（通过 CSS zoom 全局缩放）

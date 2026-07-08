@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
-import { convertFileSrc } from '@tauri-apps/api/core'
+import { convertFileSrc } from '../../api/invokeClient'
 import { appDataDir } from '@tauri-apps/api/path'
 import type { Task } from '../../types'
 import type { Attachment } from '../../types/attachment'

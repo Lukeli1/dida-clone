@@ -2,12 +2,21 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Mock Tauri invoke —— llm.ts 与 api.ts 都从 @tauri-apps/api/core 引入 invoke，
 // 统一 mock 后两条导入链都会拿到同一个 mock 函数。
+// secretApi 也通过 invoke 调用 set_secret/get_secret，统一由此 mock 拦截。
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
 import { invoke } from '@tauri-apps/api/core'
-import { getLLMConfig, saveLLMConfig, formatTasksContext, deriveProviderName, chat, testConnection } from '../llm'
+import {
+  getLLMConfig,
+  getLLMConfigAsync,
+  saveLLMConfig,
+  formatTasksContext,
+  deriveProviderName,
+  chat,
+  testConnection,
+} from '../llm'
 import type { LLMConfig } from '../llm'
 import type { Task } from '../../types'
 
@@ -41,16 +50,14 @@ describe('getLLMConfig', () => {
     expect(getLLMConfig()).toBeNull()
   })
 
-  it('缺少任一必填项（baseUrl/apiKey/model）时返回 null', () => {
+  it('缺少 baseUrl 或 model 时返回 null（apiKey 不再作为必填项，改由 secret 异步读取）', () => {
     localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
-    localStorage.setItem('llm_api_key', 'sk-xxx')
     // 故意不设置 llm_model
     expect(getLLMConfig()).toBeNull()
   })
 
-  it('有完整配置时返回正确对象', () => {
+  it('有 baseUrl + model 时返回正确对象（apiKey 占位为空字符串，真实值走 getLLMConfigAsync）', () => {
     localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
-    localStorage.setItem('llm_api_key', 'sk-xxx')
     localStorage.setItem('llm_model', 'gpt-4')
     localStorage.setItem('llm_reasoning', 'true')
     localStorage.setItem('llm_reasoning_effort', 'high')
@@ -58,7 +65,7 @@ describe('getLLMConfig', () => {
     const config = getLLMConfig()
     expect(config).not.toBeNull()
     expect(config!.baseUrl).toBe('https://api.openai.com/v1')
-    expect(config!.apiKey).toBe('sk-xxx')
+    expect(config!.apiKey).toBe('') // 同步版本 apiKey 占位
     expect(config!.model).toBe('gpt-4')
     expect(config!.reasoning).toBe(true)
     expect(config!.reasoningEffort).toBe('high')
@@ -66,7 +73,6 @@ describe('getLLMConfig', () => {
 
   it('未设置 reasoning 时默认为 false、effort 默认为 medium', () => {
     localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
-    localStorage.setItem('llm_api_key', 'sk-xxx')
     localStorage.setItem('llm_model', 'gpt-4')
 
     const config = getLLMConfig()
@@ -76,12 +82,44 @@ describe('getLLMConfig', () => {
   })
 })
 
+describe('getLLMConfigAsync', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('apiKey 从后端 secret 异步读取', async () => {
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    // mock get_secret 返回 apiKey
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-async-key')
+      return Promise.resolve(null)
+    })
+
+    const config = await getLLMConfigAsync()
+    expect(config).not.toBeNull()
+    expect(config!.apiKey).toBe('sk-async-key')
+  })
+
+  it('secret 中无 apiKey 时返回 null', async () => {
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    vi.mocked(invoke).mockResolvedValue(null)
+
+    const config = await getLLMConfigAsync()
+    expect(config).toBeNull()
+  })
+})
+
 describe('saveLLMConfig', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.clearAllMocks()
+    vi.mocked(invoke).mockResolvedValue(undefined)
   })
 
-  it('保存后能通过 getLLMConfig 正确读取', () => {
+  it('保存后 baseUrl/model 写入 localStorage，apiKey 走 set_secret', async () => {
     const config: LLMConfig = {
       baseUrl: 'https://api.deepseek.com/v1',
       apiKey: 'sk-deepseek',
@@ -89,35 +127,34 @@ describe('saveLLMConfig', () => {
       reasoning: true,
       reasoningEffort: 'medium',
     }
-    saveLLMConfig(config)
+    await saveLLMConfig(config)
 
-    const loaded = getLLMConfig()
-    expect(loaded).toEqual(config)
+    expect(localStorage.getItem('llm_base_url')).toBe('https://api.deepseek.com/v1')
+    expect(localStorage.getItem('llm_model')).toBe('deepseek-chat')
+    expect(localStorage.getItem('llm_reasoning')).toBe('true')
+    // apiKey 不再写入 localStorage
+    expect(localStorage.getItem('llm_api_key')).toBeNull()
+    // apiKey 通过 set_secret 存到后端
+    expect(invoke).toHaveBeenCalledWith('set_secret', { key: 'llm_api_key', value: 'sk-deepseek' })
   })
 
-  it('保存时将各字段写入 localStorage 对应 key', () => {
-    saveLLMConfig({
-      baseUrl: 'https://api.openai.com/v1',
-      apiKey: 'sk-xxx',
-      model: 'gpt-4',
-      reasoning: false,
-      reasoningEffort: 'low',
-    })
-    expect(localStorage.getItem('llm_base_url')).toBe('https://api.openai.com/v1')
-    expect(localStorage.getItem('llm_api_key')).toBe('sk-xxx')
-    expect(localStorage.getItem('llm_model')).toBe('gpt-4')
-    expect(localStorage.getItem('llm_reasoning')).toBe('false')
-    expect(localStorage.getItem('llm_reasoning_effort')).toBe('low')
-  })
-
-  it('reasoning 未提供时写入 false', () => {
-    saveLLMConfig({
+  it('reasoning 未提供时写入 false', async () => {
+    await saveLLMConfig({
       baseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-xxx',
       model: 'gpt-4',
     })
     expect(localStorage.getItem('llm_reasoning')).toBe('false')
     expect(localStorage.getItem('llm_reasoning_effort')).toBe('medium')
+  })
+
+  it('apiKey 为空时调用 delete_secret', async () => {
+    await saveLLMConfig({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: '',
+      model: 'gpt-4',
+    })
+    expect(invoke).toHaveBeenCalledWith('delete_secret', { key: 'llm_api_key' })
   })
 })
 
@@ -205,26 +242,29 @@ describe('chat（mock invoke）', () => {
   })
 
   it('有配置时调用 invoke 并返回其结果', async () => {
-    saveLLMConfig({
-      baseUrl: 'https://api.openai.com/v1',
-      apiKey: 'sk-xxx',
-      model: 'gpt-4',
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    // get_secret 返回 apiKey，llm_chat 返回回复
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-xxx')
+      if (cmd === 'llm_chat') return Promise.resolve('AI 回复内容')
+      return Promise.resolve(null)
     })
-    vi.mocked(invoke).mockResolvedValue('AI 回复内容')
 
     const result = await chat('你是助手', '你好')
     expect(result).toBe('AI 回复内容')
   })
 
   it('invoke 接收正确的命令名和参数', async () => {
-    saveLLMConfig({
-      baseUrl: 'https://api.openai.com/v1',
-      apiKey: 'sk-xxx',
-      model: 'gpt-4',
-      reasoning: true,
-      reasoningEffort: 'high',
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    localStorage.setItem('llm_reasoning', 'true')
+    localStorage.setItem('llm_reasoning_effort', 'high')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-xxx')
+      if (cmd === 'llm_chat') return Promise.resolve('ok')
+      return Promise.resolve(null)
     })
-    vi.mocked(invoke).mockResolvedValue('ok')
 
     await chat('sys prompt', 'user msg', [{ role: 'user', content: '历史1' }])
 
@@ -244,12 +284,13 @@ describe('chat（mock invoke）', () => {
   })
 
   it('无 history 时传入空数组', async () => {
-    saveLLMConfig({
-      baseUrl: 'https://api.openai.com/v1',
-      apiKey: 'sk-xxx',
-      model: 'gpt-4',
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-xxx')
+      if (cmd === 'llm_chat') return Promise.resolve('ok')
+      return Promise.resolve(null)
     })
-    vi.mocked(invoke).mockResolvedValue('ok')
 
     await chat('sys', 'hi')
     expect(invoke).toHaveBeenCalledWith('llm_chat', expect.objectContaining({ history: [] }))

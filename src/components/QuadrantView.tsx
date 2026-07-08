@@ -39,7 +39,7 @@ const QUADRANTS: QuadrantConfig[] = [
 /**
  * 截止日期是否在 2 天内（含今天）或已逾期 —— 视为「紧急」。
  */
-function isDueSoon(dueDate: string | undefined): boolean {
+function isDueSoon(dueDate: string | null | undefined): boolean {
   if (!dueDate) return false
   const due = new Date(dueDate)
   if (isNaN(due.getTime())) return false

@@ -63,11 +63,11 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     setReminder(task.reminder || '')
   }, [task])
 
-  // 保存日程（截止时间 + 提醒）
+  // 保存日程（截止时间 + 提醒）：空字符串表示清空，传 null 让后端存 NULL
   function handleScheduleSave() {
     onUpdate(task.id, {
-      due_date: dueDate || undefined,
-      reminder: reminder || undefined,
+      due_date: dueDate || null,
+      reminder: reminder || null,
     })
   }
 
@@ -223,7 +223,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                   </button>
                 ))}
                 <button
-                  onClick={() => onUpdate(task.id, { repeat_rule: '' })}
+                  onClick={() => onUpdate(task.id, { repeat_rule: null })}
                   className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-tertiary)] transition-colors border border-[var(--color-border-light)]"
                 >
                   不重复

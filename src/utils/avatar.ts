@@ -1,20 +1,21 @@
+import { getItem, setItem, removeItem } from './storage'
 // 用户头像管理：上传、读取、删除
 
 const STORAGE_KEY = 'userAvatar'
 
 // 读取头像 data URL
 export function getAvatar(): string | null {
-  return localStorage.getItem(STORAGE_KEY)
+  return getItem(STORAGE_KEY)
 }
 
 // 保存头像 data URL
 export function setAvatar(dataUrl: string): void {
-  localStorage.setItem(STORAGE_KEY, dataUrl)
+  setItem(STORAGE_KEY, dataUrl)
 }
 
 // 删除头像
 export function removeAvatar(): void {
-  localStorage.removeItem(STORAGE_KEY)
+  removeItem(STORAGE_KEY)
 }
 
 // 从 File 对象读取为 data URL（base64），带尺寸压缩

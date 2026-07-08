@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from './storage'
 /**
  * 性能监控工具（P12-07）
  *
@@ -31,7 +32,7 @@ export const MAX_RECORDS = 200
  */
 export function getPerfRecords(): PerfRecord[] {
   try {
-    const data = localStorage.getItem(PERF_KEY)
+    const data = getItem(PERF_KEY)
     return data ? (JSON.parse(data) as PerfRecord[]) : []
   } catch {
     return []
@@ -47,7 +48,7 @@ export function recordPerf(name: string, duration: number): void {
     const records = getPerfRecords()
     records.unshift({ name, duration, timestamp: Date.now() })
     if (records.length > MAX_RECORDS) records.length = MAX_RECORDS
-    localStorage.setItem(PERF_KEY, JSON.stringify(records))
+    setItem(PERF_KEY, JSON.stringify(records))
   } catch {
     // localStorage 满或不可用时静默丢弃，避免性能记录本身引发二次错误
   }
@@ -58,7 +59,7 @@ export function recordPerf(name: string, duration: number): void {
  */
 export function clearPerfRecords(): void {
   try {
-    localStorage.removeItem(PERF_KEY)
+    removeItem(PERF_KEY)
   } catch {
     // 忽略
   }

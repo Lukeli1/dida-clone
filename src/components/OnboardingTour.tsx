@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../utils/storage'
 import { useState, useEffect } from 'react'
 import { Joyride, type Step, type EventData } from 'react-joyride'
 
@@ -55,7 +56,7 @@ export function OnboardingTour() {
   const [run, setRun] = useState(false)
 
   useEffect(() => {
-    const seen = localStorage.getItem('onboarding_seen')
+    const seen = getItem('onboarding_seen')
     if (!seen) {
       // 延迟 1 秒启动，确保 UI 已渲染
       const timer = setTimeout(() => setRun(true), 1000)
@@ -65,7 +66,7 @@ export function OnboardingTour() {
 
   function handleEvent(data: EventData) {
     if (data.status === 'finished' || data.status === 'skipped') {
-      localStorage.setItem('onboarding_seen', 'true')
+      setItem('onboarding_seen', 'true')
       setRun(false)
     }
   }

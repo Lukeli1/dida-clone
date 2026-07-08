@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 
 /** 导入结果：后端 import_json command 的返回值 */
 export interface ImportResult {

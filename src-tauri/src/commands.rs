@@ -12,11 +12,13 @@
 
 pub mod attachment_commands;
 mod data_commands;
+pub mod file_commands;
 pub mod goal_commands;
 mod habit_commands;
 mod list_commands;
 pub mod repeat_commands;
 pub mod report_commands;
+pub mod secret_commands;
 pub mod sync_commands;
 mod tag_commands;
 mod task_commands;
@@ -28,11 +30,13 @@ mod window_commands;
 
 pub use attachment_commands::*;
 pub use data_commands::*;
+pub use file_commands::*;
 pub use goal_commands::*;
 pub use habit_commands::*;
 pub use list_commands::*;
 pub use repeat_commands::*;
 pub use report_commands::*;
+pub use secret_commands::*;
 pub use sync_commands::*;
 pub use tag_commands::*;
 pub use task_commands::*;

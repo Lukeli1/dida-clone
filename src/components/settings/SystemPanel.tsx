@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { isTauri, dataApi } from '../../api'
+import { exportTextFile, importTextFile } from '../../api/fileApi'
 import type { ImportResult } from '../../api'
 import { isEnabled, enable, disable } from '@tauri-apps/plugin-autostart'
-import { save, open, confirm } from '@tauri-apps/plugin-dialog'
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'
 import { useToast } from '../Toast'
+import { useConfirm } from '../common/ConfirmDialog'
 import { Toggle } from './Toggle'
 import { DataPanel, type ExportFormat } from './system/DataPanel'
 import { CleanupPanel, type ImportModalState } from './system/CleanupPanel'
@@ -29,6 +29,7 @@ function formatImportResult(r: ImportResult): string {
 
 export function SystemPanel() {
   const toast = useToast()
+  const confirm = useConfirm()
   const [autoStart, setAutoStart] = useState(false)
   const [exporting, setExporting] = useState<ExportFormat | null>(null)
   const [importModal, setImportModal] = useState<ImportModalState>({
@@ -68,15 +69,13 @@ export function SystemPanel() {
         ext = 'md'
         label = 'Markdown'
       }
-      // 弹出保存对话框，让用户选择保存位置
-      const filePath = await save({
-        defaultPath: `dida-export-${todayStr()}.${ext}`,
-        filters: [{ name: label, extensions: [ext] }],
+      // 通过后端受控命令弹出保存对话框并写入（取代前端直接 plugin-fs）
+      const savedPath = await exportTextFile({
+        defaultName: `dida-export-${todayStr()}.${ext}`,
+        filters: [{ name: label, extensions: ext }],
+        content,
       })
-      if (!filePath) return // 用户取消
-      // 写入文件
-      await writeTextFile(filePath, content)
-      toast.success(`已导出 ${label} 文件`)
+      if (savedPath) toast.success(`已导出 ${label} 文件`)
     } catch (e) {
       console.error('导出失败', e)
       toast.error(`导出失败：${e instanceof Error ? e.message : String(e)}`)
@@ -88,14 +87,11 @@ export function SystemPanel() {
   // ===== 导入流程：选择文件 =====
   async function handleSelectFile() {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'JSON', extensions: ['json'] }],
+      const result = await importTextFile({
+        filters: [{ name: 'JSON', extensions: 'json' }],
       })
-      if (!selected) return // 用户取消
-      // 读取文件内容
-      const content = await readTextFile(selected)
-      const fileName = selected.split(/[\\/]/).pop() || selected
+      if (!result) return // 用户取消
+      const [fileName, content] = result
       setImportModal({ open: true, fileName, content, mode: 'merge' })
     } catch (e) {
       console.error('读取文件失败', e)
@@ -107,11 +103,12 @@ export function SystemPanel() {
   async function handleConfirmImport() {
     // 替换模式需要二次确认
     if (importModal.mode === 'replace') {
-      const confirmed = await confirm('替换将清空所有现有数据，确定继续？', {
+      const confirmed = await confirm({
+        message: '替换将清空所有现有数据，确定继续？',
         title: '确认替换',
-        kind: 'warning',
-        okLabel: '确定替换',
-        cancelLabel: '取消',
+        danger: true,
+        confirmText: '确定替换',
+        cancelText: '取消',
       })
       if (!confirmed) return
     }

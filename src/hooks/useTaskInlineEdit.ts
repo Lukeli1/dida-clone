@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTaskStore } from '../stores/taskStore'
+import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import { useTagStore } from '../stores/tagStore'
 import type { ToastApi } from '../components/Toast'
 
@@ -23,7 +24,7 @@ export function useTaskInlineEdit(toast: ToastApi) {
 
   // ===== 右键菜单快捷操作 =====
   async function handleSetDate(taskId: number, date: string | null) {
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? '' })
+    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? null })
     if (!success) toast.error('设置日期失败')
   }
 
@@ -33,12 +34,12 @@ export function useTaskInlineEdit(toast: ToastApi) {
   }
 
   async function handleSetRepeatRule(taskId: number, rule: string | null) {
-    const success = await useTaskStore.getState().updateTask(taskId, { repeat_rule: rule ?? '' })
+    const success = await useTaskStore.getState().updateTask(taskId, { repeat_rule: rule ?? null })
     if (!success) toast.error('设置重复规则失败')
   }
 
   async function handleSetReminder(taskId: number, reminder: string | null) {
-    const success = await useTaskStore.getState().updateTask(taskId, { reminder: reminder ?? '' })
+    const success = await useTaskStore.getState().updateTask(taskId, { reminder: reminder ?? null })
     if (!success) toast.error('设置提醒失败')
   }
 
@@ -51,9 +52,9 @@ export function useTaskInlineEdit(toast: ToastApi) {
     const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
     if (!task) return
     if (task.tag_ids?.includes(tagId)) {
-      await useTagStore.getState().removeTagFromTask(taskId, tagId)
+      await removeTagFromTask(taskId, tagId)
     } else {
-      await useTagStore.getState().addTagToTask(taskId, tagId)
+      await addTagToTask(taskId, tagId)
     }
   }
 

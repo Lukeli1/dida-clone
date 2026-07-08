@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from './storage'
 // 主题工具函数：应用预设、计算强调色变体、持久化
 
 import { THEME_PRESETS, THEME_VARIABLE_KEYS, DEFAULT_PRESET_ID } from '../styles/themes'
@@ -129,8 +130,8 @@ export function applyAccentColor(color: string): void {
  * 获取当前主题状态（从 localStorage 读取）
  */
 export function getCurrentTheme(): { presetId: string; accentColor: string | null } {
-  const presetId = localStorage.getItem(STORAGE_PRESET) || DEFAULT_PRESET_ID
-  const accentColor = localStorage.getItem(STORAGE_ACCENT)
+  const presetId = getItem(STORAGE_PRESET) || DEFAULT_PRESET_ID
+  const accentColor = getItem(STORAGE_ACCENT)
   return { presetId, accentColor }
 }
 
@@ -138,7 +139,7 @@ export function getCurrentTheme(): { presetId: string; accentColor: string | nul
  * 保存预设 ID 到 localStorage
  */
 export function savePresetId(presetId: string): void {
-  localStorage.setItem(STORAGE_PRESET, presetId)
+  setItem(STORAGE_PRESET, presetId)
 }
 
 /**
@@ -146,9 +147,9 @@ export function savePresetId(presetId: string): void {
  */
 export function saveAccentColor(color: string | null): void {
   if (color) {
-    localStorage.setItem(STORAGE_ACCENT, color)
+    setItem(STORAGE_ACCENT, color)
   } else {
-    localStorage.removeItem(STORAGE_ACCENT)
+    removeItem(STORAGE_ACCENT)
   }
 }
 
@@ -160,6 +161,6 @@ export function clearThemeOverride(): void {
   THEME_VARIABLE_KEYS.forEach((key) => {
     root.style.removeProperty(key)
   })
-  localStorage.removeItem(STORAGE_PRESET)
-  localStorage.removeItem(STORAGE_ACCENT)
+  removeItem(STORAGE_PRESET)
+  removeItem(STORAGE_ACCENT)
 }

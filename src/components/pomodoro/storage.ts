@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../../utils/storage'
 // ============ 类型定义 ============
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak'
@@ -55,7 +56,7 @@ export function getDurationSeconds(mode: TimerMode, s: PomodoroSettings): number
 
 export function loadSettings(): PomodoroSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_SETTINGS_KEY)
+    const raw = getItem(STORAGE_SETTINGS_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PomodoroSettings>
       return {
@@ -81,7 +82,7 @@ export function loadSettings(): PomodoroSettings {
 
 export function saveSettings(s: PomodoroSettings): void {
   try {
-    localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(s))
+    setItem(STORAGE_SETTINGS_KEY, JSON.stringify(s))
   } catch {
     // 忽略写入异常
   }
@@ -90,7 +91,7 @@ export function saveSettings(s: PomodoroSettings): void {
 export function loadStats(): PomodoroStats {
   const today = getTodayString()
   try {
-    const raw = localStorage.getItem(STORAGE_STATS_KEY)
+    const raw = getItem(STORAGE_STATS_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PomodoroStats>
       const totalSessions = typeof parsed.totalSessions === 'number' ? parsed.totalSessions : 0
@@ -113,7 +114,7 @@ export function loadStats(): PomodoroStats {
 
 export function saveStats(s: PomodoroStats): void {
   try {
-    localStorage.setItem(STORAGE_STATS_KEY, JSON.stringify(s))
+    setItem(STORAGE_STATS_KEY, JSON.stringify(s))
   } catch {
     // 忽略写入异常
   }

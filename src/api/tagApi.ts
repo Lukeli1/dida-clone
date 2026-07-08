@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from './invokeClient'
 import { isTauri, mockTags, mockTaskTags, mockCounters } from './_shared'
 import type { Tag, CreateTagRequest } from '../types'
 

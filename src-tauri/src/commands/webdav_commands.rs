@@ -3,6 +3,7 @@
 // 封装 webdav_sync.rs 核心函数为 Tauri command，供前端调用。
 // 同步策略：比较本地与远程数据库文件的修改时间，决定上传或下载。
 
+use crate::commands::secret_commands::get_secret_internal;
 use crate::commands::sync_commands::load_sync_config;
 use crate::webdav_sync::{WebDavClient, WebDavConfig};
 use chrono::{DateTime, Utc};
@@ -11,6 +12,20 @@ use tauri::{AppHandle, Emitter};
 
 /// 默认远程路径
 const DEFAULT_REMOTE_PATH: &str = "/dida-clone/dida.db";
+
+/// WebDAV 密码的 secret key（与前端 SECRET_KEYS.webdavPassword 一致）
+const WEBDAV_PASSWORD_SECRET_KEY: &str = "webdav_password";
+
+/// 取 WebDAV 密码：优先用 sync_config 中的（兼容旧数据），为空则从后端 secret 读取。
+/// 这样 sync_config.json 不再保存明文密码，密码统一存 secrets.json。
+fn resolve_webdav_password(app: &AppHandle, config_password: &Option<String>) -> String {
+    if let Some(p) = config_password {
+        if !p.is_empty() {
+            return p.clone();
+        }
+    }
+    get_secret_internal(app, WEBDAV_PASSWORD_SECRET_KEY).unwrap_or_default()
+}
 
 /// 从 sync_config.json 构建 WebDavConfig
 fn build_webdav_config_from_sync_config(
@@ -51,7 +66,7 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
         .webdav_username
         .clone()
         .ok_or("未配置 WebDAV 用户名")?;
-    let password = config.webdav_password.clone().unwrap_or_default();
+    let password = resolve_webdav_password(&app, &config.webdav_password);
     let remote_path = config
         .webdav_remote_path
         .clone()
@@ -129,12 +144,12 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
 
 /// 强制上传本地数据库到 WebDAV
 #[tauri::command]
-pub async fn webdav_upload(app_data_dir: String) -> Result<(), String> {
+pub async fn webdav_upload(app: AppHandle, app_data_dir: String) -> Result<(), String> {
     let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     let url = config.webdav_url.ok_or("未配置 WebDAV URL")?;
     let username = config.webdav_username.ok_or("未配置 WebDAV 用户名")?;
-    let password = config.webdav_password.unwrap_or_default();
+    let password = resolve_webdav_password(&app, &config.webdav_password);
     let remote_path = config
         .webdav_remote_path
         .unwrap_or_else(|| DEFAULT_REMOTE_PATH.to_string());
@@ -155,12 +170,12 @@ pub async fn webdav_upload(app_data_dir: String) -> Result<(), String> {
 
 /// 强制从 WebDAV 下载远程数据库
 #[tauri::command]
-pub async fn webdav_download(app_data_dir: String) -> Result<(), String> {
+pub async fn webdav_download(app: AppHandle, app_data_dir: String) -> Result<(), String> {
     let config = load_sync_config(&app_data_dir)?.ok_or("未配置同步")?;
 
     let url = config.webdav_url.ok_or("未配置 WebDAV URL")?;
     let username = config.webdav_username.ok_or("未配置 WebDAV 用户名")?;
-    let password = config.webdav_password.unwrap_or_default();
+    let password = resolve_webdav_password(&app, &config.webdav_password);
     let remote_path = config
         .webdav_remote_path
         .unwrap_or_else(|| DEFAULT_REMOTE_PATH.to_string());

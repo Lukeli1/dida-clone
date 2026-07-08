@@ -248,6 +248,11 @@ pub fn run() {
             commands::unlink_task_from_goal,
             commands::get_goal_progress,
             commands::get_task_goals,
+            commands::export_text_file,
+            commands::import_text_file,
+            commands::set_secret,
+            commands::get_secret,
+            commands::delete_secret,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

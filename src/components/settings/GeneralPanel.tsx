@@ -1,17 +1,18 @@
+import { getItem, setItem } from '../../utils/storage'
 import { useState, useEffect } from 'react'
 import { Toggle } from './Toggle'
 
 export function GeneralPanel() {
   const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() =>
-    localStorage.getItem('weekStart') === 'monday' ? 'monday' : 'sunday',
+    getItem('weekStart') === 'monday' ? 'monday' : 'sunday',
   )
-  const [confirmDelete, setConfirmDelete] = useState(() => localStorage.getItem('confirmDelete') !== 'false')
+  const [confirmDelete, setConfirmDelete] = useState(() => getItem('confirmDelete') !== 'false')
 
   useEffect(() => {
-    localStorage.setItem('weekStart', weekStart)
+    setItem('weekStart', weekStart)
   }, [weekStart])
   useEffect(() => {
-    localStorage.setItem('confirmDelete', String(confirmDelete))
+    setItem('confirmDelete', String(confirmDelete))
   }, [confirmDelete])
 
   return (

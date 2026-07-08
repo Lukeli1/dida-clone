@@ -77,6 +77,7 @@ export function TaskInputBar({
           <input
             ref={newTaskInputRef}
             type="text"
+            data-testid="task-input"
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !aiParsing && handleCreateTask()}

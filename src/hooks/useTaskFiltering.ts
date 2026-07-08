@@ -11,6 +11,7 @@ import { useTaskStore } from '../stores/taskStore'
 import { useFilterStore } from '../stores/filterStore'
 import { useUIStore } from '../stores/uiStore'
 import { matchTaskBySearch } from '../utils/taskSearch'
+import { selectTodayCount, selectArchivedCount, selectTaskCounts } from '../stores/selectors/taskSelectors'
 
 /**
  * 统一的任务筛选 + 排序 + 树组装 hook
@@ -133,21 +134,10 @@ export function useTaskFiltering() {
     return taskTree.filter((t) => !t.completed && !overdueIds.has(t.id))
   }, [taskTree, overdueTaskTree])
 
-  // ===== 统计 =====
-  const todayCount = useMemo(
-    () => tasks.filter((t) => !t.completed && !t.archived && t.due_date && dateFnsIsToday(new Date(t.due_date))).length,
-    [tasks],
-  )
-
-  const archivedCount = useMemo(() => tasks.filter((t) => t.archived).length, [tasks])
-
-  const taskCounts = useMemo(() => {
-    const counts: Record<number, number> = {}
-    tasks.forEach((t) => {
-      if (!t.completed) counts[t.list_id] = (counts[t.list_id] || 0) + 1
-    })
-    return counts
-  }, [tasks])
+  // ===== 统计（调用 selectors 纯函数，便于单测覆盖）=====
+  const todayCount = useMemo(() => selectTodayCount(tasks), [tasks])
+  const archivedCount = useMemo(() => selectArchivedCount(tasks), [tasks])
+  const taskCounts = useMemo(() => selectTaskCounts(tasks), [tasks])
 
   return {
     filteredTasks,

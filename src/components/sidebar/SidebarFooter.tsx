@@ -1,3 +1,4 @@
+import { removeItem } from '../../utils/storage'
 import { useState, useRef, useEffect } from 'react'
 import { getAvatar, setAvatar, removeAvatar, fileToAvatar } from '../../utils/avatar'
 import { useToast } from '../Toast'
@@ -158,7 +159,7 @@ export function AvatarSection() {
 // 底部固定栏：设置入口
 export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps) {
   function handleRestartTour() {
-    localStorage.removeItem('onboarding_seen')
+    removeItem('onboarding_seen')
     // 触发页面刷新以重新启动引导教程
     window.location.reload()
   }
@@ -187,6 +188,7 @@ export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps)
       </button>
       <button
         onClick={() => onViewChange('settings')}
+        data-testid="nav-settings"
         className={`settings-btn w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
           currentView === 'settings'
             ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'

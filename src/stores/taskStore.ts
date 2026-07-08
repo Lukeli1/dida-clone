@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Task, CreateTaskRequest } from '../types'
+import type { Task, CreateTaskRequest, UpdateTaskRequest } from '../types'
 import { api, repeatApi } from '../api'
 import { useUIStore } from './uiStore'
 
@@ -42,7 +42,7 @@ interface TaskState {
   setTasks: (tasks: Task[]) => void
   loadTasks: () => Promise<void>
   createTask: (req: CreateTaskRequest) => Promise<Task | null>
-  updateTask: (id: number, updates: Partial<Task>) => Promise<boolean>
+  updateTask: (id: number, updates: UpdateTaskRequest) => Promise<boolean>
   deleteTask: (id: number) => Promise<boolean>
   duplicateTask: (id: number) => Promise<Task | null>
   togglePin: (id: number) => Promise<boolean>
@@ -216,7 +216,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   moveTask: async (taskId, newDate) => {
     try {
       const task = get().tasks.find((t) => t.id === taskId)
-      const updates: Partial<Task> = { due_date: newDate }
+      const updates: UpdateTaskRequest = { due_date: newDate }
       if (task?.end_date && task?.due_date) {
         const duration = new Date(task.end_date).getTime() - new Date(task.due_date).getTime()
         updates.end_date = new Date(new Date(newDate).getTime() + duration).toISOString()

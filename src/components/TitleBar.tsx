@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeCommand as invoke } from '../api/invokeClient'
 import { useUIStore } from '../stores/uiStore'
 import { useWindowSize } from '../hooks/useWindowSize'
 

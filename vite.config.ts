@@ -19,12 +19,16 @@ export default defineConfig({
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          charts: ['recharts'],
-          markdown: ['react-markdown', 'remark-gfm', 'rehype-raw'],
-          date: ['date-fns'],
-          virtual: ['@tanstack/react-virtual'],
+        // P3-14: 函数式 manualChunks，把 react/react-dom 独立为 vendor chunk，
+        // 降低主入口 gzip 体积（目标 < 90KB）。
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) return 'charts'
+            if (id.includes('react-markdown') || id.includes('remark-gfm')) return 'markdown'
+            if (id.includes('date-fns')) return 'date'
+            if (id.includes('@tanstack/react-virtual')) return 'virtual'
+            if (id.includes('react') || id.includes('scheduler') || id.includes('react-dom')) return 'react-vendor'
+          }
         },
       },
     },

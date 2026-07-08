@@ -1,6 +1,6 @@
 {
   "name": "dida-clone",
-  "version": "1.34.2",
+  "version": "1.35.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,7 +18,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "check:version": "node scripts/check-version.mjs"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.3",
@@ -33,7 +34,6 @@
     "react-joyride": "^3.1.0",
     "react-markdown": "^10.1.0",
     "recharts": "^3.9.0",
-    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "zustand": "^5.0.14"
   },

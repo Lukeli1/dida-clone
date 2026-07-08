@@ -119,7 +119,7 @@ export function ListSection({
   }
 
   return (
-    <div className="sidebar-lists">
+    <div className="sidebar-lists" data-testid="sidebar-lists">
       <div className="flex items-center justify-between mb-2 px-3">
         <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">清单</p>
         <button

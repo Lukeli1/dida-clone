@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1, // 单线程
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:1420',
+    baseURL: 'http://127.0.0.1:1420',
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,6 +17,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  // 不启动 webServer，需要手动运行 npm run dev
-  // 或配置 webServer（但 Tauri 应用需要特殊处理）
+  // P4-15: 自动启动 Vite dev server，无需手动 npm run dev。
+  // CI 中每次新建，本地复用已运行实例。
+  webServer: {
+    command: 'npm run dev -- --host 127.0.0.1',
+    url: 'http://127.0.0.1:1420',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   getLLMConfig,
   saveLLMConfig,
@@ -9,13 +9,14 @@ import {
   deriveProviderName,
   type LLMProvider,
 } from '../../utils/llm'
+import { getSecret, SECRET_KEYS } from '../../api/secretApi'
 import { Toggle } from './Toggle'
 
 export function LLMApiPanel() {
-  // 大模型 API
+  // 大模型 API：baseUrl/model/reasoning 同步读取；apiKey 异步从后端 secret 加载
   const existingConfig = getLLMConfig()
   const [llmBaseUrl, setLlmBaseUrl] = useState(existingConfig?.baseUrl || '')
-  const [llmApiKey, setLlmApiKey] = useState(existingConfig?.apiKey || '')
+  const [llmApiKey, setLlmApiKey] = useState('')
   const [llmModel, setLlmModel] = useState(existingConfig?.model || '')
   const [llmModels, setLlmModels] = useState<string[]>([])
   const [testing, setTesting] = useState(false)
@@ -27,6 +28,18 @@ export function LLMApiPanel() {
   const [providers, setProviders] = useState<LLMProvider[]>(() => getProviders())
   const [providerName, setProviderName] = useState('')
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
+
+  // 首次挂载：异步从后端 secret 读取已保存的 apiKey，回填到输入框
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const key = await getSecret(SECRET_KEYS.llmApiKey)
+      if (!cancelled && key) setLlmApiKey(key)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleTestConnection() {
     if (!llmBaseUrl || !llmApiKey) {
@@ -42,7 +55,7 @@ export function LLMApiPanel() {
         setLlmModel(models[0])
       }
       setTestResult({ ok: true, msg: `连接成功，发现 ${models.length} 个模型` })
-      saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel || models[0] })
+      await saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel || models[0] })
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || String(e) })
     } finally {
@@ -50,8 +63,8 @@ export function LLMApiPanel() {
     }
   }
 
-  function handleSaveLlmConfig() {
-    saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort })
+  async function handleSaveLlmConfig() {
+    await saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort })
   }
 
   function handleSaveProvider() {
@@ -71,13 +84,13 @@ export function LLMApiPanel() {
     setTestResult({ ok: true, msg: `厂商「${name}」已保存` })
   }
 
-  function handleSelectProvider(provider: LLMProvider) {
+  async function handleSelectProvider(provider: LLMProvider) {
     setLlmBaseUrl(provider.baseUrl)
     setLlmApiKey(provider.apiKey)
     setLlmModel(provider.lastModel)
     setLlmModels(provider.models)
     setActiveProviderId(provider.id)
-    saveLLMConfig({ baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.lastModel })
+    await saveLLMConfig({ baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.lastModel })
     setTestResult({ ok: true, msg: `已切换到「${provider.name}」` })
   }
 
@@ -175,7 +188,7 @@ export function LLMApiPanel() {
                   model: llmModel,
                   reasoning: v,
                   reasoningEffort,
-                })
+                }).catch(() => {})
               }}
             />
           </div>
@@ -194,7 +207,7 @@ export function LLMApiPanel() {
                         model: llmModel,
                         reasoning,
                         reasoningEffort: e,
-                      })
+                      }).catch(() => {})
                     }}
                     className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
                       reasoningEffort === e

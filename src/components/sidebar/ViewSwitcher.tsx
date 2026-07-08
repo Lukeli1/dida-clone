@@ -190,6 +190,7 @@ export function ViewSwitcher({
             <button
               key={item.id}
               onClick={item.action}
+              data-testid={`nav-${item.id}`}
               className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
                 item.match
                   ? item.id === 'ai'

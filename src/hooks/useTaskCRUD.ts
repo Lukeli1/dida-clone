@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { endOfDay } from 'date-fns'
-import type { Task } from '../types'
+import type { Task, UpdateTaskRequest } from '../types'
 import { useTaskStore } from '../stores/taskStore'
 import { useListStore } from '../stores/listStore'
 import { useUIStore } from '../stores/uiStore'
@@ -23,7 +23,7 @@ export function useTaskCRUD(toast: ToastApi) {
     }
   }
 
-  async function handleUpdateTask(id: number, updates: Partial<Task>) {
+  async function handleUpdateTask(id: number, updates: UpdateTaskRequest) {
     const success = await useTaskStore.getState().updateTask(id, updates)
     if (!success) toast.error('更新任务失败')
   }
