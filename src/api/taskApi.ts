@@ -39,6 +39,7 @@ export const taskApi = {
         priority: req.priority ?? 2,
         due_date: req.due_date,
         end_date: req.end_date,
+        all_day: req.all_day ?? false,
         reminder: req.reminder,
         completed: false,
         archived: false,

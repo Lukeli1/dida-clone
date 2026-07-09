@@ -108,8 +108,8 @@ pub fn import_json(
         for task in tasks {
             let n = tx
                 .execute(
-                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                     params![
                         task.id,
                         task.title,
@@ -117,6 +117,7 @@ pub fn import_json(
                         task.priority,
                         task.due_date,
                         task.end_date,
+                        task.all_day,
                         task.reminder,
                         task.completed,
                         task.archived,

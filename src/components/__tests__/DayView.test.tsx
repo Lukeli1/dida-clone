@@ -23,6 +23,7 @@ function makeTask(id: number, overrides: Partial<Task> = {}): Task {
     priority: 0,
     due_date: dueDate,
     end_date: '2026-07-03T10:00:00',
+    all_day: false,
     reminder: null,
     completed: false,
     archived: false,
@@ -122,6 +123,6 @@ describe('DayView calendar task layout', () => {
     fireEvent.drop(screen.getByTestId('day-all-day-area'), {
       dataTransfer: { getData: () => '3', dropEffect: 'move' },
     })
-    expect(onMoveTask).toHaveBeenCalledWith(3, new Date(2026, 6, 3).toISOString())
+    expect(onMoveTask).toHaveBeenCalledWith(3, new Date(2026, 6, 3).toISOString(), { allDay: true })
   })
 })

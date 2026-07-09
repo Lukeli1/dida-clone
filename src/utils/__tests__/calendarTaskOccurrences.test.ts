@@ -17,6 +17,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     priority: 2,
     due_date: undefined,
     end_date: undefined,
+    all_day: false,
     reminder: undefined,
     completed: false,
     archived: false,
@@ -70,6 +71,17 @@ describe('calendar task occurrences', () => {
     const task = makeTask({ due_date: '2026-01-01T00:00:00', end_date: '2026-01-02T00:00:00' })
 
     const occurrences = splitTaskIntoOccurrences(task, new Date(2026, 0, 1), new Date(2026, 0, 2))
+
+    expect(isTaskAllDayLike(task)).toBe(true)
+    expect(isTaskMultiDay(task)).toBe(false)
+    expect(occurrences).toHaveLength(1)
+    expect(occurrences[0]).toMatchObject({ dateKey: '2026-01-01', segment: 'single', isAllDayLike: true })
+  })
+
+  it('显式 all_day=true 时不依赖午夜推导进入全天语义', () => {
+    const task = makeTask({ due_date: '2026-01-01T09:30:00', end_date: '2026-01-01T10:30:00', all_day: true })
+
+    const occurrences = splitTaskIntoOccurrences(task, new Date(2026, 0, 1), new Date(2026, 0, 1))
 
     expect(isTaskAllDayLike(task)).toBe(true)
     expect(isTaskMultiDay(task)).toBe(false)

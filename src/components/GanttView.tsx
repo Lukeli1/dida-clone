@@ -12,12 +12,13 @@ import {
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../types'
+import type { MoveTask } from './calendar/shared/types'
 
 interface GanttViewProps {
   tasks: Task[]
   lists: List[]
   onTaskClick: (taskId: number) => void
-  onMoveTask: (taskId: number, newDate: string) => void
+  onMoveTask: MoveTask
 }
 
 const DAY_WIDTH = 44 // 每天列宽

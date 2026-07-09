@@ -67,6 +67,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
   function handleScheduleSave() {
     onUpdate(task.id, {
       due_date: dueDate || null,
+      all_day: false,
       reminder: reminder || null,
     })
   }

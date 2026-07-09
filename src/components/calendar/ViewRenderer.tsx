@@ -1,7 +1,7 @@
 import type { Task, List } from '../../types'
 import type { ViewMode } from '../../utils/calendarUtils'
 import type { TaskActions } from '../../hooks/useTaskActions'
-import type { CreateTaskOnRangeData } from './shared/types'
+import type { CreateTaskOnRangeData, MoveTask } from './shared/types'
 import { MonthView } from './MonthView'
 import { WeekView } from './WeekView'
 import { DayView } from '../DayView'
@@ -21,7 +21,7 @@ export interface ViewRendererProps {
   lists: List[]
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
-  onMoveTask: (taskId: number, newDate: string) => void
+  onMoveTask: MoveTask
   onCreateTask: (date: string, title?: string) => void
   onCreateTaskOnRange: (data: CreateTaskOnRangeData) => void
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void

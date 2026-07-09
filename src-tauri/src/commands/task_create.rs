@@ -12,6 +12,8 @@ pub struct CreateTaskRequest {
     pub priority: Option<i64>,
     pub due_date: Option<String>,
     pub end_date: Option<String>,
+    #[serde(default)]
+    pub all_day: bool,
     pub reminder: Option<String>,
     pub list_id: i64,
     pub parent_id: Option<i64>,
@@ -25,14 +27,15 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
     conn.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             req.title,
             req.notes,
             req.priority.unwrap_or(2),
             req.due_date,
             req.end_date,
+            req.all_day,
             req.reminder,
             req.list_id,
             req.parent_id,
@@ -52,6 +55,7 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         priority: req.priority.unwrap_or(2),
         due_date: req.due_date,
         end_date: req.end_date,
+        all_day: req.all_day,
         reminder: req.reminder,
         completed: false,
         archived: false,

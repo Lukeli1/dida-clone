@@ -77,6 +77,7 @@ export function useTaskCRUD(toast: ToastApi) {
         title: parsed.title,
         list_id: listId,
         due_date: parsed.due_date || undefined,
+        all_day: false,
         priority: parsed.priority ?? 0,
         notes: parsed.notes || undefined,
       })
@@ -118,6 +119,7 @@ export function useTaskCRUD(toast: ToastApi) {
       title: smartResult.cleanedTitle,
       list_id: listId,
       due_date: dueDate || undefined,
+      all_day: false,
       priority: smartResult.priority ?? 0,
       repeat_rule: smartResult.repeatRule || undefined,
     })

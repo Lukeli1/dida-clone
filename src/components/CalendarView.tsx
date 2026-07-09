@@ -5,13 +5,14 @@ import { CalendarToolbar } from './calendar/CalendarToolbar'
 import { ViewRenderer } from './calendar/ViewRenderer'
 import { TaskSidebar } from './calendar/TaskSidebar'
 import type { TaskActions } from '../hooks/useTaskActions'
+import type { MoveTask } from './calendar/shared/types'
 
 interface CalendarViewProps {
   tasks: Task[]
   lists: List[]
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
-  onMoveTask: (taskId: number, newDate: string) => void
+  onMoveTask: MoveTask
   onCreateTask: (date: string, title?: string) => void
   onCreateTaskOnRange: (data: {
     dateKey: string

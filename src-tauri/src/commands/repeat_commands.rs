@@ -3,7 +3,7 @@
 use rusqlite::{params, Result};
 use tauri::State;
 
-use super::now_rfc3339;
+use super::{now_rfc3339, task_ops::shift_end_date};
 use crate::db::DbState;
 use crate::repeat;
 
@@ -29,13 +29,14 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
         i64,            // priority
         Option<String>, // due_date
         Option<String>, // end_date
+        bool,           // all_day
         Option<String>, // reminder
         i64,            // list_id
         Option<i64>,    // parent_id
         Option<String>, // repeat_rule
     ) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule
              FROM tasks WHERE id = ?1",
             params![task_id],
             |row| {
@@ -45,16 +46,17 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                     row.get(2)?,
                     row.get(3)?,
                     row.get(4)?,
-                    row.get(5)?,
+                    row.get::<_, i64>(5)? != 0,
                     row.get(6)?,
                     row.get(7)?,
                     row.get(8)?,
+                    row.get(9)?,
                 ))
             },
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule) =
+    let (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule) =
         task;
 
     // 2. 标记当前任务为已完成
@@ -88,18 +90,23 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                 }
                 let new_repeat_rule = repeat::serialize_rrule(&new_rule);
                 let next_due = next_dt.to_rfc3339();
+                let next_end = match (&due_date, &end_date) {
+                    (Some(old_due), Some(old_end)) => shift_end_date(old_due, old_end, &next_due),
+                    _ => None,
+                };
                 let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
                 tx.execute(
                     "INSERT INTO tasks
-                        (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, completed, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12)",
+                        (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, completed, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, ?12, ?13)",
                     params![
                         title,
                         notes,
                         priority,
                         next_due,
-                        end_date,
+                        next_end,
+                        all_day,
                         reminder,
                         list_id,
                         parent_id,

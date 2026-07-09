@@ -217,4 +217,59 @@ describe('MonthView 任务显示优化', () => {
     }
   })
 
+  it('drops timed tasks as timed tasks while preserving their time', () => {
+    const onMoveTask = vi.fn()
+    renderMonthView([makeTask(1, { title: '普通拖拽', due_date: '2026-07-03T14:30:00.000' })], { onMoveTask })
+
+    fireEvent.dragStart(screen.getByTestId('calendar-task-block-1'), {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
+    })
+    fireEvent.drop(screen.getByTestId('month-day-cell-2026-07-08'), {
+      dataTransfer: { getData: () => '1', dropEffect: 'move' },
+    })
+
+    expect(onMoveTask).toHaveBeenCalledWith(1, new Date(2026, 6, 8, 14, 30).toISOString(), { allDay: false })
+  })
+
+  it('keeps timed multi-day tasks timed when dropping their month bar', () => {
+    const onMoveTask = vi.fn()
+    const timedMultiDayTask = makeTask(8, {
+      title: '跨天计时拖拽',
+      due_date: '2026-07-03T22:00:00.000',
+      end_date: '2026-07-04T02:00:00.000',
+      all_day: false,
+    })
+
+    renderMonthView([timedMultiDayTask], { onMoveTask })
+
+    fireEvent.dragStart(screen.getByTestId('calendar-all-day-task-8'), {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
+    })
+    fireEvent.drop(screen.getByTestId('month-day-cell-2026-07-08'), {
+      dataTransfer: { getData: () => '8', dropEffect: 'move' },
+    })
+
+    expect(onMoveTask).toHaveBeenCalledWith(8, new Date(2026, 6, 8, 22, 0).toISOString(), { allDay: false })
+  })
+
+  it('drops all-day bars as all-day tasks on the target date', () => {
+    const onMoveTask = vi.fn()
+    const allDayTask = makeTask(7, {
+      title: '全天拖拽',
+      due_date: new Date(2026, 6, 3).toISOString(),
+      end_date: new Date(2026, 6, 5).toISOString(),
+      all_day: true,
+    })
+
+    renderMonthView([allDayTask], { onMoveTask })
+
+    fireEvent.dragStart(screen.getByTestId('calendar-all-day-task-7'), {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
+    })
+    fireEvent.drop(screen.getByTestId('month-day-cell-2026-07-08'), {
+      dataTransfer: { getData: () => '7', dropEffect: 'move' },
+    })
+
+    expect(onMoveTask).toHaveBeenCalledWith(7, new Date(2026, 6, 8).toISOString(), { allDay: true })
+  })
 })

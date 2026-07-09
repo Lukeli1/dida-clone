@@ -22,6 +22,7 @@ export async function executeAction(action: ActionOp, tasks: Task[]): Promise<st
       await api.createTask({
         title: data.title,
         due_date: data.due_date,
+        all_day: false,
         priority: data.priority ?? 0,
         notes: data.notes,
         list_id: listId,

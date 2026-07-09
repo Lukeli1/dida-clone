@@ -58,7 +58,7 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
 
     // 2. 查询所有任务（含 tag_ids）
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
     let mut tasks: Vec<Task> = stmt
         .query_map([], |row| {
@@ -69,16 +69,17 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
                 priority: row.get(3)?,
                 due_date: row.get(4)?,
                 end_date: row.get(5)?,
-                reminder: row.get(6)?,
-                completed: row.get(7)?,
-                archived: row.get::<_, i64>(8)? != 0,
-                pinned: row.get::<_, i64>(9)? != 0,
-                list_id: row.get(10)?,
-                parent_id: row.get(11)?,
-                repeat_rule: row.get(12)?,
-                sort_order: row.get(13)?,
-                created_at: row.get(14)?,
-                updated_at: row.get(15)?,
+                all_day: row.get::<_, i64>(6)? != 0,
+                reminder: row.get(7)?,
+                completed: row.get(8)?,
+                archived: row.get::<_, i64>(9)? != 0,
+                pinned: row.get::<_, i64>(10)? != 0,
+                list_id: row.get(11)?,
+                parent_id: row.get(12)?,
+                repeat_rule: row.get(13)?,
+                sort_order: row.get(14)?,
+                created_at: row.get(15)?,
+                updated_at: row.get(16)?,
                 tag_ids: Vec::new(),
             })
         })

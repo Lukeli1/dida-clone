@@ -9,13 +9,14 @@ import { useTaskStore } from '../stores/taskStore'
 import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import { useToast } from './Toast'
 import type { TaskActions } from '../hooks/useTaskActions'
+import type { MoveTask } from './calendar/shared/types'
 
 interface KanbanViewProps {
   tasks: Task[]
   lists: List[]
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
-  onMoveTask: (taskId: number, newDate: string) => void
+  onMoveTask: MoveTask
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
   actions: TaskActions
 }

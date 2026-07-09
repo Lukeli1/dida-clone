@@ -14,6 +14,7 @@ import {
 import { DayViewGrid } from './calendar/DayViewGrid'
 import { useTaskResize } from './calendar/useTaskResize'
 import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
+import type { MoveTask } from './calendar/shared/types'
 
 interface DayViewProps {
   currentDate: Date
@@ -25,7 +26,7 @@ interface DayViewProps {
   onPrevDay: () => void
   onNextDay: () => void
   onToday: () => void
-  onMoveTask: (taskId: number, newDate: string) => void
+  onMoveTask: MoveTask
   onCreateTaskOnRange: (data: {
     dateKey: string
     title: string
@@ -199,7 +200,7 @@ export function DayView({
       return
     }
     const iso = makeDropISODate(dateKey, e.clientY, columnRef.current)
-    if (iso) onMoveTask(taskId, iso)
+    if (iso) onMoveTask(taskId, iso, { allDay: false })
     setDraggedTaskId(null)
   }
 
@@ -211,7 +212,7 @@ export function DayView({
       return
     }
     const [year, month, day] = dateKey.split('-').map(Number)
-    onMoveTask(taskId, new Date(year, month - 1, day).toISOString())
+    onMoveTask(taskId, new Date(year, month - 1, day).toISOString(), { allDay: true })
     setDraggedTaskId(null)
   }
 

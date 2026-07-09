@@ -1,7 +1,7 @@
 import type { Task } from '../types'
 
 export type CalendarOccurrenceSegment = 'single' | 'start' | 'middle' | 'end'
-export type CalendarOccurrenceTask = Pick<Task, 'due_date' | 'end_date'>
+export type CalendarOccurrenceTask = Pick<Task, 'due_date' | 'end_date' | 'all_day'>
 
 export interface CalendarOccurrence<TTask extends CalendarOccurrenceTask = Task> {
   task: TTask
@@ -104,6 +104,8 @@ export function isTaskMultiDay(task: CalendarOccurrenceTask): boolean {
 }
 
 export function isTaskAllDayLike(task: CalendarOccurrenceTask): boolean {
+  if (task.all_day === true) return true
+
   const interval = getTaskInterval(task)
   if (!interval || !interval.hasDuration) return false
   if (!isMidnight(interval.start) || !isMidnight(interval.end)) return false

@@ -21,6 +21,7 @@ pub struct UpdateTaskRequest {
     pub priority: Option<i64>,
     pub due_date: Option<Option<String>>,
     pub end_date: Option<Option<String>>,
+    pub all_day: Option<bool>,
     pub reminder: Option<Option<String>>,
     pub reminder_minutes: Option<i64>,
     pub completed: Option<bool>,
@@ -65,6 +66,10 @@ pub fn update_task(
     if let Some(ref end_date) = updates.end_date {
         set_clauses.push("end_date = ?".to_string());
         params_vec.push(Box::new(end_date.clone()));
+    }
+    if let Some(all_day) = updates.all_day {
+        set_clauses.push("all_day = ?".to_string());
+        params_vec.push(Box::new(all_day));
     }
     if let Some(ref reminder) = updates.reminder {
         set_clauses.push("reminder = ?".to_string());

@@ -36,7 +36,7 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   async function handleDropToCalendarDate(taskId: number, dateKey: string) {
     const [year, month, day] = dateKey.split('-').map(Number)
     const dueDate = new Date(year, month - 1, day, 9, 0)
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: dueDate.toISOString() })
+    const success = await useTaskStore.getState().updateTask(taskId, { due_date: dueDate.toISOString(), all_day: false })
     if (success) toast.success(`已设置截止日期为 ${month}月${day}日`)
     else toast.error('设置截止日期失败')
   }
@@ -51,8 +51,8 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   }
 
   // ===== 日历视图移动任务 =====
-  async function handleMoveTask(taskId: number, newDate: string) {
-    const success = await useTaskStore.getState().moveTask(taskId, newDate)
+  async function handleMoveTask(taskId: number, newDate: string, options?: { allDay?: boolean }) {
+    const success = await useTaskStore.getState().moveTask(taskId, newDate, options)
     if (!success) toast.error('移动任务失败')
   }
 
@@ -65,6 +65,7 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
       title: title || '新任务',
       list_id: listId,
       due_date: date,
+      all_day: false,
     })
     if (newTask) {
       useUIStore.getState().setSelectedTaskId(newTask.id)
@@ -97,6 +98,7 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
         list_id: data.listId,
         due_date: dueDate.toISOString(),
         end_date: endDate.toISOString(),
+        all_day: false,
         reminder: reminder.toISOString(),
       })
       if (newTask) {

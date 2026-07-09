@@ -1,4 +1,4 @@
-use chrono::{Datelike, TimeZone};
+use chrono::{DateTime, Datelike, TimeZone};
 use rusqlite::{params, Result};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -44,15 +44,39 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
 
     // 查询任务详情
     #[allow(clippy::type_complexity)]
-    let task: (String, Option<String>, i64, Option<String>, Option<String>, i64, Option<String>, f64) = tx
+    let task: (
+        String,
+        Option<String>,
+        i64,
+        Option<String>,
+        Option<String>,
+        bool,
+        Option<String>,
+        i64,
+        Option<String>,
+        f64,
+    ) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
             params![id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get::<_, i64>(5)? != 0,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                ))
+            },
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, reminder, list_id, repeat_rule, _sort_order) = task;
+    let (title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, _sort_order) = task;
 
     // 标记当前任务为已完成
     tx.execute(
@@ -67,13 +91,17 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
             let next_due = due_date
                 .as_ref()
                 .and_then(|d| compute_next_due_date(d, rule));
+            let next_end = match (&due_date, &end_date, &next_due) {
+                (Some(old_due), Some(old_end), Some(new_due)) => shift_end_date(old_due, old_end, new_due),
+                _ => None,
+            };
 
             let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
 
             tx.execute(
-                "INSERT INTO tasks (title, notes, priority, due_date, reminder, list_id, repeat_rule, sort_order, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                params![title, notes, priority, next_due, reminder, list_id, repeat_rule, next_sort_order, now, now],
+                "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, sort_order, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![title, notes, priority, next_due, next_end, all_day, reminder, list_id, repeat_rule, next_sort_order, now, now],
             ).map_err(|e| e.to_string())?;
 
             let new_id = tx.last_insert_rowid();
@@ -150,6 +178,17 @@ fn compute_next_due_date(due_date: &str, rule: &str) -> Option<String> {
     };
 
     Some(next.to_rfc3339())
+}
+
+pub(crate) fn shift_end_date(old_due: &str, old_end: &str, new_due: &str) -> Option<String> {
+    let old_due = DateTime::parse_from_rfc3339(old_due).ok()?;
+    let old_end = DateTime::parse_from_rfc3339(old_end).ok()?;
+    let new_due = DateTime::parse_from_rfc3339(new_due).ok()?;
+    let duration = old_end.signed_duration_since(old_due);
+    if duration <= chrono::Duration::zero() {
+        return None;
+    }
+    Some((new_due + duration).to_rfc3339())
 }
 
 /// 根据自定义 JSON 重复规则计算下一个到期日期。
@@ -249,5 +288,32 @@ fn compute_next_from_json(
         }
 
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shift_end_date;
+
+    #[test]
+    fn shift_end_date_preserves_duration() {
+        let next_end = shift_end_date(
+            "2026-07-01T09:00:00+08:00",
+            "2026-07-01T11:30:00+08:00",
+            "2026-07-08T09:00:00+08:00",
+        );
+
+        assert_eq!(next_end.as_deref(), Some("2026-07-08T11:30:00+08:00"));
+    }
+
+    #[test]
+    fn shift_end_date_ignores_invalid_or_non_positive_ranges() {
+        assert!(shift_end_date(
+            "2026-07-01T09:00:00+08:00",
+            "2026-07-01T09:00:00+08:00",
+            "2026-07-08T09:00:00+08:00",
+        )
+        .is_none());
+        assert!(shift_end_date("bad", "2026-07-01T11:30:00+08:00", "2026-07-08T09:00:00+08:00").is_none());
     }
 }

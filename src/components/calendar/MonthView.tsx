@@ -17,7 +17,8 @@ import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { MonthDetailPopup } from './MonthDetailPopup'
 import { MonthMorePopover, type MonthMorePopoverPosition } from './MonthMorePopover'
-import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay, type CalendarOccurrence } from '../../utils/calendarTaskOccurrences'
+import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
+import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
 
 const MIN_MONTH_VISIBLE_TASKS = 2
@@ -30,85 +31,6 @@ const MONTH_TASK_ROW_GAP = 4
 interface DayTaskGroup {
   active: Task[]
   completed: Task[]
-}
-
-interface MonthAllDaySegment {
-  task: Task
-  startIndex: number
-  span: number
-  rowIndex: number
-  segment: CalendarOccurrence<Task>['segment']
-}
-
-function getMonthSegmentKind(
-  first: CalendarOccurrence<Task>,
-  last: CalendarOccurrence<Task>,
-): CalendarOccurrence<Task>['segment'] {
-  if (first.segment === 'start' && last.segment === 'end') return 'single'
-  if (first.segment === 'start') return 'start'
-  if (last.segment === 'end') return 'end'
-  return first.segment === 'single' && last.segment === 'single' ? 'single' : 'middle'
-}
-
-function getWeekAllDaySegments(week: Date[], occurrences: CalendarOccurrence<Task>[]): MonthAllDaySegment[] {
-  const dayIndexByKey = new Map(week.map((day, index) => [format(day, 'yyyy-MM-dd'), index]))
-  const occurrencesByTask = new Map<number, CalendarOccurrence<Task>[]>()
-
-  for (const occurrence of occurrences) {
-    if (!dayIndexByKey.has(occurrence.dateKey)) continue
-    const taskOccurrences = occurrencesByTask.get(occurrence.task.id) || []
-    taskOccurrences.push(occurrence)
-    occurrencesByTask.set(occurrence.task.id, taskOccurrences)
-  }
-
-  const segments: MonthAllDaySegment[] = []
-  occurrencesByTask.forEach((taskOccurrences) => {
-    const sorted = [...taskOccurrences].sort((a, b) => dayIndexByKey.get(a.dateKey)! - dayIndexByKey.get(b.dateKey)!)
-    let run: CalendarOccurrence<Task>[] = []
-    let previousIndex = -1
-
-    for (const occurrence of sorted) {
-      const index = dayIndexByKey.get(occurrence.dateKey)!
-      if (run.length > 0 && index !== previousIndex + 1) {
-        const first = run[0]
-        const last = run[run.length - 1]
-        const startIndex = dayIndexByKey.get(first.dateKey)!
-        segments.push({
-          task: first.task,
-          startIndex,
-          span: dayIndexByKey.get(last.dateKey)! - startIndex + 1,
-          rowIndex: 0,
-          segment: getMonthSegmentKind(first, last),
-        })
-        run = []
-      }
-      run.push(occurrence)
-      previousIndex = index
-    }
-
-    if (run.length > 0) {
-      const first = run[0]
-      const last = run[run.length - 1]
-      const startIndex = dayIndexByKey.get(first.dateKey)!
-      segments.push({
-        task: first.task,
-        startIndex,
-        span: dayIndexByKey.get(last.dateKey)! - startIndex + 1,
-        rowIndex: 0,
-        segment: getMonthSegmentKind(first, last),
-      })
-    }
-  })
-
-  const rowEndIndexes: number[] = []
-  return segments
-    .sort((a, b) => a.startIndex - b.startIndex || b.span - a.span || a.task.id - b.task.id)
-    .map((segment) => {
-      const rowIndex = rowEndIndexes.findIndex((endIndex) => endIndex < segment.startIndex)
-      const nextRowIndex = rowIndex === -1 ? rowEndIndexes.length : rowIndex
-      rowEndIndexes[nextRowIndex] = segment.startIndex + segment.span - 1
-      return { ...segment, rowIndex: nextRowIndex }
-    })
 }
 
 function getVisibleActiveTasks(group: DayTaskGroup, capacity: number, isCreating: boolean) {
@@ -271,15 +193,21 @@ export function MonthView({
     if (taskId) {
       const task = tasks.find((t) => t.id === taskId)
       const [year, month, day] = dateKey.split('-').map(Number)
-      let hour = 9
-      let minute = 0
-      if (task?.due_date) {
-        const oldDate = new Date(task.due_date)
-        hour = oldDate.getHours()
-        minute = oldDate.getMinutes()
+      const allDay = task ? isTaskAllDayLike(task) : false
+      if (allDay) {
+        const newDate = new Date(year, month - 1, day)
+        onMoveTask(taskId, newDate.toISOString(), { allDay: true })
+      } else {
+        let hour = 9
+        let minute = 0
+        if (task?.due_date) {
+          const oldDate = new Date(task.due_date)
+          hour = oldDate.getHours()
+          minute = oldDate.getMinutes()
+        }
+        const newDate = new Date(year, month - 1, day, hour, minute)
+        onMoveTask(taskId, newDate.toISOString(), { allDay: false })
       }
-      const newDate = new Date(year, month - 1, day, hour, minute)
-      onMoveTask(taskId, newDate.toISOString())
     }
     setDraggedTaskId(null)
   }
@@ -379,7 +307,7 @@ export function MonthView({
       <div ref={calendarGridRef} data-testid="month-calendar-grid" className="flex flex-1 flex-col overflow-y-auto">
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
-          const allDaySegments = getWeekAllDaySegments(week, monthAllDayOccurrences)
+          const allDaySegments = getAllDaySegmentsForDays(week, monthAllDayOccurrences)
           const allDayRowCount = allDaySegments.length > 0 ? Math.max(...allDaySegments.map((segment) => segment.rowIndex + 1)) : 0
           const rowMinHeight = 110 + allDayRowCount * 24
           return (
@@ -443,6 +371,7 @@ export function MonthView({
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, key)}
+                    data-testid={`month-day-cell-${key}`}
                     className={`group relative flex min-h-0 cursor-pointer flex-col overflow-hidden border-r border-[var(--color-border-light)] p-1.5 transition-colors last:border-r-0 ${
                       isDragOver
                         ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'

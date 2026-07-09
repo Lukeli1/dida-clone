@@ -17,8 +17,12 @@ export interface CreateTaskOnRangeData {
 /** 在时间范围内创建任务的回调签名 */
 export type CreateTaskOnRange = (data: CreateTaskOnRangeData) => void
 
+export interface MoveTaskOptions {
+  allDay?: boolean
+}
+
 /** 跨日期移动任务的回调签名 */
-export type MoveTask = (taskId: number, newDate: string) => void
+export type MoveTask = (taskId: number, newDate: string, options?: MoveTaskOptions) => void
 
 /** 更新任务字段的回调签名 */
 export type UpdateTask = (taskId: number, updates: Partial<Task>) => void

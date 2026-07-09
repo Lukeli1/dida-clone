@@ -185,8 +185,9 @@ export function CalendarTaskBlock({
   const shouldShowBadges = showBadges ?? true
 
   return (
-    <div
-      draggable={draggable}
+      <div
+        data-testid={`calendar-task-block-${task.id}`}
+        draggable={draggable}
       onDragStart={onDragStart}
       onClick={onTaskClick}
       className={`flex h-6 min-w-0 items-center gap-1 rounded px-1.5 text-[11px] cursor-grab active:cursor-grabbing select-none transition-opacity hover:opacity-80 ${

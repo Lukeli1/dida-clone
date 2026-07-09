@@ -333,8 +333,8 @@ pub fn apply_template(
     // 3) 插入主任务
     let priority = template.priority as i64;
     if let Err(e) = conn.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             template.title_template,
             template.notes_template,
@@ -360,8 +360,8 @@ pub fn apply_template(
     for sub in &subtask_templates {
         let sub_sort_order = chrono::Local::now().timestamp_millis() as f64;
         if let Err(e) = conn.execute(
-            "INSERT INTO tasks (title, notes, priority, due_date, end_date, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 sub.title,
                 None::<String>,
@@ -396,6 +396,7 @@ pub fn apply_template(
         priority,
         due_date: None,
         end_date: None,
+        all_day: false,
         reminder: None,
         completed: false,
         archived: false,

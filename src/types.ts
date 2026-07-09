@@ -6,6 +6,7 @@ export interface Task {
   priority: number
   due_date?: string | null
   end_date?: string | null
+  all_day?: boolean
   reminder?: string | null
   reminder_minutes?: number
   completed: boolean
@@ -44,6 +45,7 @@ export interface CreateTaskRequest {
   priority?: number
   due_date?: string
   end_date?: string
+  all_day?: boolean
   reminder?: string
   list_id: number
   parent_id?: number
@@ -81,6 +83,7 @@ export interface UpdateTaskRequest {
   due_date?: string | null
   /** null = 清空（存 NULL），undefined = 不更新，字符串 = 更新 */
   end_date?: string | null
+  all_day?: boolean
   /** null = 清空（存 NULL），undefined = 不更新，字符串 = 更新 */
   reminder?: string | null
   reminder_minutes?: number

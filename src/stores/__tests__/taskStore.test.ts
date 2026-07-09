@@ -29,6 +29,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     priority: 2,
     due_date: '2026-01-02T00:00:00.000Z',
     end_date: undefined,
+    all_day: false,
     reminder: undefined,
     completed: false,
     archived: false,
@@ -295,8 +296,39 @@ describe('taskStore', () => {
     const task = useTaskStore.getState().tasks[0]
     expect(task.due_date).toBe(newStart.toISOString())
     expect(task.end_date).toBe(expectedEnd.toISOString())
+    expect(task.all_day).toBe(true)
     expect(api.updateTask).toHaveBeenCalledWith(1, {
       due_date: newStart.toISOString(),
+      all_day: true,
+      end_date: expectedEnd.toISOString(),
+    })
+  })
+
+  it('moveTask 将全天任务移动到时间网格时清除全天语义', async () => {
+    const oldStart = new Date(2026, 0, 1)
+    const oldEnd = new Date(2026, 0, 2)
+    const newStart = new Date(2026, 1, 1, 9, 0)
+    const expectedEnd = new Date(2026, 1, 1, 10, 0)
+    useTaskStore.getState().setTasks([
+      makeTask({
+        id: 1,
+        due_date: oldStart.toISOString(),
+        end_date: oldEnd.toISOString(),
+        all_day: true,
+      }),
+    ])
+    vi.mocked(api.updateTask).mockResolvedValue()
+
+    const ok = await useTaskStore.getState().moveTask(1, newStart.toISOString(), { allDay: false })
+
+    expect(ok).toBe(true)
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.due_date).toBe(newStart.toISOString())
+    expect(task.all_day).toBe(false)
+    expect(task.end_date).toBe(expectedEnd.toISOString())
+    expect(api.updateTask).toHaveBeenCalledWith(1, {
+      due_date: newStart.toISOString(),
+      all_day: false,
       end_date: expectedEnd.toISOString(),
     })
   })

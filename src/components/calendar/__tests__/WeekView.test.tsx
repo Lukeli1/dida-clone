@@ -23,6 +23,7 @@ function makeTask(id: number, overrides: Partial<Task> = {}): Task {
     priority: 0,
     due_date: dueDate,
     end_date: '2026-07-03T10:00:00',
+    all_day: false,
     reminder: null,
     completed: false,
     archived: false,
@@ -99,23 +100,33 @@ describe('WeekView calendar task layout', () => {
   it('renders multi-day tasks in the all-day area and keeps callbacks working', () => {
     const onTaskClick = vi.fn()
     const onToggleTask = vi.fn()
+    const onMoveTask = vi.fn()
     const multiDay = makeTask(3, {
       title: '跨天周任务',
       due_date: '2026-07-02T22:00:00',
       end_date: '2026-07-04T02:00:00',
     })
 
-    const { container } = renderWeekView([multiDay], { onTaskClick, onToggleTask })
+    const { container } = renderWeekView([multiDay], { onTaskClick, onToggleTask, onMoveTask })
 
-    expect(screen.getAllByTestId('calendar-all-day-task-3')).toHaveLength(3)
+    const bars = screen.getAllByTestId('calendar-all-day-task-3')
+    expect(bars).toHaveLength(1)
+    expect(bars[0].style.left).toBe('calc(42.8571% + 4px)')
+    expect(bars[0].style.width).toBe('calc(42.8571% - 8px)')
     expect(Array.from(container.querySelectorAll('[data-task]')).some((el) => el.textContent?.includes('跨天周任务'))).toBe(
       false,
     )
 
-    fireEvent.click(screen.getAllByTestId('calendar-all-day-task-3')[1])
+    fireEvent.click(bars[0])
     expect(onTaskClick).toHaveBeenCalledWith(3)
 
     fireEvent.click(screen.getAllByRole('button', { name: '标记为已完成' })[0])
     expect(onToggleTask).toHaveBeenCalledWith(3)
+
+    fireEvent.drop(screen.getByTestId('week-time-column-2026-07-03'), {
+      clientY: 0,
+      dataTransfer: { getData: () => '3', dropEffect: 'move' },
+    })
+    expect(onMoveTask).toHaveBeenCalledWith(expect.any(Number), expect.any(String), { allDay: false })
   })
 })

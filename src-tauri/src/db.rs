@@ -13,6 +13,8 @@ pub struct Task {
     pub priority: i64,
     pub due_date: Option<String>,
     pub end_date: Option<String>,
+    #[serde(default)]
+    pub all_day: bool,
     pub reminder: Option<String>,
     pub completed: bool,
     pub archived: bool,
@@ -140,6 +142,7 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
     // 兼容已有数据库：使用辅助函数检查并添加缺失列
     add_column_if_not_exists(conn, "tasks", "sort_order", "REAL DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "end_date", "TEXT")?;
+    add_column_if_not_exists(conn, "tasks", "all_day", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "last_notified", "TEXT")?;

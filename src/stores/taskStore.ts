@@ -64,7 +64,7 @@ interface TaskState {
   togglePin: (id: number) => Promise<boolean>
   toggleTask: (task: Task) => Promise<{ success: boolean; newTaskGenerated: boolean }>
   reorderTasks: (items: { id: number; sort_order: number }[]) => Promise<boolean>
-  moveTask: (taskId: number, newDate: string) => Promise<boolean>
+  moveTask: (taskId: number, newDate: string, options?: { allDay?: boolean }) => Promise<boolean>
   reloadAll: () => Promise<void>
 }
 
@@ -229,18 +229,27 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  moveTask: async (taskId, newDate) => {
+  moveTask: async (taskId, newDate, options) => {
     try {
       const task = get().tasks.find((t) => t.id === taskId)
       const updates: UpdateTaskRequest = { due_date: newDate }
-      if (task?.end_date && task?.due_date) {
-        const oldStart = new Date(task.due_date)
-        const oldEnd = new Date(task.end_date)
-        const newStart = new Date(newDate)
-        const localWholeDaySpan = getLocalWholeDaySpan(oldStart, oldEnd)
-        if (localWholeDaySpan && isMidnight(newStart)) {
-          updates.end_date = addLocalDays(newStart, localWholeDaySpan).toISOString()
-        } else {
+      const oldStart = task?.due_date ? new Date(task.due_date) : null
+      const oldEnd = task?.end_date ? new Date(task.end_date) : null
+      const newStart = new Date(newDate)
+      const localWholeDaySpan = oldStart && oldEnd ? getLocalWholeDaySpan(oldStart, oldEnd) : null
+      const shouldMoveAsAllDay =
+        options?.allDay ?? (task?.all_day === true || Boolean(localWholeDaySpan && isMidnight(newStart)))
+
+      if (shouldMoveAsAllDay) {
+        const span = localWholeDaySpan ?? 1
+        updates.all_day = true
+        updates.due_date = newStart.toISOString()
+        updates.end_date = addLocalDays(newStart, span).toISOString()
+      } else {
+        updates.all_day = false
+        if (options?.allDay === false && (task?.all_day === true || localWholeDaySpan)) {
+          updates.end_date = new Date(newStart.getTime() + 60 * 60000).toISOString()
+        } else if (oldStart && oldEnd && oldEnd.getTime() > oldStart.getTime()) {
           const duration = oldEnd.getTime() - oldStart.getTime()
           updates.end_date = new Date(newStart.getTime() + duration).toISOString()
         }

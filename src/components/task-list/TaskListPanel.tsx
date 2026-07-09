@@ -163,7 +163,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const handlePostponeOverdue = useCallback(async () => {
     const todayStr = format(new Date(), "yyyy-MM-dd'T'00:00:00")
     for (const task of overdueTaskTree) {
-      await updateTask(task.id, { due_date: todayStr })
+      await updateTask(task.id, { due_date: todayStr, all_day: false })
     }
   }, [overdueTaskTree, updateTask])
 

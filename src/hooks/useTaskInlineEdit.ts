@@ -24,7 +24,7 @@ export function useTaskInlineEdit(toast: ToastApi) {
 
   // ===== 右键菜单快捷操作 =====
   async function handleSetDate(taskId: number, date: string | null) {
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? null })
+    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? null, all_day: false })
     if (!success) toast.error('设置日期失败')
   }
 
