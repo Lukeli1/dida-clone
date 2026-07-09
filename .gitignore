@@ -65,3 +65,13 @@ output/
 
 # Tauri updater 签名私钥（绝不提交）
 .tauri/
+
+# Local agent/tooling artifacts
+/.zcode/plans/
+/memory/
+/.trae-html-share-packages/
+
+# Temporary design/share artifacts
+/month-view-optimization/
+/pic/Snipaste_*.png
+/*.html.zip
