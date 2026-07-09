@@ -1,3 +1,5 @@
+export type TaskStatus = 'todo' | 'in_progress' | 'done'
+
 export interface Task {
   id: number
   title: string
@@ -8,8 +10,10 @@ export interface Task {
   end_date?: string | null
   all_day?: boolean
   reminder?: string | null
-  reminder_minutes?: number
+  reminder_minutes?: number | null
   completed: boolean
+  completed_at?: string | null
+  status?: TaskStatus
   archived?: boolean
   pinned?: boolean
   list_id: number
@@ -47,6 +51,7 @@ export interface CreateTaskRequest {
   end_date?: string
   all_day?: boolean
   reminder?: string
+  reminder_minutes?: number | null
   list_id: number
   parent_id?: number
   repeat_rule?: string
@@ -86,8 +91,12 @@ export interface UpdateTaskRequest {
   all_day?: boolean
   /** null = 清空（存 NULL），undefined = 不更新，字符串 = 更新 */
   reminder?: string | null
-  reminder_minutes?: number
+  /** null = 清空（存 NULL），undefined = 不更新，数字 = 更新 */
+  reminder_minutes?: number | null
   completed?: boolean
+  /** null = 清空（存 NULL），undefined = 不更新，字符串 = 更新 */
+  completed_at?: string | null
+  status?: TaskStatus
   archived?: boolean
   pinned?: boolean
   list_id?: number

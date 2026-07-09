@@ -58,7 +58,7 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
 
     // 2. 查询所有任务（含 tag_ids）
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
     let mut tasks: Vec<Task> = stmt
         .query_map([], |row| {
@@ -71,15 +71,18 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
                 end_date: row.get(5)?,
                 all_day: row.get::<_, i64>(6)? != 0,
                 reminder: row.get(7)?,
-                completed: row.get(8)?,
-                archived: row.get::<_, i64>(9)? != 0,
-                pinned: row.get::<_, i64>(10)? != 0,
-                list_id: row.get(11)?,
-                parent_id: row.get(12)?,
-                repeat_rule: row.get(13)?,
-                sort_order: row.get(14)?,
-                created_at: row.get(15)?,
-                updated_at: row.get(16)?,
+                reminder_minutes: row.get(8)?,
+                completed: row.get(9)?,
+                completed_at: row.get(10)?,
+                status: row.get(11)?,
+                archived: row.get::<_, i64>(12)? != 0,
+                pinned: row.get::<_, i64>(13)? != 0,
+                list_id: row.get(14)?,
+                parent_id: row.get(15)?,
+                repeat_rule: row.get(16)?,
+                sort_order: row.get(17)?,
+                created_at: row.get(18)?,
+                updated_at: row.get(19)?,
                 tag_ids: Vec::new(),
             })
         })

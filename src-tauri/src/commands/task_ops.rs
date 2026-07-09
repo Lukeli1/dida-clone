@@ -52,12 +52,13 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
         Option<String>,
         bool,
         Option<String>,
+        Option<i64>,
         i64,
         Option<String>,
         f64,
     ) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
             params![id],
             |row| {
                 Ok((
@@ -71,16 +72,17 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
                     row.get(7)?,
                     row.get(8)?,
                     row.get(9)?,
+                    row.get(10)?,
                 ))
             },
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, _sort_order) = task;
+    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, _sort_order) = task;
 
     // 标记当前任务为已完成
     tx.execute(
-        "UPDATE tasks SET completed = 1, updated_at = ?1 WHERE id = ?2",
+        "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
         params![now, id],
     )
     .map_err(|e| e.to_string())?;
@@ -99,9 +101,9 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
             let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
 
             tx.execute(
-                "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, repeat_rule, sort_order, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-                params![title, notes, priority, next_due, next_end, all_day, reminder, list_id, repeat_rule, next_sort_order, now, now],
+                "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, sort_order, completed, completed_at, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, NULL, 'todo', ?12, ?13)",
+                params![title, notes, priority, next_due, next_end, all_day, reminder, reminder_minutes, list_id, repeat_rule, next_sort_order, now, now],
             ).map_err(|e| e.to_string())?;
 
             let new_id = tx.last_insert_rowid();
@@ -294,6 +296,57 @@ fn compute_next_from_json(
 #[cfg(test)]
 mod tests {
     use super::shift_end_date;
+    use rusqlite::params;
+
+    #[test]
+    fn recurring_completion_sets_current_done_and_next_todo() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::init_schema(&conn).unwrap();
+        let now = "2026-07-01T00:00:00+08:00";
+        conn.execute(
+            "INSERT INTO tasks (title, due_date, reminder_minutes, repeat_rule, list_id, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)",
+            params!["重复任务", "2026-07-01T09:00:00+08:00", 15, "daily", now],
+        )
+        .unwrap();
+        let task_id = conn.last_insert_rowid();
+
+        conn.execute(
+            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
+            params![now, task_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO tasks (title, due_date, reminder_minutes, list_id, repeat_rule, completed, completed_at, status, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, 1, ?4, 0, NULL, 'todo', ?5, ?5)",
+            params!["重复任务", "2026-07-02T09:00:00+08:00", 15, "daily", now],
+        )
+        .unwrap();
+        let next_id = conn.last_insert_rowid();
+
+        let (completed, completed_at, status): (i64, Option<String>, String) = conn
+            .query_row(
+                "SELECT completed, completed_at, status FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(completed, 1);
+        assert_eq!(completed_at.as_deref(), Some(now));
+        assert_eq!(status, "done");
+
+        let (completed, completed_at, status, reminder_minutes): (i64, Option<String>, String, Option<i64>) = conn
+            .query_row(
+                "SELECT completed, completed_at, status, reminder_minutes FROM tasks WHERE id = ?1",
+                params![next_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
+        assert_eq!(completed_at, None);
+        assert_eq!(status, "todo");
+        assert_eq!(reminder_minutes, Some(15));
+    }
 
     #[test]
     fn shift_end_date_preserves_duration() {

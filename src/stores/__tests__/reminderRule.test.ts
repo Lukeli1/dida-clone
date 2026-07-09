@@ -24,7 +24,7 @@ import { api } from '../../api'
 const FIXED_DUE = '2026-06-30T10:00:00.000Z'
 
 // applyDefaultReminder 的输入类型，确保返回值可访问 reminder 字段
-type ReminderInput = { due_date?: string; reminder?: string | null }
+type ReminderInput = { due_date?: string; reminder?: string | null; reminder_minutes?: number | null }
 
 /** 计算 due_date - offsetMinutes 的 ISO 字符串（用于断言期望值） */
 function expectedReminder(dueDate: string, offsetMinutes: number): string {
@@ -71,6 +71,7 @@ describe('applyDefaultReminder', () => {
     useUIStore.setState({ defaultReminderOffset: 15 })
     const result = applyDefaultReminder<ReminderInput>({ due_date: FIXED_DUE })
     expect(result.reminder).toBe(expectedReminder(FIXED_DUE, 15))
+    expect(result.reminder_minutes).toBe(15)
   })
 
   it('offset=5 时正确计算 reminder = due_date - 5 分钟', () => {
@@ -146,6 +147,7 @@ describe('createTask 自动填充 reminder', () => {
       expect.objectContaining({
         due_date: FIXED_DUE,
         reminder: expectedReminder(FIXED_DUE, 15),
+        reminder_minutes: 15,
       }),
     )
   })

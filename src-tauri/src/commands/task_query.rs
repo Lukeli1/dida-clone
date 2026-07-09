@@ -99,7 +99,7 @@ pub fn get_tasks(
     };
 
     let sql = format!(
-        "SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC {}",
+        "SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC {}",
         where_clause, limit_clause
     );
 
@@ -118,15 +118,18 @@ pub fn get_tasks(
                 end_date: row.get(5)?,
                 all_day: row.get::<_, i64>(6)? != 0,
                 reminder: row.get(7)?,
-                completed: row.get(8)?,
-                archived: row.get::<_, i64>(9)? != 0,
-                pinned: row.get::<_, i64>(10)? != 0,
-                list_id: row.get(11)?,
-                parent_id: row.get(12)?,
-                repeat_rule: row.get(13)?,
-                sort_order: row.get(14)?,
-                created_at: row.get(15)?,
-                updated_at: row.get(16)?,
+                reminder_minutes: row.get(8)?,
+                completed: row.get(9)?,
+                completed_at: row.get(10)?,
+                status: row.get(11)?,
+                archived: row.get::<_, i64>(12)? != 0,
+                pinned: row.get::<_, i64>(13)? != 0,
+                list_id: row.get(14)?,
+                parent_id: row.get(15)?,
+                repeat_rule: row.get(16)?,
+                sort_order: row.get(17)?,
+                created_at: row.get(18)?,
+                updated_at: row.get(19)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -209,11 +212,11 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
 
     // 查询原任务所有字段
     #[allow(clippy::type_complexity)]
-    let task: (String, Option<String>, i64, Option<String>, Option<String>, bool, Option<String>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = tx
+    let task: (String, Option<String>, i64, Option<String>, Option<String>, bool, Option<String>, Option<i64>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
             params![id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get::<_, i64>(5)? != 0, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?, row.get(13)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get::<_, i64>(5)? != 0, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?, row.get(13)?, row.get(14)?)),
         )
         .map_err(|e| e.to_string())?;
 
@@ -225,6 +228,7 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         end_date,
         all_day,
         reminder,
+        reminder_minutes,
         _completed,
         _archived,
         _pinned,
@@ -236,9 +240,9 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
 
     // 插入副本：completed=false, archived=false, pinned=false
     tx.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13)",
-        params![title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, now, now],
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, 'todo', 0, 0, ?9, ?10, ?11, ?12, ?13, ?14)",
+        params![title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, sort_order, now, now],
     ).map_err(|e| e.to_string())?;
 
     let new_id = tx.last_insert_rowid();
@@ -271,7 +275,10 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         end_date,
         all_day,
         reminder,
+        reminder_minutes,
         completed: false,
+        completed_at: None,
+        status: "todo".to_string(),
         archived: false,
         pinned: false,
         list_id,

@@ -14,12 +14,16 @@ import { useUIStore } from './uiStore'
  * @param task 待处理的任务数据（Partial<Task> 或 CreateTaskRequest）
  * @returns 处理后的任务数据
  */
-export function applyDefaultReminder<T extends { due_date?: string; reminder?: string | null }>(task: T): T {
+export function applyDefaultReminder<T extends { due_date?: string; reminder?: string | null; reminder_minutes?: number | null }>(task: T): T {
   const offset = useUIStore.getState().defaultReminderOffset
   if (offset > 0 && task.due_date && !task.reminder) {
     const due = new Date(task.due_date)
     due.setMinutes(due.getMinutes() - offset)
-    return { ...task, reminder: due.toISOString() }
+    return {
+      ...task,
+      reminder: due.toISOString(),
+      reminder_minutes: 'reminder_minutes' in task ? task.reminder_minutes : offset,
+    }
   }
   return task
 }
@@ -185,6 +189,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   toggleTask: async (task) => {
     try {
       if (!task.completed && task.repeat_rule) {
+        const completedAt = new Date().toISOString()
         // 新 RRULE 格式（FREQ=...）使用 complete_recurring_task 命令；
         // 旧格式（JSON/字符串）仍走 complete_task 命令。
         const isRRule = task.repeat_rule.trim().startsWith('FREQ=')
@@ -194,7 +199,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         set((state) => ({
           tasks: state.tasks.map((t) =>
-            t.id === task.id ? { ...t, completed: true, updated_at: new Date().toISOString() } : t,
+            t.id === task.id
+              ? { ...t, completed: true, completed_at: completedAt, status: 'done', updated_at: completedAt }
+              : t,
           ),
         }))
         if (newTaskId) {
@@ -203,9 +210,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         }
         return { success: true, newTaskGenerated: false }
       }
-      await api.updateTask(task.id, { completed: !task.completed })
+      const completed = !task.completed
+      const completedAt = completed ? new Date().toISOString() : null
+      const updates: UpdateTaskRequest = {
+        completed,
+        completed_at: completedAt,
+        status: completed ? 'done' : 'todo',
+      }
+      await api.updateTask(task.id, updates)
       set((state) => ({
-        tasks: state.tasks.map((t) => (t.id === task.id ? { ...t, completed: !task.completed } : t)),
+        tasks: state.tasks.map((t) =>
+          t.id === task.id ? { ...t, ...updates, updated_at: completedAt ?? new Date().toISOString() } : t,
+        ),
       }))
       return { success: true, newTaskGenerated: false }
     } catch (error) {

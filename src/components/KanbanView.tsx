@@ -6,7 +6,6 @@ import { TaskActionProvider, type TaskActionContextValue } from '../contexts/Tas
 import { useTagStore } from '../stores/tagStore'
 import { useListStore } from '../stores/listStore'
 import { useTaskStore } from '../stores/taskStore'
-import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import { useToast } from './Toast'
 import type { TaskActions } from '../hooks/useTaskActions'
 import type { MoveTask } from './calendar/shared/types'
@@ -36,16 +35,12 @@ const COLUMNS: Column[] = [
   { key: 'done', title: '已完成', color: 'var(--color-success)', description: '已完成的任务' },
 ]
 
-/** 「进行中」标签名，看板据此判定任务状态。 */
-const INPROGRESS_TAG_NAME = '进行中'
-const INPROGRESS_TAG_COLOR = '#3B82F6'
-
 interface DropTarget {
   taskId: number
   position: 'before' | 'after'
 }
 
-export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }: KanbanViewProps) {
+export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onUpdateTask, actions }: KanbanViewProps) {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null)
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
@@ -58,18 +53,10 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
   const listMap = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
   const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
 
-  // 查找「进行中」标签 id（可能尚未创建）
-  const inProgressTagId = useMemo(() => tags.find((t) => t.name === INPROGRESS_TAG_NAME)?.id ?? null, [tags])
-
-  function taskHasInProgress(task: Task): boolean {
-    if (inProgressTagId == null) return false
-    return task.tag_ids?.includes(inProgressTagId) ?? false
-  }
-
-  // 任务所属列：已完成 → done；未完成且有「进行中」标签 → inprogress；否则 todo
+  // 任务所属列：优先读取 task.status，completed 作为兼容兜底
   function getColumnOf(task: Task): ColumnKey {
-    if (task.completed) return 'done'
-    if (taskHasInProgress(task)) return 'inprogress'
+    if (task.status === 'done' || task.completed) return 'done'
+    if (task.status === 'in_progress') return 'inprogress'
     return 'todo'
   }
 
@@ -90,16 +77,9 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
     result.done.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     return result
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, inProgressTagId])
+  }, [tasks])
 
-  /** 获取「进行中」标签 id，不存在则创建。返回 null 表示失败。 */
-  async function ensureInProgressTag(): Promise<number | null> {
-    if (inProgressTagId != null) return inProgressTagId
-    const newTag = await useTagStore.getState().createTag({ name: INPROGRESS_TAG_NAME, color: INPROGRESS_TAG_COLOR })
-    return newTag?.id ?? null
-  }
-
-  // ===== 拖拽：列间改变状态 =====
+  // ===== 拖拽：列间改变状态（使用原生 status） =====
   async function changeTaskColumn(taskId: number, column: ColumnKey) {
     const task = tasks.find((t) => t.id === taskId)
     if (!task) return
@@ -107,28 +87,28 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, actions }:
     if (currentColumn === column) return // 同列无需处理（列内排序另走 reorder）
 
     if (column === 'done') {
-      if (!task.completed) onToggleTask(taskId)
+      // 拖入已完成：复用完成逻辑，确保 completed/completed_at/status 一致
+      if (!task.completed) {
+        onToggleTask(taskId)
+      } else if (task.status !== 'done') {
+        onUpdateTask(taskId, { status: 'done', completed: true, completed_at: new Date().toISOString() })
+      }
+      toast.info('已移至已完成')
       return
     }
 
-    // 移到 todo / inprogress：先确保未完成
-    if (task.completed) onToggleTask(taskId)
-
     if (column === 'todo') {
-      // 移出「进行中」：移除标签
-      if (inProgressTagId != null && task.tag_ids?.includes(inProgressTagId)) {
-        await removeTagFromTask(taskId, inProgressTagId)
-        toast.info('已移至待处理')
-      }
-    } else if (column === 'inprogress') {
-      // 移入「进行中」：添加标签
-      if (inProgressTagId == null || !task.tag_ids?.includes(inProgressTagId)) {
-        const tagId = await ensureInProgressTag()
-        if (tagId != null) {
-          await addTagToTask(taskId, tagId)
-          toast.info('已移至进行中')
-        }
-      }
+      // 拖入待处理：status=todo, completed=false, completed_at=null
+      onUpdateTask(taskId, { status: 'todo', completed: false, completed_at: null })
+      toast.info('已移至待处理')
+      return
+    }
+
+    if (column === 'inprogress') {
+      // 拖入进行中：status=in_progress, completed=false, completed_at=null
+      onUpdateTask(taskId, { status: 'in_progress', completed: false, completed_at: null })
+      toast.info('已移至进行中')
+      return
     }
   }
 

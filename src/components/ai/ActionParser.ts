@@ -38,7 +38,7 @@ export async function executeAction(action: ActionOp, tasks: Task[]): Promise<st
       return `✅ 已删除任务 #${data.task_id}`
     }
     case 'complete_task': {
-      await api.updateTask(data.task_id, { completed: true })
+      await api.updateTask(data.task_id, { completed: true, completed_at: new Date().toISOString(), status: 'done' })
       return `✅ 已完成任务 #${data.task_id}`
     }
     case 'create_subtask': {

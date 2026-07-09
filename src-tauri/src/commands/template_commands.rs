@@ -333,8 +333,8 @@ pub fn apply_template(
     // 3) 插入主任务
     let priority = template.priority as i64;
     if let Err(e) = conn.execute(
-        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, 0, NULL, 'todo', ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             template.title_template,
             template.notes_template,
@@ -342,6 +342,7 @@ pub fn apply_template(
             None::<String>,    // due_date
             None::<String>,    // end_date
             None::<String>,    // reminder
+            template.reminder_minutes.map(i64::from),
             list_id,
             None::<i64>,       // parent_id
             None::<String>,    // repeat_rule
@@ -360,8 +361,8 @@ pub fn apply_template(
     for sub in &subtask_templates {
         let sub_sort_order = chrono::Local::now().timestamp_millis() as f64;
         if let Err(e) = conn.execute(
-            "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, 0, NULL, 'todo', ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 sub.title,
                 None::<String>,
@@ -369,6 +370,7 @@ pub fn apply_template(
                 None::<String>,
                 None::<String>,
                 None::<String>,
+                None::<i64>,
                 list_id,
                 task_id,           // parent_id
                 None::<String>,
@@ -398,7 +400,10 @@ pub fn apply_template(
         end_date: None,
         all_day: false,
         reminder: None,
+        reminder_minutes: template.reminder_minutes.map(i64::from),
         completed: false,
+        completed_at: None,
+        status: "todo".to_string(),
         archived: false,
         pinned: false,
         list_id,

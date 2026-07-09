@@ -37,6 +37,14 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
 
   const subtasks = task.subtasks || []
 
+  function getCompletionUpdates(completed: boolean): Partial<Task> {
+    return {
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      status: completed ? 'done' : 'todo',
+    }
+  }
+
   return (
     <div
       className={`grid transition-[grid-template-rows] duration-200 ease-out ${visible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
@@ -50,7 +58,7 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
                 <div key={subtask.id} className="group flex items-center gap-2 py-1">
                   <button
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onUpdate(subtask.id, { completed: !subtask.completed })}
+                    onClick={() => onUpdate(subtask.id, getCompletionUpdates(!subtask.completed))}
                     className={`w-4 h-4 shrink-0 rounded-sm border-2 flex items-center justify-center transition-colors ${
                       subtask.completed
                         ? 'bg-[var(--color-accent)] border-[var(--color-accent)]'

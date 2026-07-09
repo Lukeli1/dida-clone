@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.37.0-blue)
+![版本](https://img.shields.io/badge/version-1.38.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,14 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.38.0（2026-07-09）- 任务数据语义与详情编辑闭环
+
+- 补齐 `completed_at`、`status`、`reminder_minutes` 三个任务字段，区分完成时间与最后编辑时间，看板状态不再依赖标签模拟
+- 详情页日程面板增加全天开关，全天/跨天任务编辑后保持正确的全天语义，不再固定写入 `all_day: false`
+- 看板改为原生 `status` 驱动（todo/in_progress/done），拖拽切换列时同步 `status`、`completed`、`completed_at`，不再创建"进行中"标签
+- Rust 导入导出、重复任务生成、模板应用路径全部接入新字段，旧数据自动兼容
+- 新增 SchedulePanel 全天编辑测试（10 用例）和 KanbanView status 驱动测试（7 用例）
 
 ### v1.37.0（2026-07-09）- 日历任务视图显示优化
 

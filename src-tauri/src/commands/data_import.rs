@@ -106,10 +106,22 @@ pub fn import_json(
     let mut tasks_imported = 0usize;
     if let Some(ref tasks) = data.tasks {
         for task in tasks {
+            let status = if task.completed {
+                "done"
+            } else if matches!(task.status.as_str(), "todo" | "in_progress") {
+                task.status.as_str()
+            } else {
+                "todo"
+            };
+            let completed_at = if task.completed {
+                task.completed_at.as_ref()
+            } else {
+                None
+            };
             let n = tx
                 .execute(
-                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
                     params![
                         task.id,
                         task.title,
@@ -119,7 +131,10 @@ pub fn import_json(
                         task.end_date,
                         task.all_day,
                         task.reminder,
+                        task.reminder_minutes,
                         task.completed,
+                        completed_at,
+                        status,
                         task.archived,
                         task.pinned,
                         task.list_id,

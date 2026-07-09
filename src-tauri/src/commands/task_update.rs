@@ -1,9 +1,17 @@
 use rusqlite::Result;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri::State;
 
 use super::super::now_rfc3339;
 use crate::db::DbState;
+
+fn deserialize_optional_patch_field<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
 
 /// 任务更新请求（Patch DTO）。
 ///
@@ -17,18 +25,28 @@ use crate::db::DbState;
 #[derive(Debug, Deserialize)]
 pub struct UpdateTaskRequest {
     pub title: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub notes: Option<Option<String>>,
     pub priority: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub due_date: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub end_date: Option<Option<String>>,
     pub all_day: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub reminder: Option<Option<String>>,
-    pub reminder_minutes: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
+    pub reminder_minutes: Option<Option<i64>>,
     pub completed: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
+    pub completed_at: Option<Option<String>>,
+    pub status: Option<String>,
     pub archived: Option<bool>,
     pub pinned: Option<bool>,
     pub list_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub parent_id: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "deserialize_optional_patch_field")]
     pub repeat_rule: Option<Option<String>>,
     pub sort_order: Option<f64>,
 }
@@ -75,13 +93,54 @@ pub fn update_task(
         set_clauses.push("reminder = ?".to_string());
         params_vec.push(Box::new(reminder.clone()));
     }
-    if let Some(reminder_minutes) = updates.reminder_minutes {
+    if let Some(ref reminder_minutes) = updates.reminder_minutes {
         set_clauses.push("reminder_minutes = ?".to_string());
-        params_vec.push(Box::new(reminder_minutes));
+        params_vec.push(Box::new(*reminder_minutes));
     }
     if let Some(completed) = updates.completed {
         set_clauses.push("completed = ?".to_string());
         params_vec.push(Box::new(completed));
+
+        if updates.completed_at.is_none() {
+            set_clauses.push("completed_at = ?".to_string());
+            params_vec.push(Box::new(if completed { Some(now.clone()) } else { None }));
+        }
+        if updates.status.is_none() {
+            set_clauses.push("status = ?".to_string());
+            params_vec.push(Box::new(if completed { "done" } else { "todo" }));
+        }
+    }
+    if let Some(ref completed_at) = updates.completed_at {
+        set_clauses.push("completed_at = ?".to_string());
+        params_vec.push(Box::new(completed_at.clone()));
+    }
+    if let Some(ref status) = updates.status {
+        if !matches!(status.as_str(), "todo" | "in_progress" | "done") {
+            return Err("invalid task status".to_string());
+        }
+        if updates.completed.is_none() {
+            match status.as_str() {
+                "done" => {
+                    set_clauses.push("completed = ?".to_string());
+                    params_vec.push(Box::new(true));
+                    if updates.completed_at.is_none() {
+                        set_clauses.push("completed_at = ?".to_string());
+                        params_vec.push(Box::new(Some(now.clone())));
+                    }
+                }
+                "todo" | "in_progress" => {
+                    set_clauses.push("completed = ?".to_string());
+                    params_vec.push(Box::new(false));
+                    if updates.completed_at.is_none() {
+                        set_clauses.push("completed_at = ?".to_string());
+                        params_vec.push(Box::new(None::<String>));
+                    }
+                }
+                _ => {}
+            }
+        }
+        set_clauses.push("status = ?".to_string());
+        params_vec.push(Box::new(status.clone()));
     }
     if let Some(archived) = updates.archived {
         set_clauses.push("archived = ?".to_string());
@@ -146,6 +205,23 @@ mod tests {
     }
 
     #[test]
+    fn test_patch_request_distinguishes_missing_null_and_value() {
+        let missing: super::UpdateTaskRequest = serde_json::from_str("{}").unwrap();
+        assert!(missing.reminder_minutes.is_none());
+        assert!(missing.completed_at.is_none());
+
+        let clear: super::UpdateTaskRequest =
+            serde_json::from_str(r#"{"reminder_minutes":null,"completed_at":null}"#).unwrap();
+        assert_eq!(clear.reminder_minutes, Some(None));
+        assert_eq!(clear.completed_at, Some(None));
+
+        let set: super::UpdateTaskRequest =
+            serde_json::from_str(r#"{"reminder_minutes":15,"completed_at":"2026-07-07T00:00:00"}"#).unwrap();
+        assert_eq!(set.reminder_minutes, Some(Some(15)));
+        assert_eq!(set.completed_at, Some(Some("2026-07-07T00:00:00".to_string())));
+    }
+
+    #[test]
     fn test_clear_due_date_to_null() {
         // 模拟前端传 { due_date: null }（serde 反序列化为 Some(None)）
         let conn = setup_with_task();
@@ -192,6 +268,73 @@ mod tests {
             )
             .unwrap();
         assert_eq!(due_date, "2026-08-01T00:00:00");
+    }
+
+    #[test]
+    fn test_update_completion_semantics() {
+        let conn = setup_with_task();
+        let task_id = conn.last_insert_rowid();
+        let completed_at = "2026-07-07T00:00:00";
+
+        conn.execute(
+            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
+            params![completed_at, task_id],
+        )
+        .unwrap();
+
+        let (completed, stored_completed_at, status): (i64, Option<String>, String) = conn
+            .query_row(
+                "SELECT completed, completed_at, status FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(completed, 1);
+        assert_eq!(stored_completed_at.as_deref(), Some(completed_at));
+        assert_eq!(status, "done");
+
+        conn.execute(
+            "UPDATE tasks SET completed = 0, completed_at = NULL, status = 'todo', updated_at = ?1 WHERE id = ?2",
+            params!["2026-07-08T00:00:00", task_id],
+        )
+        .unwrap();
+
+        let (completed, stored_completed_at, status): (i64, Option<String>, String) = conn
+            .query_row(
+                "SELECT completed, completed_at, status FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
+        assert_eq!(stored_completed_at, None);
+        assert_eq!(status, "todo");
+    }
+
+    #[test]
+    fn test_clear_reminder_minutes_to_null() {
+        let conn = setup_with_task();
+        let task_id = conn.last_insert_rowid();
+
+        conn.execute(
+            "UPDATE tasks SET reminder_minutes = ?1 WHERE id = ?2",
+            params![15, task_id],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE tasks SET reminder_minutes = NULL WHERE id = ?1",
+            params![task_id],
+        )
+        .unwrap();
+
+        let reminder_minutes: Option<i64> = conn
+            .query_row(
+                "SELECT reminder_minutes FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(reminder_minutes, None);
     }
 
     #[test]

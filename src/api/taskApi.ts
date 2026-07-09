@@ -41,7 +41,10 @@ export const taskApi = {
         end_date: req.end_date,
         all_day: req.all_day ?? false,
         reminder: req.reminder,
+        reminder_minutes: req.reminder_minutes,
         completed: false,
+        completed_at: null,
+        status: 'todo',
         archived: false,
         list_id: req.list_id,
         parent_id: req.parent_id,
@@ -90,6 +93,8 @@ export const taskApi = {
         ...source,
         id: mockCounters.nextTaskId++,
         completed: false,
+        completed_at: null,
+        status: 'todo',
         archived: false,
         pinned: false,
         sort_order: Date.now(),
@@ -124,6 +129,8 @@ export const taskApi = {
       const idx = mockTasks.findIndex((t) => t.id === id)
       if (idx !== -1) {
         mockTasks[idx].completed = true
+        mockTasks[idx].completed_at = new Date().toISOString()
+        mockTasks[idx].status = 'done'
         const task = mockTasks[idx]
         if (task.repeat_rule && task.due_date) {
           const now = new Date().toISOString()
@@ -135,6 +142,8 @@ export const taskApi = {
             ...task,
             id: mockCounters.nextTaskId++,
             completed: false,
+            completed_at: null,
+            status: 'todo',
             due_date: nextDue.toISOString(),
             sort_order: Date.now(),
             created_at: now,

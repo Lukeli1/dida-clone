@@ -31,12 +31,13 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
         Option<String>, // end_date
         bool,           // all_day
         Option<String>, // reminder
+        Option<i64>,    // reminder_minutes
         i64,            // list_id
         Option<i64>,    // parent_id
         Option<String>, // repeat_rule
     ) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule
              FROM tasks WHERE id = ?1",
             params![task_id],
             |row| {
@@ -51,17 +52,18 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                     row.get(7)?,
                     row.get(8)?,
                     row.get(9)?,
+                    row.get(10)?,
                 ))
             },
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule) =
+    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule) =
         task;
 
     // 2. 标记当前任务为已完成
     tx.execute(
-        "UPDATE tasks SET completed = 1, updated_at = ?1 WHERE id = ?2",
+        "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
         params![now, task_id],
     )
     .map_err(|e| e.to_string())?;
@@ -98,8 +100,8 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
 
                 tx.execute(
                     "INSERT INTO tasks
-                        (title, notes, priority, due_date, end_date, all_day, reminder, list_id, parent_id, repeat_rule, sort_order, completed, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, ?12, ?13)",
+                        (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, sort_order, completed, completed_at, status, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, NULL, 'todo', ?13, ?14)",
                     params![
                         title,
                         notes,
@@ -108,6 +110,7 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                         next_end,
                         all_day,
                         reminder,
+                        reminder_minutes,
                         list_id,
                         parent_id,
                         new_repeat_rule,

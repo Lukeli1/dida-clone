@@ -4,6 +4,10 @@ use std::sync::Mutex;
 
 pub struct DbState(pub Mutex<Connection>);
 
+fn default_task_status() -> String {
+    "todo".to_string()
+}
+
 /// 统一的 Task 结构体（commands.rs 通过 use crate::db::Task 引用）
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Task {
@@ -16,7 +20,11 @@ pub struct Task {
     #[serde(default)]
     pub all_day: bool,
     pub reminder: Option<String>,
+    pub reminder_minutes: Option<i64>,
     pub completed: bool,
+    pub completed_at: Option<String>,
+    #[serde(default = "default_task_status")]
+    pub status: String,
     pub archived: bool,
     pub list_id: i64,
     pub parent_id: Option<i64>,
@@ -124,9 +132,16 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
             notes TEXT,
             priority INTEGER DEFAULT 2,
             due_date TEXT,
+            end_date TEXT,
+            all_day INTEGER DEFAULT 0,
             reminder TEXT,
+            reminder_minutes INTEGER,
             last_notified TEXT,
             completed INTEGER DEFAULT 0,
+            completed_at TEXT,
+            status TEXT DEFAULT 'todo',
+            archived INTEGER DEFAULT 0,
+            pinned INTEGER DEFAULT 0,
             list_id INTEGER NOT NULL,
             parent_id INTEGER,
             repeat_rule TEXT,
@@ -146,6 +161,13 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
     add_column_if_not_exists(conn, "tasks", "archived", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "pinned", "INTEGER DEFAULT 0")?;
     add_column_if_not_exists(conn, "tasks", "last_notified", "TEXT")?;
+    add_column_if_not_exists(conn, "tasks", "reminder_minutes", "INTEGER")?;
+    add_column_if_not_exists(conn, "tasks", "completed_at", "TEXT")?;
+    add_column_if_not_exists(conn, "tasks", "status", "TEXT DEFAULT 'todo'")?;
+    conn.execute(
+        "UPDATE tasks SET status = CASE WHEN completed = 1 THEN 'done' ELSE 'todo' END WHERE status IS NULL OR status = '' OR (completed = 1 AND status = 'todo')",
+        [],
+    )?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -461,6 +483,31 @@ mod tests {
             .unwrap();
         assert_eq!(name, "收件箱");
         assert_eq!(is_default, 1);
+    }
+
+    #[test]
+    fn test_task_semantic_columns_created_and_backfilled() {
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (title, completed, list_id, created_at, updated_at) \
+             VALUES (?1, 1, 1, ?2, ?3)",
+            params!["已完成旧任务", "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+
+        init_schema(&conn).unwrap();
+
+        let (reminder_minutes, completed_at, status): (Option<i64>, Option<String>, String) = conn
+            .query_row(
+                "SELECT reminder_minutes, completed_at, status FROM tasks WHERE title = ?1",
+                params!["已完成旧任务"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+
+        assert_eq!(reminder_minutes, None);
+        assert_eq!(completed_at, None);
+        assert_eq!(status, "done");
     }
 
     #[test]

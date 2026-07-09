@@ -2,8 +2,8 @@
 
 > 创建时间：2026-07-09  
 > 适用项目：滴答清单复刻  
-> 当前版本方向：v1.37.x 日历任务视图稳定性收尾  
-> 下一阶段候选：v1.38.0 产品体验与数据语义增强
+> 当前版本方向：v1.38.0 任务数据语义与详情编辑闭环已完成
+> 下一阶段候选：v1.38.x 日历规划能力与视图过滤
 
 ## 1. 当前阶段定位
 
@@ -15,7 +15,7 @@
 
 | 序号 | 模块 | 执行文档 | 建议版本 | 优先级 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 任务数据语义与详情编辑闭环 | `docs/product-optimization-task-data-detail.md` | v1.38.0 | P0 | 待执行 |
+| 1 | 任务数据语义与详情编辑闭环 | `docs/product-optimization-task-data-detail.md` | v1.38.0 | P0 | ✅ 已完成（阶段 1-5） |
 | 2 | 日历规划能力与视图过滤 | `docs/product-optimization-calendar-planning.md` | v1.38.0 | P1 | 待执行 |
 | 3 | 同步、导入导出与数据安全可观测性 | `docs/product-optimization-sync-data-safety.md` | v1.38.x | P0 | 待执行 |
 | 4 | AI 助手操作安全、排程预览与收件箱整理 | `docs/product-optimization-ai-assistant-safety.md` | v1.38.x | P1 | 待执行 |
@@ -144,14 +144,12 @@
 
 最推荐的下一步是执行：
 
-`docs/product-optimization-task-data-detail.md`
+`docs/product-optimization-calendar-planning.md`
 
-建议从其中的阶段 1 到阶段 3 开始，即：
+建议从其中的日历过滤、Agenda 视图和月/周/日视图显示稳定性相关的前置检查项开始。
 
-1. 补齐 `completed_at/status/reminder_minutes` 数据库字段。
-2. 更新 Rust task create/query/update/complete 命令。
-3. 更新 TypeScript 类型和 taskStore。
+原因：
 
-该阶段完成后，再进入详情页全天编辑和看板 status 改造。
-
-原因：这些字段是后续日历过滤、统计准确性、看板状态、AI 批量操作和报告生成的共同基础。
+- `completed_at`、`status`、`reminder_minutes` 基础字段已补齐，日历过滤和 Agenda 视图现在可以直接使用更准确的任务状态和完成时间。
+- 全天任务从日历到详情页已形成闭环，下一步应扩展日历的规划能力（按清单/标签/优先级过滤、Agenda 视图）。
+- 先做日历规划，再做同步安全，可以减少后续重复修改。

@@ -210,16 +210,43 @@ describe('taskStore', () => {
     expect(api.updateTask).not.toHaveBeenCalled()
   })
 
-  // 13. toggleTask 普通任务：通过 updateTask 切换 completed
-  it('toggleTask 普通任务切换 completed 并返回 newTaskGenerated=false', async () => {
+  // 13. toggleTask 普通任务：通过 updateTask 同步 completed/status/completed_at
+  it('toggleTask 普通任务完成时同步 completed/status/completed_at', async () => {
     useTaskStore.getState().setTasks([makeTask({ id: 1, completed: false, repeat_rule: undefined })])
     vi.mocked(api.updateTask).mockResolvedValue()
 
     const result = await useTaskStore.getState().toggleTask(useTaskStore.getState().tasks[0])
 
-    expect(api.updateTask).toHaveBeenCalledWith(1, { completed: true })
+    expect(api.updateTask).toHaveBeenCalledWith(1, {
+      completed: true,
+      completed_at: expect.any(String),
+      status: 'done',
+    })
     expect(result).toEqual({ success: true, newTaskGenerated: false })
-    expect(useTaskStore.getState().tasks[0].completed).toBe(true)
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.completed).toBe(true)
+    expect(task.completed_at).toEqual(expect.any(String))
+    expect(task.status).toBe('done')
+  })
+
+  it('toggleTask 普通任务取消完成时清空 completed_at 并回到 todo', async () => {
+    useTaskStore
+      .getState()
+      .setTasks([makeTask({ id: 1, completed: true, completed_at: '2026-01-02T00:00:00.000Z', status: 'done' })])
+    vi.mocked(api.updateTask).mockResolvedValue()
+
+    const result = await useTaskStore.getState().toggleTask(useTaskStore.getState().tasks[0])
+
+    expect(api.updateTask).toHaveBeenCalledWith(1, {
+      completed: false,
+      completed_at: null,
+      status: 'todo',
+    })
+    expect(result).toEqual({ success: true, newTaskGenerated: false })
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.completed).toBe(false)
+    expect(task.completed_at).toBeNull()
+    expect(task.status).toBe('todo')
   })
 
   // 14. toggleTask 重复任务且生成新任务：调用 completeTask 并重新加载

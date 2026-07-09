@@ -39,7 +39,12 @@ export function useTaskSubtask(toast: ToastApi) {
   // ===== 切换子任务完成状态 =====
   // 直接调用 store 的 updateTask，避免对 handleUpdateTask 的依赖
   async function handleToggleSubtask(subtaskId: number, completed: boolean) {
-    const success = await useTaskStore.getState().updateTask(subtaskId, { completed })
+    const completedAt = completed ? new Date().toISOString() : null
+    const success = await useTaskStore.getState().updateTask(subtaskId, {
+      completed,
+      completed_at: completedAt,
+      status: completed ? 'done' : 'todo',
+    })
     if (!success) toast.error('更新任务失败')
   }
 

@@ -42,6 +42,16 @@ interface SchedulePanelProps {
 export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
   const [dueDate, setDueDate] = useState(task.due_date || '')
   const [reminder, setReminder] = useState(task.reminder || '')
+  const [allDay, setAllDay] = useState(task.all_day ?? false)
+  // 全天模式结束日期（用户可见的最后一天，含当天）
+  const [allDayEndDate, setAllDayEndDate] = useState(() => {
+    if (!task.end_date) return ''
+    const d = new Date(task.end_date)
+    if (isNaN(d.getTime())) return ''
+    // end_date 是排他性的下一天 00:00，可见最后一天为前一天
+    const visibleEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1)
+    return toDateInputValue(visibleEnd.toISOString())
+  })
   const [showScheduleEdit, setShowScheduleEdit] = useState(false)
   const [showRepeatEdit, setShowRepeatEdit] = useState(false)
 
@@ -61,16 +71,19 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
   useEffect(() => {
     setDueDate(task.due_date || '')
     setReminder(task.reminder || '')
+    setAllDay(task.all_day ?? false)
+    if (task.end_date) {
+      const d = new Date(task.end_date)
+      if (!isNaN(d.getTime())) {
+        const visibleEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1)
+        setAllDayEndDate(toDateInputValue(visibleEnd.toISOString()))
+      } else {
+        setAllDayEndDate('')
+      }
+    } else {
+      setAllDayEndDate('')
+    }
   }, [task])
-
-  // 保存日程（截止时间 + 提醒）：空字符串表示清空，传 null 让后端存 NULL
-  function handleScheduleSave() {
-    onUpdate(task.id, {
-      due_date: dueDate || null,
-      all_day: false,
-      reminder: reminder || null,
-    })
-  }
 
   function toLocalInputValue(iso?: string) {
     if (!iso) return ''
@@ -79,12 +92,137 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 
-  // 格式化日程显示文本，如 "6月26日 14:00"
+  function toDateInputValue(iso?: string): string {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
+  // 计算全天任务的跨天天数
+  // - allDayEndDate 非空且合法：使用用户设置的结束日期计算跨度
+  // - allDayEndDate 非空但早于开始日期（用户改了开始日期但未调整结束日期）：回退到旧跨度
+  // - allDayEndDate 为空（用户显式清空或从未设置）：单天，span = 1
+  function getAllDaySpanDays(startLocal: Date): number {
+    if (allDayEndDate) {
+      const [ey, em, ed] = allDayEndDate.split('-').map(Number)
+      const endVisible = new Date(ey, em - 1, ed)
+      const span = Math.round((endVisible.getTime() - startLocal.getTime()) / (24 * 60 * 60 * 1000)) + 1
+      if (span >= 1) return span
+      // 结束日期早于开始日期（可能是用户修改了开始日期），回退到已有跨度
+    } else {
+      // allDayEndDate 为空：用户显式清空或从未设置，默认单天
+      return 1
+    }
+    if (task.end_date && task.due_date) {
+      const oldStart = new Date(task.due_date)
+      const oldEnd = new Date(task.end_date)
+      const oldStartLocal = new Date(oldStart.getFullYear(), oldStart.getMonth(), oldStart.getDate())
+      const oldEndLocal = new Date(oldEnd.getFullYear(), oldEnd.getMonth(), oldEnd.getDate())
+      const diffDays = Math.round((oldEndLocal.getTime() - oldStartLocal.getTime()) / (24 * 60 * 60 * 1000))
+      if (diffDays >= 1) return diffDays
+    }
+    return 1
+  }
+
+  // 保存日程：根据全天开关发送不同的字段组合
+  function handleScheduleSave() {
+    if (allDay) {
+      // 全天模式：due_date 取本地日期 00:00，end_date 取跨度后的下一天 00:00
+      if (!dueDate) {
+        // 开始日期为空：同步清空 due_date 和 end_date
+        onUpdate(task.id, { all_day: true, due_date: null, end_date: null, reminder: reminder || null })
+        return
+      }
+      const parsed = new Date(dueDate)
+      if (isNaN(parsed.getTime())) return
+      const startLocal = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+      const spanDays = getAllDaySpanDays(startLocal)
+      const endLocal = new Date(startLocal.getFullYear(), startLocal.getMonth(), startLocal.getDate() + spanDays)
+      onUpdate(task.id, {
+        all_day: true,
+        due_date: startLocal.toISOString(),
+        end_date: endLocal.toISOString(),
+        reminder: reminder || null,
+      })
+    } else {
+      // 非全天模式：保留 datetime-local 逻辑，不传 end_date（避免清空已有结束时间）
+      onUpdate(task.id, {
+        due_date: dueDate || null,
+        all_day: false,
+        reminder: reminder || null,
+      })
+    }
+  }
+
+  // 全天开关切换：立即保存并调整日期语义
+  function handleAllDayToggle() {
+    const newAllDay = !allDay
+    setAllDay(newAllDay)
+    if (newAllDay) {
+      // 切换到全天：due_date 取本地日期 00:00，end_date 取下一天 00:00（保留已有跨度）
+      if (!dueDate) {
+        onUpdate(task.id, { all_day: true, due_date: null, end_date: null })
+        return
+      }
+      const parsed = new Date(dueDate)
+      if (isNaN(parsed.getTime())) {
+        onUpdate(task.id, { all_day: true })
+        return
+      }
+      const startLocal = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+      const spanDays = getAllDaySpanDays(startLocal)
+      const endLocal = new Date(startLocal.getFullYear(), startLocal.getMonth(), startLocal.getDate() + spanDays)
+      setDueDate(startLocal.toISOString())
+      onUpdate(task.id, {
+        all_day: true,
+        due_date: startLocal.toISOString(),
+        end_date: endLocal.toISOString(),
+      })
+    } else {
+      // 切换到非全天：保留日期，如为午夜则设默认 09:00
+      if (!dueDate) {
+        onUpdate(task.id, { all_day: false })
+        return
+      }
+      const parsed = new Date(dueDate)
+      if (isNaN(parsed.getTime())) {
+        onUpdate(task.id, { all_day: false })
+        return
+      }
+      let local = new Date(parsed)
+      if (local.getHours() === 0 && local.getMinutes() === 0) {
+        local = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9, 0)
+      }
+      setDueDate(local.toISOString())
+      onUpdate(task.id, {
+        all_day: false,
+        due_date: local.toISOString(),
+      })
+    }
+  }
+
+  // 格式化日程显示文本：全天任务显示日期（跨天显示范围），非全天显示日期+时间
   function formatScheduleText() {
     if (!dueDate) return ''
     try {
       const d = new Date(dueDate)
       if (isNaN(d.getTime())) return ''
+      if (allDay) {
+        // 全天单天：显示 "6月26日"
+        // 全天跨天：显示 "6月26日 - 6月28日"
+        const startStr = format(d, "M'月'd'日'", { locale: zhCN })
+        if (allDayEndDate) {
+          const [ey, em, ed] = allDayEndDate.split('-').map(Number)
+          const endVisible = new Date(ey, em - 1, ed)
+          if (endVisible.getTime() > d.getTime()) {
+            const endStr = format(endVisible, "M'月'd'日'", { locale: zhCN })
+            return `${startStr} - ${endStr}`
+          }
+        }
+        return startStr
+      }
       return format(d, "M'月'd'日' HH:mm", { locale: zhCN })
     } catch {
       return ''
@@ -148,16 +286,62 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
       {/* 内联日程编辑面板 */}
       {showScheduleEdit && (
         <div className="mt-2 space-y-2 bg-[var(--color-bg-secondary)] rounded-lg p-3">
-          <div>
-            <span className="block text-xs text-[var(--color-text-secondary)] mb-1">截止时间</span>
-            <input
-              type="datetime-local"
-              value={toLocalInputValue(dueDate)}
-              onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
-              onBlur={handleScheduleSave}
-              className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
-            />
+          {/* 全天开关 */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-secondary)]">全天</span>
+            <button
+              onClick={handleAllDayToggle}
+              role="switch"
+              aria-checked={allDay}
+              className={`relative w-9 h-5 rounded-full transition-colors ${allDay ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border)]'}`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${allDay ? 'translate-x-4' : ''}`}
+              />
+            </button>
           </div>
+          {allDay ? (
+            <>
+              <div>
+                <span className="block text-xs text-[var(--color-text-secondary)] mb-1">开始日期</span>
+                <input
+                  type="date"
+                  value={toDateInputValue(dueDate)}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [y, m, d] = e.target.value.split('-').map(Number)
+                      setDueDate(new Date(y, m - 1, d).toISOString())
+                    } else {
+                      setDueDate('')
+                    }
+                  }}
+                  onBlur={handleScheduleSave}
+                  className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
+                />
+              </div>
+              <div>
+                <span className="block text-xs text-[var(--color-text-secondary)] mb-1">结束日期（可选，留空为单天）</span>
+                <input
+                  type="date"
+                  value={allDayEndDate}
+                  onChange={(e) => setAllDayEndDate(e.target.value)}
+                  onBlur={handleScheduleSave}
+                  className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className="block text-xs text-[var(--color-text-secondary)] mb-1">截止时间</span>
+              <input
+                type="datetime-local"
+                value={toLocalInputValue(dueDate)}
+                onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                onBlur={handleScheduleSave}
+                className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
+              />
+            </div>
+          )}
           <div>
             <span className="block text-xs text-[var(--color-text-secondary)] mb-1">提醒时间</span>
             <input

@@ -14,7 +14,10 @@ export function useTaskBatch(toast: ToastApi) {
     const ids = Array.from(useUIStore.getState().selectedTaskIds)
     if (ids.length === 0) return
     try {
-      await Promise.all(ids.map((id) => api.updateTask(id, { completed: true })))
+      const completedAt = new Date().toISOString()
+      await Promise.all(
+        ids.map((id) => api.updateTask(id, { completed: true, completed_at: completedAt, status: 'done' })),
+      )
       await useTaskStore.getState().loadTasks()
       toast.success(`已完成 ${ids.length} 个任务`)
       useUIStore.getState().clearSelection()
