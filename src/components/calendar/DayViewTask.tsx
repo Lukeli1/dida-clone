@@ -1,11 +1,9 @@
-// DayView 中单个任务块的渲染：拖拽手柄、复选框、时间与标题。
-// 支持拖拽边缘调整时间（resize），与 WeekView 行为一致。
-// 仅负责展示与事件转发，不持有状态；位置/高度由 dayViewUtils 计算。
+// DayView 中单个任务块的适配层：位置/resize 由日视图提供，视觉交给统一任务块。
 
 import { format } from 'date-fns'
 import type { Task, List } from '../../types'
-import { getTaskColor, hexToRgba } from '../../utils/priority'
 import { formatMinute } from '../../utils/dayViewUtils'
+import { CalendarTaskBlock } from './shared/CalendarTaskBlock'
 
 interface DayViewTaskProps {
   task: Task
@@ -14,6 +12,8 @@ interface DayViewTaskProps {
   draggable?: boolean
   top: number
   height: number
+  leftPercent: number
+  widthPercent: number
   isResizing: boolean
   resizePreview: { top: number; height: number } | null
   onDragStart: (e: React.DragEvent, taskId: number) => void
@@ -29,6 +29,8 @@ export function DayViewTask({
   draggable = true,
   top,
   height,
+  leftPercent,
+  widthPercent,
   isResizing,
   resizePreview,
   onDragStart,
@@ -37,25 +39,23 @@ export function DayViewTask({
   onResizeStart,
 }: DayViewTaskProps) {
   return (
-    <div
-      data-task
+    <CalendarTaskBlock
+      task={task}
+      lists={lists}
+      variant="timed"
+      dragged={dragged}
       draggable={draggable}
+      dataTask
+      timeLabel={task.due_date ? format(new Date(task.due_date), 'HH:mm') : undefined}
+      style={{ top: `${top}px`, height: `${height}px`, left: `${leftPercent}%`, width: `${widthPercent}%` }}
       onDragStart={(e) => onDragStart(e, task.id)}
-      className={`absolute left-1 right-1 rounded px-2 py-1 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none border-l-2 ${
-        task.completed
-          ? 'bg-[var(--color-bg-tertiary)] dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through'
-          : ''
-      } ${dragged ? 'opacity-40' : ''}`}
-      style={{
-        top: `${top}px`,
-        height: `${height}px`,
-        ...(task.completed
-          ? {}
-          : {
-              backgroundColor: hexToRgba(getTaskColor(task, lists), 0.15),
-              color: getTaskColor(task, lists),
-              borderLeftColor: getTaskColor(task, lists),
-            }),
+      onTaskClick={(e) => {
+        e.stopPropagation()
+        onTaskClick(task.id)
+      }}
+      onToggle={(e) => {
+        e.stopPropagation()
+        onToggleTask(task.id)
       }}
     >
       {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
@@ -74,26 +74,6 @@ export function DayViewTask({
         </div>
       )}
 
-      <input
-        type="checkbox"
-        checked={task.completed}
-        onChange={(e) => {
-          e.stopPropagation()
-          onToggleTask(task.id)
-        }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-3 h-3 mr-1 rounded-sm cursor-pointer align-middle"
-      />
-      <span
-        onClick={(e) => {
-          e.stopPropagation()
-          onTaskClick(task.id)
-        }}
-        className="cursor-pointer"
-      >
-        {task.due_date && <span className="font-medium">{format(new Date(task.due_date), 'HH:mm')}</span>} {task.title}
-      </span>
-
       {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date */}
       {task.due_date && (
         <div
@@ -102,6 +82,6 @@ export function DayViewTask({
           onMouseDown={(e) => onResizeStart(e, 'bottom')}
         />
       )}
-    </div>
+    </CalendarTaskBlock>
   )
 }

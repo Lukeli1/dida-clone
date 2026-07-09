@@ -9,13 +9,14 @@ import {
   HOUR_HEIGHT,
   HOURS,
   formatMinute,
-  getTaskTop,
-  getTaskHeight,
   type Selection,
   type CreatePopup,
 } from '../../utils/dayViewUtils'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
+import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
+import { isTaskAllDayLike, isTaskMultiDay, type CalendarOccurrence } from '../../utils/calendarTaskOccurrences'
 import { DayViewTask } from './DayViewTask'
+import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import type { useTaskResize } from './useTaskResize'
 
 const priorityOptions = [
@@ -43,7 +44,9 @@ interface DayViewGridProps {
   onMouseUp: (e: React.MouseEvent) => void
   onDragOver: (e: React.DragEvent) => void
   onDrop: (e: React.DragEvent) => void
+  onAllDayDrop: (e: React.DragEvent) => void
   selection: Selection | null
+  allDayOccurrences: CalendarOccurrence[]
   dayTasks: Task[]
   lists: List[]
   draggedTaskId: number | null
@@ -79,7 +82,9 @@ export function DayViewGrid({
   onMouseUp,
   onDragOver,
   onDrop,
+  onAllDayDrop,
   selection,
+  allDayOccurrences,
   dayTasks,
   lists,
   draggedTaskId,
@@ -107,6 +112,12 @@ export function DayViewGrid({
   // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
   const now = useCurrentTime()
   const currentMinutes = toDayMinutes(now)
+  const allDayRowCount = Math.max(1, allDayOccurrences.length)
+  const allDayAreaHeight = allDayRowCount * 24 + 8
+  const timedTaskLayouts = layoutTimedTasks(
+    dayTasks.filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task)),
+    { hourHeight: HOUR_HEIGHT },
+  )
 
   return (
     <div className="flex-1 overflow-y-auto select-none">
@@ -114,6 +125,12 @@ export function DayViewGrid({
         {/* 小时标签列 */}
         <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)] dark:border-[var(--color-border)]">
           <div className="h-12 border-b border-[var(--color-border)] dark:border-[var(--color-border)]" />
+          <div
+            className="flex items-start justify-end border-b border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-tertiary)]"
+            style={{ height: `${allDayAreaHeight}px` }}
+          >
+            全天
+          </div>
           {HOURS.map((hour) => (
             <div
               key={hour}
@@ -144,6 +161,33 @@ export function DayViewGrid({
             >
               {format(currentDate, 'd')}
             </span>
+          </div>
+
+          <div
+            data-testid="day-all-day-area"
+            className="space-y-1 border-b border-[var(--color-border)] p-1"
+            style={{ height: `${allDayAreaHeight}px` }}
+            onDragOver={onDragOver}
+            onDrop={onAllDayDrop}
+          >
+            {allDayOccurrences.map((occurrence) => (
+              <CalendarAllDayTaskBar
+                key={`${occurrence.task.id}-${occurrence.dateKey}`}
+                task={occurrence.task}
+                lists={lists}
+                segment={occurrence.segment}
+                dragged={draggedTaskId === occurrence.task.id}
+                onDragStart={(e) => onTaskDragStart(e, occurrence.task.id)}
+                onTaskClick={(e) => {
+                  e.stopPropagation()
+                  onTaskClick(occurrence.task.id)
+                }}
+                onToggle={(e) => {
+                  e.stopPropagation()
+                  onToggleTask(occurrence.task.id)
+                }}
+              />
+            ))}
           </div>
 
           <div
@@ -192,32 +236,30 @@ export function DayViewGrid({
               </div>
             )}
 
-            {dayTasks
-              .filter((t) => t.due_date)
-              .map((task) => {
-                const top = getTaskTop(task)
-                const height = getTaskHeight(task)
-                const isResizing = resize.resizingTaskId === task.id
-                const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
-                const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
-                return (
-                  <DayViewTask
-                    key={task.id}
-                    task={task}
-                    lists={lists}
-                    dragged={draggedTaskId === task.id}
-                    draggable={resize.resizingTaskId === null}
-                    top={displayTop}
-                    height={displayHeight}
-                    isResizing={isResizing}
-                    resizePreview={resize.resizePreview}
-                    onDragStart={onTaskDragStart}
-                    onTaskClick={onTaskClick}
-                    onToggleTask={onToggleTask}
-                    onResizeStart={(e, mode) => resize.handleResizeStart(e, task, mode, dateKey)}
-                  />
-                )
-              })}
+            {timedTaskLayouts.map(({ task, top, height, leftPercent, widthPercent }) => {
+              const isResizing = resize.resizingTaskId === task.id
+              const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
+              const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
+              return (
+                <DayViewTask
+                  key={task.id}
+                  task={task}
+                  lists={lists}
+                  dragged={draggedTaskId === task.id}
+                  draggable={resize.resizingTaskId === null}
+                  top={displayTop}
+                  height={displayHeight}
+                  leftPercent={leftPercent}
+                  widthPercent={widthPercent}
+                  isResizing={isResizing}
+                  resizePreview={resize.resizePreview}
+                  onDragStart={onTaskDragStart}
+                  onTaskClick={onTaskClick}
+                  onToggleTask={onToggleTask}
+                  onResizeStart={(e, mode) => resize.handleResizeStart(e, task, mode, dateKey)}
+                />
+              )
+            })}
 
             {/* 快速添加弹窗（轻量） */}
             {createPopup?.isQuickAdd && (

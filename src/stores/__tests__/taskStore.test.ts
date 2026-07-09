@@ -275,6 +275,32 @@ describe('taskStore', () => {
     expect(task.end_date).toBe('2026-02-03T00:00:00.000Z')
   })
 
+  it('moveTask 移动本地全天任务时按自然日保持 end_date', async () => {
+    const oldStart = new Date(2026, 0, 1)
+    const oldEnd = new Date(2026, 0, 2)
+    const newStart = new Date(2026, 1, 1)
+    const expectedEnd = new Date(2026, 1, 2)
+    useTaskStore.getState().setTasks([
+      makeTask({
+        id: 1,
+        due_date: oldStart.toISOString(),
+        end_date: oldEnd.toISOString(),
+      }),
+    ])
+    vi.mocked(api.updateTask).mockResolvedValue()
+
+    const ok = await useTaskStore.getState().moveTask(1, newStart.toISOString())
+
+    expect(ok).toBe(true)
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.due_date).toBe(newStart.toISOString())
+    expect(task.end_date).toBe(expectedEnd.toISOString())
+    expect(api.updateTask).toHaveBeenCalledWith(1, {
+      due_date: newStart.toISOString(),
+      end_date: expectedEnd.toISOString(),
+    })
+  })
+
   // 17. reloadAll 等价于 loadTasks
   it('reloadAll 调用 loadTasks 重新加载', async () => {
     const data = [makeTask({ id: 1 })]

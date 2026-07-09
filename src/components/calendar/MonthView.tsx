@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   startOfMonth,
   endOfMonth,
@@ -14,10 +14,121 @@ import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
 import { getLunarLabel } from './shared/lunarUtils'
 import { TaskBar } from './shared/TaskBar'
+import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { MonthDetailPopup } from './MonthDetailPopup'
+import { MonthMorePopover, type MonthMorePopoverPosition } from './MonthMorePopover'
+import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay, type CalendarOccurrence } from '../../utils/calendarTaskOccurrences'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
 
-const MAX_MONTH_VISIBLE_TASKS = 2
+const MIN_MONTH_VISIBLE_TASKS = 2
+const MAX_MONTH_VISIBLE_TASKS = 5
+const MONTH_CELL_VERTICAL_PADDING = 12
+const MONTH_CELL_HEADER_HEIGHT = 40
+const MONTH_TASK_ROW_HEIGHT = 24
+const MONTH_TASK_ROW_GAP = 4
+
+interface DayTaskGroup {
+  active: Task[]
+  completed: Task[]
+}
+
+interface MonthAllDaySegment {
+  task: Task
+  startIndex: number
+  span: number
+  rowIndex: number
+  segment: CalendarOccurrence<Task>['segment']
+}
+
+function getMonthSegmentKind(
+  first: CalendarOccurrence<Task>,
+  last: CalendarOccurrence<Task>,
+): CalendarOccurrence<Task>['segment'] {
+  if (first.segment === 'start' && last.segment === 'end') return 'single'
+  if (first.segment === 'start') return 'start'
+  if (last.segment === 'end') return 'end'
+  return first.segment === 'single' && last.segment === 'single' ? 'single' : 'middle'
+}
+
+function getWeekAllDaySegments(week: Date[], occurrences: CalendarOccurrence<Task>[]): MonthAllDaySegment[] {
+  const dayIndexByKey = new Map(week.map((day, index) => [format(day, 'yyyy-MM-dd'), index]))
+  const occurrencesByTask = new Map<number, CalendarOccurrence<Task>[]>()
+
+  for (const occurrence of occurrences) {
+    if (!dayIndexByKey.has(occurrence.dateKey)) continue
+    const taskOccurrences = occurrencesByTask.get(occurrence.task.id) || []
+    taskOccurrences.push(occurrence)
+    occurrencesByTask.set(occurrence.task.id, taskOccurrences)
+  }
+
+  const segments: MonthAllDaySegment[] = []
+  occurrencesByTask.forEach((taskOccurrences) => {
+    const sorted = [...taskOccurrences].sort((a, b) => dayIndexByKey.get(a.dateKey)! - dayIndexByKey.get(b.dateKey)!)
+    let run: CalendarOccurrence<Task>[] = []
+    let previousIndex = -1
+
+    for (const occurrence of sorted) {
+      const index = dayIndexByKey.get(occurrence.dateKey)!
+      if (run.length > 0 && index !== previousIndex + 1) {
+        const first = run[0]
+        const last = run[run.length - 1]
+        const startIndex = dayIndexByKey.get(first.dateKey)!
+        segments.push({
+          task: first.task,
+          startIndex,
+          span: dayIndexByKey.get(last.dateKey)! - startIndex + 1,
+          rowIndex: 0,
+          segment: getMonthSegmentKind(first, last),
+        })
+        run = []
+      }
+      run.push(occurrence)
+      previousIndex = index
+    }
+
+    if (run.length > 0) {
+      const first = run[0]
+      const last = run[run.length - 1]
+      const startIndex = dayIndexByKey.get(first.dateKey)!
+      segments.push({
+        task: first.task,
+        startIndex,
+        span: dayIndexByKey.get(last.dateKey)! - startIndex + 1,
+        rowIndex: 0,
+        segment: getMonthSegmentKind(first, last),
+      })
+    }
+  })
+
+  const rowEndIndexes: number[] = []
+  return segments
+    .sort((a, b) => a.startIndex - b.startIndex || b.span - a.span || a.task.id - b.task.id)
+    .map((segment) => {
+      const rowIndex = rowEndIndexes.findIndex((endIndex) => endIndex < segment.startIndex)
+      const nextRowIndex = rowIndex === -1 ? rowEndIndexes.length : rowIndex
+      rowEndIndexes[nextRowIndex] = segment.startIndex + segment.span - 1
+      return { ...segment, rowIndex: nextRowIndex }
+    })
+}
+
+function getVisibleActiveTasks(group: DayTaskGroup, capacity: number, isCreating: boolean) {
+  const reservedForInput = isCreating ? 1 : 0
+  const availableRows = Math.max(0, capacity - reservedForInput)
+  let visibleCount = Math.min(group.active.length, availableRows)
+  let needsSummaryRow = group.completed.length > 0 || group.active.length > visibleCount
+
+  if (needsSummaryRow && visibleCount + 1 > availableRows) {
+    visibleCount = Math.max(0, availableRows - 1)
+    needsSummaryRow = group.completed.length > 0 || group.active.length > visibleCount
+  }
+
+  const visibleActiveTasks = group.active.slice(0, visibleCount)
+  return {
+    visibleActiveTasks,
+    hiddenActiveCount: Math.max(0, group.active.length - visibleActiveTasks.length),
+    showSummaryRow: needsSummaryRow,
+  }
+}
 
 interface MonthViewProps {
   currentDate: Date
@@ -53,8 +164,10 @@ export function MonthView({
   const [creatingDate, setCreatingDate] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [detailPopup, setDetailPopup] = useState<string | null>(null)
-  const [expandedDate, setExpandedDate] = useState<string | null>(null)
+  const [morePopover, setMorePopover] = useState<{ dateKey: string; position: MonthMorePopoverPosition } | null>(null)
+  const [visibleTaskCount, setVisibleTaskCount] = useState(MIN_MONTH_VISIBLE_TASKS)
   const inputRef = useRef<HTMLInputElement>(null)
+  const calendarGridRef = useRef<HTMLDivElement>(null)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
   const weeks = useMemo(() => {
@@ -65,34 +178,70 @@ export function MonthView({
     return eachDayOfInterval({ start: calStart, end: calEnd })
   }, [currentDate])
 
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>()
-    tasks.forEach((task) => {
-      if (task.due_date) {
-        const key = format(new Date(task.due_date), 'yyyy-MM-dd')
-        const arr = map.get(key) || []
-        arr.push(task)
-        map.set(key, arr)
-      }
-    })
-    // 每天的任务排序：未完成在前，然后按时间
-    map.forEach((arr) => {
-      arr.sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1
-        if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-        return 0
-      })
-    })
-    return map
-  }, [tasks])
-
   const weekRows = useMemo(() => {
     const rows: Date[][] = []
     for (let i = 0; i < weeks.length; i += 7) rows.push(weeks.slice(i, i + 7))
     return rows
   }, [weeks])
 
-  const weekDays = ['一', '二', '三', '四', '五', '六', '日']
+  useEffect(() => {
+    const grid = calendarGridRef.current
+    if (!grid) return
+    const observedGrid = grid
+
+    function updateVisibleCount() {
+      const rowCount = Math.max(1, weekRows.length)
+      const rowHeight = observedGrid.getBoundingClientRect().height / rowCount
+      const availableTaskHeight = rowHeight - MONTH_CELL_VERTICAL_PADDING - MONTH_CELL_HEADER_HEIGHT
+      const estimated = Math.floor((availableTaskHeight + MONTH_TASK_ROW_GAP) / (MONTH_TASK_ROW_HEIGHT + MONTH_TASK_ROW_GAP))
+      const next = Math.max(MIN_MONTH_VISIBLE_TASKS, Math.min(MAX_MONTH_VISIBLE_TASKS, estimated))
+      setVisibleTaskCount(next)
+    }
+
+    updateVisibleCount()
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(updateVisibleCount)
+      observer.observe(observedGrid)
+      return () => observer.disconnect()
+    }
+
+    globalThis.addEventListener('resize', updateVisibleCount)
+    return () => globalThis.removeEventListener('resize', updateVisibleCount)
+  }, [weekRows.length])
+
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, DayTaskGroup>()
+    tasks.forEach((task) => {
+      if (!task.due_date) return
+      if (isTaskMultiDay(task) || isTaskAllDayLike(task)) return
+      const key = format(new Date(task.due_date), 'yyyy-MM-dd')
+      const group = map.get(key) || { active: [], completed: [] }
+      if (task.completed) group.completed.push(task)
+      else group.active.push(task)
+      map.set(key, group)
+    })
+
+    const sortByTime = (a: Task, b: Task) => {
+      if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      return a.sort_order - b.sort_order
+    }
+
+    map.forEach((group) => {
+      group.active.sort(sortByTime)
+      group.completed.sort(sortByTime)
+    })
+    return map
+  }, [tasks])
+
+  const monthAllDayOccurrences = useMemo(() => {
+    if (weeks.length === 0) return []
+    return getOccurrencesForRange(tasks, weeks[0], weeks[weeks.length - 1]).filter(
+      (occurrence) => occurrence.isMultiDay || occurrence.isAllDayLike,
+    )
+  }, [tasks, weeks])
+
+  const weekDays = ['\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d', '\u65e5']
 
   function handleDragStart(e: React.DragEvent, taskId: number) {
     setDraggedTaskId(taskId)
@@ -122,8 +271,8 @@ export function MonthView({
     if (taskId) {
       const task = tasks.find((t) => t.id === taskId)
       const [year, month, day] = dateKey.split('-').map(Number)
-      let hour = 9,
-        minute = 0
+      let hour = 9
+      let minute = 0
       if (task?.due_date) {
         const oldDate = new Date(task.due_date)
         hour = oldDate.getHours()
@@ -138,10 +287,12 @@ export function MonthView({
   function handleQuickAdd(dateKey: string) {
     setCreatingDate(dateKey)
     setNewTitle('')
+    setMorePopover(null)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   function handleCellDoubleClick(dateKey: string) {
+    setMorePopover(null)
     setDetailPopup(dateKey)
   }
 
@@ -160,55 +311,63 @@ export function MonthView({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
-  const expandedTasks = expandedDate ? tasksByDate.get(expandedDate) || [] : []
+  function getPopoverPosition(rect: DOMRect): MonthMorePopoverPosition {
+    const width = Math.min(360, Math.max(280, window.innerWidth - 24))
+    const maxHeight = Math.min(380, Math.max(260, window.innerHeight - 24))
+    const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - width - 12))
+    let top = rect.bottom + 8
+    if (top + maxHeight > window.innerHeight - 12) top = Math.max(12, rect.top - maxHeight - 8)
+    return { top, left, width, maxHeight }
+  }
+
+  function openMorePopover(dateKey: string, e: React.MouseEvent<HTMLElement>) {
+    e.stopPropagation()
+    setCreatingDate(null)
+    setMorePopover({ dateKey, position: getPopoverPosition(e.currentTarget.getBoundingClientRect()) })
+  }
+
+  const popoverTasks = morePopover ? tasksByDate.get(morePopover.dateKey) || { active: [], completed: [] } : null
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
-      {/* 月份导航栏 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="flex h-full flex-col bg-[var(--color-bg-secondary)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={onPrevMonth}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            aria-label={'\u4e0a\u4e2a\u6708'}
           >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-5 w-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] min-w-[100px] text-center">
-            {format(currentDate, 'M月', { locale: zhCN })}
-            <span className="text-sm font-normal text-[var(--color-text-tertiary)] ml-1">
+          <h3 className="min-w-[100px] text-center text-lg font-semibold text-[var(--color-text-primary)]">
+            {format(currentDate, 'M\u6708', { locale: zhCN })}
+            <span className="ml-1 text-sm font-normal text-[var(--color-text-tertiary)]">
               {format(currentDate, 'yyyy')}
             </span>
           </h3>
           <button
+            type="button"
             onClick={onNextMonth}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            aria-label={'\u4e0b\u4e2a\u6708'}
           >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-5 w-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
         <button
+          type="button"
           onClick={onToday}
-          className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors font-medium"
+          className="rounded-lg px-3 py-1 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-light)]"
         >
-          今天
+          {'\u4eca\u5929'}
         </button>
       </div>
 
-      {/* 星期标题行 */}
       <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         {weekDays.map((day) => (
           <div key={day} className="py-2 text-center text-xs font-medium text-[var(--color-text-tertiary)]">
@@ -217,28 +376,62 @@ export function MonthView({
         ))}
       </div>
 
-      {/* 日历网格 */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div ref={calendarGridRef} data-testid="month-calendar-grid" className="flex flex-1 flex-col overflow-y-auto">
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
+          const allDaySegments = getWeekAllDaySegments(week, monthAllDayOccurrences)
+          const allDayRowCount = allDaySegments.length > 0 ? Math.max(...allDaySegments.map((segment) => segment.rowIndex + 1)) : 0
+          const rowMinHeight = 110 + allDayRowCount * 24
           return (
             <div
               key={ri}
-              className="grid grid-cols-7 border-b border-[var(--color-border-light)] relative flex-1"
-              style={{ minHeight: '110px' }}
+              className="relative grid flex-1 grid-cols-7 border-b border-[var(--color-border-light)]"
+              style={{ minHeight: `${rowMinHeight}px` }}
             >
               {ri === 0 && (
-                <div className="absolute -left-0 top-0 text-[10px] text-[var(--color-text-tertiary)] px-1 py-0.5 z-10 hidden">
-                  {weekNum}周
+                <div className="absolute left-0 top-0 z-10 hidden px-1 py-0.5 text-[10px] text-[var(--color-text-tertiary)]">
+                  {weekNum}
+                  {'\u5468'}
                 </div>
               )}
+              {allDaySegments.map((segment) => (
+                <CalendarAllDayTaskBar
+                  key={`${segment.task.id}-${segment.startIndex}-${segment.span}`}
+                  task={segment.task}
+                  lists={lists}
+                  segment={segment.segment}
+                  dragged={draggedTaskId === segment.task.id}
+                  className="absolute z-20 shadow-sm"
+                  style={{
+                    top: `${44 + segment.rowIndex * 24}px`,
+                    left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
+                    width: `calc(${(segment.span / 7) * 100}% - 8px)`,
+                  }}
+                  onDragStart={(e) => handleDragStart(e, segment.task.id)}
+                  onTaskClick={(e) => {
+                    e.stopPropagation()
+                    onTaskClick(segment.task.id)
+                  }}
+                  onToggle={(e) => {
+                    e.stopPropagation()
+                    onToggleTask(segment.task.id)
+                  }}
+                />
+              ))}
               {week.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
-                const dayTasks = tasksByDate.get(key) || []
+                const group = tasksByDate.get(key) || { active: [], completed: [] }
                 const inMonth = isSameMonth(day, currentDate)
                 const today = isToday(day)
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6
                 const isDragOver = dragOverDate === key
                 const isCreating = creatingDate === key
+                const effectiveVisibleTaskCount = Math.max(0, visibleTaskCount - allDayRowCount)
+                const { visibleActiveTasks, hiddenActiveCount, showSummaryRow } = getVisibleActiveTasks(
+                  group,
+                  effectiveVisibleTaskCount,
+                  isCreating,
+                )
                 const lunarLabel = getLunarLabel(day)
 
                 return (
@@ -250,49 +443,79 @@ export function MonthView({
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, key)}
-                    className={`group relative min-h-0 overflow-hidden border-r border-[var(--color-border-light)] last:border-r-0 p-1.5 cursor-pointer transition-colors flex flex-col ${
+                    className={`group relative flex min-h-0 cursor-pointer flex-col overflow-hidden border-r border-[var(--color-border-light)] p-1.5 transition-colors last:border-r-0 ${
                       isDragOver
                         ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
                         : !inMonth
                           ? 'bg-[var(--color-bg-secondary)]/40'
-                          : 'hover:bg-[var(--color-accent-light)]/20'
+                          : isWeekend
+                            ? 'bg-[var(--color-bg-secondary)]/60 hover:bg-[var(--color-accent-light)]/20'
+                            : 'hover:bg-[var(--color-accent-light)]/20'
                     }`}
                   >
-                    {/* 日期头部：日期数字 + 农历 + 添加按钮 */}
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="mb-1 flex items-center justify-between">
                       <div className="flex flex-col items-start leading-tight">
                         <span
-                          className={`flex items-center justify-center text-[15px] font-medium rounded-full transition-colors ${
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors ${
                             today
-                              ? 'bg-[var(--color-accent)] text-white w-7 h-7'
+                              ? 'bg-[var(--color-accent)] text-white'
                               : !inMonth
-                                ? 'text-[var(--color-text-tertiary)] w-7 h-7'
-                                : 'text-[var(--color-text-secondary)] w-7 h-7 hover:bg-[var(--color-bg-tertiary)]'
+                                ? 'text-[var(--color-text-tertiary)]'
+                                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                           }`}
                         >
                           {format(day, 'd')}
                         </span>
-                        {inMonth && !today && (
-                          <span className="text-[9px] text-[var(--color-text-tertiary)] ml-1 mt-0.5">{lunarLabel}</span>
+                        {inMonth && (
+                          <span
+                            className={`ml-1 mt-0.5 text-[9px] ${
+                              today ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)]'
+                            }`}
+                          >
+                            {lunarLabel}
+                          </span>
                         )}
                       </div>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleQuickAdd(key)
                         }}
-                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded transition-all"
-                        title="快速添加任务"
+                        className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-text-tertiary)] opacity-0 transition-all hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent)] group-hover:opacity-100"
+                        title={'\u5feb\u901f\u6dfb\u52a0\u4efb\u52a1'}
+                        data-testid={`month-quick-add-${key}`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                       </button>
                     </div>
 
-                    {/* 任务条带列表 */}
-                    <div className="space-y-1 flex-1 min-h-0 overflow-hidden">
-                      {dayTasks.slice(0, MAX_MONTH_VISIBLE_TASKS).map((task) => (
+                    <div
+                      className="min-h-0 flex-1 space-y-1 overflow-hidden"
+                      style={{ paddingTop: allDayRowCount > 0 ? `${allDayRowCount * 24}px` : undefined }}
+                    >
+                      {isCreating && (
+                        <input
+                          ref={inputRef}
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleQuickAddSubmit(key)
+                            if (e.key === 'Escape') {
+                              setCreatingDate(null)
+                              setNewTitle('')
+                            }
+                          }}
+                          onBlur={() => handleQuickAddSubmit(key)}
+                          placeholder={'\u6807\u9898...'}
+                          className="h-6 w-full rounded border border-[var(--color-accent)] px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/30"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+
+                      {visibleActiveTasks.map((task) => (
                         <TaskBar
                           key={task.id}
                           task={task}
@@ -311,37 +534,32 @@ export function MonthView({
                           }}
                         />
                       ))}
-                      {dayTasks.length > MAX_MONTH_VISIBLE_TASKS && (
-                        <button
-                          type="button"
-                          data-testid={`month-more-${key}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setExpandedDate(key)
-                          }}
-                          className="h-4 w-full rounded px-1.5 text-left text-[10px] leading-4 text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent)]"
-                          aria-label={`查看 ${key} 的其余 ${dayTasks.length - MAX_MONTH_VISIBLE_TASKS} 个任务`}
-                        >
-                          +{dayTasks.length - MAX_MONTH_VISIBLE_TASKS}
-                        </button>
-                      )}
-                      {isCreating && (
-                        <input
-                          ref={inputRef}
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleQuickAddSubmit(key)
-                            if (e.key === 'Escape') {
-                              setCreatingDate(null)
-                              setNewTitle('')
-                            }
-                          }}
-                          onBlur={() => handleQuickAddSubmit(key)}
-                          placeholder="标题..."
-                          className="w-full text-[11px] px-1.5 py-1 border border-[var(--color-accent)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/30"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+
+                      {showSummaryRow && (
+                        <div className="flex items-center gap-1">
+                          {hiddenActiveCount > 0 && (
+                            <button
+                              type="button"
+                              data-testid={`month-more-${key}`}
+                              onClick={(e) => openMorePopover(key, e)}
+                              className="h-5 flex-1 rounded px-1.5 text-left text-[10px] leading-5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent)]"
+                              aria-label={`\u67e5\u770b ${key} \u7684\u5176\u4f59 ${hiddenActiveCount} \u4e2a\u672a\u5b8c\u6210\u4efb\u52a1`}
+                            >
+                              +{hiddenActiveCount} {'\u66f4\u591a'}
+                            </button>
+                          )}
+                          {group.completed.length > 0 && (
+                            <button
+                              type="button"
+                              data-testid={`month-completed-${key}`}
+                              onClick={(e) => openMorePopover(key, e)}
+                              className="h-5 flex-shrink-0 rounded px-1.5 text-[10px] leading-5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent)]"
+                              aria-label={`\u67e5\u770b ${key} \u7684 ${group.completed.length} \u4e2a\u5df2\u5b8c\u6210\u4efb\u52a1`}
+                            >
+                              {'\u2713'} {group.completed.length}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -352,59 +570,22 @@ export function MonthView({
         })}
       </div>
 
-      {expandedDate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
-          onClick={() => setExpandedDate(null)}
-        >
-          <div
-            data-testid="month-expanded-tasks"
-            className="w-96 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {format(new Date(expandedDate), 'M月d日 EEEE', { locale: zhCN })}
-                </div>
-                <div className="text-xs text-[var(--color-text-tertiary)]">共 {expandedTasks.length} 个任务</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setExpandedDate(null)}
-                className="rounded-lg px-2 py-1 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
-                aria-label="关闭任务列表"
-              >
-                ×
-              </button>
-            </div>
-            <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
-              {expandedTasks.map((task) => (
-                <TaskBar
-                  key={task.id}
-                  task={task}
-                  lists={lists}
-                  variant="month"
-                  dragged={draggedTaskId === task.id}
-                  timeLabel={task.due_date ? formatTaskTime(task.due_date) : undefined}
-                  onDragStart={(e) => handleDragStart(e, task.id)}
-                  onTaskClick={(e) => {
-                    e.stopPropagation()
-                    setExpandedDate(null)
-                    onTaskClick(task.id)
-                  }}
-                  onToggle={(e) => {
-                    e.stopPropagation()
-                    onToggleTask(task.id)
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+      {morePopover && popoverTasks && (
+        <MonthMorePopover
+          dateKey={morePopover.dateKey}
+          activeTasks={popoverTasks.active}
+          completedTasks={popoverTasks.completed}
+          lists={lists}
+          position={morePopover.position}
+          draggedTaskId={draggedTaskId}
+          formatTaskTime={formatTaskTime}
+          onClose={() => setMorePopover(null)}
+          onTaskClick={onTaskClick}
+          onToggleTask={onToggleTask}
+          onTaskDragStart={handleDragStart}
+        />
       )}
 
-      {/* 双击打开的详细创建弹窗 */}
       {detailPopup && (
         <MonthDetailPopup
           key={detailPopup}

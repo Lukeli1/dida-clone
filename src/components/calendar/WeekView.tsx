@@ -3,7 +3,15 @@ import { startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, getHours, g
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
+import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
+import {
+  getOccurrencesForRange,
+  groupOccurrencesByDate,
+  isTaskAllDayLike,
+  isTaskMultiDay,
+} from '../../utils/calendarTaskOccurrences'
 import { TaskBar } from './shared/TaskBar'
+import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
@@ -55,6 +63,17 @@ export function WeekView({
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 })
     return eachDayOfInterval({ start: weekStart, end: weekEnd })
   }, [currentDate])
+
+  const allDayOccurrencesByDate = useMemo(() => {
+    const occurrences = getOccurrencesForRange(tasks, days[0], days[6]).filter(
+      (occurrence) => occurrence.isMultiDay || occurrence.isAllDayLike,
+    )
+    return groupOccurrencesByDate(occurrences)
+  }, [tasks, days])
+
+  const allDayRowCount = useMemo(() => {
+    return Math.max(1, ...days.map((day) => allDayOccurrencesByDate.get(format(day, 'yyyy-MM-dd'))?.length ?? 0))
+  }, [allDayOccurrencesByDate, days])
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -184,6 +203,12 @@ export function WeekView({
         <div className="flex">
           <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)]">
             <div className="h-12 border-b border-[var(--color-border)]" />
+            <div
+              className="flex items-start justify-end border-b border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-tertiary)]"
+              style={{ height: `${allDayRowCount * 24 + 8}px` }}
+            >
+              全天
+            </div>
             {HOURS.map((hour) => (
               <div
                 key={hour}
@@ -201,6 +226,11 @@ export function WeekView({
             {days.map((day) => {
               const key = format(day, 'yyyy-MM-dd')
               const dayTasks = tasksByDate.get(key) || []
+              const allDayOccurrences = allDayOccurrencesByDate.get(key) || []
+              const timedTaskLayouts = layoutTimedTasks(
+                dayTasks.filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task)),
+                { hourHeight: HOUR_HEIGHT },
+              )
               const today = isToday(day)
               const isDragOver = dragOverDate === key
               const isSelecting = sel.selection?.dateKey === key
@@ -225,6 +255,30 @@ export function WeekView({
                     >
                       {format(day, 'd')}
                     </span>
+                  </div>
+
+                  <div
+                    className="space-y-1 border-b border-[var(--color-border)] p-1"
+                    style={{ height: `${allDayRowCount * 24 + 8}px` }}
+                  >
+                    {allDayOccurrences.map((occurrence) => (
+                      <CalendarAllDayTaskBar
+                        key={`${occurrence.task.id}-${occurrence.dateKey}`}
+                        task={occurrence.task}
+                        lists={lists}
+                        segment={occurrence.segment}
+                        dragged={draggedTaskId === occurrence.task.id}
+                        onDragStart={(e) => handleDragStart(e, occurrence.task.id)}
+                        onTaskClick={(e) => {
+                          e.stopPropagation()
+                          onTaskClick(occurrence.task.id)
+                        }}
+                        onToggle={(e) => {
+                          e.stopPropagation()
+                          onToggleTask(occurrence.task.id)
+                        }}
+                      />
+                    ))}
                   </div>
 
                   <div
@@ -273,61 +327,62 @@ export function WeekView({
                       </div>
                     )}
 
-                    {dayTasks
-                      .filter((t) => t.due_date)
-                      .map((task) => {
-                        const top = getTaskTop(task)
-                        const height = getTaskHeight(task)
-                        const isResizing = resize.resizingTaskId === task.id
-                        const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
-                        const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
-                        return (
-                          <TaskBar
-                            key={task.id}
-                            task={task}
-                            lists={lists}
-                            variant="week"
-                            dragged={draggedTaskId === task.id}
-                            draggable={resize.resizingTaskId === null}
-                            dataTask
-                            timeLabel={task.due_date ? format(new Date(task.due_date), 'HH:mm') : undefined}
-                            style={{ top: `${displayTop}px`, height: `${displayHeight}px` }}
-                            onDragStart={(e) => handleDragStart(e, task.id)}
-                            onTaskClick={(e) => {
-                              e.stopPropagation()
-                              onTaskClick(task.id)
-                            }}
-                            onToggle={(e) => {
-                              e.stopPropagation()
-                              onToggleTask(task.id)
-                            }}
-                          >
-                            {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
-                            {task.end_date && (
-                              <div
-                                draggable={false}
-                                className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
-                                onMouseDown={(e) => resize.handleResizeStart(e, task, 'top', key)}
-                              />
-                            )}
-                            {/* resize time tooltip */}
-                            {isResizing && resize.resizePreview && (
-                              <div className="absolute -top-6 left-0 bg-[var(--color-tooltip-bg)] text-[var(--color-tooltip-text)] text-xs px-2 py-0.5 rounded whitespace-nowrap z-30 pointer-events-none">
-                                {sel.formatMinute(resize.resizePreview.top)} -{' '}
-                                {sel.formatMinute(resize.resizePreview.top + resize.resizePreview.height)}
-                              </div>
-                            )}
-                            {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date */}
-                            {task.due_date && (
-                              <div
-                                draggable={false}
-                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
-                                onMouseDown={(e) => resize.handleResizeStart(e, task, 'bottom', key)}
-                              />
-                            )}
-                          </TaskBar>
-                        )
-                      })}
+                    {timedTaskLayouts.map(({ task, top, height, leftPercent, widthPercent }) => {
+                      const isResizing = resize.resizingTaskId === task.id
+                      const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
+                      const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
+                      return (
+                        <TaskBar
+                          key={task.id}
+                          task={task}
+                          lists={lists}
+                          variant="week"
+                          dragged={draggedTaskId === task.id}
+                          draggable={resize.resizingTaskId === null}
+                          dataTask
+                          timeLabel={task.due_date ? format(new Date(task.due_date), 'HH:mm') : undefined}
+                          style={{
+                            top: `${displayTop}px`,
+                            height: `${displayHeight}px`,
+                            left: `${leftPercent}%`,
+                            width: `${widthPercent}%`,
+                          }}
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onTaskClick={(e) => {
+                            e.stopPropagation()
+                            onTaskClick(task.id)
+                          }}
+                          onToggle={(e) => {
+                            e.stopPropagation()
+                            onToggleTask(task.id)
+                          }}
+                        >
+                          {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
+                          {task.end_date && (
+                            <div
+                              draggable={false}
+                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
+                              onMouseDown={(e) => resize.handleResizeStart(e, task, 'top', key)}
+                            />
+                          )}
+                          {/* resize time tooltip */}
+                          {isResizing && resize.resizePreview && (
+                            <div className="absolute -top-6 left-0 bg-[var(--color-tooltip-bg)] text-[var(--color-tooltip-text)] text-xs px-2 py-0.5 rounded whitespace-nowrap z-30 pointer-events-none">
+                              {sel.formatMinute(resize.resizePreview.top)} -{' '}
+                              {sel.formatMinute(resize.resizePreview.top + resize.resizePreview.height)}
+                            </div>
+                          )}
+                          {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date */}
+                          {task.due_date && (
+                            <div
+                              draggable={false}
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
+                              onMouseDown={(e) => resize.handleResizeStart(e, task, 'bottom', key)}
+                            />
+                          )}
+                        </TaskBar>
+                      )
+                    })}
 
                     <WeekCreatePopups dateKey={key} sel={sel} lists={lists} defaultListId={defaultListId} />
                   </div>

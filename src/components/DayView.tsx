@@ -13,6 +13,7 @@ import {
 } from '../utils/dayViewUtils'
 import { DayViewGrid } from './calendar/DayViewGrid'
 import { useTaskResize } from './calendar/useTaskResize'
+import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
 
 interface DayViewProps {
   currentDate: Date
@@ -77,6 +78,12 @@ export function DayView({
       return format(new Date(task.due_date), 'yyyy-MM-dd') === dateKey
     })
   }, [tasks, dateKey])
+
+  const allDayOccurrences = useMemo(() => {
+    return getOccurrencesForRange(tasks, currentDate, currentDate).filter(
+      (occurrence) => occurrence.isMultiDay || occurrence.isAllDayLike,
+    )
+  }, [tasks, currentDate])
 
   // 时间块 resize（拖拽上下边缘调整开始/结束时间）
   const resize = useTaskResize({ tasks: dayTasks, onUpdateTask, getTaskTop, getTaskHeight })
@@ -196,6 +203,18 @@ export function DayView({
     setDraggedTaskId(null)
   }
 
+  function handleAllDayDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const taskId = Number(e.dataTransfer.getData('text/plain'))
+    if (!taskId) {
+      setDraggedTaskId(null)
+      return
+    }
+    const [year, month, day] = dateKey.split('-').map(Number)
+    onMoveTask(taskId, new Date(year, month - 1, day).toISOString())
+    setDraggedTaskId(null)
+  }
+
   const today = isToday(currentDate)
 
   return (
@@ -250,7 +269,9 @@ export function DayView({
         onMouseUp={handleTimeMouseUp}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onAllDayDrop={handleAllDayDrop}
         selection={selection}
+        allDayOccurrences={allDayOccurrences}
         dayTasks={dayTasks}
         lists={lists}
         draggedTaskId={draggedTaskId}
