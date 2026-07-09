@@ -13,11 +13,14 @@ vi.mock('../../api', () => ({
     reorderTasks: vi.fn(),
     completeTask: vi.fn(),
   },
+  repeatApi: {
+    completeRecurringTask: vi.fn(),
+  },
 }))
 
 // 必须在 mock 声明之后引入 store，确保模块使用 mock 后的 api。
 import { useTaskStore } from '../taskStore'
-import { api } from '../../api'
+import { api, repeatApi } from '../../api'
 
 // ----- 测试辅助工具 -----
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -370,5 +373,69 @@ describe('taskStore', () => {
     expect(api.getTasks).toHaveBeenCalledTimes(1)
     expect(useTaskStore.getState().tasks).toEqual(data)
     expect(useTaskStore.getState().loading).toBe(false)
+  })
+
+  // 18. RRule 格式重复任务完成：调用 completeRecurringTask 而非 completeTask
+  it('toggleTask RRule 重复任务完成时调用 completeRecurringTask 并同步状态', async () => {
+    useTaskStore.getState().setTasks([
+      makeTask({ id: 1, completed: false, repeat_rule: 'FREQ=DAILY', due_date: '2026-01-01T00:00:00.000Z' }),
+    ])
+    vi.mocked(repeatApi.completeRecurringTask).mockResolvedValue(99)
+    const reloaded = [makeTask({ id: 1, completed: true, status: 'done' }), makeTask({ id: 99, title: 'next' })]
+    vi.mocked(api.getTasks).mockResolvedValue(reloaded)
+
+    const result = await useTaskStore.getState().toggleTask(useTaskStore.getState().tasks[0])
+
+    expect(repeatApi.completeRecurringTask).toHaveBeenCalledWith(1)
+    // 不应调用旧格式 completeTask
+    expect(api.completeTask).not.toHaveBeenCalled()
+    expect(api.getTasks).toHaveBeenCalled()
+    expect(result).toEqual({ success: true, newTaskGenerated: true })
+    expect(useTaskStore.getState().tasks.map((t) => t.id)).toContain(99)
+  })
+
+  // 19. RRule 重复任务规则到期（返回 0）：标记完成但不生成新任务
+  it('toggleTask RRule 重复任务到期时标记完成但不重新加载', async () => {
+    useTaskStore.getState().setTasks([
+      makeTask({ id: 1, completed: false, repeat_rule: 'FREQ=DAILY;UNTIL=20260101', due_date: '2026-01-01T00:00:00.000Z' }),
+    ])
+    vi.mocked(repeatApi.completeRecurringTask).mockResolvedValue(0)
+
+    const result = await useTaskStore.getState().toggleTask(useTaskStore.getState().tasks[0])
+
+    expect(repeatApi.completeRecurringTask).toHaveBeenCalledWith(1)
+    // newTaskId=0 时不重新加载
+    expect(api.getTasks).not.toHaveBeenCalled()
+    expect(result).toEqual({ success: true, newTaskGenerated: false })
+    // 本地状态已标记完成
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.completed).toBe(true)
+    expect(task.status).toBe('done')
+    expect(task.completed_at).toEqual(expect.any(String))
+  })
+
+  // 20. completed=true 但 status!='done' 的不一致数据：toggleTask 取消完成时仍正确重置
+  it('toggleTask 对 completed=true 但 status=todo 的不一致数据正确取消完成', async () => {
+    useTaskStore.getState().setTasks([
+      makeTask({
+        id: 1,
+        completed: true,
+        completed_at: '2026-01-02T00:00:00.000Z',
+        status: 'todo', // 不一致：completed=true 但 status=todo
+      }),
+    ])
+    vi.mocked(api.updateTask).mockResolvedValue()
+
+    await useTaskStore.getState().toggleTask(useTaskStore.getState().tasks[0])
+
+    expect(api.updateTask).toHaveBeenCalledWith(1, {
+      completed: false,
+      completed_at: null,
+      status: 'todo',
+    })
+    const task = useTaskStore.getState().tasks[0]
+    expect(task.completed).toBe(false)
+    expect(task.completed_at).toBeNull()
+    expect(task.status).toBe('todo')
   })
 })

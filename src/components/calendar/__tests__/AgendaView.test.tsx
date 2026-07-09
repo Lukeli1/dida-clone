@@ -144,4 +144,113 @@ describe('AgendaView 日程列表', () => {
     const allRows = screen.getAllByTestId(/agenda-(timed|all-day)-task-1/)
     expect(allRows.length).toBeGreaterThanOrEqual(2)
   })
+
+  it('已完成任务渲染时显示视觉区分（line-through + opacity）', () => {
+    const task = makeTask(1, {
+      title: '已完成任务',
+      completed: true,
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+
+    renderAgendaView([task])
+
+    const row = screen.getByTestId('agenda-timed-task-1')
+    expect(row).toBeInTheDocument()
+    // 已完成应有 opacity-50 class
+    expect(row.className).toContain('opacity-50')
+    // 标题应有 line-through class
+    const titleSpan = row.querySelector('span.line-through')
+    expect(titleSpan).not.toBeNull()
+    // toggle 按钮的 aria-label 应为 "标记为未完成"
+    const toggleBtn = row.querySelector('button[aria-label="标记为未完成"]')
+    expect(toggleBtn).not.toBeNull()
+  })
+
+  it('未完成任务渲染时不显示 line-through', () => {
+    const task = makeTask(1, {
+      title: '未完成任务',
+      completed: false,
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+
+    renderAgendaView([task])
+
+    const row = screen.getByTestId('agenda-timed-task-1')
+    expect(row.className).not.toContain('opacity-50')
+    const toggleBtn = row.querySelector('button[aria-label="标记为已完成"]')
+    expect(toggleBtn).not.toBeNull()
+  })
+
+  it('14 天范围边界：超出 14 天的任务不显示', () => {
+    // currentDate 为 2026-07-01，14 天范围是 7/1 ~ 7/14
+    const withinRange = makeTask(1, {
+      title: '范围内任务',
+      due_date: '2026-07-14T09:00:00',
+      end_date: '2026-07-14T10:00:00',
+    })
+    const outOfRange = makeTask(2, {
+      title: '范围外任务',
+      due_date: '2026-07-15T09:00:00',
+      end_date: '2026-07-15T10:00:00',
+    })
+
+    renderAgendaView([withinRange, outOfRange])
+
+    expect(screen.getByTestId('agenda-timed-task-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('agenda-timed-task-2')).not.toBeInTheDocument()
+  })
+
+  it('14 天范围边界：起始日前一天的任务不显示', () => {
+    // currentDate 为 2026-07-01，起始日前一天是 6/30
+    const beforeRange = makeTask(1, {
+      title: '范围前任务',
+      due_date: '2026-06-30T09:00:00',
+      end_date: '2026-06-30T10:00:00',
+    })
+
+    renderAgendaView([beforeRange])
+
+    expect(screen.queryByTestId('agenda-timed-task-1')).not.toBeInTheDocument()
+    expect(screen.getByText(/近 14 天没有任务/)).toBeInTheDocument()
+  })
+
+  it('重复任务不在 Agenda 中展开多个 occurrence（已知限制）', () => {
+    // calendarTaskOccurrences 不支持 repeat_rule 展开，
+    // 重复任务只会在其 due_date 当天显示一次。
+    const repeatTask = makeTask(1, {
+      title: '每日重复任务',
+      repeat_rule: 'daily',
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+
+    renderAgendaView([repeatTask])
+
+    // 只出现一次（在 due_date 当天），不会在 7/4, 7/5 等天展开
+    const rows = screen.getAllByTestId(/agenda-timed-task-1/)
+    expect(rows).toHaveLength(1)
+  })
+
+  it('全天任务跨天时显示分段标记', () => {
+    const task = makeTask(1, {
+      title: '跨天全天任务',
+      all_day: true,
+      due_date: '2026-07-03T00:00:00',
+      end_date: '2026-07-05T00:00:00',
+    })
+
+    renderAgendaView([task])
+
+    // 跨天任务应出现多天
+    const allRows = screen.getAllByTestId(/agenda-all-day-task-1/)
+    expect(allRows.length).toBeGreaterThanOrEqual(2)
+
+    // 至少有一行包含"开始"或"跨天"标记
+    const hasSegmentLabel = allRows.some(
+      (row) => row.textContent?.includes('开始') || row.textContent?.includes('跨天') || row.textContent?.includes('结束'),
+    )
+    expect(hasSegmentLabel).toBe(true)
+  })
 })
