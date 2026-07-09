@@ -7,6 +7,7 @@ import { WeekView } from './WeekView'
 import { DayView } from '../DayView'
 import { GanttView } from '../GanttView'
 import { KanbanView } from '../KanbanView'
+import { AgendaView } from './AgendaView'
 
 /**
  * 视图分发器
@@ -58,6 +59,19 @@ export function ViewRenderer(props: ViewRendererProps) {
     onPrevDay,
     onNextDay,
   } = props
+
+  // 日程列表视图
+  if (viewMode === 'agenda') {
+    return (
+      <AgendaView
+        currentDate={currentDate}
+        tasks={tasks}
+        lists={lists}
+        onTaskClick={onTaskClick}
+        onToggleTask={onToggleTask}
+      />
+    )
+  }
 
   // 甘特图视图
   if (viewMode === 'gantt') {

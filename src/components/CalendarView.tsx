@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Task, List } from '../types'
 import { type ViewMode, prevMonth, nextMonth, prevWeek, nextWeek, prevDay, nextDay } from '../utils/calendarUtils'
 import { CalendarToolbar } from './calendar/CalendarToolbar'
 import { ViewRenderer } from './calendar/ViewRenderer'
 import { TaskSidebar } from './calendar/TaskSidebar'
+import { useCalendarStore } from '../stores/calendarStore'
+import { filterCalendarTasks } from '../utils/calendarFilters'
 import type { TaskActions } from '../hooks/useTaskActions'
 import type { MoveTask } from './calendar/shared/types'
 
@@ -45,6 +47,10 @@ export function CalendarView({
   // 任务侧边栏：保持开启状态，拖拽时不关闭
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // 日历过滤：统一在 CalendarView 层过滤，透传给所有子视图和侧边栏
+  const filters = useCalendarStore((s) => s.filters)
+  const visibleTasks = useMemo(() => filterCalendarTasks(tasks, filters), [tasks, filters])
+
   function handleDateClick(date: Date) {
     setCurrentDate(date)
   }
@@ -63,7 +69,7 @@ export function CalendarView({
         <TaskSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          tasks={tasks}
+          tasks={visibleTasks}
           lists={lists}
           onTaskClick={onTaskClick}
         />
@@ -83,7 +89,7 @@ export function CalendarView({
         <ViewRenderer
           viewMode={viewMode}
           currentDate={currentDate}
-          tasks={tasks}
+          tasks={visibleTasks}
           lists={lists}
           onTaskClick={onTaskClick}
           onToggleTask={onToggleTask}

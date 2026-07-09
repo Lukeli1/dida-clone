@@ -1,7 +1,7 @@
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 
-/** 日历视图模式（月 / 周 / 日 / 甘特图 / 看板） */
-export type ViewMode = 'month' | 'week' | 'day' | 'gantt' | 'kanban'
+/** 日历视图模式（月 / 周 / 日 / 甘特图 / 看板 / 日程列表） */
+export type ViewMode = 'month' | 'week' | 'day' | 'gantt' | 'kanban' | 'agenda'
 
 /**
  * 日期导航工具函数
