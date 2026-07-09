@@ -2,8 +2,8 @@
 
 > 创建时间：2026-07-09  
 > 适用项目：滴答清单复刻  
-> 当前版本方向：v1.38.0 任务数据语义与详情编辑闭环已完成
-> 下一阶段候选：v1.38.x 日历规划能力与视图过滤
+> 当前版本方向：v1.38.1 日历规划能力、视图过滤与稳定性回归已完成
+> 下一阶段候选：v1.38.x 同步、导入导出与数据安全可观测性
 
 ## 1. 当前阶段定位
 
@@ -16,7 +16,7 @@
 | 序号 | 模块 | 执行文档 | 建议版本 | 优先级 | 状态 |
 |---|---|---|---|---|---|
 | 1 | 任务数据语义与详情编辑闭环 | `docs/product-optimization-task-data-detail.md` | v1.38.0 | P0 | ✅ 已完成（阶段 1-5） |
-| 2 | 日历规划能力与视图过滤 | `docs/product-optimization-calendar-planning.md` | v1.38.0 | P1 | 待执行 |
+| 2 | 日历规划能力与视图过滤 | `docs/product-optimization-calendar-planning.md` | v1.38.1 | P1 | ✅ 已完成（功能 + 稳定性回归） |
 | 3 | 同步、导入导出与数据安全可观测性 | `docs/product-optimization-sync-data-safety.md` | v1.38.x | P0 | 待执行 |
 | 4 | AI 助手操作安全、排程预览与收件箱整理 | `docs/product-optimization-ai-assistant-safety.md` | v1.38.x | P1 | 待执行 |
 | 5 | 模板、目标、番茄钟与时间追踪闭环 | `docs/product-optimization-template-goal-pomodoro.md` | v1.39.0 | P1 | 待执行 |
@@ -123,8 +123,9 @@
 |---|---|---|---|
 | v1.37.1 | 日历任务视图与详情页全天编辑小范围修复 | patch | 只做现有 v1.37.x 主线缺陷修复 |
 | v1.38.0 | 任务数据语义 + 日历规划过滤 + Agenda | minor | 引入基础字段和新日历能力 |
-| v1.38.1 | 同步快照、导入预览、同步日志 | patch/minor 视实际范围决定 | 如果 schema 变更较多，可作为 minor |
-| v1.38.2 | AI 批量动作预览、收件箱整理、撤销边界 | patch/minor 视实际范围决定 | 不应早于同步/快照能力 |
+| v1.38.1 | 日历规划能力稳定性回归 | patch | 补齐工具栏、过滤、Agenda、CalendarView、重复任务完成状态测试覆盖 |
+| v1.38.2 | 同步快照、导入预览、同步日志 | patch/minor 视实际范围决定 | 如果 schema 变更较多，可作为 minor |
+| v1.38.3 | AI 批量动作预览、收件箱整理、撤销边界 | patch/minor 视实际范围决定 | 不应早于同步/快照能力 |
 | v1.39.0 | 模板/目标/番茄/时间追踪闭环 + 命令面板 | minor | 偏产品体验升级 |
 
 ## 5. 执行约束
@@ -144,12 +145,12 @@
 
 最推荐的下一步是执行：
 
-`docs/product-optimization-calendar-planning.md`
+`docs/product-optimization-sync-data-safety.md`
 
-建议从其中的日历过滤、Agenda 视图和月/周/日视图显示稳定性相关的前置检查项开始。
+建议从同步快照、导入预览和同步日志开始。
 
 原因：
 
-- `completed_at`、`status`、`reminder_minutes` 基础字段已补齐，日历过滤和 Agenda 视图现在可以直接使用更准确的任务状态和完成时间。
-- 全天任务从日历到详情页已形成闭环，下一步应扩展日历的规划能力（按清单/标签/优先级过滤、Agenda 视图）。
-- 先做日历规划，再做同步安全，可以减少后续重复修改。
+- `completed_at`、`status`、`reminder_minutes` 基础字段已补齐，日历过滤和 Agenda 视图已完成并补充回归测试。
+- 下一阶段涉及同步、导入导出和 AI 批量操作前，应先建立快照、预览和日志，降低批量数据变更风险。
+- 同步安全优先完成后，AI 批量操作预览和撤销边界会更容易落地。

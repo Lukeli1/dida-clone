@@ -1,7 +1,9 @@
 # 日历规划能力与视图过滤优化可执行操作文档
 
-> 适用阶段：v1.38.0 日历规划体验增强  
-> 执行方式：按模块分阶段顺序开发。每个阶段完成后先完成本阶段验证，再进入下一阶段。  
+> 适用阶段：v1.38.1 日历规划体验增强与稳定性回归
+>
+> 执行方式：按模块分阶段顺序开发。每个阶段完成后先完成本阶段验证，再进入下一阶段。
+>
 > 范围：日历过滤、Agenda 日程列表、日历工具栏、AI 排程入口参数化。
 
 ## 1. 项目现状总结
@@ -172,3 +174,19 @@ npm run test:e2e -- tests/calendar-view.spec.ts
 | Agenda 范围 | 默认只展示今天起 14 天内 occurrence |
 | Agenda 排序 | 同一天定时任务按开始时间升序 |
 | 工具栏窄屏 | 480px 宽度下按钮不换行、不溢出父容器 |
+
+## 6. v1.38.1 稳定化完成记录
+
+本阶段已完成日历过滤、Agenda 日程列表、工具栏精简和 AI 排程入口参数化，并补充稳定性回归测试。
+
+已覆盖测试范围：
+
+- `CalendarToolbar.test.tsx`：视图切换、更多视图、过滤入口、AI 排程入口。
+- `CalendarFilterMenu.test.tsx`：清单、标签、优先级、显示已完成、仅全天和重置交互。
+- `CalendarView.test.tsx`：过滤后的 `visibleTasks` 透传、回调不受影响、视图切换保留过滤条件。
+- `CalendarMainFlow.test.tsx`：日历主流程的组件级等效覆盖。
+- `AgendaView.test.tsx`：14 天范围、全天/定时分段、完成状态、跨天片段和重复任务已知限制。
+- `taskStore.test.ts`：RRule 重复任务完成路径和完成状态一致性。
+- `tests/calendar-view.spec.ts`：浏览器环境下的基础导航和无白屏烟雾测试。
+
+已知限制：`calendarTaskOccurrences.ts` 当前不展开 `repeat_rule`，Agenda 中重复任务只按原始 `due_date` 显示一次。后续如需完整重复 occurrence，应在集中 occurrence 工具中实现，不应在 AgendaView 内复制逻辑。
