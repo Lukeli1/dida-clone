@@ -2,8 +2,8 @@
 
 > 创建时间：2026-07-09  
 > 适用项目：滴答清单复刻  
-> 当前版本方向：v1.38.1 日历规划能力、视图过滤与稳定性回归已完成
-> 下一阶段候选：v1.38.x 同步、导入导出与数据安全可观测性
+> 当前版本方向：v1.38.2 数据安全快照、导入预览与同步日志已完成
+> 下一阶段候选：v1.38.x AI 操作安全，或 v1.39.0 模板/目标/番茄钟闭环
 
 ## 1. 当前阶段定位
 
@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | 1 | 任务数据语义与详情编辑闭环 | `docs/product-optimization-task-data-detail.md` | v1.38.0 | P0 | ✅ 已完成（阶段 1-5） |
 | 2 | 日历规划能力与视图过滤 | `docs/product-optimization-calendar-planning.md` | v1.38.1 | P1 | ✅ 已完成（功能 + 稳定性回归） |
-| 3 | 同步、导入导出与数据安全可观测性 | `docs/product-optimization-sync-data-safety.md` | v1.38.x | P0 | 待执行 |
+| 3 | 同步、导入导出与数据安全可观测性 | `docs/product-optimization-sync-data-safety.md` | v1.38.2 | P0 | ✅ 已完成（快照/预览/日志/附件边界） |
 | 4 | AI 助手操作安全、排程预览与收件箱整理 | `docs/product-optimization-ai-assistant-safety.md` | v1.38.x | P1 | 待执行 |
 | 5 | 模板、目标、番茄钟与时间追踪闭环 | `docs/product-optimization-template-goal-pomodoro.md` | v1.39.0 | P1 | 待执行 |
 | 6 | 整体导航、设置入口与命令面板 UX | `docs/product-optimization-navigation-command-palette.md` | v1.39.0 | P2 | 待执行 |

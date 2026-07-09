@@ -26,7 +26,11 @@ export type { Goal, GoalProgress, GoalType, GoalStatus, CreateGoalRequest, Updat
 // AI 流式对话 & 数据导出/导入
 export { llmChatStream } from './api/llmApi'
 export { dataApi } from './api/dataApi'
-export type { ImportResult } from './api/dataApi'
+export type { ImportResult, ImportPreviewResult, TablePreview, ExistingCounts } from './api/dataApi'
+export { snapshotApi } from './api/snapshotApi'
+export type { SnapshotInfo, SnapshotResult, RestoreResult } from './types/snapshot'
+export { syncLogApi } from './api/syncLogApi'
+export type { SyncLogEntry } from './api/syncLogApi'
 
 // 向后兼容：组合 taskApi / listApi / tagApi 为统一的 api 对象
 import { taskApi } from './api/taskApi'

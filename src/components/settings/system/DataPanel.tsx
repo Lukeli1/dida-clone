@@ -39,6 +39,27 @@ export function DataPanel({ exporting, onExport, onSelectFile }: DataPanelProps)
             </button>
           ))}
         </div>
+        {/* 附件导出边界说明 */}
+        <div className="px-4 pb-3.5">
+          <div className="flex items-start gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] rounded-lg">
+            <svg
+              className="w-3.5 h-3.5 text-[var(--color-text-tertiary)] flex-shrink-0 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-xs text-[var(--color-text-tertiary)]">
+              JSON 导出含附件记录（文件名、大小、类型），不含附件文件本体；导入暂不支持恢复附件记录
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ===== 数据导入 ===== */}

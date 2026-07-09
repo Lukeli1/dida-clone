@@ -90,7 +90,28 @@ fn add_column_if_not_exists(
 }
 
 pub fn init_db(app_data_dir: &str) -> Result<Connection> {
-    let db_path = std::path::Path::new(app_data_dir).join("dida.db");
+    let data_dir = std::path::Path::new(app_data_dir);
+    let db_path = data_dir.join("dida.db");
+
+    // 检测 pending-restore 文件：如果存在，说明用户已确认恢复快照，
+    // 需要在打开数据库前用快照替换当前数据库文件。
+    let pending_restore = data_dir.join("dida.db.pending-restore");
+    if pending_restore.exists() {
+        // 删除 WAL 和 SHM 文件以确保一致性
+        let _ = std::fs::remove_file(data_dir.join("dida.db-wal"));
+        let _ = std::fs::remove_file(data_dir.join("dida.db-shm"));
+        // 用 pending-restore 替换当前数据库
+        if let Err(e) = std::fs::rename(&pending_restore, &db_path) {
+            // rename 可能跨卷失败，回退到 copy + remove
+            if let Err(e2) = std::fs::copy(&pending_restore, &db_path) {
+                eprintln!("[db] 恢复快照失败: rename={}, copy={}", e, e2);
+            } else {
+                let _ = std::fs::remove_file(&pending_restore);
+            }
+        }
+        eprintln!("[db] 数据库已从快照恢复");
+    }
+
     let conn = Connection::open(db_path)?;
 
     init_schema(&conn)?;

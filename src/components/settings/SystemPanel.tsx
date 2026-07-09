@@ -9,6 +9,8 @@ import { Toggle } from './Toggle'
 import { DataPanel, type ExportFormat } from './system/DataPanel'
 import { CleanupPanel, type ImportModalState } from './system/CleanupPanel'
 import { ErrorLogPanel } from './system/ErrorLogPanel'
+import { SnapshotPanel } from './system/SnapshotPanel'
+import { SyncLogPanel } from './system/SyncLogPanel'
 
 /** 当天日期字符串，用于生成导出文件名，如 2026-06-29 */
 function todayStr(): string {
@@ -37,6 +39,8 @@ export function SystemPanel() {
     fileName: '',
     content: '',
     mode: 'merge',
+    previewResult: null,
+    previewing: false,
   })
   const [importing, setImporting] = useState(false)
 
@@ -92,10 +96,24 @@ export function SystemPanel() {
       })
       if (!result) return // 用户取消
       const [fileName, content] = result
-      setImportModal({ open: true, fileName, content, mode: 'merge' })
+      setImportModal({ open: true, fileName, content, mode: 'merge', previewResult: null, previewing: false })
     } catch (e) {
       console.error('读取文件失败', e)
       toast.error(`读取文件失败：${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  // ===== 导入流程：预览 =====
+  async function handlePreview() {
+    setImportModal((s) => ({ ...s, previewing: true }))
+    try {
+      const preview = await dataApi.importJsonPreview(importModal.content, importModal.mode)
+      setImportModal((s) => ({ ...s, previewResult: preview }))
+    } catch (e) {
+      console.error('预览失败', e)
+      toast.error(`预览失败：${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setImportModal((s) => ({ ...s, previewing: false }))
     }
   }
 
@@ -116,7 +134,7 @@ export function SystemPanel() {
     try {
       const result = await dataApi.importJson(importModal.content, importModal.mode)
       toast.success(formatImportResult(result))
-      setImportModal({ open: false, fileName: '', content: '', mode: 'merge' })
+      setImportModal({ open: false, fileName: '', content: '', mode: 'merge', previewResult: null, previewing: false })
       // 延迟刷新页面，让 toast 先显示（习惯数据为组件本地状态，需整页刷新）
       setTimeout(() => window.location.reload(), 1500)
     } catch (e) {
@@ -129,7 +147,12 @@ export function SystemPanel() {
 
   function closeImportModal() {
     if (importing) return
-    setImportModal({ open: false, fileName: '', content: '', mode: 'merge' })
+    setImportModal({ open: false, fileName: '', content: '', mode: 'merge', previewResult: null, previewing: false })
+  }
+
+  function handleImportModeChange(mode: 'merge' | 'replace') {
+    // 切换模式时清除预览结果
+    setImportModal((s) => ({ ...s, mode, previewResult: null }))
   }
 
   function handleAutoStartChange(v: boolean) {
@@ -160,8 +183,13 @@ export function SystemPanel() {
         importing={importing}
         onConfirmImport={handleConfirmImport}
         onCloseImportModal={closeImportModal}
-        onImportModeChange={(mode) => setImportModal((s) => ({ ...s, mode }))}
+        onImportModeChange={handleImportModeChange}
+        onPreview={handlePreview}
       />
+
+      <SnapshotPanel toast={toast} />
+
+      <SyncLogPanel toast={toast} />
 
       <ErrorLogPanel toast={toast} />
     </div>

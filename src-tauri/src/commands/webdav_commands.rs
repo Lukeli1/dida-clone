@@ -4,6 +4,8 @@
 // 同步策略：比较本地与远程数据库文件的修改时间，决定上传或下载。
 
 use crate::commands::secret_commands::get_secret_internal;
+use crate::commands::sync_commands::create_snapshot_before_overwrite;
+use crate::commands::sync_log_commands::{log_sync_error, log_sync_success};
 use crate::commands::sync_commands::load_sync_config;
 use crate::webdav_sync::{WebDavClient, WebDavConfig};
 use chrono::{DateTime, Utc};
@@ -100,6 +102,7 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
             let local_modified = (local - last).num_seconds() > CONFLICT_GRACE_SECS;
             let remote_modified = (remote - last).num_seconds() > CONFLICT_GRACE_SECS;
             if local_modified && remote_modified {
+                log_sync_error(&app_data_dir, "sync_error", "webdav", "检测到同步冲突：本地和远程数据均已修改");
                 return Err(
                     "检测到同步冲突 (conflict)：本地和远程数据均已修改，请选择保留方式。"
                         .to_string(),
@@ -113,16 +116,20 @@ pub async fn webdav_sync(app: AppHandle, app_data_dir: String) -> Result<String,
         (Some(_), None) => {
             // 远程不存在 → 上传
             client.upload(&local_db).await?;
+            log_sync_success(&app_data_dir, "sync_upload", "webdav", "WebDAV 上传成功（远程不存在）");
             "upload".to_string()
         }
         (Some(local), Some(remote)) => {
             if local > remote {
                 // 本地更新 → 上传
                 client.upload(&local_db).await?;
+                log_sync_success(&app_data_dir, "sync_upload", "webdav", "WebDAV 上传成功（本地更新）");
                 "upload".to_string()
             } else if remote > local {
-                // 远程更新 → 下载
+                // 远程更新 → 下载（先创建快照，失败则中止）
+                create_snapshot_before_overwrite(&app_data_dir, "before-webdav-sync-download")?;
                 client.download(&local_db).await?;
+                log_sync_success(&app_data_dir, "sync_download", "webdav", "WebDAV 下载成功（远程更新）");
                 "download".to_string()
             } else {
                 // 都未修改
@@ -165,6 +172,8 @@ pub async fn webdav_upload(app: AppHandle, app_data_dir: String) -> Result<(), S
     let now = chrono::Local::now().to_rfc3339();
     let _ = std::fs::write(last_sync_path, now);
 
+    log_sync_success(&app_data_dir, "sync_upload", "webdav", "WebDAV 强制上传成功");
+
     Ok(())
 }
 
@@ -184,12 +193,17 @@ pub async fn webdav_download(app: AppHandle, app_data_dir: String) -> Result<(),
     let client = WebDavClient::new(webdav_config);
     let local_db = Path::new(&app_data_dir).join("dida.db");
 
+    // 覆盖本地 DB 前创建快照（失败则中止）
+    create_snapshot_before_overwrite(&app_data_dir, "before-webdav-download")?;
+
     client.download(&local_db).await?;
 
     // 记录同步时间
     let last_sync_path = Path::new(&app_data_dir).join("webdav_last_sync.txt");
     let now = chrono::Local::now().to_rfc3339();
     let _ = std::fs::write(last_sync_path, now);
+
+    log_sync_success(&app_data_dir, "sync_download", "webdav", "WebDAV 强制下载成功");
 
     Ok(())
 }

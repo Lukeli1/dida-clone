@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.38.1-blue)
+![版本](https://img.shields.io/badge/version-1.38.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,19 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.38.2（2026-07-09）- 数据安全快照、导入预览与同步日志
+
+- 新增数据快照系统：使用 SQLite `VACUUM INTO` 创建一致性快照，正确处理 WAL 模式；支持手动创建、列表、恢复和删除，最多保留 20 个；恢复/删除操作含文件名安全校验，防止路径穿越
+- 新增自动快照触发：导入替换模式、WebDAV 下载、WebDAV 同步下载、Git/WebDAV 冲突解决覆盖本地前，后端自动创建快照；**快照创建失败将中止后续破坏性操作**，不会继续清空或覆盖数据
+- 新增快照恢复安全策略：写入 pending-restore 文件，应用重启时完成恢复，避免长期连接冲突
+- 新增导入预览命令 `import_json_preview`：merge 模式覆盖主要唯一约束冲突（ID 冲突、tags UNIQUE name 冲突、habit_records UNIQUE(habit_id,date) 冲突），外键异常仍以实际导入结果为准；replace 模式按清空后数据库计算，仅检测 JSON 内部自冲突（重复 ID/name），现有库冲突仅在 `existing_counts` 中展示删除提示
+- 导入流程改为必须先预览才能确认导入，replace 模式展示醒目警告和自动快照提示
+- 新增独立同步日志 `sync_logs.jsonl`：记录 Git/WebDAV 同步、上传、下载、冲突解决和错误，不写入主数据库避免远程覆盖丢失；设置页展示最近 10 条
+- JSON 导出新增附件元信息（文件名、大小、MIME 类型），UI 明确标注"含附件记录，不含附件文件本体；导入暂不支持恢复附件记录"
+- 前端新增 SnapshotPanel、SyncLogPanel 组件，CleanupPanel 增加预览结果展示
+- 版本检查脚本新增 package-lock.json 校验
+- 验证通过：516 个前端测试、57 个 Rust 测试、TypeScript、ESLint、Clippy、版本一致性（含 lockfile）
 
 ### v1.38.1（2026-07-09）- 日历规划能力稳定性回归
 

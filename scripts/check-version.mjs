@@ -2,7 +2,7 @@
 /**
  * 版本一致性检查脚本（P5-18）
  *
- * 检查 package.json / Cargo.toml / tauri.conf.json / README badge 版本是否一致。
+ * 检查 package.json / package-lock.json / Cargo.toml / tauri.conf.json / README badge 版本是否一致。
  * 用法：node scripts/check-version.mjs
  * 退出码 0 = 一致，1 = 不一致。
  */
@@ -30,6 +30,11 @@ const readme = readText(join(root, 'README.md'))
 const versions = {
   'package.json': pkg.version,
 }
+
+// package-lock.json
+const lockText = readText(join(root, 'package-lock.json'))
+const lockMatch = lockText.match(/^\s*"version"\s*:\s*"([^"]+)"/m)
+if (lockMatch) versions['package-lock.json'] = lockMatch[1]
 
 // Cargo.toml: 提取 version = "x.y.z"
 const cargoMatch = cargoText.match(/^version\s*=\s*"([^"]+)"/m)

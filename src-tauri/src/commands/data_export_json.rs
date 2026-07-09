@@ -9,7 +9,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use tauri::State;
 
-use crate::commands::{now_rfc3339, List, Tag};
+use crate::commands::{now_rfc3339, Attachment, List, Tag};
 use crate::db::*;
 
 // ---------------------------------------------------------------------------
@@ -17,6 +17,9 @@ use crate::db::*;
 // ---------------------------------------------------------------------------
 
 /// 导出数据容器（export_json 返回的 JSON 结构）
+///
+/// 注意：attachments 字段仅包含附件元信息（文件名、大小、MIME 类型等），
+/// 不包含附件文件本体。导入时暂不支持恢复附件记录。
 #[derive(Serialize)]
 pub struct ExportData {
     version: String,
@@ -26,6 +29,8 @@ pub struct ExportData {
     tags: Vec<Tag>,
     habits: Vec<Habit>,
     habit_records: Vec<HabitRecord>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    attachments: Vec<Attachment>,
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +184,27 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
     drop(stmt);
 
+    // 6. 查询所有附件元信息（不含文件本体）
+    let mut stmt = conn
+        .prepare("SELECT id, task_id, file_name, file_path, file_size, mime_type, created_at FROM attachments ORDER BY created_at ASC")
+        .map_err(|e| e.to_string())?;
+    let attachments: Vec<Attachment> = stmt
+        .query_map([], |row| {
+            Ok(Attachment {
+                id: row.get(0)?,
+                task_id: row.get(1)?,
+                file_name: row.get(2)?,
+                file_path: row.get(3)?,
+                file_size: row.get(4)?,
+                mime_type: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+
     // 组装 ExportData 并序列化
     let data = ExportData {
         version: "1.0".to_string(),
@@ -188,6 +214,7 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
         tags,
         habits,
         habit_records,
+        attachments,
     };
 
     serde_json::to_string_pretty(&data).map_err(|e| e.to_string())

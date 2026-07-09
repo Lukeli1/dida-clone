@@ -6,6 +6,11 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
+// Mock @tauri-apps/api/path（importJson 内部调用 appDataDir）
+vi.mock('@tauri-apps/api/path', () => ({
+  appDataDir: vi.fn().mockResolvedValue('/mock/app/data/dir'),
+}))
+
 import { invoke } from '@tauri-apps/api/core'
 import { dataApi, type ImportResult } from '../../api'
 
@@ -35,7 +40,7 @@ describe('dataApi 导出/导入', () => {
     expect(result).toBe('# 任务清单\n\n- [ ] 买菜\n')
   })
 
-  it('dataApi.importJson(json, "merge") 调用 invoke("import_json", { json, mode: "merge" })', async () => {
+  it('dataApi.importJson(json, "merge") 调用 invoke("import_json", { json, mode, appDataDir })', async () => {
     const importResult: ImportResult = {
       lists_imported: 1,
       tasks_imported: 2,
@@ -46,12 +51,12 @@ describe('dataApi 导出/导入', () => {
     vi.mocked(invoke).mockResolvedValue(importResult)
     const json = '{"tasks":[]}'
     const result = await dataApi.importJson(json, 'merge')
-    expect(invoke).toHaveBeenCalledWith('import_json', { json, mode: 'merge' })
+    expect(invoke).toHaveBeenCalledWith('import_json', { json, mode: 'merge', appDataDir: '/mock/app/data/dir' })
     expect(result).toEqual(importResult)
     expect(result.tasks_imported).toBe(2)
   })
 
-  it('dataApi.importJson(json, "replace") 调用 invoke("import_json", { json, mode: "replace" })', async () => {
+  it('dataApi.importJson(json, "replace") 调用 invoke("import_json", { json, mode, appDataDir })', async () => {
     const importResult: ImportResult = {
       lists_imported: 0,
       tasks_imported: 0,
@@ -62,7 +67,7 @@ describe('dataApi 导出/导入', () => {
     vi.mocked(invoke).mockResolvedValue(importResult)
     const json = '{"tasks":[]}'
     const result = await dataApi.importJson(json, 'replace')
-    expect(invoke).toHaveBeenCalledWith('import_json', { json, mode: 'replace' })
+    expect(invoke).toHaveBeenCalledWith('import_json', { json, mode: 'replace', appDataDir: '/mock/app/data/dir' })
     expect(result).toEqual(importResult)
   })
 })

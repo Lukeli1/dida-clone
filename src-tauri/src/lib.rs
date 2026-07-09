@@ -310,6 +310,13 @@ pub fn run() {
             commands::set_secret,
             commands::get_secret,
             commands::delete_secret,
+            commands::create_data_snapshot,
+            commands::list_data_snapshots,
+            commands::restore_data_snapshot,
+            commands::delete_data_snapshot,
+            commands::import_json_preview,
+            commands::list_sync_logs,
+            commands::clear_sync_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
