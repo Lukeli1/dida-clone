@@ -51,13 +51,8 @@ pub struct UpdateTaskRequest {
     pub sort_order: Option<f64>,
 }
 
-#[tauri::command]
-pub fn update_task(
-    state: State<DbState>,
-    id: i64,
-    updates: UpdateTaskRequest,
-) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+/// 核心更新逻辑，接受 &Connection 以便在批量执行事务中复用。
+pub fn do_update_task(conn: &rusqlite::Connection, id: i64, updates: &UpdateTaskRequest) -> Result<(), String> {
     let now = now_rfc3339();
 
     // 动态构建 UPDATE 语句
@@ -155,6 +150,21 @@ pub fn update_task(
         params_vec.push(Box::new(list_id));
     }
     if let Some(ref parent_id) = updates.parent_id {
+        if let Some(pid) = *parent_id {
+            if pid == id {
+                return Err("任务不能成为自己的子任务".to_string());
+            }
+            let parent_parent_id: Option<i64> = conn
+                .query_row(
+                    "SELECT parent_id FROM tasks WHERE id = ?1",
+                    rusqlite::params![pid],
+                    |row| row.get(0),
+                )
+                .map_err(|e| format!("更新任务失败：父任务 #{} 不存在或查询出错: {}", pid, e))?;
+            if parent_parent_id.is_some() {
+                return Err("更新任务失败：当前仅支持一层子任务".to_string());
+            }
+        }
         set_clauses.push("parent_id = ?".to_string());
         params_vec.push(Box::new(*parent_id));
     }
@@ -167,7 +177,7 @@ pub fn update_task(
         params_vec.push(Box::new(sort_order));
     }
 
-    // 没有任何字段需要更新时，直接返回（避免生成 "UPDATE tasks SET updated_at = ? WHERE id = ?"）
+    // 没有任何字段需要更新时，直接返回
     if set_clauses.is_empty() {
         return Ok(());
     }
@@ -180,10 +190,23 @@ pub fn update_task(
 
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
 
-    conn.execute(&sql, params_refs.as_slice())
+    let affected = conn.execute(&sql, params_refs.as_slice())
         .map_err(|e| e.to_string())?;
+    if affected == 0 {
+        return Err(format!("更新任务失败：任务 #{} 不存在", id));
+    }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn update_task(
+    state: State<DbState>,
+    id: i64,
+    updates: UpdateTaskRequest,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    do_update_task(&conn, id, &updates)
 }
 
 #[cfg(test)]
@@ -352,5 +375,84 @@ mod tests {
             )
             .unwrap();
         assert_eq!(due_date.as_deref(), Some("2026-07-01T00:00:00"));
+    }
+
+    #[test]
+    fn test_update_nonexistent_task_returns_error() {
+        let conn = setup_with_task();
+        let updates = super::UpdateTaskRequest {
+            title: Some("不存在".to_string()),
+            notes: None,
+            priority: None,
+            due_date: None,
+            end_date: None,
+            all_day: None,
+            reminder: None,
+            reminder_minutes: None,
+            completed: None,
+            completed_at: None,
+            status: None,
+            archived: None,
+            pinned: None,
+            list_id: None,
+            parent_id: None,
+            repeat_rule: None,
+            sort_order: None,
+        };
+
+        let result = super::do_update_task(&conn, 999999, &updates);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("不存在"));
+    }
+
+    #[test]
+    fn test_update_parent_rejects_nested_subtask() {
+        let conn = setup_with_task();
+        let parent_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?3)",
+            params!["子任务", parent_id, "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let subtask_id = conn.last_insert_rowid();
+        let moving_task_id = super::super::task_create::do_create_task(&conn, &super::super::task_create::CreateTaskRequest {
+            title: "待移动任务".to_string(),
+            notes: None,
+            priority: None,
+            due_date: None,
+            end_date: None,
+            all_day: false,
+            reminder: None,
+            reminder_minutes: None,
+            list_id: 1,
+            parent_id: None,
+            repeat_rule: None,
+        })
+        .unwrap()
+        .id;
+
+        let updates = super::UpdateTaskRequest {
+            title: None,
+            notes: None,
+            priority: None,
+            due_date: None,
+            end_date: None,
+            all_day: None,
+            reminder: None,
+            reminder_minutes: None,
+            completed: None,
+            completed_at: None,
+            status: None,
+            archived: None,
+            pinned: None,
+            list_id: None,
+            parent_id: Some(Some(subtask_id)),
+            repeat_rule: None,
+            sort_order: None,
+        };
+
+        let result = super::do_update_task(&conn, moving_task_id, &updates);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("一层子任务"));
     }
 }

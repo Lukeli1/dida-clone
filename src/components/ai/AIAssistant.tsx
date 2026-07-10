@@ -9,19 +9,24 @@ import {
   ACTION_SYSTEM_PROMPT,
   parseActions,
   type AISkill,
-  type ActionOp,
 } from '../../utils/llm'
 import { llmChatStream } from '../../api'
 import { useAIStore } from '../../stores/aiStore'
 import { useUIStore } from '../../stores/uiStore'
+import { useAiUndoStore } from '../../stores/aiUndoStore'
 import type { ChatMessage } from '../../types'
-import type { AIAssistantProps, UIMessage, ScheduleItem } from './types'
-import { stripActionsLive, executeAction } from './ActionParser'
+import type { AIAssistantProps, UIMessage } from './types'
+import { stripActionsLive } from './ActionParser'
 import { ChatMessageItem } from './ChatMessage'
 import { WelcomeScreen } from './SkillSelector'
 import { parsePreferences } from './preferences'
 import { useConfirm } from '../common/ConfirmDialog'
-import { SchedulePreviewDialog } from './SchedulePreviewDialog'
+import { ActionPreviewDialog } from './ActionPreviewDialog'
+import { validateAiActions, executeAiActions, undoLastAiAction } from '../../utils/aiActionExecutor'
+import type { ValidationResult } from '../../utils/aiActionSafety'
+import { useTaskStore } from '../../stores/taskStore'
+import { api } from '../../api'
+import type { Task } from '../../types'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
   // 对话与偏好改为全局 store 持久化，关闭面板后对话记录保留
@@ -36,9 +41,12 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
   const [isStreaming, setIsStreaming] = useState(false)
   const [activeSkill, setActiveSkill] = useState<AISkill | null>(null)
   const [showSkillMenu, setShowSkillMenu] = useState(false)
-  // 排程预览：AI 返回多个 update_task 动作时，弹出预览对话框供用户确认
-  const [schedulePreview, setSchedulePreview] = useState<ScheduleItem[] | null>(null)
-  const scheduleActionsRef = useRef<ActionOp[] | null>(null)
+  // 动作预览对话框
+  const [actionPreview, setActionPreview] = useState<ValidationResult | null>(null)
+  const [previewMessageIndex, setPreviewMessageIndex] = useState<number | null>(null)
+  // 撤销状态
+  const undoRecord = useAiUndoStore((s) => s.lastRecord)
+  const [undoInProgress, setUndoInProgress] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null) // 流式取消函数
@@ -160,30 +168,15 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
       settledRef.current = true
       const { actions, cleanedText } = parseActions(full)
 
-      // 排程场景检测：多个 update_task 动作包含 due_date（时间安排）
-      const scheduleActions = actions.filter((a) => a.type === 'update_task' && a.data.updates?.due_date)
-      let pendingAction: ActionOp | undefined = actions[0]
-      if (scheduleActions.length >= 2) {
-        // 提取日程项，准备排程预览对话框
-        const items: ScheduleItem[] = scheduleActions.map((a) => {
-          const task = tasks.find((t) => t.id === a.data.task_id)
-          return {
-            taskId: a.data.task_id,
-            taskTitle: task?.title ?? `任务 #${a.data.task_id}`,
-            start: a.data.updates.due_date,
-            end: a.data.updates.end_date ?? a.data.updates.due_date,
-            priority: task?.priority ?? 0,
-          }
-        })
-        scheduleActionsRef.current = scheduleActions
-        setSchedulePreview(items)
-        // 排程动作由对话框统一处理，不显示单个 pendingAction 卡片
-        pendingAction = undefined
+      // 校验动作并构建预览
+      let pendingPreview: ValidationResult | null = null
+      if (actions.length > 0) {
+        pendingPreview = validateAiActions(actions, tasks)
       }
 
       setMessages((prev) =>
         prev.map((m) =>
-          m.isStreaming ? { ...m, content: cleanedText || full, skillId, pendingAction, isStreaming: false } : m,
+          m.isStreaming ? { ...m, content: cleanedText || full, skillId, pendingPreview, isStreaming: false } : m,
         ),
       )
       setIsStreaming(false)
@@ -249,20 +242,146 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     setIsStreaming(false)
   }
 
-  async function handleExecuteAction(action: ActionOp, messageIndex: number) {
+  /** 打开动作预览对话框 */
+  function handlePreviewActions(messageIndex: number) {
+    const msg = useAIStore.getState().messages[messageIndex]
+    if (!msg?.pendingPreview) return
+    setActionPreview(msg.pendingPreview)
+    setPreviewMessageIndex(messageIndex)
+  }
+
+  /** 忽略待确认的操作 */
+  function handleRejectActions(messageIndex: number) {
+    setMessages((prev) => prev.map((m, i) => (i === messageIndex ? { ...m, pendingPreview: null } : m)))
+    setMessages((prev) => [...prev, { role: 'assistant', content: '已忽略该操作建议。' }])
+  }
+
+  /** 确认执行预览中的动作 */
+  async function handleConfirmActions() {
+    if (!actionPreview || previewMessageIndex === null) {
+      setActionPreview(null)
+      setPreviewMessageIndex(null)
+      return
+    }
+
+    // 先刷新任务列表，确保执行前重新校验时拿到的是最新数据
+    // M1: 如果刷新失败，直接阻止执行，防止用过时数据通过快照校验
     try {
-      const resultMsg = await executeAction(action, tasks)
-      setMessages((prev) => prev.map((m, i) => (i === messageIndex ? { ...m, pendingAction: undefined } : m)))
-      setMessages((prev) => [...prev, { role: 'assistant', content: resultMsg }])
-      onTasksChange?.()
-    } catch (e: any) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `❌ 执行失败：${e.message || String(e)}` }])
+      await useTaskStore.getState().loadTasks()
+    } catch {
+      setActionPreview(null)
+      setPreviewMessageIndex(null)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '❌ 无法刷新任务列表，请检查网络后重试' },
+      ])
+      return
+    }
+    // loadTasks 内部 catch 了错误不抛出，因此需要检查数据是否实际更新
+    // 通过直接调用 api.getTasks() 确保拿到最新数据
+    let currentTasks: Task[]
+    try {
+      currentTasks = await api.getTasks()
+      // 同步更新 store
+      useTaskStore.getState().setTasks(currentTasks)
+    } catch {
+      setActionPreview(null)
+      setPreviewMessageIndex(null)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '❌ 无法获取最新任务列表，请检查网络后重试' },
+      ])
+      return
+    }
+    const tasksBefore = [...currentTasks]
+
+    const validatedActions = actionPreview.valid.map((v) => v.action)
+
+    // 从消息中保存的 pendingPreview 获取 expected token（独立可信来源）
+    // 这样可以防止 actionPreview 状态被篡改后 token 仍然匹配
+    const msgIndex = previewMessageIndex
+    const savedMsg = messages[msgIndex]
+    const savedPendingPreview = savedMsg?.pendingPreview
+    const expectedToken = savedPendingPreview?.proposalToken ?? ''
+
+    const result = await executeAiActions(
+      validatedActions,
+      tasksBefore,
+      actionPreview.proposalToken,
+      expectedToken,
+      actionPreview.taskSnapshotVersion,
+      currentTasks,
+    )
+
+    // 清除预览状态
+    setActionPreview(null)
+    setPreviewMessageIndex(null)
+
+    if (result.success) {
+      // 清除消息上的 pendingPreview
+      setMessages((prev) => prev.map((m, i) => (i === msgIndex ? { ...m, pendingPreview: null } : m)))
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `✅ 已执行 ${result.summaries.length} 项操作：\n${result.summaries.join('\n')}${result.undoSummary ? `\n\n💡 可点击撤销按钮恢复本次操作` : ''}`,
+        },
+      ])
+      await onTasksChange?.()
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `❌ 执行失败：${result.error}` },
+      ])
     }
   }
 
-  function handleRejectAction(messageIndex: number) {
-    setMessages((prev) => prev.map((m, i) => (i === messageIndex ? { ...m, pendingAction: undefined } : m)))
-    setMessages((prev) => [...prev, { role: 'assistant', content: '已取消该操作。' }])
+  /** 取消预览 */
+  function handleCancelActions() {
+    setActionPreview(null)
+    setPreviewMessageIndex(null)
+  }
+
+  /** 撤销最近一次 AI 操作 */
+  async function handleUndo() {
+    if (undoInProgress) return
+    const record = useAiUndoStore.getState().lastRecord
+    if (!record || record.undone) return
+
+    setUndoInProgress(true)
+    try {
+      let currentTasks: Task[]
+      try {
+        currentTasks = await api.getTasks()
+        useTaskStore.getState().setTasks(currentTasks)
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: '❌ 无法获取最新任务列表，已取消撤销以保护用户改动' },
+        ])
+        return
+      }
+
+      const result = await undoLastAiAction(currentTasks)
+
+      if (result.success) {
+        const parts: string[] = []
+        if (result.summaries.length > 0) parts.push(result.summaries.join('\n'))
+        if (result.skipped.length > 0) parts.push(`⚠️ 以下条目无法撤销：\n${result.skipped.join('\n')}`)
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: `↩️ 撤销结果：\n${parts.join('\n\n') || '无变更'}` },
+        ])
+        await onTasksChange?.()
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: `❌ 撤销失败：${result.error}` },
+        ])
+      }
+    } finally {
+      setUndoInProgress(false)
+    }
   }
 
   function handleSend() {
@@ -302,6 +421,8 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     setMessages([])
     setActiveSkill(null)
     setShowSkillMenu(false)
+    setActionPreview(null)
+    setPreviewMessageIndex(null)
   }
 
   // 保存本轮检测到的偏好
@@ -324,35 +445,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     clearPreferences()
   }
 
-  // 确认应用排程：批量执行所有 update_task 动作
-  async function handleConfirmSchedule() {
-    const actions = scheduleActionsRef.current
-    if (!actions || actions.length === 0) {
-      setSchedulePreview(null)
-      scheduleActionsRef.current = null
-      return
-    }
-    const results: string[] = []
-    for (const action of actions) {
-      try {
-        const msg = await executeAction(action, tasks)
-        results.push(msg)
-      } catch (e: any) {
-        results.push(`❌ 任务 #${action.data.task_id} 排程失败：${e.message || String(e)}`)
-      }
-    }
-    setSchedulePreview(null)
-    scheduleActionsRef.current = null
-    setMessages((prev) => [...prev, { role: 'assistant', content: `🗓️ 排程已应用：\n${results.join('\n')}` }])
-    onTasksChange?.()
-  }
-
-  // 取消排程
-  function handleCancelSchedule() {
-    setSchedulePreview(null)
-    scheduleActionsRef.current = null
-    setMessages((prev) => [...prev, { role: 'assistant', content: '已取消排程应用，任务时间未更改。' }])
-  }
+  const canUndo = undoRecord && !undoRecord.undone
 
   return (
     <div
@@ -378,6 +471,19 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* 撤销按钮 */}
+          {canUndo && (
+            <button
+              onClick={handleUndo}
+              disabled={undoInProgress}
+              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors disabled:opacity-40"
+              title={`撤销：${undoRecord!.summary}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+            </button>
+          )}
           {messages.length > 0 && (
             <button
               onClick={handleClearChat}
@@ -428,8 +534,8 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
             <ChatMessageItem
               msg={msg}
               index={i}
-              onExecuteAction={handleExecuteAction}
-              onRejectAction={handleRejectAction}
+              onPreviewActions={handlePreviewActions}
+              onRejectActions={handleRejectActions}
             />
             {pendingPrefs && pendingPrefs.index === i && (
               <div className="mt-2 ml-10 p-2.5 bg-[var(--color-accent-light)] border border-[var(--color-accent)]/20 rounded-lg flex items-start gap-2 animate-slide-down">
@@ -564,12 +670,13 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
         </div>
       </div>
 
-      {/* 排程预览对话框 */}
-      {schedulePreview && (
-        <SchedulePreviewDialog
-          schedule={schedulePreview}
-          onConfirm={handleConfirmSchedule}
-          onCancel={handleCancelSchedule}
+      {/* 动作预览对话框 */}
+      {actionPreview && (
+        <ActionPreviewDialog
+          validActions={actionPreview.valid}
+          errors={actionPreview.errors}
+          onConfirm={handleConfirmActions}
+          onCancel={handleCancelActions}
         />
       )}
     </div>

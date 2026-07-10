@@ -268,7 +268,7 @@ export function formatTasksContext(tasks: Task[]): string {
       const due = t.due_date ? ` 截止:${new Date(t.due_date).toLocaleString('zh-CN')}` : ''
       const priority = t.priority ? ` P${t.priority}` : ''
       const notes = t.notes ? ` 备注:${t.notes}` : ''
-      return `${i + 1}. ${status}${priority}${due}${notes} ${t.title}`
+      return `${i + 1}. [ID:${t.id}] ${status}${priority}${due}${notes} ${t.title}`
     })
     .join('\n')
 }

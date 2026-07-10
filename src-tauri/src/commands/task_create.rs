@@ -5,7 +5,7 @@ use tauri::State;
 use super::super::now_rfc3339;
 use crate::db::{DbState, Task};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct CreateTaskRequest {
     pub title: String,
     pub notes: Option<String>,
@@ -21,11 +21,23 @@ pub struct CreateTaskRequest {
     pub repeat_rule: Option<String>,
 }
 
-#[tauri::command]
-pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+/// 核心创建逻辑，接受 &Connection 以便在批量执行事务中复用。
+pub fn do_create_task(conn: &rusqlite::Connection, req: &CreateTaskRequest) -> Result<Task, String> {
     let now = now_rfc3339();
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
+
+    if let Some(parent_id) = req.parent_id {
+        let parent_parent_id: Option<i64> = conn
+            .query_row(
+                "SELECT parent_id FROM tasks WHERE id = ?1",
+                params![parent_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("创建子任务失败：父任务 #{} 不存在或查询出错: {}", parent_id, e))?;
+        if parent_parent_id.is_some() {
+            return Err("创建子任务失败：当前仅支持一层子任务".to_string());
+        }
+    }
 
     conn.execute(
         "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed_at, status, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
@@ -52,13 +64,13 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
 
     Ok(Task {
         id,
-        title: req.title,
-        notes: req.notes,
+        title: req.title.clone(),
+        notes: req.notes.clone(),
         priority: req.priority.unwrap_or(2),
-        due_date: req.due_date,
-        end_date: req.end_date,
+        due_date: req.due_date.clone(),
+        end_date: req.end_date.clone(),
         all_day: req.all_day,
-        reminder: req.reminder,
+        reminder: req.reminder.clone(),
         reminder_minutes: req.reminder_minutes,
         completed: false,
         completed_at: None,
@@ -67,10 +79,16 @@ pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task
         pinned: false,
         list_id: req.list_id,
         parent_id: req.parent_id,
-        repeat_rule: req.repeat_rule,
+        repeat_rule: req.repeat_rule.clone(),
         sort_order,
         created_at: now.clone(),
         updated_at: now,
         tag_ids: Vec::new(),
     })
+}
+
+#[tauri::command]
+pub fn create_task(state: State<DbState>, req: CreateTaskRequest) -> Result<Task, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    do_create_task(&conn, &req)
 }

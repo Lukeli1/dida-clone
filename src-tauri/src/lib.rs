@@ -317,6 +317,7 @@ pub fn run() {
             commands::import_json_preview,
             commands::list_sync_logs,
             commands::clear_sync_logs,
+            commands::execute_ai_batch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -31,6 +31,8 @@ export { snapshotApi } from './api/snapshotApi'
 export type { SnapshotInfo, SnapshotResult, RestoreResult } from './types/snapshot'
 export { syncLogApi } from './api/syncLogApi'
 export type { SyncLogEntry } from './api/syncLogApi'
+export { aiBatchApi } from './api/aiBatchApi'
+export type { AiBatchAction, AiBatchResult, AiActionResult, AiActionType } from './api/aiBatchApi'
 
 // 向后兼容：组合 taskApi / listApi / tagApi 为统一的 api 对象
 import { taskApi } from './api/taskApi'

@@ -34,15 +34,17 @@ pub fn reorder_tasks(state: State<DbState>, items: Vec<ReorderItem>) -> Result<(
     Ok(())
 }
 
-#[tauri::command]
-pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, String> {
-    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+/// 核心完成逻辑，接受 &Connection 以便在批量执行事务中复用。
+///
+/// 处理重复任务：标记当前任务完成后，如果有 repeat_rule，
+/// 计算下一周期 due_date 并创建新任务，复制标签关联。
+///
+/// 返回 `CompleteResult`，如果创建了下一周期任务则 `new_task_id` 有值。
+/// 如果任务不存在，返回错误（用于批量执行时回滚）。
+pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<CompleteResult, String> {
     let now = now_rfc3339();
 
-    // P3-3: 事务包裹，确保完成 + 创建下一周期 + 复制标签的原子性
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-
-    // 查询任务详情
+    // 查询任务详情（包含 parent_id，与 complete_recurring_task 保持一致）
     #[allow(clippy::type_complexity)]
     let task: (
         String,
@@ -54,11 +56,13 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
         Option<String>,
         Option<i64>,
         i64,
+        Option<i64>,
         Option<String>,
+        bool,
         f64,
-    ) = tx
+    ) = conn
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, completed, sort_order FROM tasks WHERE id = ?1",
             params![id],
             |row| {
                 Ok((
@@ -73,67 +77,117 @@ pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, S
                     row.get(8)?,
                     row.get(9)?,
                     row.get(10)?,
+                    row.get::<_, i64>(11)? != 0,
+                    row.get(12)?,
                 ))
             },
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("完成任务失败：任务 #{} 不存在或查询出错: {}", id, e))?;
 
-    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, _sort_order) = task;
+    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, completed, _sort_order) = task;
+    if completed {
+        return Err(format!("完成任务失败：任务 #{} 已完成", id));
+    }
 
     // 标记当前任务为已完成
-    tx.execute(
-        "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
-        params![now, id],
-    )
-    .map_err(|e| e.to_string())?;
+    let affected = conn
+        .execute(
+            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2 AND completed = 0",
+            params![now, id],
+        )
+        .map_err(|e| e.to_string())?;
+    if affected == 0 {
+        return Err(format!("完成任务失败：任务 #{} 不存在或已完成", id));
+    }
 
-    // 如果有重复规则，创建下一个周期的任务
+    // 如果有重复规则，尝试创建下一个周期的任务
     if let Some(ref rule) = repeat_rule {
         if !rule.is_empty() {
-            let next_due = due_date
-                .as_ref()
-                .and_then(|d| compute_next_due_date(d, rule));
-            let next_end = match (&due_date, &end_date, &next_due) {
-                (Some(old_due), Some(old_end), Some(new_due)) => shift_end_date(old_due, old_end, new_due),
-                _ => None,
-            };
+            // 优先使用 RRULE 路径（与 complete_recurring_task 一致），回退到旧引擎
+            let next_due = compute_next_due_date_unified(
+                due_date.as_deref(),
+                rule,
+            );
 
-            let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
+            // 只有计算出有效的 next_due 时才创建下一周期任务
+            if let Some(ref next_due_str) = next_due {
+                let next_end = match (&due_date, &end_date) {
+                    (Some(old_due), Some(old_end)) => shift_end_date(old_due, old_end, next_due_str),
+                    _ => None,
+                };
 
-            tx.execute(
-                "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, repeat_rule, sort_order, completed, completed_at, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, NULL, 'todo', ?12, ?13)",
-                params![title, notes, priority, next_due, next_end, all_day, reminder, reminder_minutes, list_id, repeat_rule, next_sort_order, now, now],
-            ).map_err(|e| e.to_string())?;
+                // 对于 RRULE 规则，需要递减 count
+                let new_repeat_rule = if let Some(parsed) = crate::repeat::parse_rrule(rule) {
+                    let mut new_rule = parsed.clone();
+                    if let Some(c) = new_rule.count {
+                        new_rule.count = Some(c - 1);
+                    }
+                    Some(crate::repeat::serialize_rrule(&new_rule))
+                } else {
+                    None
+                };
 
-            let new_id = tx.last_insert_rowid();
+                let next_sort_order = chrono::Local::now().timestamp_millis() as f64;
 
-            // 复制标签关联
-            let tag_ids: Vec<i64> = tx
-                .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
-                .map_err(|e| e.to_string())?
-                .query_map(params![id], |row| row.get(0))
-                .map_err(|e| e.to_string())?
-                .filter_map(|r| r.ok())
-                .collect();
+                conn.execute(
+                    "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, sort_order, completed, completed_at, status, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, NULL, 'todo', ?13, ?14)",
+                    params![
+                        title,
+                        notes,
+                        priority,
+                        next_due_str,
+                        next_end,
+                        all_day,
+                        reminder,
+                        reminder_minutes,
+                        list_id,
+                        parent_id,
+                        new_repeat_rule.as_deref().unwrap_or(rule),
+                        next_sort_order,
+                        now,
+                        now
+                    ],
+                ).map_err(|e| e.to_string())?;
 
-            for tag_id in tag_ids {
-                tx.execute(
-                    "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
-                    params![new_id, tag_id],
-                )
-                .map_err(|e| e.to_string())?;
+                let new_id = conn.last_insert_rowid();
+
+                // 复制标签关联
+                let tag_ids: Vec<i64> = conn
+                    .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
+                    .map_err(|e| e.to_string())?
+                    .query_map(params![id], |row| row.get(0))
+                    .map_err(|e| e.to_string())?
+                    .filter_map(|r| r.ok())
+                    .collect();
+
+                for tag_id in tag_ids {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
+                        params![new_id, tag_id],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+
+                return Ok(CompleteResult {
+                    new_task_id: Some(new_id),
+                });
             }
-
-            tx.commit().map_err(|e| e.to_string())?;
-            return Ok(CompleteResult {
-                new_task_id: Some(new_id),
-            });
+            // next_due 为 None：规则已到期或无法计算，只完成当前任务，不创建新任务
         }
     }
 
-    tx.commit().map_err(|e| e.to_string())?;
     Ok(CompleteResult { new_task_id: None })
+}
+
+#[tauri::command]
+pub fn complete_task(state: State<DbState>, id: i64) -> Result<CompleteResult, String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    // P3-3: 事务包裹，确保完成 + 创建下一周期 + 复制标签的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let result = do_complete_task(&tx, id)?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(result)
 }
 
 fn compute_next_due_date(due_date: &str, rule: &str) -> Option<String> {
@@ -180,6 +234,32 @@ fn compute_next_due_date(due_date: &str, rule: &str) -> Option<String> {
     };
 
     Some(next.to_rfc3339())
+}
+
+/// 统一计算下一周期 due_date：优先 RRULE（与 complete_recurring_task 一致），回退旧引擎。
+///
+/// 只有返回 Some 时调用方才应创建下一周期任务；
+/// 返回 None 表示规则已到期、无效或不支持，不应创建下一周期。
+fn compute_next_due_date_unified(due_date: Option<&str>, rule: &str) -> Option<String> {
+    // 先尝试 RRULE 路径
+    if let Some(parsed_rule) = crate::repeat::parse_rrule(rule) {
+        let from = due_date
+            .and_then(|d| chrono::DateTime::parse_from_rfc3339(d).ok())
+            .map(|dt| dt.with_timezone(&chrono::Local))
+            .unwrap_or_else(chrono::Local::now);
+
+        // 检查 count 是否允许创建下一个（count<=1 表示这是最后一次）
+        let can_create_another = parsed_rule.count.map(|c| c > 1).unwrap_or(true);
+        if !can_create_another {
+            return None;
+        }
+
+        return crate::repeat::next_occurrence(&parsed_rule, from)
+            .map(|dt| dt.to_rfc3339());
+    }
+
+    // 回退到旧引擎（JSON 规则或简单字符串规则）
+    due_date.and_then(|d| compute_next_due_date(d, rule))
 }
 
 pub(crate) fn shift_end_date(old_due: &str, old_end: &str, new_due: &str) -> Option<String> {

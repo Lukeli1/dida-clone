@@ -177,26 +177,33 @@ pub fn get_tasks(
     Ok(tasks)
 }
 
-#[tauri::command]
-pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
-    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
-    // P3-3: 事务包裹，确保级联删除的原子性
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+/// 核心删除逻辑，接受 &Connection 以便在批量执行事务中复用。
+/// 调用方负责事务管理（batch command 在外层包裹 transaction）。
+pub fn do_delete_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String> {
     // 先删除关联的 task_tags，避免外键约束失败
-    tx.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
+    conn.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     // 删除子任务的 task_tags
-    tx.execute(
+    conn.execute(
         "DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE parent_id = ?1)",
         params![id],
     )
     .map_err(|e| e.to_string())?;
     // 删除子任务
-    tx.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
+    conn.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     // 最后删除任务本身
-    tx.execute("DELETE FROM tasks WHERE id = ?1", params![id])
+    conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    // P3-3: 事务包裹，确保级联删除的原子性
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    do_delete_task(&tx, id)?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }

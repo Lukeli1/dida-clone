@@ -10,7 +10,8 @@
 //   - habit_commands.rs  习惯相关（占位，P3-06 填充）
 //   - window_commands.rs 窗口控制 command
 
-pub mod attachment_commands;
+pub mod ai_batch;
+mod attachment_commands;
 mod data_commands;
 pub mod file_commands;
 pub mod goal_commands;
@@ -30,6 +31,7 @@ pub mod time_tracking_commands;
 pub mod webdav_commands;
 mod window_commands;
 
+pub use ai_batch::*;
 pub use attachment_commands::*;
 pub use data_commands::*;
 pub use file_commands::*;

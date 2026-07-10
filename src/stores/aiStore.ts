@@ -14,7 +14,16 @@ function loadMessages(): UIMessage[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.slice(-MAX_MESSAGES) as UIMessage[]
+    // 安全：清除旧 localStorage 中可能残留的 pendingPreview
+    // 旧提案在页面重载后应失效，用户需重新请求 AI 生成新提案
+    const sanitized = parsed.map((m: any) => {
+      if (m && m.pendingPreview) {
+        const { pendingPreview: _, ...rest } = m
+        return rest as UIMessage
+      }
+      return m as UIMessage
+    })
+    return sanitized.slice(-MAX_MESSAGES)
   } catch {
     return []
   }
@@ -35,7 +44,16 @@ function loadPreferences(): string[] {
 
 function persistMessages(messages: UIMessage[]) {
   try {
-    setItem(MESSAGES_KEY, JSON.stringify(messages))
+    // 安全：清除 pendingPreview，不持久化提案状态
+    // 旧提案在页面重载后应失效，用户需重新请求 AI 生成新提案
+    const sanitized = messages.map((m) => {
+      if (m.pendingPreview) {
+        const { pendingPreview: _, ...rest } = m
+        return rest as UIMessage
+      }
+      return m
+    })
+    setItem(MESSAGES_KEY, JSON.stringify(sanitized))
   } catch {
     // 忽略 localStorage 写入失败（如隐私模式 / 配额超限）
   }

@@ -34,11 +34,10 @@ export async function executeAction(action: ActionOp, tasks: Task[]): Promise<st
       return `✅ 已更新任务 #${data.task_id}`
     }
     case 'delete_task': {
-      await api.deleteTask(data.task_id)
-      return `✅ 已删除任务 #${data.task_id}`
+      throw new Error('AI 删除任务暂不可用，请手动删除')
     }
     case 'complete_task': {
-      await api.updateTask(data.task_id, { completed: true, completed_at: new Date().toISOString(), status: 'done' })
+      await api.completeTask(data.task_id)
       return `✅ 已完成任务 #${data.task_id}`
     }
     case 'create_subtask': {
