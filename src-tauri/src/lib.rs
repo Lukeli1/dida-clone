@@ -294,6 +294,7 @@ pub fn run() {
             commands::get_time_entries,
             commands::delete_time_entry,
             commands::get_time_stats,
+            commands::add_time_entry,
             commands::save_report,
             commands::get_reports,
             commands::delete_report,

@@ -22,7 +22,18 @@ export interface TimeStat {
 }
 
 /**
- * 时间追踪相关 API：封装后端 time_tracking_commands 中的 5 个命令。
+ * 新增历史时间记录的请求参数（与后端 add_time_entry command 对齐）
+ */
+export interface AddTimeEntryParams {
+  taskId: number
+  startTime: string
+  endTime: string
+  durationSecs: number
+  note?: string | null
+}
+
+/**
+ * 时间追踪相关 API：封装后端 time_tracking_commands 中的命令。
  * 参数命名采用驼峰（Tauri 自动转为 Rust 端的 snake_case）。
  */
 export const timeTrackingApi = {
@@ -49,5 +60,15 @@ export const timeTrackingApi = {
       groupBy,
       dateStart: dateStart ?? null,
       dateEnd: dateEnd ?? null,
+    }),
+
+  /** 新增历史时间记录（已结束的 time entry），用于番茄钟等场景写入已完成专注 */
+  addTimeEntry: (params: AddTimeEntryParams): Promise<number> =>
+    invoke<number>('add_time_entry', {
+      taskId: params.taskId,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      durationSecs: params.durationSecs,
+      note: params.note ?? null,
     }),
 }

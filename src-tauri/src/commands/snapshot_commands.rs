@@ -101,16 +101,26 @@ pub(crate) fn create_snapshot_internal(
     let snapshots_dir = get_snapshots_dir(app_data_dir);
     fs::create_dir_all(&snapshots_dir).map_err(|e| format!("创建快照目录失败: {}", e))?;
 
-    // 生成快照文件名：snapshot_YYYYMMDD_HHMMSS_mmm_reason.db
+    // 生成快照文件名：snapshot_YYYYMMDD_HHMMSS_mmm_seqNNNN_reason.db
     // 加入毫秒防止同秒同 reason 撞名导致 VACUUM INTO 失败
+    // 加入单调递增序列号保证同时间戳下排序稳定
     let now = chrono::Local::now();
     let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
     let millis = now.timestamp_subsec_millis();
     let safe_reason = sanitize_reason(reason);
-    let file_name = if safe_reason.is_empty() {
-        format!("snapshot_{}_{:03}.db", timestamp, millis)
+    // 基于目录内现有快照数量生成单调序列号
+    let seq = if let Ok(entries) = fs::read_dir(&snapshots_dir) {
+        entries.flatten().count()
     } else {
-        format!("snapshot_{}_{}_{}.db", timestamp, millis, safe_reason)
+        0
+    };
+    let file_name = if safe_reason.is_empty() {
+        format!("snapshot_{}_{:03}_seq{:04}.db", timestamp, millis, seq)
+    } else {
+        format!(
+            "snapshot_{}_{:03}_seq{:04}_{}.db",
+            timestamp, millis, seq, safe_reason
+        )
     };
     let snapshot_path = snapshots_dir.join(&file_name);
 
@@ -140,10 +150,7 @@ pub(crate) fn create_snapshot_internal(
 /// - 必须以 `snapshot_` 开头、`.db` 结尾
 /// - 必须是纯文件名（无父目录）
 fn validate_snapshot_filename(file_name: &str) -> Result<(), String> {
-    if file_name.contains('/')
-        || file_name.contains('\\')
-        || file_name.contains("..")
-    {
+    if file_name.contains('/') || file_name.contains('\\') || file_name.contains("..") {
         return Err(format!(
             "无效的快照文件名（包含路径分隔符或目录穿越）: {}",
             file_name
@@ -164,10 +171,7 @@ fn validate_snapshot_filename(file_name: &str) -> Result<(), String> {
 }
 
 /// 校验文件名并返回安全拼接后的路径，同时通过 canonicalize 确认路径仍在快照目录内
-fn safe_snapshot_path(
-    snapshots_dir: &Path,
-    file_name: &str,
-) -> Result<PathBuf, String> {
+fn safe_snapshot_path(snapshots_dir: &Path, file_name: &str) -> Result<PathBuf, String> {
     validate_snapshot_filename(file_name)?;
     let snapshot_path = snapshots_dir.join(file_name);
 
@@ -186,20 +190,32 @@ fn safe_snapshot_path(
     Ok(snapshot_path)
 }
 
-/// 从文件名解析快照原因
+/// 从文件名解析快照原因，兼容旧格式和带序列号的新格式。
 fn parse_reason_from_filename(file_name: &str) -> String {
-    // 格式: snapshot_YYYYMMDD_HHMMSS_mmm_reason.db
+    // 旧格式: snapshot_YYYYMMDD_HHMMSS_mmm_reason.db
+    // 兼容格式: snapshot_YYYYMMDD_HHMMSS_mmm_NNNN_reason.db
+    // 新格式: snapshot_YYYYMMDD_HHMMSS_mmm_seqNNNN_reason.db
     file_name
         .strip_prefix("snapshot_")
         .and_then(|s| s.strip_suffix(".db"))
         .map(|s| {
-            // 跳过时间戳+毫秒部分 YYYYMMDD_HHMMSS_mmm_
-            let parts: Vec<&str> = s.splitn(4, '_').collect();
-            if parts.len() >= 4 {
-                parts[3].replace('_', " ")
-            } else {
-                String::new()
+            let parts: Vec<&str> = s.split('_').collect();
+            if parts.len() < 4 {
+                return String::new();
             }
+
+            let has_prefixed_sequence = parts[3]
+                .strip_prefix("seq")
+                .is_some_and(|seq| seq.len() == 4 && seq.chars().all(|c| c.is_ascii_digit()));
+            let has_legacy_sequence = parts.len() >= 5
+                && parts[3].len() == 4
+                && parts[3].chars().all(|c| c.is_ascii_digit());
+            let reason_start = if has_prefixed_sequence || has_legacy_sequence {
+                4
+            } else {
+                3
+            };
+            parts[reason_start..].join(" ")
         })
         .unwrap_or_default()
 }
@@ -224,8 +240,7 @@ pub fn list_data_snapshots(app_data_dir: String) -> Result<Vec<SnapshotInfo>, St
     }
 
     let mut snapshots: Vec<SnapshotInfo> = Vec::new();
-    let entries =
-        fs::read_dir(&snapshots_dir).map_err(|e| format!("读取快照目录失败: {}", e))?;
+    let entries = fs::read_dir(&snapshots_dir).map_err(|e| format!("读取快照目录失败: {}", e))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -276,7 +291,11 @@ pub fn list_data_snapshots(app_data_dir: String) -> Result<Vec<SnapshotInfo>, St
     }
 
     // 按创建时间降序排序（最新的在前），时间相同时按文件名降序
-    snapshots.sort_by(|a, b| b.created_at.cmp(&a.created_at).then_with(|| b.file_name.cmp(&a.file_name)));
+    snapshots.sort_by(|a, b| {
+        b.created_at
+            .cmp(&a.created_at)
+            .then_with(|| b.file_name.cmp(&a.file_name))
+    });
 
     Ok(snapshots)
 }
@@ -308,8 +327,7 @@ pub fn restore_data_snapshot(
 
     // 2. 将快照复制到 pending-restore 文件
     let pending_path = Path::new(&app_data_dir).join("dida.db.pending-restore");
-    fs::copy(&snapshot_path, &pending_path)
-        .map_err(|e| format!("恢复快照失败: {}", e))?;
+    fs::copy(&snapshot_path, &pending_path).map_err(|e| format!("恢复快照失败: {}", e))?;
 
     Ok(RestoreResult {
         message: "快照恢复已准备完成。请重启应用以完成恢复操作。".to_string(),
@@ -461,7 +479,6 @@ mod tests {
 
     #[test]
     fn test_parse_reason_from_filename() {
-        // 新格式：snapshot_YYYYMMDD_HHMMSS_mmm_reason.db
         assert_eq!(
             parse_reason_from_filename("snapshot_20260101_120000_000_before-restore.db"),
             "before-restore"
@@ -469,6 +486,22 @@ mod tests {
         assert_eq!(
             parse_reason_from_filename("snapshot_20260101_120000_123_importreplace.db"),
             "importreplace"
+        );
+        assert_eq!(
+            parse_reason_from_filename("snapshot_20260101_120000_000_1234.db"),
+            "1234"
+        );
+        assert_eq!(
+            parse_reason_from_filename("snapshot_20260101_120000_000_seq0001_before-restore.db"),
+            "before-restore"
+        );
+        assert_eq!(
+            parse_reason_from_filename("snapshot_20260101_120000_000_seq0001.db"),
+            ""
+        );
+        assert_eq!(
+            parse_reason_from_filename("snapshot_20260101_120000_000_0001_before-restore.db"),
+            "before-restore"
         );
         assert_eq!(
             parse_reason_from_filename("snapshot_20260101_120000_999.db"),

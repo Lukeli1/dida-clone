@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.38.3-blue)
+![版本](https://img.shields.io/badge/version-1.39.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.39.0（2026-07-10）- 时间追踪与番茄钟工时闭环
+
+- 后端全局限制仅一条活跃时间记录；开始另一任务计时时会明确提示先停止当前计时，避免任务工时重复累计
+- 新增 `add_time_entry` 命令，番茄钟在选中任务的完整专注 session 结束后自动写入已完成工时记录，无需手动补录
+- 番茄钟锁定 session 启动时长，运行中禁用时长设置；本地专注统计与任务工时记录使用同一时长口径
+- 修复数据快照列表排序不稳定：快照文件名加入排序序列号，并兼容解析旧、新文件名中的快照原因
+- 补充时间追踪单活跃、番茄钟工时写入、session 时长锁定、快照排序与文件名兼容的回归测试
+- 验证通过：588 个前端测试、87 个 Rust 测试、TypeScript、ESLint、Clippy、生产构建和版本一致性检查
 
 ### v1.38.3（2026-07-10）- AI 批量动作安全与撤销边界
 

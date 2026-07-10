@@ -80,19 +80,25 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       setEntries(list)
       const total = list.reduce((sum, e) => sum + (e.duration_secs || 0), 0)
       setTotalSeconds(total)
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('加载时间记录失败', e)
     }
   }, [task.id])
 
   // 任务切换时加载数据并恢复计时状态
   useEffect(() => {
-    loadEntries()
-    setActiveEntryId(null)
-    startTsRef.current = null
-    setElapsed(0)
-    restoreTracking()
+    let cancelled = false
+    // 将同步 setState 移出 effect 主体，避免 cascading renders 警告
+    Promise.resolve().then(() => {
+      if (cancelled) return
+      loadEntries()
+      setActiveEntryId(null)
+      startTsRef.current = null
+      setElapsed(0)
+      restoreTracking()
+    })
     return () => {
+      cancelled = true
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
@@ -131,8 +137,14 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       setElapsed(0)
       const state: TrackingState = { entryId, startTs }
       setItem(storageKey, JSON.stringify(state))
-    } catch (e: any) {
-      toast.error(`开始计时失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      // 后端返回"已有任务正在计时"时，直接展示该错误，不创建本地 active 状态
+      if (msg.includes('已有任务正在计时')) {
+        toast.error(msg)
+      } else {
+        toast.error(`开始计时失败: ${msg}`)
+      }
     } finally {
       setToggling(false)
     }
@@ -154,8 +166,9 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       }
       await loadEntries()
       toast.success(`已记录 ${formatDuration(elapsed)}`)
-    } catch (e: any) {
-      toast.error(`停止计时失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      toast.error(`停止计时失败: ${msg}`)
     } finally {
       setToggling(false)
     }
@@ -167,8 +180,9 @@ export function TimeTrackingSection({ task }: TimeTrackingSectionProps) {
       await timeTrackingApi.deleteTimeEntry(entryId)
       await loadEntries()
       toast.info('已删除记录')
-    } catch (e: any) {
-      toast.error(`删除记录失败: ${e.message || e}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      toast.error(`删除记录失败: ${msg}`)
     }
   }
 

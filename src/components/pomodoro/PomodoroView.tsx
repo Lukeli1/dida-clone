@@ -15,6 +15,7 @@ import { PomodoroSettingsPanel } from './PomodoroSettings'
 import { PomodoroStatsPanel } from './PomodoroStats'
 import { PRIORITY_STYLES } from '../../utils/priority'
 import { EmptyState } from '../EmptyState'
+import { timeTrackingApi } from '../../api/timeTrackingApi'
 
 interface PomodoroViewProps {
   tasks: Task[]
@@ -35,6 +36,8 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
   // 使用 useRef 存储 interval id，避免闭包过期问题
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 锁定本次 session 的专注总秒数，防止运行中修改 settings 导致写入口径偏差
+  const sessionDurationRef = useRef<number>(0)
 
   const incompleteTasks = tasks.filter((t) => !t.completed)
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
@@ -87,15 +90,43 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
 
     if (mode === 'focus') {
       const newFocusCount = stats.focusCount + 1
+      // 使用 sessionDurationRef 锁定值统一更新 focusMinutes，避免与 time_entries 分叉
+      const focusMinutesAdded = Math.round((sessionDurationRef.current || settings.focusTime * 60) / 60)
       const newStats: PomodoroStats = {
         ...stats,
         date: getTodayString(),
         focusCount: newFocusCount,
-        focusMinutes: stats.focusMinutes + settings.focusTime,
+        focusMinutes: stats.focusMinutes + focusMinutesAdded,
         totalSessions: stats.totalSessions + 1,
       }
       setStats(newStats)
       saveStats(newStats)
+
+      // 番茄钟专注完成后，写入 time_entries 历史记录
+      // 使用 sessionDurationRef 锁定启动时的专注时长，避免运行中修改 settings 导致偏差
+      if (selectedTaskId !== null) {
+        const durationSecs = sessionDurationRef.current || settings.focusTime * 60
+        const endTimeIso = new Date().toISOString()
+        const startTimeIso = new Date(Date.now() - durationSecs * 1000).toISOString()
+        timeTrackingApi
+          .addTimeEntry({
+            taskId: selectedTaskId,
+            startTime: startTimeIso,
+            endTime: endTimeIso,
+            durationSecs,
+            note: '番茄钟专注',
+          })
+          .catch((err: unknown) => {
+            // 写入失败不阻断番茄钟流程，但给用户明确提示
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error('番茄钟专注时间写入失败:', msg)
+            setNotification(`专注时间记录失败: ${msg}`)
+            if (notificationTimerRef.current) {
+              clearTimeout(notificationTimerRef.current)
+            }
+            notificationTimerRef.current = setTimeout(() => setNotification(null), 5000)
+          })
+      }
 
       if (newFocusCount % settings.longBreakInterval === 0) {
         setMode('longBreak')
@@ -133,7 +164,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
     } catch {
       // Notification API 不可用时静默忽略
     }
-  }, [secondsLeft, isRunning, mode, stats, settings])
+  }, [secondsLeft, isRunning, mode, stats, settings, selectedTaskId])
 
   // 选中任务被完成或删除后自动清除选择
   useEffect(() => {
@@ -158,6 +189,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
     if (m === mode) return
     setMode(m)
     setIsRunning(false)
+    sessionDurationRef.current = 0
     setSecondsLeft(getDurationSeconds(m, settings))
   }
 
@@ -165,11 +197,16 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
     if (secondsLeft === 0) {
       setSecondsLeft(getDurationSeconds(mode, settings))
     }
+    // 启动时锁定本次 session 时长
+    if (!isRunning) {
+      sessionDurationRef.current = getDurationSeconds(mode, settings)
+    }
     setIsRunning((r) => !r)
   }
 
   function handleReset() {
     setIsRunning(false)
+    sessionDurationRef.current = 0
     setSecondsLeft(getDurationSeconds(mode, settings))
   }
 
@@ -300,6 +337,7 @@ export function PomodoroView({ tasks, onTaskClick, onToggleTask }: PomodoroViewP
                 settings={settings}
                 onSettingChange={handleSettingChange}
                 onResetDefaults={handleResetDefaults}
+                disabled={isRunning}
               />
             </div>
           </div>

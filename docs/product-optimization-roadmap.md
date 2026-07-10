@@ -2,8 +2,8 @@
 
 > 创建时间：2026-07-09  
 > 适用项目：滴答清单复刻  
-> 当前版本方向：v1.38.3 AI 操作安全、批量动作预览与撤销边界已完成
-> 下一阶段候选：v1.39.0 模板/目标/番茄钟闭环，或继续补齐 AI 收件箱整理体验
+> 当前版本方向：v1.39.0 时间追踪单活跃约束与番茄钟工时闭环已完成
+> 下一阶段候选：继续执行模板应用、目标 KR、命令面板与侧边栏设置
 
 ## 1. 当前阶段定位
 
@@ -19,7 +19,7 @@
 | 2 | 日历规划能力与视图过滤 | `docs/product-optimization-calendar-planning.md` | v1.38.1 | P1 | ✅ 已完成（功能 + 稳定性回归） |
 | 3 | 同步、导入导出与数据安全可观测性 | `docs/product-optimization-sync-data-safety.md` | v1.38.2 | P0 | ✅ 已完成（快照/预览/日志/附件边界） |
 | 4 | AI 助手操作安全、排程预览与收件箱整理 | `docs/product-optimization-ai-assistant-safety.md` | v1.38.3 | P1 | ✅ 已完成（批量预览/事务执行/撤销边界；删除保持手动） |
-| 5 | 模板、目标、番茄钟与时间追踪闭环 | `docs/product-optimization-template-goal-pomodoro.md` | v1.39.0 | P1 | 待执行 |
+| 5 | 模板、目标、番茄钟与时间追踪闭环 | `docs/product-optimization-template-goal-pomodoro.md` | v1.39.0 | P1 | ⏳ 部分完成（时间追踪单活跃 + 番茄钟工时闭环；模板/KR 待执行） |
 | 6 | 整体导航、设置入口与命令面板 UX | `docs/product-optimization-navigation-command-palette.md` | v1.39.0 | P2 | 待执行 |
 
 ## 3. 推荐执行顺序
@@ -143,14 +143,20 @@
 
 ## 6. 当前建议下一步
 
-最推荐的下一步是执行：
+最推荐的下一步是继续执行：
 
-`docs/product-optimization-sync-data-safety.md`
+`docs/product-optimization-template-goal-pomodoro.md` 的阶段 1、2 与阶段 5。
 
-建议从同步快照、导入预览和同步日志开始。
+建议顺序：
+
+1. 模板应用弹窗与增强 `apply_template` 契约。
+2. 目标 KR 数据结构与编辑 UI。
+3. 完成后再评估命令面板与侧边栏显示设置。
 
 原因：
 
-- `completed_at`、`status`、`reminder_minutes` 基础字段已补齐，日历过滤和 Agenda 视图已完成并补充回归测试。
-- 下一阶段涉及同步、导入导出和 AI 批量操作前，应先建立快照、预览和日志，降低批量数据变更风险。
-- 同步安全优先完成后，AI 批量操作预览和撤销边界会更容易落地。
+- 时间追踪单活跃约束与番茄钟工时入库已形成闭环，剩余模板和 KR 可继续补齐 v1.39.0 的执行与复盘能力。
+- 模板应用会扩展后端契约，KR 会新增持久化结构；先完成这两项可避免命令面板在功能未完成前暴露半成品入口。
+- 预期收益：模板不再固定写入收件箱，目标进度可通过量化 KR 复盘。
+
+工作量级别：中等。主要风险是模板变量替换、标签写入事务与 KR 数据迁移兼容性。
