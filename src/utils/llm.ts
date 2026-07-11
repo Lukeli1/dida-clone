@@ -8,6 +8,7 @@ export interface LLMConfig {
   baseUrl: string
   apiKey: string
   model: string
+  /** 未传（undefined）时保留已有值，而非写入缺省值 */
   reasoning?: boolean
   reasoningEffort?: 'low' | 'medium' | 'high'
 }
@@ -15,6 +16,15 @@ export interface LLMConfig {
 const DEFAULT_BASE_URL = ''
 const DEFAULT_API_KEY = ''
 const DEFAULT_MODEL = ''
+
+/**
+ * 读取已保存的 reasoning 设置（用于 saveLLMConfig 在未显式传入时保留旧值）。
+ */
+function readReasoning(): { reasoning: boolean; reasoningEffort: 'low' | 'medium' | 'high' } {
+  const reasoning = getItem('llm_reasoning') === 'true'
+  const reasoningEffort = (getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
+  return { reasoning, reasoningEffort }
+}
 
 /**
  * 同步读取 LLM 配置（不含 apiKey，apiKey 改由 getLLMConfigAsync 异步从后端 secret 读取）。
@@ -41,8 +51,18 @@ export async function getLLMConfigAsync(): Promise<LLMConfig | null> {
   const baseUrl = getItem('llm_base_url') || DEFAULT_BASE_URL
   const model = getItem('llm_model') || DEFAULT_MODEL
   if (!baseUrl || !model) return null
-  const apiKey = (await getSecret(SECRET_KEYS.llmApiKey)) || DEFAULT_API_KEY
+
+  let apiKey = (await getSecret(SECRET_KEYS.llmApiKey)) || DEFAULT_API_KEY
+  if (!apiKey) {
+    // 兼容厂商密钥已保存、全局活跃密钥缺失的历史状态，避免 AI 助手被错误地判定为未配置。
+    apiKey = await getProviderApiKey(baseUrl.replace(/\/$/, ''))
+    if (apiKey) {
+      // 修复全局活跃密钥失败也不影响本次对话，下一次读取仍可从厂商密钥恢复。
+      setSecret(SECRET_KEYS.llmApiKey, apiKey).catch(() => {})
+    }
+  }
   if (!apiKey) return null
+
   const reasoning = getItem('llm_reasoning') === 'true'
   const reasoningEffort = (getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
   return { baseUrl, apiKey, model, reasoning, reasoningEffort }
@@ -50,18 +70,24 @@ export async function getLLMConfigAsync(): Promise<LLMConfig | null> {
 
 /**
  * 保存 LLM 配置：baseUrl/model/reasoning 存 localStorage，apiKey 存后端 secret。
+ *
+ * reasoning / reasoningEffort 若未显式传入（undefined），则保留 localStorage 中已有值，
+ * 避免调用方未传时把缺省值 false/medium 覆盖用户已设置的思考模式。
  */
 export async function saveLLMConfig(config: LLMConfig): Promise<void> {
-  setItem('llm_base_url', config.baseUrl)
-  setItem('llm_model', config.model)
-  setItem('llm_reasoning', String(config.reasoning ?? false))
-  setItem('llm_reasoning_effort', config.reasoningEffort || 'medium')
   // apiKey 走后端 secret 存储，不再写入 localStorage
   if (config.apiKey) {
     await setSecret(SECRET_KEYS.llmApiKey, config.apiKey)
   } else {
     await deleteSecret(SECRET_KEYS.llmApiKey)
   }
+
+  // 先完成 secret 写入，再暴露新的 URL/model，避免 secret 写入失败时与旧密钥混配。
+  const prev = readReasoning()
+  setItem('llm_base_url', config.baseUrl)
+  setItem('llm_model', config.model)
+  setItem('llm_reasoning', String(config.reasoning ?? prev.reasoning))
+  setItem('llm_reasoning_effort', config.reasoningEffort ?? prev.reasoningEffort)
 }
 
 /** 已保存的厂商配置（apiKey 字段在 localStorage 中为空占位，真实值存后端 secret） */
@@ -109,7 +135,22 @@ function persistProviders(providers: LLMProvider[]) {
   setItem(PROVIDERS_KEY, JSON.stringify(safe))
 }
 
-export async function saveProvider(name: string, config: LLMConfig, models: string[]): Promise<LLMProvider[]> {
+/**
+ * 保存厂商配置。
+ *
+ * - 写入厂商列表（localStorage）与厂商级 secret（`llm_api_key:${id}`）。
+ * - `syncActive`（默认 true）：同时把该厂商同步为活跃配置（baseUrl/model/reasoning 存 localStorage，
+ *   apiKey 存全局 `llm_api_key` secret），使 AI 助手能立即读到。
+ *   这符合"保存厂商后即可使用"的产品语义。
+ * - reasoning / reasoningEffort 保留已有值，不会被缺省值覆盖。
+ *   若 config 未显式传入 reasoning，则沿用 localStorage 中已保存的设置。
+ */
+export async function saveProvider(
+  name: string,
+  config: LLMConfig,
+  models: string[],
+  options?: { syncActive?: boolean },
+): Promise<LLMProvider[]> {
   const providers = getProviders()
   const id = config.baseUrl.replace(/\/$/, '')
   const existingIdx = providers.findIndex((p) => p.id === id)
@@ -133,6 +174,18 @@ export async function saveProvider(name: string, config: LLMConfig, models: stri
   } else {
     await deleteSecret(providerApiKeySecretKey(id))
   }
+  // 同步为活跃配置，使 AI 助手立即可用（reasoning 保留已有值）
+  if (options?.syncActive ?? true) {
+    const prev = readReasoning()
+    await saveLLMConfig({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      model: config.model,
+      reasoning: config.reasoning ?? prev.reasoning,
+      reasoningEffort: config.reasoningEffort ?? prev.reasoningEffort,
+    })
+  }
+  // 仅在凭据和活跃配置成功后将厂商显示为已保存，避免 UI 出现不可用的半完成条目。
   persistProviders(providers)
   return providers
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   getLLMConfig,
   saveLLMConfig,
@@ -9,6 +9,7 @@ import {
   getProviderApiKey,
   deriveProviderName,
   type LLMProvider,
+  type LLMConfig,
 } from '../../utils/llm'
 import { getSecret, SECRET_KEYS } from '../../api/secretApi'
 import { Toggle } from './Toggle'
@@ -30,17 +31,81 @@ export function LLMApiPanel() {
   const [providerName, setProviderName] = useState('')
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
 
+  // apiKey 异步加载状态：false 表示后端 secret 尚未读取完成。
+  // 加载完成前，依赖 apiKey 的持久化操作（saveLLMConfig）应跳过，避免用空状态误删全局 secret。
+  const [apiKeyLoaded, setApiKeyLoaded] = useState(false)
+  // 用户是否手动改过 apiKey 输入框。若已改动，异步加载返回的旧值不再回填，防止覆盖用户新输入。
+  const apiKeyDirtyRef = useRef(false)
+  // 使初始密钥读取和厂商切换遵循最后一次用户操作，避免旧请求覆盖新配置。
+  const apiKeyLoadVersionRef = useRef(0)
+  const providerSelectionVersionRef = useRef(0)
+  const providerSelectionQueueRef = useRef<Promise<void>>(Promise.resolve())
+  // 密钥读取期间修改模型/推理选项时，等待密钥就绪后再保存最新状态。
+  const pendingActiveConfigRef = useRef(false)
+
   // 首次挂载：异步从后端 secret 读取已保存的 apiKey，回填到输入框
   useEffect(() => {
     let cancelled = false
+    const requestId = ++apiKeyLoadVersionRef.current
     ;(async () => {
-      const key = await getSecret(SECRET_KEYS.llmApiKey)
-      if (!cancelled && key) setLlmApiKey(key)
+      try {
+        const key = await getSecret(SECRET_KEYS.llmApiKey)
+        if (cancelled || requestId !== apiKeyLoadVersionRef.current) return
+        // 仅当用户尚未手动改动输入框时，才用后端返回值回填
+        if (key && !apiKeyDirtyRef.current) {
+          setLlmApiKey(key)
+        }
+        setApiKeyLoaded(true)
+      } catch (err: unknown) {
+        if (!cancelled && requestId === apiKeyLoadVersionRef.current) {
+          setTestResult({ ok: false, msg: `读取 API 密钥失败：${err instanceof Error ? err.message : String(err)}` })
+        }
+      }
     })()
     return () => {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!apiKeyLoaded || !pendingActiveConfigRef.current) return
+    pendingActiveConfigRef.current = false
+    if (!llmBaseUrl || !llmModel) return
+    saveLLMConfig({
+      baseUrl: llmBaseUrl,
+      apiKey: llmApiKey,
+      model: llmModel,
+      reasoning,
+      reasoningEffort,
+    }).catch((err: unknown) => {
+      setTestResult({ ok: false, msg: `保存大模型配置失败：${err instanceof Error ? err.message : String(err)}` })
+    })
+  }, [apiKeyLoaded, llmApiKey, llmBaseUrl, llmModel, reasoning, reasoningEffort])
+
+  /**
+   * 统一的活跃配置持久化封装。
+   *
+   * - baseUrl/model/reasoning/reasoningEffort 读取当前状态，支持 overrides 覆盖（解决闭包旧值问题）。
+   * - apiKey 在后端 secret 尚未加载完成（apiKeyLoaded=false）时跳过整次保存，
+   *   避免竞态期用空 apiKey 误删全局 secret；此时调用方无感知地延后。
+   * - apiKeyLoaded && apiKey === '' 时正常调用 saveLLMConfig（走 delete 语义=用户明确清除）。
+   */
+  async function persistActiveConfig(overrides?: Partial<LLMConfig>): Promise<boolean> {
+    if (!apiKeyLoaded) {
+      pendingActiveConfigRef.current = true
+      return false
+    }
+    const config: LLMConfig = {
+      baseUrl: overrides?.baseUrl ?? llmBaseUrl,
+      apiKey: overrides?.apiKey ?? llmApiKey,
+      model: overrides?.model ?? llmModel,
+      reasoning: overrides?.reasoning ?? reasoning,
+      reasoningEffort: overrides?.reasoningEffort ?? reasoningEffort,
+    }
+    if (!config.baseUrl || !config.model) return false
+    await saveLLMConfig(config)
+    return true
+  }
 
   async function handleTestConnection() {
     if (!llmBaseUrl || !llmApiKey) {
@@ -52,20 +117,23 @@ export function LLMApiPanel() {
     try {
       const models = await testConnection(llmBaseUrl, llmApiKey)
       setLlmModels(models)
+      const chosenModel = llmModel || models[0]
       if (!llmModel && models.length > 0) {
-        setLlmModel(models[0])
+        setLlmModel(chosenModel)
       }
       setTestResult({ ok: true, msg: `连接成功，发现 ${models.length} 个模型` })
-      await saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel || models[0] })
+      await saveLLMConfig({
+        baseUrl: llmBaseUrl,
+        apiKey: llmApiKey,
+        model: chosenModel,
+        reasoning,
+        reasoningEffort,
+      })
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || String(e) })
     } finally {
       setTesting(false)
     }
-  }
-
-  async function handleSaveLlmConfig() {
-    await saveLLMConfig({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort })
   }
 
   async function handleSaveProvider() {
@@ -78,23 +146,61 @@ export function LLMApiPanel() {
       return
     }
     const name = providerName.trim() || deriveProviderName(llmBaseUrl)
-    const updated = await saveProvider(name, { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel }, llmModels)
-    setProviders(updated)
-    setActiveProviderId(llmBaseUrl.replace(/\/$/, ''))
-    setProviderName('')
-    setTestResult({ ok: true, msg: `厂商「${name}」已保存` })
+    providerSelectionVersionRef.current += 1
+    try {
+      // saveProvider 默认 syncActive=true，保存厂商同时同步为活跃配置，使 AI 助手立即可用
+      const updated = await saveProvider(
+        name,
+        { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel, reasoning, reasoningEffort },
+        llmModels,
+      )
+      setProviders(updated)
+      setActiveProviderId(llmBaseUrl.replace(/\/$/, ''))
+      setProviderName('')
+      setTestResult({ ok: true, msg: `厂商「${name}」已保存` })
+    } catch (e: any) {
+      setTestResult({ ok: false, msg: `保存厂商失败：${e.message || String(e)}` })
+    }
   }
 
   async function handleSelectProvider(provider: LLMProvider) {
-    setLlmBaseUrl(provider.baseUrl)
     // provider.apiKey 在 localStorage 中为空占位，需从后端 secret 异步加载
-    const apiKey = await getProviderApiKey(provider.id)
-    setLlmApiKey(apiKey)
-    setLlmModel(provider.lastModel)
-    setLlmModels(provider.models)
-    setActiveProviderId(provider.id)
-    await saveLLMConfig({ baseUrl: provider.baseUrl, apiKey, model: provider.lastModel })
-    setTestResult({ ok: true, msg: `已切换到「${provider.name}」` })
+    const requestId = ++providerSelectionVersionRef.current
+    try {
+      const apiKey = await getProviderApiKey(provider.id)
+      if (requestId !== providerSelectionVersionRef.current) return
+      if (!apiKey) {
+        // 无可用密钥：不激活、不标记为当前，显示明确错误
+        setTestResult({ ok: false, msg: `厂商「${provider.name}」未保存 API 密钥，请重新配置` })
+        return
+      }
+
+      // 厂商密钥已成为当前输入值，禁止初始全局密钥读取再回填旧值。
+      apiKeyDirtyRef.current = true
+      apiKeyLoadVersionRef.current += 1
+      setLlmBaseUrl(provider.baseUrl)
+      setLlmApiKey(apiKey)
+      setLlmModel(provider.lastModel)
+      setLlmModels(provider.models)
+      setApiKeyLoaded(true)
+
+      // 保存操作串行化：快速点击多个厂商时，最后一次选择最终写入活跃配置。
+      const saveSelection = providerSelectionQueueRef.current
+        .catch(() => {})
+        .then(async () => {
+          if (requestId !== providerSelectionVersionRef.current) return
+          await saveLLMConfig({ baseUrl: provider.baseUrl, apiKey, model: provider.lastModel })
+        })
+      providerSelectionQueueRef.current = saveSelection
+      await saveSelection
+      if (requestId !== providerSelectionVersionRef.current) return
+      setActiveProviderId(provider.id)
+      setTestResult({ ok: true, msg: `已切换到「${provider.name}」` })
+    } catch (e: any) {
+      if (requestId === providerSelectionVersionRef.current) {
+        setTestResult({ ok: false, msg: `切换厂商失败：${e.message || String(e)}` })
+      }
+    }
   }
 
   async function handleDeleteProvider(id: string, e: React.MouseEvent) {
@@ -114,7 +220,10 @@ export function LLMApiPanel() {
           <input
             type="text"
             value={llmBaseUrl}
-            onChange={(e) => setLlmBaseUrl(e.target.value)}
+            onChange={(e) => {
+              providerSelectionVersionRef.current += 1
+              setLlmBaseUrl(e.target.value)
+            }}
             placeholder="https://api.openai.com"
             className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
           />
@@ -124,7 +233,13 @@ export function LLMApiPanel() {
           <input
             type="password"
             value={llmApiKey}
-            onChange={(e) => setLlmApiKey(e.target.value)}
+            onChange={(e) => {
+              apiKeyDirtyRef.current = true
+              apiKeyLoadVersionRef.current += 1
+              providerSelectionVersionRef.current += 1
+              setApiKeyLoaded(true)
+              setLlmApiKey(e.target.value)
+            }}
             placeholder="sk-..."
             className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
           />
@@ -156,8 +271,11 @@ export function LLMApiPanel() {
             <select
               value={llmModel}
               onChange={(e) => {
-                setLlmModel(e.target.value)
-                handleSaveLlmConfig()
+                // 先取新值再调用持久化，避免 setLlmModel 异步导致保存旧模型
+                const model = e.target.value
+                providerSelectionVersionRef.current += 1
+                setLlmModel(model)
+                persistActiveConfig({ model }).catch(() => {})
               }}
               className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] bg-[var(--color-surface)]"
             >
@@ -184,14 +302,9 @@ export function LLMApiPanel() {
             <Toggle
               checked={reasoning}
               onChange={(v) => {
+                providerSelectionVersionRef.current += 1
                 setReasoning(v)
-                saveLLMConfig({
-                  baseUrl: llmBaseUrl,
-                  apiKey: llmApiKey,
-                  model: llmModel,
-                  reasoning: v,
-                  reasoningEffort,
-                }).catch(() => {})
+                persistActiveConfig({ reasoning: v }).catch(() => {})
               }}
             />
           </div>
@@ -203,14 +316,9 @@ export function LLMApiPanel() {
                   <button
                     key={e}
                     onClick={() => {
+                      providerSelectionVersionRef.current += 1
                       setReasoningEffort(e)
-                      saveLLMConfig({
-                        baseUrl: llmBaseUrl,
-                        apiKey: llmApiKey,
-                        model: llmModel,
-                        reasoning,
-                        reasoningEffort: e,
-                      }).catch(() => {})
+                      persistActiveConfig({ reasoningEffort: e }).catch(() => {})
                     }}
                     className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
                       reasoningEffort === e

@@ -12,6 +12,9 @@ import {
   getLLMConfig,
   getLLMConfigAsync,
   saveLLMConfig,
+  saveProvider,
+  getProviders,
+  deleteProvider,
   formatTasksContext,
   deriveProviderName,
   chat,
@@ -102,13 +105,33 @@ describe('getLLMConfigAsync', () => {
     expect(config!.apiKey).toBe('sk-async-key')
   })
 
-  it('secret 中无 apiKey 时返回 null', async () => {
+  it('全局 secret 与厂商 secret 均无 apiKey 时返回 null', async () => {
     localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
     localStorage.setItem('llm_model', 'gpt-4')
     vi.mocked(invoke).mockResolvedValue(null)
 
     const config = await getLLMConfigAsync()
     expect(config).toBeNull()
+  })
+
+  it('全局 secret 缺失时回退读取当前厂商的 secret 并修复活跃密钥', async () => {
+    const baseUrl = 'https://api.stepfun.com/step_plan/v1'
+    localStorage.setItem('llm_base_url', baseUrl)
+    localStorage.setItem('llm_model', 'step-1-8k')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: any) => {
+      if (cmd === 'get_secret' && args?.key === 'llm_api_key') return Promise.resolve(null)
+      if (cmd === 'get_secret' && args?.key === `llm_api_key:${baseUrl}`) return Promise.resolve('sk-provider-only')
+      return Promise.resolve(undefined)
+    })
+
+    const config = await getLLMConfigAsync()
+
+    expect(config).toMatchObject({ baseUrl, model: 'step-1-8k', apiKey: 'sk-provider-only' })
+    expect(invoke).toHaveBeenCalledWith('set_secret', {
+      key: 'llm_api_key',
+      value: 'sk-provider-only',
+    })
   })
 })
 
@@ -138,7 +161,7 @@ describe('saveLLMConfig', () => {
     expect(invoke).toHaveBeenCalledWith('set_secret', { key: 'llm_api_key', value: 'sk-deepseek' })
   })
 
-  it('reasoning 未提供时写入 false', async () => {
+  it('reasoning 未提供时保留已有值（无旧值则写入 false）', async () => {
     await saveLLMConfig({
       baseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-xxx',
@@ -148,6 +171,36 @@ describe('saveLLMConfig', () => {
     expect(localStorage.getItem('llm_reasoning_effort')).toBe('medium')
   })
 
+  it('reasoning 未提供时保留已有 reasoning=true/high，不被缺省值覆盖', async () => {
+    localStorage.setItem('llm_reasoning', 'true')
+    localStorage.setItem('llm_reasoning_effort', 'high')
+    await saveLLMConfig({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-xxx',
+      model: 'gpt-4',
+      // 故意不传 reasoning / reasoningEffort
+    })
+    expect(localStorage.getItem('llm_reasoning')).toBe('true')
+    expect(localStorage.getItem('llm_reasoning_effort')).toBe('high')
+  })
+
+  it('全局密钥写入失败时保留现有活跃配置', async () => {
+    localStorage.setItem('llm_base_url', 'https://api.old.example/v1')
+    localStorage.setItem('llm_model', 'old-model')
+    vi.mocked(invoke).mockRejectedValue(new Error('keychain 不可用'))
+
+    await expect(
+      saveLLMConfig({
+        baseUrl: 'https://api.new.example/v1',
+        apiKey: 'sk-new',
+        model: 'new-model',
+      }),
+    ).rejects.toThrow('keychain 不可用')
+
+    expect(localStorage.getItem('llm_base_url')).toBe('https://api.old.example/v1')
+    expect(localStorage.getItem('llm_model')).toBe('old-model')
+  })
+
   it('apiKey 为空时调用 delete_secret', async () => {
     await saveLLMConfig({
       baseUrl: 'https://api.openai.com/v1',
@@ -155,6 +208,150 @@ describe('saveLLMConfig', () => {
       model: 'gpt-4',
     })
     expect(invoke).toHaveBeenCalledWith('delete_secret', { key: 'llm_api_key' })
+  })
+})
+
+describe('saveProvider（同步活跃配置）', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+    vi.mocked(invoke).mockResolvedValue(undefined)
+  })
+
+  it('保存厂商后 getLLMConfigAsync 能读到完整配置（含 apiKey）', async () => {
+    const secrets = new Map<string, string>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: any) => {
+      if (cmd === 'set_secret' && args?.key && args.value) {
+        secrets.set(args.key, args.value)
+        return Promise.resolve(undefined)
+      }
+      if (cmd === 'get_secret' && args?.key) {
+        return Promise.resolve(secrets.get(args.key) || null)
+      }
+      return Promise.resolve(undefined)
+    })
+
+    await saveProvider('Stepfun', { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' }, [
+      'step-1',
+      'step-2',
+    ])
+
+    expect(secrets.get('llm_api_key:https://api.stepfun.com/v1')).toBe('sk-stepfun')
+    expect(secrets.get('llm_api_key')).toBe('sk-stepfun')
+
+    const config = await getLLMConfigAsync()
+    expect(config).not.toBeNull()
+    expect(config!.baseUrl).toBe('https://api.stepfun.com/v1')
+    expect(config!.model).toBe('step-1')
+    expect(config!.apiKey).toBe('sk-stepfun')
+  })
+
+  it('保存厂商后厂商级 secret 与全局 secret 均被写入', async () => {
+    await saveProvider('Deepseek', { baseUrl: 'https://api.deepseek.com', apiKey: 'sk-ds', model: 'deepseek-chat' }, [
+      'deepseek-chat',
+    ])
+
+    // 厂商级 secret：key 形如 llm_api_key:https://api.deepseek.com
+    expect(invoke).toHaveBeenCalledWith('set_secret', {
+      key: 'llm_api_key:https://api.deepseek.com',
+      value: 'sk-ds',
+    })
+    // 全局活跃 secret
+    expect(invoke).toHaveBeenCalledWith('set_secret', {
+      key: 'llm_api_key',
+      value: 'sk-ds',
+    })
+  })
+
+  it('活跃配置写入失败时不保存厂商列表', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: any) => {
+      if (cmd === 'set_secret' && args?.key === 'llm_api_key') {
+        return Promise.reject(new Error('keychain 不可用'))
+      }
+      return Promise.resolve(undefined)
+    })
+
+    await expect(
+      saveProvider('Stepfun', { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' }, [
+        'step-1',
+      ]),
+    ).rejects.toThrow('keychain 不可用')
+
+    expect(getProviders()).toEqual([])
+  })
+
+  it('更新已有厂商（同 baseUrl）覆盖而非新增', async () => {
+    await saveProvider('Stepfun', { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-old', model: 'step-1' }, [
+      'step-1',
+    ])
+    const updated = await saveProvider(
+      'Stepfun',
+      { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-new', model: 'step-2' },
+      ['step-1', 'step-2'],
+    )
+    expect(updated).toHaveLength(1)
+    expect(updated[0].lastModel).toBe('step-2')
+    expect(updated[0].apiKey).toBe('') // localStorage 中恒为空占位
+  })
+
+  it('保存厂商保留已设置的 reasoning（不被缺省值覆盖）', async () => {
+    localStorage.setItem('llm_reasoning', 'true')
+    localStorage.setItem('llm_reasoning_effort', 'high')
+    await saveProvider(
+      'Stepfun',
+      // config 不传 reasoning
+      { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' },
+      ['step-1'],
+    )
+    expect(localStorage.getItem('llm_reasoning')).toBe('true')
+    expect(localStorage.getItem('llm_reasoning_effort')).toBe('high')
+  })
+
+  it('syncActive=false 时不同步活跃配置（仅写厂商列表+厂商级 secret）', async () => {
+    const invokeSpy = vi.mocked(invoke)
+    invokeSpy.mockClear()
+    await saveProvider(
+      'Stepfun',
+      { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' },
+      ['step-1'],
+      { syncActive: false },
+    )
+    // 厂商级 secret 仍写入
+    expect(invokeSpy).toHaveBeenCalledWith('set_secret', {
+      key: 'llm_api_key:https://api.stepfun.com/v1',
+      value: 'sk-stepfun',
+    })
+    // 但不写全局活跃 secret / baseUrl / model
+    expect(invokeSpy).not.toHaveBeenCalledWith('set_secret', {
+      key: 'llm_api_key',
+      value: 'sk-stepfun',
+    })
+    expect(localStorage.getItem('llm_base_url')).toBeNull()
+    expect(localStorage.getItem('llm_model')).toBeNull()
+  })
+
+  it('getProviders 读取已保存厂商列表', async () => {
+    await saveProvider('Stepfun', { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' }, [
+      'step-1',
+    ])
+    const list = getProviders()
+    expect(list).toHaveLength(1)
+    expect(list[0].name).toBe('Stepfun')
+    expect(list[0].apiKey).toBe('') // 占位空
+  })
+
+  it('deleteProvider 同时清理厂商级 secret', async () => {
+    await saveProvider('Stepfun', { baseUrl: 'https://api.stepfun.com/v1', apiKey: 'sk-stepfun', model: 'step-1' }, [
+      'step-1',
+    ])
+    vi.mocked(invoke).mockClear()
+    const remaining = await deleteProvider('https://api.stepfun.com/v1')
+    expect(remaining).toHaveLength(0)
+    expect(invoke).toHaveBeenCalledWith('delete_secret', {
+      key: 'llm_api_key:https://api.stepfun.com/v1',
+    })
   })
 })
 

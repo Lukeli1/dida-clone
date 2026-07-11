@@ -62,27 +62,32 @@ fn remove_fallback_key(app: &AppHandle, key: &str) -> Result<(), String> {
 /// 写入凭据到 OS keychain（失败时回退到文件存储并警告）
 #[tauri::command]
 pub fn set_secret(app: AppHandle, key: String, value: String) -> Result<(), String> {
-    match Entry::new(SERVICE_NAME, &key) {
-        Ok(entry) => match entry.set_password(&value) {
-            Ok(()) => {
-                if let Err(e) = remove_fallback_key(&app, &key) {
-                    eprintln!("[secret] keychain 写入成功，但清理 fallback 失败: {}", e);
-                }
-                Ok(())
+    let save_to_fallback = |reason: &dyn std::fmt::Display| {
+        eprintln!("[secret] keychain 写入不可验证，回退到文件存储: {}", reason);
+        let mut map = load_fallback(&app);
+        map.insert(key.clone(), value.clone());
+        save_fallback(&app, &map)
+    };
+
+    let entry = match Entry::new(SERVICE_NAME, &key) {
+        Ok(entry) => entry,
+        Err(e) => return save_to_fallback(&e),
+    };
+
+    if let Err(e) = entry.set_password(&value) {
+        return save_to_fallback(&e);
+    }
+
+    // 使用新 Entry 回读，确保当前构建实际接入了可跨调用持久化的系统凭据库。
+    match Entry::new(SERVICE_NAME, &key).and_then(|entry| entry.get_password()) {
+        Ok(saved) if saved == value => {
+            if let Err(e) = remove_fallback_key(&app, &key) {
+                eprintln!("[secret] keychain 写入成功，但清理 fallback 失败: {}", e);
             }
-            Err(e) => {
-                eprintln!("[secret] keychain set_password 失败，回退到文件存储: {}", e);
-                let mut map = load_fallback(&app);
-                map.insert(key, value);
-                save_fallback(&app, &map)
-            }
-        },
-        Err(e) => {
-            eprintln!("[secret] keychain 不可用，回退到文件存储: {}", e);
-            let mut map = load_fallback(&app);
-            map.insert(key, value);
-            save_fallback(&app, &map)
+            Ok(())
         }
+        Ok(_) => Err("写入 keychain 后回读值不一致".to_string()),
+        Err(e) => save_to_fallback(&e),
     }
 }
 

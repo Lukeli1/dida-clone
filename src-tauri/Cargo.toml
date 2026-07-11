@@ -1,6 +1,6 @@
 [package]
 name = "dida-clone"
-version = "1.39.0"
+version = "1.39.1"
 description = "滴答清单本地复刻"
 authors = ["you"]
 edition = "2021"
@@ -23,6 +23,6 @@ git2 = "0.19"
 tokio = { version = "1", features = ["time", "fs"] }
 open = "5"
 quick-xml = "0.36"
-keyring = "3"
+keyring = { version = "3", features = ["windows-native"] }
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
