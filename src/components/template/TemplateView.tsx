@@ -3,9 +3,11 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { templateApi } from '../../api'
 import { useUIStore } from '../../stores/uiStore'
+import { useTaskStore } from '../../stores/taskStore'
 import type { TaskTemplate } from '../../types/template'
 import { getPriorityStyle } from '../../utils/priority'
 import { TemplateEditor } from './TemplateEditor'
+import { ApplyTemplateDialog } from './ApplyTemplateDialog'
 import { useConfirm } from '../common/ConfirmDialog'
 import { useToast } from '../Toast'
 
@@ -17,11 +19,14 @@ export function TemplateView() {
   const [loading, setLoading] = useState(true)
   const [showEditor, setShowEditor] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null)
+  const [applyingTemplate, setApplyingTemplate] = useState<TaskTemplate | null>(null)
 
   const confirm = useConfirm()
   const toast = useToast()
   // 次要数据（习惯/模板）是否已就绪：未就绪时显示局部 loading，避免渲染空状态
   const secondaryDataLoaded = useUIStore((s) => s.secondaryDataLoaded)
+  const selectedListId = useUIStore((s) => s.selectedListId)
+  const loadTasks = useTaskStore((s) => s.loadTasks)
   const today = new Date()
 
   const loadTemplates = useCallback(async () => {
@@ -86,14 +91,17 @@ export function TemplateView() {
     }
   }
 
-  async function handleApply(template: TaskTemplate) {
+  function handleApply(template: TaskTemplate) {
+    // 打开配置弹窗：清单/日期/标签/变量，不再硬编码 list_id = 1
+    setApplyingTemplate(template)
+  }
+
+  async function handleApplied(_taskTitle: string) {
+    setApplyingTemplate(null)
     try {
-      // 使用默认清单（list_id = 1，即"收件箱"）
-      await templateApi.applyTemplate(template.id, 1)
-      toast.success(`已从模板「${template.name}」创建任务`)
+      await loadTasks()
     } catch (e) {
-      console.error('应用模板失败:', e)
-      toast.error('应用失败，请重试')
+      console.error('刷新任务列表失败:', e)
     }
   }
 
@@ -165,6 +173,16 @@ export function TemplateView() {
       {/* 编辑/创建弹窗 */}
       {showEditor && (
         <TemplateEditor template={editingTemplate} onSave={handleEditorSave} onCancel={handleEditorCancel} />
+      )}
+
+      {/* 应用模板配置弹窗 */}
+      {applyingTemplate && (
+        <ApplyTemplateDialog
+          template={applyingTemplate}
+          defaultListId={selectedListId}
+          onApplied={handleApplied}
+          onCancel={() => setApplyingTemplate(null)}
+        />
       )}
     </div>
   )

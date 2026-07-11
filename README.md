@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.39.1-blue)
+![版本](https://img.shields.io/badge/version-1.40.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -911,6 +911,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.40.0（2026-07-11）- 模板应用配置增强
+
+- 模板页和任务输入栏的“从模板创建”统一改为配置弹窗；用户必须选择有效目标清单，不再静默写入收件箱
+- 应用模板时可设置主任务截止日期和多选标签；日期按本地日历日保存为当天 23:59，子任务不继承日期或标签
+- 新增 `{project}` 等变量替换，父任务标题、备注和子任务标题使用同一规则；未知变量保留原占位符
+- 后端 `apply_template` 增加清单和标签校验，并在同一事务中写入主任务、标签和子任务；失败时整体回滚，不留下半截数据
+- 补充模板弹窗、日期时区、变量替换、错误恢复和提交防重复测试
+- 验证通过：623 个前端测试、97 个 Rust 测试、TypeScript、ESLint、Cargo 检查和版本一致性检查
 
 ### v1.39.0（2026-07-10）- 时间追踪与番茄钟工时闭环
 

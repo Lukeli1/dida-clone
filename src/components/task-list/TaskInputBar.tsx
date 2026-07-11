@@ -3,8 +3,8 @@ import { parseSmartDate } from '../../utils/smartDate'
 import { templateApi } from '../../api'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskStore } from '../../stores/taskStore'
-import { useToast } from '../Toast'
 import type { TaskTemplate } from '../../types/template'
+import { ApplyTemplateDialog } from '../template/ApplyTemplateDialog'
 
 interface TaskInputBarProps {
   newTaskInputRef: RefObject<HTMLInputElement>
@@ -29,8 +29,8 @@ export function TaskInputBar({
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
   const [templates, setTemplates] = useState<TaskTemplate[]>([])
   const [templatesLoaded, setTemplatesLoaded] = useState(false)
+  const [applyingTemplate, setApplyingTemplate] = useState<TaskTemplate | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const toast = useToast()
   const selectedListId = useUIStore((s) => s.selectedListId)
   const loadTasks = useTaskStore((s) => s.loadTasks)
 
@@ -57,16 +57,18 @@ export function TaskInputBar({
     }
   }, [showTemplateDropdown, templatesLoaded])
 
-  async function handleApplyTemplate(template: TaskTemplate) {
+  function handleApplyTemplate(template: TaskTemplate) {
+    // 打开配置弹窗，不再静默回退到 list_id = 1
+    setShowTemplateDropdown(false)
+    setApplyingTemplate(template)
+  }
+
+  async function handleTemplateApplied(_taskTitle: string) {
+    setApplyingTemplate(null)
     try {
-      const listId = selectedListId ?? 1
-      await templateApi.applyTemplate(template.id, listId)
       await loadTasks()
-      toast.success(`已从模板「${template.name}」创建任务`)
-      setShowTemplateDropdown(false)
     } catch (e) {
-      console.error('应用模板失败:', e)
-      toast.error('创建失败，请重试')
+      console.error('刷新任务列表失败:', e)
     }
   }
 
@@ -239,6 +241,15 @@ export function TaskInputBar({
           </svg>
           AI 模式：用自然语言描述任务，AI 会自动识别时间、优先级
         </p>
+      )}
+
+      {applyingTemplate && (
+        <ApplyTemplateDialog
+          template={applyingTemplate}
+          defaultListId={selectedListId}
+          onApplied={handleTemplateApplied}
+          onCancel={() => setApplyingTemplate(null)}
+        />
       )}
     </div>
   )
