@@ -17,6 +17,8 @@ export function GoalView() {
   const [showEditor, setShowEditor] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  /** 用于在 KR 变更后触发 GoalCard 进度即时刷新 */
+  const [progressRefreshToken, setProgressRefreshToken] = useState(0)
 
   const confirm = useConfirm()
   const toast = useToast()
@@ -119,6 +121,11 @@ export function GoalView() {
     // 预留接口：未来若需汇总全局进度可在此实现
   }
 
+  function handleKeyResultsChange(_goalId: number) {
+    // KR 增删改后强制所有卡片/当前卡片重新拉取进度
+    setProgressRefreshToken((t) => t + 1)
+  }
+
   return (
     <div className="flex flex-col h-full">
       <header className="border-b border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
@@ -194,6 +201,7 @@ export function GoalView() {
                       onArchive={handleArchive}
                       onDelete={handleDelete}
                       onProgressChange={handleProgressChange}
+                      progressRefreshToken={progressRefreshToken}
                     />
                   ))}
                 </div>
@@ -204,7 +212,14 @@ export function GoalView() {
       </div>
 
       {/* 创建/编辑弹窗 */}
-      {showEditor && <GoalEditor goal={editingGoal} onSave={handleEditorSave} onCancel={handleEditorCancel} />}
+      {showEditor && (
+        <GoalEditor
+          goal={editingGoal}
+          onSave={handleEditorSave}
+          onCancel={handleEditorCancel}
+          onKeyResultsChange={handleKeyResultsChange}
+        />
+      )}
     </div>
   )
 }

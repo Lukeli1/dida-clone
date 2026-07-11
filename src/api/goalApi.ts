@@ -28,12 +28,28 @@ export interface Goal {
 }
 
 /**
+ * 目标关键结果（KR），与后端 GoalKeyResult 对齐。
+ */
+export interface GoalKeyResult {
+  id: number
+  goal_id: number
+  title: string
+  target_value: number
+  current_value: number
+  unit: string | null
+  sort_order: number
+}
+
+/**
  * 目标进度统计（与后端 GoalProgress 结构体对齐）。
+ * - 有 KR 时 progress_percent 为各 KR 完成度平均；
+ * - 无 KR 时按关联任务完成率。
  */
 export interface GoalProgress {
   total_tasks: number
   completed_tasks: number
   progress_percent: number
+  key_results: GoalKeyResult[]
 }
 
 /**
@@ -60,7 +76,38 @@ export interface UpdateGoalRequest {
 }
 
 /**
- * 目标/OKR 管理 API：封装后端 goal_commands 中的 8 个命令。
+ * 创建 KR 的请求体。
+ * unit / sortOrder 省略表示使用默认值（unit 为空、sortOrder 由后端分配）。
+ */
+export interface CreateGoalKeyResultRequest {
+  goalId: number
+  title: string
+  targetValue: number
+  currentValue: number
+  unit?: string
+  sortOrder?: number
+}
+
+/**
+ * 更新 KR 的请求体（所有字段可选）。
+ *
+ * unit 契约：
+ * - undefined：不修改单位
+ * - ''（空字符串）：清空单位
+ * - 非空字符串：写入新单位
+ *
+ * 不支持 null（避免与后端 Option 的“不修改”语义混淆）。
+ */
+export interface UpdateGoalKeyResultRequest {
+  title?: string
+  targetValue?: number
+  currentValue?: number
+  unit?: string
+  sortOrder?: number
+}
+
+/**
+ * 目标/OKR 管理 API：封装后端 goal_commands 中的命令。
  * 参数命名采用驼峰（Tauri 自动转为 Rust 端的 snake_case）。
  */
 export const goalApi = {
@@ -88,7 +135,7 @@ export const goalApi = {
       color: updates.color ?? null,
     }),
 
-  /** 删除目标（goal_tasks 因 ON DELETE CASCADE 自动级联删除关联记录） */
+  /** 删除目标（goal_tasks / goal_key_results 级联清理） */
   delete: (id: number): Promise<void> => invoke<void>('delete_goal', { id }),
 
   /** 将任务关联到目标（已存在则忽略，避免重复） */
@@ -98,9 +145,66 @@ export const goalApi = {
   unlinkTask: (goalId: number, taskId: number): Promise<void> =>
     invoke<void>('unlink_task_from_goal', { goalId, taskId }),
 
-  /** 查询目标进度：关联任务总数 / 已完成数 / 完成百分比 */
+  /** 查询目标进度：有 KR 时按 KR 平均；无 KR 时按任务完成率 */
   getProgress: (goalId: number): Promise<GoalProgress> => invoke<GoalProgress>('get_goal_progress', { goalId }),
 
   /** 查询任务关联的所有目标（用于任务详情显示"关联目标"） */
   getTaskGoals: (taskId: number): Promise<Goal[]> => invoke<Goal[]>('get_task_goals', { taskId }),
+
+  /** 查询指定目标的 KR 列表 */
+  getKeyResults: (goalId: number): Promise<GoalKeyResult[]> =>
+    invoke<GoalKeyResult[]>('get_goal_key_results', { goalId }),
+
+  /** 新增 KR，返回新记录 id */
+  createKeyResult: (req: CreateGoalKeyResultRequest): Promise<number> =>
+    invoke<number>('create_goal_key_result', {
+      goalId: req.goalId,
+      title: req.title,
+      targetValue: req.targetValue,
+      currentValue: req.currentValue,
+      unit: req.unit === undefined ? null : req.unit,
+      sortOrder: req.sortOrder === undefined ? null : req.sortOrder,
+    }),
+
+  /**
+   * 更新 KR 字段（仅传入需要更新的字段）。
+   * unit: undefined → 后端 null（不修改）；空字符串 → 后端 Some("")（清空）。
+   */
+  updateKeyResult: (id: number, updates: UpdateGoalKeyResultRequest): Promise<void> =>
+    invoke<void>('update_goal_key_result', {
+      id,
+      title: updates.title ?? null,
+      targetValue: updates.targetValue ?? null,
+      currentValue: updates.currentValue ?? null,
+      unit: updates.unit === undefined ? null : updates.unit,
+      sortOrder: updates.sortOrder === undefined ? null : updates.sortOrder,
+    }),
+
+  /** 删除 KR */
+  deleteKeyResult: (id: number): Promise<void> => invoke<void>('delete_goal_key_result', { id }),
+}
+
+/**
+ * 计算单个 KR 的完成百分比（0–100，封顶；不修改原始 current_value）。
+ */
+export function calcKeyResultPercent(currentValue: number, targetValue: number): number {
+  if (!Number.isFinite(targetValue) || targetValue <= 0) return 0
+  if (!Number.isFinite(currentValue) || currentValue <= 0) return 0
+  return Math.min(100, Math.max(0, (currentValue / targetValue) * 100))
+}
+
+/**
+ * 格式化 KR 进度文案，例如 "36 / 50 次（72%）"。
+ */
+export function formatKeyResultProgress(kr: Pick<GoalKeyResult, 'current_value' | 'target_value' | 'unit'>): string {
+  const percent = Math.round(calcKeyResultPercent(kr.current_value, kr.target_value))
+  const unit = kr.unit?.trim()
+  const unitSuffix = unit ? ` ${unit}` : ''
+  return `${formatNumber(kr.current_value)} / ${formatNumber(kr.target_value)}${unitSuffix}（${percent}%）`
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return '0'
+  // 去掉多余尾随 0：12 / 12.5 / 0.5
+  return Number.isInteger(value) ? String(value) : String(parseFloat(value.toFixed(4)))
 }

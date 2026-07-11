@@ -442,6 +442,28 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
          CREATE INDEX IF NOT EXISTS idx_goal_tasks_task ON goal_tasks(task_id);",
     )?;
 
+    // 目标关键结果（KR）：量化指标，用于 OKR 进度
+    // ON DELETE CASCADE：删除目标时自动清理 KR
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS goal_key_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            target_value REAL NOT NULL,
+            current_value REAL NOT NULL DEFAULT 0,
+            unit TEXT,
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    // 按目标读取/排序 KR 的常用路径索引
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_goal_key_results_goal_sort
+         ON goal_key_results(goal_id, sort_order, id);",
+    )?;
+
     Ok(())
 }
 
@@ -482,6 +504,7 @@ mod tests {
             "reports",
             "goals",
             "goal_tasks",
+            "goal_key_results",
         ] {
             assert!(
                 tables.contains(&expected.to_string()),

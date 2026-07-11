@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.40.0-blue)
+![版本](https://img.shields.io/badge/version-1.41.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -912,7 +912,17 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 
 ## 版本更新记录
 
+### v1.41.0（2026-07-12）- 目标 KR 数据与 UI 闭环
+
+- 新增 `goal_key_results` 表与索引，安全扩展目标模块持久化；删除目标时在同一事务中清理 KR，避免半完成状态
+- 补齐 KR CRUD 的 Rust command 与 TypeScript API 契约：查询、新增、更新、删除关键结果
+- 目标进度规则统一：有 KR 时按各 KR 完成度算术平均；无 KR 时继续按关联任务完成率，兼容旧数据
+- `GoalEditor` 支持在编辑已有目标时增删改 KR，前端校验目标值/当前值边界；`GoalCard` 展示 KR 明细与平均进度
+- 超额完成展示封顶 100%，但保留真实 `current_value`；单位更新契约为 undefined 不改、空字符串清空
+- 补充前后端回归测试，并通过桌面端验收：50%+100%=75%、无 KR 回退任务进度、清空单位持久化、删除后重启无残留
+
 ### v1.40.0（2026-07-11）- 模板应用配置增强
+
 
 - 模板页和任务输入栏的“从模板创建”统一改为配置弹窗；用户必须选择有效目标清单，不再静默写入收件箱
 - 应用模板时可设置主任务截止日期和多选标签；日期按本地日历日保存为当天 23:59，子任务不继承日期或标签

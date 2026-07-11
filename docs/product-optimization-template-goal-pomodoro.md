@@ -111,13 +111,21 @@ interface ApplyTemplateRequest {
 
 ### 阶段 5：目标 KR 数据和 UI
 
+> 状态：✅ 已完成（2026-07-11）
+
 涉及文件：
 
 - `src-tauri/src/db.rs`
 - `src-tauri/src/commands/goal_commands.rs`
+- `src-tauri/src/lib.rs`
 - `src/api/goalApi.ts`
+- `src/api.ts`
 - `src/components/goal/GoalEditor.tsx`
 - `src/components/goal/GoalCard.tsx`
+- `src/components/goal/GoalView.tsx`
+- `src/api/__tests__/goalApi.test.ts`
+- `src/components/goal/__tests__/GoalEditor.test.tsx`
+- `src/components/goal/__tests__/GoalCard.test.tsx`
 
 新增表：
 
@@ -133,6 +141,15 @@ CREATE TABLE IF NOT EXISTS goal_key_results (
   FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
 )
 ```
+
+实际完成内容：
+
+1. 数据库：在 `init_schema` 中安全新增 `goal_key_results` 表与 `(goal_id, sort_order, id)` 索引；`PRAGMA foreign_keys = ON` 保持开启；删除目标时显式清理 KR，避免孤儿数据。
+2. Rust 命令：新增 `get_goal_key_results` / `create_goal_key_result` / `update_goal_key_result` / `delete_goal_key_result`；`get_goal_progress` 扩展返回 `key_results`，有 KR 时按各 KR `min(max(current/target,0),1)` 算术平均计算进度，无 KR 时继续按关联任务完成率。
+3. 校验：`target_value > 0`、`current_value >= 0`、标题非空、所属目标必须存在；超额完成展示封顶 100%，不篡改 `current_value`。
+4. 前端 API：`goalApi` 补齐 KR CRUD 与类型；`GoalProgress` 增加 `key_results`。
+5. UI：`GoalEditor` 在编辑已有目标时支持 KR 列表增删改与前端校验；`GoalCard` 有 KR 时展示 KR 明细与平均进度，无 KR 时保持任务进度；`GoalView` 在 KR 变更后通过 refresh token 即时刷新卡片进度。
+6. 测试：补充 Rust KR/进度测试与前端 GoalEditor/GoalCard/helper 测试。
 
 UI 要求：GoalEditor 支持增删 KR；GoalCard 展示 KR 进度。如果存在 KR，目标总进度按 KR 平均进度计算；无 KR 时沿用任务完成进度。
 

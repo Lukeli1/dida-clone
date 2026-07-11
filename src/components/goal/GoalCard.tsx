@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { differenceInCalendarDays, format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Goal, GoalProgress } from '../../api/goalApi'
-import { goalApi } from '../../api'
+import { goalApi, formatKeyResultProgress } from '../../api'
 import { hexWithAlpha } from '../../utils/priority'
 
 /** 目标类型标签配置 */
@@ -19,6 +19,13 @@ const STATUS_LABELS: Record<Goal['status'], string> = {
   archived: '已归档',
 }
 
+const EMPTY_PROGRESS: GoalProgress = {
+  total_tasks: 0,
+  completed_tasks: 0,
+  progress_percent: 0,
+  key_results: [],
+}
+
 export interface GoalCardProps {
   goal: Goal
   onEdit: (goal: Goal) => void
@@ -26,17 +33,22 @@ export interface GoalCardProps {
   onDelete: (goal: Goal) => void
   /** 当进度变化时通知父组件刷新（如关联任务完成情况变化） */
   onProgressChange?: (goalId: number, progress: GoalProgress) => void
+  /** 外部刷新令牌：变化时重新加载进度（用于 KR 编辑后即时刷新） */
+  progressRefreshToken?: number | string
 }
 
 /**
- * 单个目标卡片：标题 + 类型标签 + 进度条 + 关联任务数 + 剩余天数 + 操作按钮。
+ * 单个目标卡片：标题 + 类型标签 + 进度条 + 关联任务数/KR + 剩余天数 + 操作按钮。
  */
-export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }: GoalCardProps) {
-  const [progress, setProgress] = useState<GoalProgress>({
-    total_tasks: 0,
-    completed_tasks: 0,
-    progress_percent: 0,
-  })
+export function GoalCard({
+  goal,
+  onEdit,
+  onArchive,
+  onDelete,
+  onProgressChange,
+  progressRefreshToken,
+}: GoalCardProps) {
+  const [progress, setProgress] = useState<GoalProgress>(EMPTY_PROGRESS)
 
   // 兼容后端可选字段：color 缺省时回退默认值
   const color = goal.color ?? '#3B82F6'
@@ -44,22 +56,27 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
   // 加载目标进度
   useEffect(() => {
     let cancelled = false
-    async function loadProgress() {
+    async function run() {
       try {
         const p = await goalApi.getProgress(goal.id)
         if (cancelled) return
-        setProgress(p)
+        setProgress({
+          total_tasks: p.total_tasks,
+          completed_tasks: p.completed_tasks,
+          progress_percent: p.progress_percent,
+          key_results: p.key_results ?? [],
+        })
         onProgressChange?.(goal.id, p)
       } catch (e) {
         console.error('加载目标进度失败:', e)
       }
     }
-    loadProgress()
+    void run()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goal.id])
+  }, [goal.id, progressRefreshToken])
 
   // 计算剩余天数（截止日 - 今天）
   const daysLeft = (() => {
@@ -86,13 +103,15 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
 
   const isArchived = goal.status === 'archived'
   const isCompleted = goal.status === 'completed'
-  // 进度百分比四舍五入到整数
-  const progressInt = Math.round(progress.progress_percent)
+  const hasKeyResults = (progress.key_results?.length ?? 0) > 0
+  // 进度百分比四舍五入到整数，并限制在 0–100 展示
+  const progressInt = Math.min(100, Math.max(0, Math.round(progress.progress_percent)))
 
   return (
     <div
       className="bg-[var(--color-surface)] border border-[var(--color-border-light)] rounded-2xl p-5 flex flex-col gap-3 transition-all hover:shadow-md hover:border-[var(--color-accent)]/30 group"
       style={{ borderLeftWidth: '3px', borderLeftColor: color }}
+      data-testid={`goal-card-${goal.id}`}
     >
       {/* 头部：标题 + 类型/状态标签 */}
       <div className="flex items-start gap-2">
@@ -133,11 +152,19 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs text-[var(--color-text-secondary)]">
             进度
-            <span className="ml-1.5 font-semibold" style={{ color }}>
-              {progress.completed_tasks}/{progress.total_tasks}
-            </span>
+            {hasKeyResults ? (
+              <span className="ml-1.5 font-semibold" style={{ color }} data-testid="goal-progress-summary">
+                {progress.key_results.length} 项 KR
+              </span>
+            ) : (
+              <span className="ml-1.5 font-semibold" style={{ color }} data-testid="goal-progress-summary">
+                {progress.completed_tasks}/{progress.total_tasks}
+              </span>
+            )}
           </span>
-          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{progressInt}%</span>
+          <span className="text-xs font-semibold text-[var(--color-text-secondary)]" data-testid="goal-progress-percent">
+            {progressInt}%
+          </span>
         </div>
         <div className="h-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
           <div
@@ -149,6 +176,24 @@ export function GoalCard({ goal, onEdit, onArchive, onDelete, onProgressChange }
           />
         </div>
       </div>
+
+      {/* KR 明细 */}
+      {hasKeyResults && (
+        <ul className="space-y-1.5" data-testid="goal-kr-list">
+          {progress.key_results.map((kr) => (
+            <li key={kr.id} className="text-[11px] text-[var(--color-text-secondary)] min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <span className="truncate flex-1 min-w-0" title={kr.title}>
+                  {kr.title}
+                </span>
+                <span className="flex-shrink-0 text-[var(--color-text-tertiary)] whitespace-nowrap">
+                  {formatKeyResultProgress(kr)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* 底部：状态 + 剩余天数 */}
       <div className="flex items-center justify-between text-xs">
