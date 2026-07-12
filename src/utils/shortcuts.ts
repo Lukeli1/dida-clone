@@ -7,6 +7,7 @@ export interface ShortcutItem {
 export const SHORTCUTS: ShortcutItem[] = [
   // 全局
   { key: 'Ctrl+N', description: '新建任务', category: '全局' },
+  { key: 'Ctrl+K', description: '打开命令面板', category: '全局' },
   { key: 'Ctrl+F', description: '搜索任务', category: '全局' },
   { key: 'Ctrl+1', description: '切换到任务列表', category: '导航' },
   { key: 'Ctrl+2', description: '切换到日历视图', category: '导航' },
@@ -37,6 +38,13 @@ export interface ShortcutBinding {
 
 export const DEFAULT_SHORTCUT_BINDINGS: ShortcutBinding[] = [
   { id: 'newTask', label: '新建任务', category: '全局', defaultKeys: 'Ctrl+N', description: '快速创建新任务' },
+  {
+    id: 'commandPalette',
+    label: '打开命令面板',
+    category: '全局',
+    defaultKeys: 'Ctrl+K',
+    description: '打开全局命令面板，快速跳转、搜索任务',
+  },
   { id: 'search', label: '搜索任务', category: '全局', defaultKeys: 'Ctrl+F', description: '打开搜索框' },
   {
     id: 'toggleSidebar',

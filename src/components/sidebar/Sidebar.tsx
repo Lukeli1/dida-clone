@@ -6,6 +6,7 @@ import { AvatarSection, SidebarFooter } from './SidebarFooter'
 import { useWindowSize } from '../../hooks/useWindowSize'
 import { useUIStore } from '../../stores/uiStore'
 import { getAvatar } from '../../utils/avatar'
+import { isSidebarItemVisible } from '../../utils/sidebarVisibility'
 
 /**
  * 侧边栏内部内容（不含外层 aside 容器，由各响应式模式包裹）。
@@ -66,6 +67,9 @@ function SidebarInner(props: SidebarProps) {
  * 仅显示关键导航图标，hover 时父级浮层展开完整内容。
  */
 function CollapsedNav(props: SidebarProps) {
+  const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
+  const isVisible = (id: string) => isSidebarItemVisible(id, visibleSidebarItems)
+
   const items = [
     {
       id: 'tasks',
@@ -207,7 +211,7 @@ function CollapsedNav(props: SidebarProps) {
         </svg>
       ),
     },
-  ]
+  ].filter((item) => isVisible(item.id))
 
   const avatar = getAvatar()
 
@@ -230,14 +234,15 @@ function CollapsedNav(props: SidebarProps) {
         )}
       </div>
 
-      {/* 导航图标列 */}
-      <nav className="flex-1 overflow-y-auto py-2 flex flex-col items-center gap-1">
+      {/* 导航图标列：与完整侧边栏使用同一可见性配置 */}
+      <nav className="flex-1 overflow-y-auto py-2 flex flex-col items-center gap-1" data-testid="sidebar-collapsed-nav">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={item.onClick}
             title={item.label}
             aria-label={item.label}
+            data-testid={`collapsed-nav-${item.id}`}
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
               item.active
                 ? item.id === 'ai'

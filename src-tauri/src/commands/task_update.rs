@@ -5,7 +5,9 @@ use tauri::State;
 use super::super::now_rfc3339;
 use crate::db::DbState;
 
-fn deserialize_optional_patch_field<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
+fn deserialize_optional_patch_field<'de, D, T>(
+    deserializer: D,
+) -> std::result::Result<Option<Option<T>>, D::Error>
 where
     D: Deserializer<'de>,
     T: Deserialize<'de>,
@@ -52,7 +54,11 @@ pub struct UpdateTaskRequest {
 }
 
 /// 核心更新逻辑，接受 &Connection 以便在批量执行事务中复用。
-pub fn do_update_task(conn: &rusqlite::Connection, id: i64, updates: &UpdateTaskRequest) -> Result<(), String> {
+pub fn do_update_task(
+    conn: &rusqlite::Connection,
+    id: i64,
+    updates: &UpdateTaskRequest,
+) -> Result<(), String> {
     let now = now_rfc3339();
 
     // 动态构建 UPDATE 语句
@@ -190,7 +196,8 @@ pub fn do_update_task(conn: &rusqlite::Connection, id: i64, updates: &UpdateTask
 
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
 
-    let affected = conn.execute(&sql, params_refs.as_slice())
+    let affected = conn
+        .execute(&sql, params_refs.as_slice())
         .map_err(|e| e.to_string())?;
     if affected == 0 {
         return Err(format!("更新任务失败：任务 #{} 不存在", id));
@@ -239,9 +246,13 @@ mod tests {
         assert_eq!(clear.completed_at, Some(None));
 
         let set: super::UpdateTaskRequest =
-            serde_json::from_str(r#"{"reminder_minutes":15,"completed_at":"2026-07-07T00:00:00"}"#).unwrap();
+            serde_json::from_str(r#"{"reminder_minutes":15,"completed_at":"2026-07-07T00:00:00"}"#)
+                .unwrap();
         assert_eq!(set.reminder_minutes, Some(Some(15)));
-        assert_eq!(set.completed_at, Some(Some("2026-07-07T00:00:00".to_string())));
+        assert_eq!(
+            set.completed_at,
+            Some(Some("2026-07-07T00:00:00".to_string()))
+        );
     }
 
     #[test]
@@ -415,19 +426,22 @@ mod tests {
         )
         .unwrap();
         let subtask_id = conn.last_insert_rowid();
-        let moving_task_id = super::super::task_create::do_create_task(&conn, &super::super::task_create::CreateTaskRequest {
-            title: "待移动任务".to_string(),
-            notes: None,
-            priority: None,
-            due_date: None,
-            end_date: None,
-            all_day: false,
-            reminder: None,
-            reminder_minutes: None,
-            list_id: 1,
-            parent_id: None,
-            repeat_rule: None,
-        })
+        let moving_task_id = super::super::task_create::do_create_task(
+            &conn,
+            &super::super::task_create::CreateTaskRequest {
+                title: "待移动任务".to_string(),
+                notes: None,
+                priority: None,
+                due_date: None,
+                end_date: None,
+                all_day: false,
+                reminder: None,
+                reminder_minutes: None,
+                list_id: 1,
+                parent_id: None,
+                repeat_rule: None,
+            },
+        )
         .unwrap()
         .id;
 

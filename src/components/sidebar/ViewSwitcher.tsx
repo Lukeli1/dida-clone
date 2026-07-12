@@ -1,4 +1,6 @@
 import type { ViewSwitcherProps } from './types'
+import { useUIStore } from '../../stores/uiStore'
+import { isSidebarItemVisible } from '../../utils/sidebarVisibility'
 
 export function ViewSwitcher({
   currentView,
@@ -10,6 +12,9 @@ export function ViewSwitcher({
   todayCount,
   archivedCount,
 }: ViewSwitcherProps) {
+  const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
+  const isVisible = (id: string) => isSidebarItemVisible(id, visibleSidebarItems)
+
   const navItems = [
     {
       id: 'tasks',
@@ -179,67 +184,75 @@ export function ViewSwitcher({
     },
   ]
 
+  const visibleNavItems = navItems.filter((item) => isVisible(item.id))
+  const visibleAdvancedItems = advancedItems.filter((item) => isVisible(item.id))
+
   return (
     <>
-      <div className="mb-3">
-        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
-          智能清单
-        </p>
-        <nav className="space-y-0.5">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={item.action}
-              data-testid={`nav-${item.id}`}
-              className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
-                item.match
-                  ? item.id === 'ai'
-                    ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
-                    : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
+      {visibleNavItems.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
+            智能清单
+          </p>
+          <nav className="space-y-0.5">
+            {visibleNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={item.action}
+                data-testid={`nav-${item.id}`}
+                className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
+                  item.match
+                    ? item.id === 'ai'
+                      ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
+                      : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span className={item.match ? 'opacity-100' : 'opacity-60'}>{item.icon}</span>
+                  {item.label}
+                </span>
+                {typeof item.count === 'number' && item.count > 0 && (
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center ${
+                      item.match
+                        ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                        : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {visibleAdvancedItems.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
+            高级视图
+          </p>
+          <nav className="space-y-0.5">
+            {visibleAdvancedItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={item.action}
+                data-testid={`nav-${item.id}`}
+                className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
+                  item.match
+                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
                 <span className={item.match ? 'opacity-100' : 'opacity-60'}>{item.icon}</span>
                 {item.label}
-              </span>
-              {typeof item.count === 'number' && item.count > 0 && (
-                <span
-                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center ${
-                    item.match
-                      ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
-                  }`}
-                >
-                  {item.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="mb-3">
-        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
-          高级视图
-        </p>
-        <nav className="space-y-0.5">
-          {advancedItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={item.action}
-              className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
-                item.match
-                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
-            >
-              <span className={item.match ? 'opacity-100' : 'opacity-60'}>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
     </>
   )
 }

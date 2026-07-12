@@ -22,7 +22,10 @@ pub struct CreateTaskRequest {
 }
 
 /// 核心创建逻辑，接受 &Connection 以便在批量执行事务中复用。
-pub fn do_create_task(conn: &rusqlite::Connection, req: &CreateTaskRequest) -> Result<Task, String> {
+pub fn do_create_task(
+    conn: &rusqlite::Connection,
+    req: &CreateTaskRequest,
+) -> Result<Task, String> {
     let now = now_rfc3339();
     let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
@@ -33,7 +36,12 @@ pub fn do_create_task(conn: &rusqlite::Connection, req: &CreateTaskRequest) -> R
                 params![parent_id],
                 |row| row.get(0),
             )
-            .map_err(|e| format!("创建子任务失败：父任务 #{} 不存在或查询出错: {}", parent_id, e))?;
+            .map_err(|e| {
+                format!(
+                    "创建子任务失败：父任务 #{} 不存在或查询出错: {}",
+                    parent_id, e
+                )
+            })?;
         if parent_parent_id.is_some() {
             return Err("创建子任务失败：当前仅支持一层子任务".to_string());
         }

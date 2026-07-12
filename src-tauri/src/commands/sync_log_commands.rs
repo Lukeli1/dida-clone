@@ -57,11 +57,7 @@ pub(crate) fn append_sync_log(app_data_dir: &str, entry: SyncLogEntry) {
     };
 
     // 追加写入
-    match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-    {
+    match OpenOptions::new().create(true).append(true).open(&log_path) {
         Ok(mut file) => {
             if let Err(e) = writeln!(file, "{}", line) {
                 eprintln!("[sync_log] 写入日志失败: {}", e);
@@ -105,14 +101,16 @@ pub(crate) fn log_sync_error(app_data_dir: &str, action: &str, sync_type: &str, 
 
 /// 读取最近 N 条同步日志
 #[tauri::command]
-pub fn list_sync_logs(app_data_dir: String, limit: Option<usize>) -> Result<Vec<SyncLogEntry>, String> {
+pub fn list_sync_logs(
+    app_data_dir: String,
+    limit: Option<usize>,
+) -> Result<Vec<SyncLogEntry>, String> {
     let log_path = get_sync_log_path(&app_data_dir);
     if !log_path.exists() {
         return Ok(Vec::new());
     }
 
-    let content = fs::read_to_string(&log_path)
-        .map_err(|e| format!("读取同步日志失败: {}", e))?;
+    let content = fs::read_to_string(&log_path).map_err(|e| format!("读取同步日志失败: {}", e))?;
 
     let limit = limit.unwrap_or(10);
     let mut entries: Vec<SyncLogEntry> = content

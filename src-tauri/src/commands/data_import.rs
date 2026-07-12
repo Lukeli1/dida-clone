@@ -45,7 +45,9 @@ fn query_habit_record_pairs(conn: &Connection) -> Result<HashSet<(i64, String)>,
         .prepare("SELECT habit_id, date FROM habit_records")
         .map_err(|e| e.to_string())?;
     let pairs: HashSet<(i64, String)> = stmt
-        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();
@@ -171,7 +173,11 @@ pub fn import_json_preview(
         }
         let mut skip_reasons = Vec::new();
         if id_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 ID 重复" } else { "ID 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 ID 重复"
+            } else {
+                "ID 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", id_conflicts, desc));
         }
         TablePreview {
@@ -221,11 +227,19 @@ pub fn import_json_preview(
         }
         let mut skip_reasons = Vec::new();
         if id_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 ID 重复" } else { "ID 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 ID 重复"
+            } else {
+                "ID 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", id_conflicts, desc));
         }
         if name_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部名称重复" } else { "名称冲突" };
+            let desc = if is_replace {
+                "JSON 内部名称重复"
+            } else {
+                "名称冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", name_conflicts, desc));
         }
         TablePreview {
@@ -266,7 +280,11 @@ pub fn import_json_preview(
         }
         let mut skip_reasons = Vec::new();
         if id_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 ID 重复" } else { "ID 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 ID 重复"
+            } else {
+                "ID 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", id_conflicts, desc));
         }
         TablePreview {
@@ -307,7 +325,11 @@ pub fn import_json_preview(
         }
         let mut skip_reasons = Vec::new();
         if id_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 ID 重复" } else { "ID 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 ID 重复"
+            } else {
+                "ID 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", id_conflicts, desc));
         }
         TablePreview {
@@ -355,11 +377,19 @@ pub fn import_json_preview(
         }
         let mut skip_reasons = Vec::new();
         if id_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 ID 重复" } else { "ID 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 ID 重复"
+            } else {
+                "ID 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", id_conflicts, desc));
         }
         if pair_conflicts > 0 {
-            let desc = if is_replace { "JSON 内部 (habit_id, date) 重复" } else { "(habit_id, date) 冲突" };
+            let desc = if is_replace {
+                "JSON 内部 (habit_id, date) 重复"
+            } else {
+                "(habit_id, date) 冲突"
+            };
             skip_reasons.push(format!("{} 个 {}", pair_conflicts, desc));
         }
         TablePreview {
@@ -400,7 +430,8 @@ pub fn import_json_preview(
         habit_records: habit_records_preview,
         will_delete_existing,
         existing_counts,
-        attachment_note: "JSON 导出含附件记录元信息，但不含附件文件本体；导入暂不支持恢复附件记录。".to_string(),
+        attachment_note:
+            "JSON 导出含附件记录元信息，但不含附件文件本体；导入暂不支持恢复附件记录。".to_string(),
     })
 }
 

@@ -84,7 +84,21 @@ pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<Complete
         )
         .map_err(|e| format!("完成任务失败：任务 #{} 不存在或查询出错: {}", id, e))?;
 
-    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, completed, _sort_order) = task;
+    let (
+        title,
+        notes,
+        priority,
+        due_date,
+        end_date,
+        all_day,
+        reminder,
+        reminder_minutes,
+        list_id,
+        parent_id,
+        repeat_rule,
+        completed,
+        _sort_order,
+    ) = task;
     if completed {
         return Err(format!("完成任务失败：任务 #{} 已完成", id));
     }
@@ -104,15 +118,14 @@ pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<Complete
     if let Some(ref rule) = repeat_rule {
         if !rule.is_empty() {
             // 优先使用 RRULE 路径（与 complete_recurring_task 一致），回退到旧引擎
-            let next_due = compute_next_due_date_unified(
-                due_date.as_deref(),
-                rule,
-            );
+            let next_due = compute_next_due_date_unified(due_date.as_deref(), rule);
 
             // 只有计算出有效的 next_due 时才创建下一周期任务
             if let Some(ref next_due_str) = next_due {
                 let next_end = match (&due_date, &end_date) {
-                    (Some(old_due), Some(old_end)) => shift_end_date(old_due, old_end, next_due_str),
+                    (Some(old_due), Some(old_end)) => {
+                        shift_end_date(old_due, old_end, next_due_str)
+                    }
                     _ => None,
                 };
 
@@ -254,8 +267,7 @@ fn compute_next_due_date_unified(due_date: Option<&str>, rule: &str) -> Option<S
             return None;
         }
 
-        return crate::repeat::next_occurrence(&parsed_rule, from)
-            .map(|dt| dt.to_rfc3339());
+        return crate::repeat::next_occurrence(&parsed_rule, from).map(|dt| dt.to_rfc3339());
     }
 
     // 回退到旧引擎（JSON 规则或简单字符串规则）
@@ -415,7 +427,12 @@ mod tests {
         assert_eq!(completed_at.as_deref(), Some(now));
         assert_eq!(status, "done");
 
-        let (completed, completed_at, status, reminder_minutes): (i64, Option<String>, String, Option<i64>) = conn
+        let (completed, completed_at, status, reminder_minutes): (
+            i64,
+            Option<String>,
+            String,
+            Option<i64>,
+        ) = conn
             .query_row(
                 "SELECT completed, completed_at, status, reminder_minutes FROM tasks WHERE id = ?1",
                 params![next_id],
@@ -447,6 +464,11 @@ mod tests {
             "2026-07-08T09:00:00+08:00",
         )
         .is_none());
-        assert!(shift_end_date("bad", "2026-07-01T11:30:00+08:00", "2026-07-08T09:00:00+08:00").is_none());
+        assert!(shift_end_date(
+            "bad",
+            "2026-07-01T11:30:00+08:00",
+            "2026-07-08T09:00:00+08:00"
+        )
+        .is_none());
     }
 }

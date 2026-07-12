@@ -76,6 +76,8 @@ export const STORAGE_KEYS = {
   perfRecords: `${PREFIX}perf_records`,
   /** 错误日志 */
   errorLogs: `${PREFIX}error_logs`,
+  /** 侧边栏入口可见性配置 */
+  sidebarVisibleItems: `${PREFIX}sidebar_visible_items`,
 } as const
 
 /** 旧 key → 新 key 的迁移映射（裸 key → `dida:` 前缀 key） */
@@ -107,6 +109,7 @@ const MIGRATION_MAP: ReadonlyArray<readonly [string, string]> = [
   ['notification_permission_requested', STORAGE_KEYS.notificationPermissionRequested],
   ['perf_records', STORAGE_KEYS.perfRecords],
   ['error_logs', STORAGE_KEYS.errorLogs],
+  ['sidebar_visible_items', STORAGE_KEYS.sidebarVisibleItems],
 ]
 
 /** 标记本次启动是否已执行过迁移，避免同一会话内重复遍历 localStorage */

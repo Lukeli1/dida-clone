@@ -58,8 +58,19 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
         )
         .map_err(|e| e.to_string())?;
 
-    let (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule) =
-        task;
+    let (
+        title,
+        notes,
+        priority,
+        due_date,
+        end_date,
+        all_day,
+        reminder,
+        reminder_minutes,
+        list_id,
+        parent_id,
+        repeat_rule,
+    ) = task;
 
     // 2. 标记当前任务为已完成
     tx.execute(

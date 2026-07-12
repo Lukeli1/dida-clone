@@ -14,6 +14,7 @@ import { TaskListPanel } from './components/task-list/TaskListPanel'
 import { CalendarPanel } from './components/CalendarPanel'
 import { DetailPanel } from './components/DetailPanel'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
+import { CommandPalette } from './components/CommandPalette'
 import { NotificationCenter } from './components/NotificationCenter'
 import { OnboardingTour } from './components/OnboardingTour'
 import { AppSkeleton } from './components/common/Skeleton'
@@ -270,6 +271,9 @@ function App() {
 
       {/* 快捷键帮助面板（fixed 定位，按 ? / F1 或 TitleBar 帮助按钮打开）*/}
       <ShortcutsHelp open={shortcutsHelpOpen} onClose={handleCloseShortcutsHelp} />
+
+      {/* 全局命令面板（Ctrl+K / Meta+K）*/}
+      <CommandPalette newTaskInputRef={newTaskInputRef} searchInputRef={searchInputRef} />
 
       {/* 通知中心面板（fixed 定位，按 TitleBar 通知按钮打开）*/}
       <NotificationCenter open={notificationCenterOpen} onClose={handleCloseNotificationCenter} />

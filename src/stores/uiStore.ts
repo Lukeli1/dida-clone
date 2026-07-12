@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 import { getItem, setItem, removeItem } from '../utils/storage'
 import type { ViewType } from '../components/sidebar/types'
+import {
+  createDefaultSidebarVisibility,
+  isAlwaysVisibleSidebarItem,
+  isSidebarItemVisible as resolveSidebarItemVisible,
+  loadSidebarVisibility,
+  mergeSidebarVisibility,
+  saveSidebarVisibility,
+  type SidebarVisibilityMap,
+} from '../utils/sidebarVisibility'
 
 /** 通知中心单条通知项 */
 export interface NotificationItem {
@@ -30,6 +39,9 @@ interface UIState {
   sidebarCollapsed: boolean // 平板/桌面折叠为图标条模式
   sidebarOpen: boolean // 移动端抽屉开关
 
+  // 侧边栏入口可见性（完整态与折叠态共用；核心入口强制可见）
+  visibleSidebarItems: SidebarVisibilityMap
+
   // 任务交互
   expandedTasks: Set<number>
   subtaskInputs: Record<number, string>
@@ -46,6 +58,9 @@ interface UIState {
 
   // 快捷键帮助面板
   shortcutsHelpOpen: boolean
+
+  // 全局命令面板
+  commandPaletteOpen: boolean
 
   // 通知中心
   notificationHistory: NotificationItem[]
@@ -92,10 +107,13 @@ interface UIState {
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
+  setSidebarItemVisible: (id: string, visible: boolean) => void
+  isSidebarItemVisible: (id: string) => boolean
   setIsDraggingTask: (dragging: boolean) => void
   setDragOverCalendarDate: (date: string | null) => void
   setMiniCalendarDate: (date: Date) => void
   setShortcutsHelpOpen: (open: boolean) => void
+  setCommandPaletteOpen: (open: boolean) => void
   addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'read'>) => void
   markNotificationRead: (id: string) => void
   clearNotifications: () => void
@@ -109,7 +127,7 @@ interface UIState {
   setAiPresetMessage: (msg: string | null) => void
 }
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>((set, get) => ({
   currentView: 'tasks',
   selectedListId: null,
   selectedTagId: null,
@@ -121,6 +139,14 @@ export const useUIStore = create<UIState>((set) => ({
   aiParsing: false,
   sidebarCollapsed: false,
   sidebarOpen: false,
+  // 侧边栏可见性：namespaced key 优先，legacy 裸 key 同次启动可读并迁移
+  visibleSidebarItems: (() => {
+    try {
+      return loadSidebarVisibility()
+    } catch {
+      return createDefaultSidebarVisibility()
+    }
+  })(),
   expandedTasks: new Set<number>(),
   subtaskInputs: {},
   batchMode: false,
@@ -130,6 +156,7 @@ export const useUIStore = create<UIState>((set) => ({
   miniCalendarDate: new Date(),
   searchQuery: '',
   shortcutsHelpOpen: false,
+  commandPaletteOpen: false,
 
   notificationHistory: [],
   notificationCenterOpen: false,
@@ -206,10 +233,46 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+
+  setSidebarItemVisible: (id, visible) =>
+    set((state) => {
+      // 核心入口不允许隐藏
+      if (isAlwaysVisibleSidebarItem(id)) {
+        const forced = mergeSidebarVisibility({ ...state.visibleSidebarItems, [id]: true })
+        // 只写入 namespaced key，不写 legacy 裸 key
+        saveSidebarVisibility(forced)
+        return { visibleSidebarItems: forced }
+      }
+
+      const next = mergeSidebarVisibility({ ...state.visibleSidebarItems, [id]: visible })
+      // 只写入 namespaced key；写入失败不影响内存状态
+      saveSidebarVisibility(next)
+
+      // 隐藏当前正在查看的可选视图 → 回退到全部任务
+      const shouldFallback =
+        !visible && state.currentView === id && !isAlwaysVisibleSidebarItem(state.currentView)
+
+      if (shouldFallback) {
+        return {
+          visibleSidebarItems: next,
+          currentView: 'tasks',
+          selectedListId: null,
+          selectedTagId: null,
+        }
+      }
+
+      return { visibleSidebarItems: next }
+    }),
+
+  isSidebarItemVisible: (id: string): boolean => {
+    return resolveSidebarItemVisible(id, get().visibleSidebarItems)
+  },
+
   setIsDraggingTask: (isDraggingTask) => set({ isDraggingTask }),
   setDragOverCalendarDate: (dragOverCalendarDate) => set({ dragOverCalendarDate }),
   setMiniCalendarDate: (miniCalendarDate) => set({ miniCalendarDate }),
   setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
+  setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
 
   addNotification: (notification) =>
     set((state) => {

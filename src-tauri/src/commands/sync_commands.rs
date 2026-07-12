@@ -340,8 +340,12 @@ pub(crate) fn create_snapshot_before_overwrite(
     }
     let conn = Connection::open(&db_path)
         .map_err(|e| format!("打开数据库连接失败，无法创建安全快照: {}", e))?;
-    create_snapshot_internal(&conn, app_data_dir, reason)
-        .map_err(|e| format!("覆盖本地数据库前创建安全快照失败，已中止操作以防数据丢失: {}", e))?;
+    create_snapshot_internal(&conn, app_data_dir, reason).map_err(|e| {
+        format!(
+            "覆盖本地数据库前创建安全快照失败，已中止操作以防数据丢失: {}",
+            e
+        )
+    })?;
     Ok(())
 }
 
@@ -398,7 +402,12 @@ fn resolve_git_conflict(
                     .map_err(|e| format!("复制数据库到同步目录失败: {}", e))?;
             }
             sync::push_changes(&repo, &config.branch)?;
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "git", "冲突解决：保留本地");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "git",
+                "冲突解决：保留本地",
+            );
         }
         // 保留远程：fetch 最新远程，reset 到远程，复制到 live db
         "remote" => {
@@ -410,7 +419,12 @@ fn resolve_git_conflict(
                 std::fs::copy(&synced_db, &live_db)
                     .map_err(|e| format!("复制远程数据库到应用目录失败: {}", e))?;
             }
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "git", "冲突解决：保留远程");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "git",
+                "冲突解决：保留远程",
+            );
         }
         // 两者都保留：备份 live db，然后使用远程
         "backup" => {
@@ -427,7 +441,12 @@ fn resolve_git_conflict(
                 std::fs::copy(&synced_db, &live_db)
                     .map_err(|e| format!("复制远程数据库到应用目录失败: {}", e))?;
             }
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "git", "冲突解决：备份本地后保留远程");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "git",
+                "冲突解决：备份本地后保留远程",
+            );
         }
         _ => return Err("无效的冲突解决策略".to_string()),
     }
@@ -450,7 +469,12 @@ async fn resolve_webdav_conflict(
         "local" => {
             client.upload(&local_db).await?;
             write_webdav_last_sync(app_data_dir);
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "webdav", "冲突解决：保留本地");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "webdav",
+                "冲突解决：保留本地",
+            );
         }
         // 保留远程：下载覆盖本地
         "remote" => {
@@ -458,7 +482,12 @@ async fn resolve_webdav_conflict(
             create_snapshot_before_overwrite(app_data_dir, "before-webdav-remote")?;
             client.download(&local_db).await?;
             write_webdav_last_sync(app_data_dir);
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "webdav", "冲突解决：保留远程");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "webdav",
+                "冲突解决：保留远程",
+            );
         }
         // 两者都保留：备份本地，然后下载远程
         "backup" => {
@@ -471,7 +500,12 @@ async fn resolve_webdav_conflict(
             create_snapshot_before_overwrite(app_data_dir, "before-webdav-backup")?;
             client.download(&local_db).await?;
             write_webdav_last_sync(app_data_dir);
-            log_sync_success(app_data_dir, "sync_conflict_resolved", "webdav", "冲突解决：备份本地后保留远程");
+            log_sync_success(
+                app_data_dir,
+                "sync_conflict_resolved",
+                "webdav",
+                "冲突解决：备份本地后保留远程",
+            );
         }
         _ => return Err("无效的冲突解决策略".to_string()),
     }

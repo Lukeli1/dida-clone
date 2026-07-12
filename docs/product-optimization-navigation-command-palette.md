@@ -37,61 +37,126 @@ git pull --ff-only
 
 如果工作区有未提交改动或快进失败，停止执行。
 
-### 阶段 1：新增命令面板
+### 阶段 1：新增命令面板 ✅ 已完成
 
 新增文件：
 
 - `src/components/CommandPalette.tsx`
 - `src/hooks/useCommandPalette.ts`
+- `src/components/__tests__/CommandPalette.test.tsx`
+- `tests/command-palette.spec.ts`
 
-修改文件：`src/App.tsx`
+修改文件：`src/App.tsx`、`src/stores/uiStore.ts`（新增 `commandPaletteOpen` / `setCommandPaletteOpen`）
 
-命令范围：全部任务、今日任务、日历、统计、AI 助手、四象限、番茄钟、习惯、模板、目标/OKR、设置、新建任务、聚焦搜索、打开快捷键帮助。
+命令范围（真实 view ID）：
 
-搜索任务：输入任务标题关键词后展示前 10 条匹配任务，点击后设置 `selectedTaskId`。
+| 命令 | 行为 |
+|---|---|
+| 全部任务 | `currentView = 'tasks'`，清除 list/tag 选择 |
+| 今日任务 | `currentView = 'today'` |
+| 日历 | `currentView = 'calendar'` |
+| 统计 | `currentView = 'stats'` |
+| AI 助手 | `currentView = 'ai'` |
+| 四象限 | `currentView = 'quadrant'` |
+| 番茄钟 | `currentView = 'pomodoro'` |
+| 习惯 | `currentView = 'habit'` |
+| 模板 | `currentView = 'template'` |
+| 目标 / OKR | `currentView = 'goals'` |
+| 设置 | `currentView = 'settings'` |
+| 新建任务 | 确保列表视图后聚焦 `newTaskInputRef` |
+| 聚焦搜索 | 确保列表视图后聚焦 `searchInputRef` |
+| 打开快捷键帮助 | `setShortcutsHelpOpen(true)` |
 
-UI 要求：`Esc` 关闭，上下键移动，Enter 执行，输入框自动聚焦，最大高度 70vh，内部滚动。
+搜索任务：输入任务标题关键词后展示前 10 条匹配任务（排除归档、忽略大小写、中文包含匹配）；点击/Enter 后设置 `selectedTaskId`，必要时切回 `tasks` 以保证详情可见，并关闭面板。空输入不展示任务列表。
 
-### 阶段 2：注册 Ctrl+K 快捷键
+UI：`Esc` 关闭并尽量恢复焦点，↑↓ 移动，Enter 执行，输入框自动聚焦，最大高度 70vh，结果区内滚动；语义化 dialog / listbox。
+
+焦点策略（关闭时单一路径，消除竞争）：
+
+| 关闭路径 | 策略 |
+|---|---|
+| Esc / 遮罩点击 / 普通视图跳转 / 再次 Ctrl+K | `restore`：恢复打开前焦点（目标仍在 document 且可聚焦） |
+| 新建任务 | `target` → `newTaskInputRef` |
+| 聚焦搜索 | `target` → `searchInputRef` |
+| 打开快捷键帮助 | `none`：不恢复旧焦点，避免抢占帮助弹层 |
+
+验证：`CommandPalette.test.tsx` 含焦点路径通过；全量单测通过；`typecheck` 通过；`lint` 0 errors。
+
+### 阶段 2：注册 Ctrl+K 快捷键 ✅ 已完成
 
 修改文件：
 
 - `src/hooks/useKeyboardShortcuts.ts`
 - `src/utils/shortcuts.ts`
-- `src/components/settings/ShortcutsPanel.tsx`
-- `src/components/ShortcutsHelp.tsx`
+- `src/components/settings/ShortcutsPanel.tsx`（通过 `DEFAULT_SHORTCUT_BINDINGS` 自动展示，无需单独 UI 逻辑）
+- `src/components/ShortcutsHelp.tsx`（同上，自动包含可自定义绑定）
 
-新增快捷键 ID：`commandPalette`，默认按键 `Ctrl+K`。
+新增快捷键 ID：`commandPalette`，默认按键 `Ctrl+K`；macOS 兼容 `Meta+K`（默认绑定为 Ctrl+K 时额外注册）。
 
-行为：输入框内按 `Ctrl+K` 也允许打开命令面板；打开后阻止事件继续传播。
+行为：输入框内按 `Ctrl+K` 也允许打开命令面板；打开时 `preventDefault()` + `stopPropagation()`；再次按下可关闭。已接入现有自定义/冲突检测机制（`DEFAULT_SHORTCUT_BINDINGS` + `customShortcuts`）。
 
-### 阶段 3：侧边栏显示设置
+### 阶段 3：侧边栏显示设置 ✅ 已完成
 
-修改文件：
+新增/修改文件：
 
-- `src/stores/uiStore.ts`
-- `src/components/settings/GeneralPanel.tsx`
-- `src/components/sidebar/ViewSwitcher.tsx`
-- `src/components/sidebar/Sidebar.tsx`
+- `src/utils/sidebarVisibility.ts`（集中定义默认配置、合并、判断、解析）
+- `src/stores/uiStore.ts`（`visibleSidebarItems` / `setSidebarItemVisible` / `isSidebarItemVisible`）
+- `src/components/settings/GeneralPanel.tsx`（侧边栏显示 Toggle 列表）
+- `src/components/sidebar/ViewSwitcher.tsx`（完整侧边栏按配置过滤）
+- `src/components/sidebar/Sidebar.tsx`（折叠图标条按同一配置过滤）
+- `src/config/localStorageKeys.ts`（命名空间映射）
+- 测试：`src/utils/__tests__/sidebarVisibility.test.ts`、`uiStore` 侧边栏用例、`GeneralPanel.test.tsx`、`sidebarVisibilityFilter.test.tsx`、`tests/settings.spec.ts`
 
-新增状态：
+状态模型：
 
 ```ts
 visibleSidebarItems: Record<string, boolean>
 setSidebarItemVisible(id: string, visible: boolean): void
+isSidebarItemVisible(id: string): boolean
 ```
 
-持久化 key：`sidebar_visible_items`，通过 `src/utils/storage.ts` 读写。
+持久化：
 
-规则：`tasks`、`today`、`settings` 不允许隐藏；完整侧边栏和折叠图标条必须使用同一配置。
+- 逻辑名称：`sidebar_visible_items`
+- **正式存储位置**：`STORAGE_KEYS.sidebarVisibleItems` → **`dida:sidebar_visible_items`**
+  （`SIDEBAR_VISIBLE_ITEMS_KEY` 指向该 namespaced key，不维护第二份裸字符串常量）
+- **legacy 兼容**：旧裸 key `sidebar_visible_items` 仅用于读取；`loadSidebarVisibility()` 在 namespaced 缺失时读 legacy，并尽力立即写入 namespaced（不覆盖已有 namespaced）
+- 同次启动即可用旧配置，不依赖 `useAppInit` / `migrateStorageKeys` 完成后再生效
+- 写入：`saveSidebarVisibility` / `setSidebarItemVisible` **只写 namespaced key**，禁止回写 legacy
+- 缺失 / 损坏 JSON / 非对象 → 回退默认（全部可选入口可见）
+- 合并策略：已知入口缺失默认 `true`；不盲目整表覆盖，兼容未来新增入口
 
-### 阶段 4：README 截图占位清理
+不可隐藏入口（数据层 + UI 层双防护）：
 
-修改文件：`README.md`
+- `tasks` 全部任务
+- `today` 今日任务
+- `settings` 设置
 
-操作：将“（待补充）”替换为明确说明，例如“当前版本截图将在发布前补充；本节不再作为功能验收依据”，或替换为真实图片引用。
+可隐藏入口：`archived`、`calendar`、`stats`、`ai`、`quadrant`、`pomodoro`、`habit`、`template`、`goals`。
 
-禁止写入不存在的图片路径。
+完整态 / 折叠态：共用 `isSidebarItemVisible(id, visibleSidebarItems)`；空分组不渲染标题，避免孤立分隔。
+
+隐藏当前可选视图：同一更新周期内 `currentView → 'tasks'`，并清理 `selectedListId` / `selectedTagId`。
+
+验证：`typecheck` 通过；全量单测 673 通过；`lint` 0 errors；`tests/settings.spec.ts` e2e 6 通过。
+
+### 阶段 4：README 截图占位清理 ✅ 已完成
+
+> 发布版本：v1.42.0（2026-07-12）
+
+修改文件：`README.md`、本执行文档、`docs/product-optimization-roadmap.md`
+
+采用策略：
+
+- 仓库内无与当前界面相符的可信截图资源（仅有应用图标与过时本地截图文件，未作为 README 界面图引用）
+- **不编造图片路径、不引用不存在的 Release 附件**
+- 将「截图」区改为明确说明：以功能清单、使用说明和发布说明作为功能依据，避免静态截图与桌面端脱节
+- README 中已不包含裸文本 `（待补充）` 或同义占位语
+
+同步补充 README 已实现能力的准确描述（不夸大规划项）：
+
+- Ctrl+K 全局命令面板（跳转、新建、搜索、快捷键帮助；任务标题最多 10 条）
+- 设置 → 通用 → 侧边栏显示（完整/折叠同步；tasks / today / settings 不可隐藏）
 
 ## 4. 代码修改规则
 

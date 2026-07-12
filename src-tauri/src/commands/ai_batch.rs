@@ -15,7 +15,9 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use super::{do_complete_task, do_create_task, do_update_task, CreateTaskRequest, UpdateTaskRequest};
+use super::{
+    do_complete_task, do_create_task, do_update_task, CreateTaskRequest, UpdateTaskRequest,
+};
 use crate::db::DbState;
 
 /// AI 批量动作（与前端 ActionOp 对齐，通过 serde tag/content 映射）
@@ -93,22 +95,33 @@ fn validate_batch_actions(actions: &[AiBatchAction]) -> Result<(), String> {
     for action in actions {
         match action {
             AiBatchAction::DeleteTask(_) => {
-                return Err("AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除".to_string());
+                return Err(
+                    "AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除"
+                        .to_string(),
+                );
             }
             AiBatchAction::UpdateTask(data) => {
                 if data.updates.completed.is_some()
                     || data.updates.completed_at.is_some()
                     || data.updates.status.is_some()
                 {
-                    return Err("AI update_task 不允许修改完成状态字段，请使用 complete_task".to_string());
+                    return Err(
+                        "AI update_task 不允许修改完成状态字段，请使用 complete_task".to_string(),
+                    );
                 }
                 if !touched_existing_tasks.insert(data.task_id) {
-                    return Err(format!("批量执行失败：任务 #{} 在同一批 AI 操作中被重复修改", data.task_id));
+                    return Err(format!(
+                        "批量执行失败：任务 #{} 在同一批 AI 操作中被重复修改",
+                        data.task_id
+                    ));
                 }
             }
             AiBatchAction::CompleteTask(data) => {
                 if !touched_existing_tasks.insert(data.task_id) {
-                    return Err(format!("批量执行失败：任务 #{} 在同一批 AI 操作中被重复修改", data.task_id));
+                    return Err(format!(
+                        "批量执行失败：任务 #{} 在同一批 AI 操作中被重复修改",
+                        data.task_id
+                    ));
                 }
             }
             AiBatchAction::CreateTask(_) | AiBatchAction::CreateSubtask(_) => {}
@@ -158,10 +171,17 @@ pub fn do_execute_ai_batch(
             AiBatchAction::UpdateTask(data) => {
                 // 校验目标任务存在，不存在则报错回滚
                 let exists: i64 = tx
-                    .query_row("SELECT COUNT(*) FROM tasks WHERE id = ?1", rusqlite::params![data.task_id], |row| row.get(0))
+                    .query_row(
+                        "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                        rusqlite::params![data.task_id],
+                        |row| row.get(0),
+                    )
                     .map_err(|e| e.to_string())?;
                 if exists == 0 {
-                    return Err(format!("批量执行失败：update_task 的目标任务 #{} 不存在，已回滚", data.task_id));
+                    return Err(format!(
+                        "批量执行失败：update_task 的目标任务 #{} 不存在，已回滚",
+                        data.task_id
+                    ));
                 }
                 do_update_task(&tx, data.task_id, &data.updates)?;
                 AiActionResult {
@@ -171,7 +191,10 @@ pub fn do_execute_ai_batch(
                 }
             }
             AiBatchAction::DeleteTask(_) => {
-                return Err("AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除".to_string());
+                return Err(
+                    "AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除"
+                        .to_string(),
+                );
             }
             AiBatchAction::CompleteTask(data) => {
                 // do_complete_task 内部会检查任务存在性并处理重复任务
@@ -189,7 +212,12 @@ pub fn do_execute_ai_batch(
                         rusqlite::params![data.parent_id],
                         |row| row.get(0),
                     )
-                    .map_err(|e| format!("批量执行失败：create_subtask 的父任务 #{} 不存在或查询出错: {}", data.parent_id, e))?;
+                    .map_err(|e| {
+                        format!(
+                            "批量执行失败：create_subtask 的父任务 #{} 不存在或查询出错: {}",
+                            data.parent_id, e
+                        )
+                    })?;
                 if parent_parent_id.is_some() {
                     return Err("批量执行失败：当前仅支持一层子任务".to_string());
                 }
@@ -275,9 +303,11 @@ mod tests {
         assert!(result.results[0].created_task_id.is_some());
 
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '批量创建的任务'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE title = '批量创建的任务'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1);
     }
@@ -304,16 +334,20 @@ mod tests {
         assert!(result.unwrap_err().contains("AI 删除任务暂不可用"));
 
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '新任务'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE title = '新任务'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 0, "拒绝后不应创建新任务");
 
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE id = ?1", params![task_id], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1, "拒绝后原任务不应删除");
     }
@@ -396,9 +430,11 @@ mod tests {
         assert!(result.unwrap_err().contains("重复修改"));
 
         let completed: i64 = conn
-            .query_row("SELECT completed FROM tasks WHERE id = ?1", params![task_id], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(completed, 0, "拒绝后任务不应被完成");
     }
@@ -459,9 +495,11 @@ mod tests {
 
         // 回滚后新任务不应存在
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '新任务'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE title = '新任务'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 0);
     }
@@ -491,7 +529,10 @@ mod tests {
             sort_order: None,
         };
 
-        let actions = vec![AiBatchAction::UpdateTask(UpdateTaskData { task_id, updates })];
+        let actions = vec![AiBatchAction::UpdateTask(UpdateTaskData {
+            task_id,
+            updates,
+        })];
         let result = do_execute_ai_batch(&mut conn, &actions);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("不允许修改完成状态字段"));
@@ -546,7 +587,10 @@ mod tests {
                 notes: None,
                 list_id: 1,
             }),
-            AiBatchAction::UpdateTask(UpdateTaskData { task_id: 999999, updates }),
+            AiBatchAction::UpdateTask(UpdateTaskData {
+                task_id: 999999,
+                updates,
+            }),
         ];
 
         let result = do_execute_ai_batch(&mut conn, &actions);
@@ -554,9 +598,11 @@ mod tests {
 
         // 回滚后新任务不应存在
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '新任务'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE title = '新任务'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 0);
     }
@@ -651,7 +697,10 @@ mod tests {
             sort_order: None,
         };
 
-        let actions = vec![AiBatchAction::UpdateTask(UpdateTaskData { task_id, updates })];
+        let actions = vec![AiBatchAction::UpdateTask(UpdateTaskData {
+            task_id,
+            updates,
+        })];
 
         let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
         assert!(result.success);
@@ -702,7 +751,10 @@ mod tests {
                 notes: None,
                 list_id: 1,
             }),
-            AiBatchAction::UpdateTask(UpdateTaskData { task_id: t2, updates }),
+            AiBatchAction::UpdateTask(UpdateTaskData {
+                task_id: t2,
+                updates,
+            }),
         ];
 
         let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
@@ -711,25 +763,31 @@ mod tests {
 
         // t1 已完成
         let completed: i64 = conn
-            .query_row("SELECT completed FROM tasks WHERE id = ?1", params![t1], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![t1],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(completed, 1);
 
         // t2 已更新
         let title: String = conn
-            .query_row("SELECT title FROM tasks WHERE id = ?1", params![t2], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT title FROM tasks WHERE id = ?1",
+                params![t2],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(title, "任务2已更新");
 
         // 新任务已创建
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '新任务'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE title = '新任务'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1);
     }
@@ -746,9 +804,11 @@ mod tests {
         assert!(result.unwrap_err().contains("AI 删除任务暂不可用"));
 
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE id = ?1", params![task_id], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1);
     }
@@ -864,7 +924,9 @@ mod tests {
         .unwrap();
         let subtask_id = conn.last_insert_rowid();
 
-        let actions = vec![AiBatchAction::CompleteTask(CompleteTaskData { task_id: subtask_id })];
+        let actions = vec![AiBatchAction::CompleteTask(CompleteTaskData {
+            task_id: subtask_id,
+        })];
         let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
         assert!(result.success);
 
@@ -876,6 +938,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(next_parent_id, Some(parent_id), "下一周期任务应保留 parent_id");
+        assert_eq!(
+            next_parent_id,
+            Some(parent_id),
+            "下一周期任务应保留 parent_id"
+        );
     }
 }

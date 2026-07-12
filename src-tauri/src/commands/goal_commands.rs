@@ -47,8 +47,8 @@ pub struct GoalKeyResult {
 ///
 /// - 有 KR 时：`progress_percent` 为各 KR 完成度（0–100 封顶）的算术平均；
 /// - 无 KR 时：沿用关联任务完成率。
-/// `total_tasks` / `completed_tasks` 始终反映关联任务统计，便于 UI 兼容展示。
-/// `key_results` 为该目标下的 KR 列表（按 sort_order, id）。
+///   `total_tasks` / `completed_tasks` 始终反映关联任务统计，便于 UI 兼容展示。
+///   `key_results` 为该目标下的 KR 列表（按 sort_order, id）。
 #[derive(Debug, Serialize, Clone)]
 pub struct GoalProgress {
     pub total_tasks: i64,
@@ -433,9 +433,7 @@ pub fn do_create_goal_key_result(
         next
     };
 
-    let unit_value = unit
-        .map(|u| u.trim().to_string())
-        .filter(|u| !u.is_empty());
+    let unit_value = unit.map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
 
     conn.execute(
         "INSERT INTO goal_key_results (goal_id, title, target_value, current_value, unit, sort_order)
@@ -651,75 +649,28 @@ mod tests {
         let conn = setup_db();
         let goal_id = insert_goal(&conn, "营收目标");
 
-        let err = do_create_goal_key_result(
-            &conn,
-            goal_id,
-            "营收".into(),
-            0.0,
-            1.0,
-            None,
-            None,
-        )
-        .unwrap_err();
+        let err = do_create_goal_key_result(&conn, goal_id, "营收".into(), 0.0, 1.0, None, None)
+            .unwrap_err();
         assert!(err.contains("目标值必须大于 0"));
 
-        let err = do_create_goal_key_result(
-            &conn,
-            goal_id,
-            "营收".into(),
-            100.0,
-            -1.0,
-            None,
-            None,
-        )
-        .unwrap_err();
+        let err = do_create_goal_key_result(&conn, goal_id, "营收".into(), 100.0, -1.0, None, None)
+            .unwrap_err();
         assert!(err.contains("当前值不能为负数"));
 
-        let err = do_create_goal_key_result(
-            &conn,
-            99999,
-            "孤儿".into(),
-            10.0,
-            1.0,
-            None,
-            None,
-        )
-        .unwrap_err();
+        let err = do_create_goal_key_result(&conn, 99999, "孤儿".into(), 10.0, 1.0, None, None)
+            .unwrap_err();
         assert!(err.contains("目标不存在"));
 
-        let kr_id = do_create_goal_key_result(
-            &conn,
-            goal_id,
-            "营收".into(),
-            100.0,
-            10.0,
-            None,
-            None,
-        )
-        .unwrap();
+        let kr_id =
+            do_create_goal_key_result(&conn, goal_id, "营收".into(), 100.0, 10.0, None, None)
+                .unwrap();
 
-        let err = do_update_goal_key_result(
-            &conn,
-            kr_id,
-            None,
-            Some(-5.0),
-            None,
-            None,
-            None,
-        )
-        .unwrap_err();
+        let err = do_update_goal_key_result(&conn, kr_id, None, Some(-5.0), None, None, None)
+            .unwrap_err();
         assert!(err.contains("目标值必须大于 0"));
 
-        let err = do_update_goal_key_result(
-            &conn,
-            kr_id,
-            None,
-            None,
-            Some(-0.1),
-            None,
-            None,
-        )
-        .unwrap_err();
+        let err = do_update_goal_key_result(&conn, kr_id, None, None, Some(-0.1), None, None)
+            .unwrap_err();
         assert!(err.contains("当前值不能为负数"));
     }
 
@@ -895,16 +846,7 @@ mod tests {
         assert_eq!(after_none[0].unit.as_deref(), Some("本"));
 
         // Some("") = 清空单位
-        do_update_goal_key_result(
-            &conn,
-            kr_id,
-            None,
-            None,
-            None,
-            Some("".into()),
-            None,
-        )
-        .unwrap();
+        do_update_goal_key_result(&conn, kr_id, None, None, None, Some("".into()), None).unwrap();
         let after_clear = do_get_goal_key_results(&conn, goal_id).unwrap();
         assert!(after_clear[0].unit.is_none());
     }

@@ -8,8 +8,9 @@ import { DEFAULT_SHORTCUT_BINDINGS, normalizeCombo, buildCombo } from '../utils/
  *
  * 支持自定义的快捷键 ID：
  * - newTask: 聚焦新建任务输入框
+ * - commandPalette: 打开/关闭全局命令面板（输入框内也生效）
  * - search: 聚焦搜索框
- * - toggleSidebar: 预留（侧边栏折叠功能暂未实现）
+ * - toggleSidebar: 侧边栏折叠 / 窄屏抽屉
  * - viewTasks: 切换到任务列表
  * - viewCalendar: 切换到日历视图
  * - viewQuadrant: 切换到四象限
@@ -33,6 +34,10 @@ export function useKeyboardShortcuts(
     for (const b of DEFAULT_SHORTCUT_BINDINGS) {
       const keys = customShortcuts[b.id] || b.defaultKeys
       map.set(normalizeCombo(keys), b.id)
+      // macOS：命令面板默认 Ctrl+K 额外兼容 Meta+K
+      if (b.id === 'commandPalette' && normalizeCombo(keys) === 'Ctrl+k') {
+        map.set('Meta+k', b.id)
+      }
     }
     return map
   }, [customShortcuts])
@@ -46,6 +51,7 @@ export function useKeyboardShortcuts(
         setSelectedListId,
         setSelectedTagId,
         setShortcutsHelpOpen,
+        setCommandPaletteOpen,
         toggleSidebar,
       } = useUIStore.getState()
 
@@ -65,7 +71,9 @@ export function useKeyboardShortcuts(
       if (!shortcutId) {
         // Esc 处理（不在自定义范围内）
         if (e.key === 'Escape') {
-          if (useUIStore.getState().selectedTaskId !== null) {
+          if (useUIStore.getState().commandPaletteOpen) {
+            setCommandPaletteOpen(false)
+          } else if (useUIStore.getState().selectedTaskId !== null) {
             setSelectedTaskId(null)
           } else if (useUIStore.getState().searchQuery) {
             setSearchQuery('')
@@ -77,6 +85,15 @@ export function useKeyboardShortcuts(
       // 检查当前焦点是否在输入框中
       const target = e.target as HTMLElement
       const isEditing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+      // 命令面板：即使焦点在普通 input/textarea 中也允许触发，并阻止默认/冒泡
+      if (shortcutId === 'commandPalette') {
+        e.preventDefault()
+        e.stopPropagation()
+        const { commandPaletteOpen } = useUIStore.getState()
+        setCommandPaletteOpen(!commandPaletteOpen)
+        return
+      }
 
       e.preventDefault()
 

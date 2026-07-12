@@ -1,5 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useUIStore } from '../uiStore'
+import {
+  LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY,
+  SIDEBAR_VISIBLE_ITEMS_KEY,
+  TOGGLEABLE_SIDEBAR_ITEMS,
+  createDefaultSidebarVisibility,
+  loadSidebarVisibility,
+  parseSidebarVisibility,
+} from '../../utils/sidebarVisibility'
 
 // 重置用的初始状态数据字段（保留 actions 做浅合并）。
 // 注意 Set / Date 需创建新实例，避免跨用例共享引用。
@@ -22,6 +30,8 @@ const initialUIState = {
   miniCalendarDate: new Date(2026, 0, 1),
   searchQuery: '',
   shortcutsHelpOpen: false,
+  commandPaletteOpen: false,
+  visibleSidebarItems: createDefaultSidebarVisibility(),
 }
 
 describe('uiStore', () => {
@@ -194,5 +204,101 @@ describe('uiStore', () => {
 
     useUIStore.getState().setShortcutsHelpOpen(false)
     expect(useUIStore.getState().shortcutsHelpOpen).toBe(false)
+  })
+})
+
+describe('uiStore 侧边栏可见性', () => {
+  beforeEach(() => {
+    localStorage.removeItem(SIDEBAR_VISIBLE_ITEMS_KEY)
+    localStorage.removeItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY)
+    useUIStore.setState({
+      ...initialUIState,
+      expandedTasks: new Set<number>(),
+      selectedTaskIds: new Set<number>(),
+      miniCalendarDate: new Date(2026, 0, 1),
+      visibleSidebarItems: createDefaultSidebarVisibility(),
+      currentView: 'tasks',
+      selectedListId: null,
+      selectedTagId: null,
+    })
+  })
+
+  afterEach(() => {
+    localStorage.removeItem(SIDEBAR_VISIBLE_ITEMS_KEY)
+    localStorage.removeItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY)
+  })
+
+  it('默认配置下所有可选入口可见', () => {
+    for (const item of TOGGLEABLE_SIDEBAR_ITEMS) {
+      expect(useUIStore.getState().isSidebarItemVisible(item.id)).toBe(true)
+    }
+    expect(useUIStore.getState().isSidebarItemVisible('tasks')).toBe(true)
+    expect(useUIStore.getState().isSidebarItemVisible('today')).toBe(true)
+    expect(useUIStore.getState().isSidebarItemVisible('settings')).toBe(true)
+  })
+
+  it('设置可选入口隐藏后只写入 namespaced key，不写 legacy', () => {
+    localStorage.setItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY, JSON.stringify({ habit: false }))
+    useUIStore.getState().setSidebarItemVisible('pomodoro', false)
+    expect(useUIStore.getState().visibleSidebarItems.pomodoro).toBe(false)
+    expect(useUIStore.getState().isSidebarItemVisible('pomodoro')).toBe(false)
+
+    const namespaced = localStorage.getItem(SIDEBAR_VISIBLE_ITEMS_KEY)
+    expect(namespaced).toBeTruthy()
+    expect(JSON.parse(namespaced!).pomodoro).toBe(false)
+
+    // legacy 不被 setSidebarItemVisible 重写
+    expect(JSON.parse(localStorage.getItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY)!).habit).toBe(false)
+    expect(JSON.parse(localStorage.getItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY)!).pomodoro).toBeUndefined()
+  })
+
+  it('核心入口 tasks/today/settings 即使尝试隐藏仍为可见', () => {
+    useUIStore.getState().setSidebarItemVisible('tasks', false)
+    useUIStore.getState().setSidebarItemVisible('today', false)
+    useUIStore.getState().setSidebarItemVisible('settings', false)
+    expect(useUIStore.getState().isSidebarItemVisible('tasks')).toBe(true)
+    expect(useUIStore.getState().isSidebarItemVisible('today')).toBe(true)
+    expect(useUIStore.getState().isSidebarItemVisible('settings')).toBe(true)
+    expect(useUIStore.getState().visibleSidebarItems.tasks).toBe(true)
+  })
+
+  it('storage 损坏或部分配置时安全回退', () => {
+    localStorage.setItem(SIDEBAR_VISIBLE_ITEMS_KEY, '{broken')
+    const recovered = parseSidebarVisibility(localStorage.getItem(SIDEBAR_VISIBLE_ITEMS_KEY))
+    expect(recovered.tasks).toBe(true)
+    expect(recovered.pomodoro).toBe(true)
+
+    const partial = parseSidebarVisibility(JSON.stringify({ habit: false }))
+    expect(partial.habit).toBe(false)
+    expect(partial.calendar).toBe(true)
+    expect(partial.tasks).toBe(true)
+  })
+
+  it('仅 legacy 配置时 loadSidebarVisibility 同次启动可用', () => {
+    localStorage.removeItem(SIDEBAR_VISIBLE_ITEMS_KEY)
+    localStorage.setItem(LEGACY_SIDEBAR_VISIBLE_ITEMS_KEY, JSON.stringify({ template: false }))
+    const loaded = loadSidebarVisibility()
+    expect(loaded.template).toBe(false)
+    expect(localStorage.getItem(SIDEBAR_VISIBLE_ITEMS_KEY)).toBeTruthy()
+  })
+
+  it('隐藏当前可选视图时 currentView 自动回退到 tasks', () => {
+    useUIStore.setState({ currentView: 'pomodoro', selectedListId: 3, selectedTagId: 9 })
+    useUIStore.getState().setSidebarItemVisible('pomodoro', false)
+    expect(useUIStore.getState().currentView).toBe('tasks')
+    expect(useUIStore.getState().selectedListId).toBeNull()
+    expect(useUIStore.getState().selectedTagId).toBeNull()
+  })
+
+  it('配置持久化读取后完整恢复', () => {
+    useUIStore.getState().setSidebarItemVisible('stats', false)
+    useUIStore.getState().setSidebarItemVisible('ai', false)
+    const raw = localStorage.getItem(SIDEBAR_VISIBLE_ITEMS_KEY)!
+    const restored = createDefaultSidebarVisibility()
+    Object.assign(restored, JSON.parse(raw))
+    useUIStore.setState({ visibleSidebarItems: restored })
+    expect(useUIStore.getState().isSidebarItemVisible('stats')).toBe(false)
+    expect(useUIStore.getState().isSidebarItemVisible('ai')).toBe(false)
+    expect(useUIStore.getState().isSidebarItemVisible('calendar')).toBe(true)
   })
 })
