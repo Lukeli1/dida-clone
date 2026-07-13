@@ -1,5 +1,5 @@
 use rusqlite::{params, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tauri::State;
 
 use super::super::now_rfc3339;
@@ -186,7 +186,8 @@ pub fn get_tasks(
 /// 契约：
 /// - 同一次级联删除使用同一个精确时间字符串；
 /// - 已独立删除（deleted_at 非空）的后代不被覆盖；
-/// - 不删除标签关联、附件、重复规则、完成记录、时间追踪、目标关联。
+/// - 不删除标签关联、附件、重复规则、完成记录、时间追踪、目标关联；
+/// - parent_id 成环时有限遍历，不挂死；环上节点仍可被软删除。
 pub fn do_delete_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String> {
     let now = now_rfc3339();
 
@@ -203,21 +204,50 @@ pub fn do_delete_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String
         return Ok(());
     }
 
-    // 递归 CTE：当前任务 + 所有后代；仅更新尚未删除的行
-    conn.execute(
-        "WITH RECURSIVE tree(id) AS (
-            SELECT id FROM tasks WHERE id = ?1
-            UNION ALL
-            SELECT t.id FROM tasks t
-            INNER JOIN tree ON t.parent_id = tree.id
-         )
-         UPDATE tasks
-         SET deleted_at = ?2, updated_at = ?2
-         WHERE id IN (SELECT id FROM tree)
-           AND deleted_at IS NULL",
-        params![id, now],
-    )
-    .map_err(|e| e.to_string())?;
+    // 应用层 BFS 收集级联目标；visited 防御 parent_id 环导致无限展开
+    let mut to_delete: Vec<i64> = Vec::new();
+    let mut visited: HashSet<i64> = HashSet::new();
+    let mut stack: Vec<i64> = vec![id];
+    while let Some(current) = stack.pop() {
+        if !visited.insert(current) {
+            continue;
+        }
+        let active: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
+                params![current],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if active == 0 {
+            continue;
+        }
+        to_delete.push(current);
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id FROM tasks WHERE parent_id = ?1 AND deleted_at IS NULL AND id != ?1",
+            )
+            .map_err(|e| e.to_string())?;
+        let child_ids: Vec<i64> = stmt
+            .query_map(params![current], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        for cid in child_ids {
+            if !visited.contains(&cid) {
+                stack.push(cid);
+            }
+        }
+    }
+
+    for tid in to_delete {
+        conn.execute(
+            "UPDATE tasks SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+            params![tid, now],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
@@ -244,31 +274,146 @@ pub struct TrashedTask {
     pub restore_blocked_by_deleted_ancestor: bool,
 }
 
-/// 递归判断任务是否存在仍在回收站中的祖先。
-fn has_deleted_ancestor(conn: &rusqlite::Connection, task_id: i64) -> Result<bool, String> {
-    let blocked: i64 = conn
-        .query_row(
-            "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (
-                SELECT id, parent_id, deleted_at FROM tasks WHERE id = ?1
-                UNION ALL
-                SELECT t.id, t.parent_id, t.deleted_at
-                FROM tasks t
-                INNER JOIN ancestors a ON t.id = a.parent_id
-             )
-             SELECT COUNT(*) FROM ancestors
-             WHERE id != ?1 AND deleted_at IS NOT NULL",
-            params![task_id],
+/// 父链遍历结果：用于环识别与回收站顶层隐藏判定。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ParentChainOutcome {
+    /// 从 start 向上能回到 origin（任意长度环，origin 在环上）
+    CycleToOrigin,
+    /// 向上走到 NULL，是正常开树
+    OpenTree,
+    /// 撞到不含 origin 的环（例如环外子任务的父链进入环）
+    CycleOther,
+    /// 深度上限/缺失节点：保守处理
+    Unknown,
+}
+
+/// 从 start 沿 parent_id 向上遍历，判断是否回到 origin。
+fn classify_parent_chain(
+    conn: &rusqlite::Connection,
+    start: i64,
+    origin: i64,
+) -> Result<ParentChainOutcome, String> {
+    let mut current = start;
+    let mut visited: HashSet<i64> = HashSet::new();
+    // origin 已视为访问过，避免把 origin 自身再当“普通节点”吞掉环检测
+    visited.insert(origin);
+
+    for _ in 0..64 {
+        if current == origin {
+            return Ok(ParentChainOutcome::CycleToOrigin);
+        }
+        if !visited.insert(current) {
+            // 遇到不含 origin 的环
+            return Ok(ParentChainOutcome::CycleOther);
+        }
+        let parent_id: Option<i64> = match conn.query_row(
+            "SELECT parent_id FROM tasks WHERE id = ?1",
+            params![current],
             |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    Ok(blocked > 0)
+        ) {
+            Ok(pid) => pid,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Ok(ParentChainOutcome::Unknown);
+            }
+            Err(e) => return Err(e.to_string()),
+        };
+        match parent_id {
+            Some(pid) => current = pid,
+            None => return Ok(ParentChainOutcome::OpenTree),
+        }
+    }
+    // 深度上限：不因此隐藏恢复入口
+    Ok(ParentChainOutcome::Unknown)
+}
+
+/// 从 start 沿 parent_id 向上走，是否能到达 target（用于识别环上的“假祖先”）。
+fn parent_chain_reaches(
+    conn: &rusqlite::Connection,
+    start: i64,
+    target: i64,
+) -> Result<bool, String> {
+    Ok(classify_parent_chain(conn, start, target)? == ParentChainOutcome::CycleToOrigin)
+}
+
+/// 判断任务是否存在仍在回收站中的严格祖先（不含自身）。
+/// parent_id 成环时有限遍历，不挂死；环上互指的节点不视为阻塞祖先。
+fn has_deleted_ancestor(conn: &rusqlite::Connection, task_id: i64) -> Result<bool, String> {
+    let mut current = task_id;
+    let mut visited: HashSet<i64> = HashSet::new();
+    visited.insert(task_id);
+
+    for _ in 0..64 {
+        let parent_id: Option<i64> = conn
+            .query_row(
+                "SELECT parent_id FROM tasks WHERE id = ?1",
+                params![current],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
+        match parent_id {
+            Some(pid) => {
+                if pid == current || !visited.insert(pid) {
+                    // 自环或环：不再有可判定的严格祖先
+                    return Ok(false);
+                }
+                let deleted_at: Option<String> = conn
+                    .query_row(
+                        "SELECT deleted_at FROM tasks WHERE id = ?1",
+                        params![pid],
+                        |row| row.get(0),
+                    )
+                    .map_err(|e| e.to_string())?;
+                if deleted_at.is_some() {
+                    // 若该“祖先”沿父链又能回到自身，说明是环上同伴，不阻塞恢复
+                    if parent_chain_reaches(conn, pid, task_id)? {
+                        return Ok(false);
+                    }
+                    return Ok(true);
+                }
+                current = pid;
+            }
+            None => return Ok(false),
+        }
+    }
+    Ok(false)
+}
+
+/// 同次级联子任务判定：父任务已删且时间戳相同，且父链不是回到自身的环。
+/// 任意长度 parent_id 环（自环/双环/三环+）均不隐藏，保证回收站恢复入口可达。
+/// 父链深度超限或无法完整判定时保守展示（不隐藏）。
+fn is_same_stamp_cascaded_child(
+    conn: &rusqlite::Connection,
+    task_id: i64,
+    parent_id: Option<i64>,
+    deleted_at: &str,
+    parent_deleted_at: Option<&str>,
+) -> Result<bool, String> {
+    let Some(pid) = parent_id else {
+        return Ok(false);
+    };
+    if pid == task_id {
+        // 自环：顶层展示
+        return Ok(false);
+    }
+    if parent_deleted_at != Some(deleted_at) {
+        return Ok(false);
+    }
+
+    match classify_parent_chain(conn, pid, task_id)? {
+        // 正常树，或父链进入不含自身的环：同戳子任务隐藏
+        ParentChainOutcome::OpenTree | ParentChainOutcome::CycleOther => Ok(true),
+        // 自身位于任意长度环：不隐藏
+        ParentChainOutcome::CycleToOrigin => Ok(false),
+        // 深度上限/缺失节点：保守展示，避免无恢复入口
+        ParentChainOutcome::Unknown => Ok(false),
+    }
 }
 
 /// 查询回收站：仅 deleted_at IS NOT NULL。
 /// 不把“由父任务同次连带删除的子任务”作为独立顶层条目展示。
 pub fn do_get_trashed_tasks(conn: &rusqlite::Connection) -> Result<Vec<TrashedTask>, String> {
-    // 顶层回收站条目：自身已删除，且父任务不在“同次删除集合”中
-    // 规则：若父任务也已删除且 deleted_at 与自身相同，则视为连带删除子任务，不单独展示。
+    // 先取全部已删除任务，再在应用层做级联隐藏与环防御。
     let mut stmt = conn
         .prepare(
             "SELECT t.id, t.title, t.notes, t.priority, t.due_date, t.end_date, t.all_day,
@@ -279,62 +424,76 @@ pub fn do_get_trashed_tasks(conn: &rusqlite::Connection) -> Result<Vec<TrashedTa
                     EXISTS (
                       SELECT 1 FROM tasks c
                       WHERE c.parent_id = t.id
+                        AND c.id != t.id
                         AND c.deleted_at IS NOT NULL
                         AND c.deleted_at = t.deleted_at
-                    ) AS has_cascaded_children
+                    ) AS has_cascaded_children,
+                    p.deleted_at AS parent_deleted_at,
+                    p.parent_id AS parent_parent_id
              FROM tasks t
              LEFT JOIN lists l ON l.id = t.list_id
+             LEFT JOIN tasks p ON p.id = t.parent_id
              WHERE t.deleted_at IS NOT NULL
-               AND (
-                 t.parent_id IS NULL
-                 OR NOT EXISTS (
-                   SELECT 1 FROM tasks p
-                   WHERE p.id = t.parent_id
-                     AND p.deleted_at IS NOT NULL
-                     AND p.deleted_at = t.deleted_at
-                 )
-               )
              ORDER BY t.deleted_at DESC, t.updated_at DESC",
         )
         .map_err(|e| e.to_string())?;
 
-    let mut rows: Vec<TrashedTask> = stmt
+    let mut all_rows: Vec<(TrashedTask, Option<String>, Option<i64>)> = stmt
         .query_map([], |row| {
-            Ok(TrashedTask {
-                task: Task {
-                    id: row.get(0)?,
-                    title: row.get(1)?,
-                    notes: row.get(2)?,
-                    priority: row.get(3)?,
-                    due_date: row.get(4)?,
-                    end_date: row.get(5)?,
-                    all_day: row.get::<_, i64>(6)? != 0,
-                    reminder: row.get(7)?,
-                    reminder_minutes: row.get(8)?,
-                    completed: row.get(9)?,
-                    completed_at: row.get(10)?,
-                    status: row.get(11)?,
-                    archived: row.get::<_, i64>(12)? != 0,
-                    pinned: row.get::<_, i64>(13)? != 0,
-                    list_id: row.get(14)?,
-                    parent_id: row.get(15)?,
-                    repeat_rule: row.get(16)?,
-                    sort_order: row.get(17)?,
-                    created_at: row.get(18)?,
-                    updated_at: row.get(19)?,
-                    deleted_at: row.get(20)?,
-                    tag_ids: Vec::new(),
+            Ok((
+                TrashedTask {
+                    task: Task {
+                        id: row.get(0)?,
+                        title: row.get(1)?,
+                        notes: row.get(2)?,
+                        priority: row.get(3)?,
+                        due_date: row.get(4)?,
+                        end_date: row.get(5)?,
+                        all_day: row.get::<_, i64>(6)? != 0,
+                        reminder: row.get(7)?,
+                        reminder_minutes: row.get(8)?,
+                        completed: row.get(9)?,
+                        completed_at: row.get(10)?,
+                        status: row.get(11)?,
+                        archived: row.get::<_, i64>(12)? != 0,
+                        pinned: row.get::<_, i64>(13)? != 0,
+                        list_id: row.get(14)?,
+                        parent_id: row.get(15)?,
+                        repeat_rule: row.get(16)?,
+                        sort_order: row.get(17)?,
+                        created_at: row.get(18)?,
+                        updated_at: row.get(19)?,
+                        deleted_at: row.get(20)?,
+                        tag_ids: Vec::new(),
+                    },
+                    list_name: row.get(21)?,
+                    has_cascaded_children: row.get::<_, i64>(22)? != 0,
+                    restore_blocked_by_deleted_ancestor: false,
                 },
-                list_name: row.get(21)?,
-                has_cascaded_children: row.get::<_, i64>(22)? != 0,
-                restore_blocked_by_deleted_ancestor: false,
-            })
+                row.get::<_, Option<String>>(23)?,
+                row.get::<_, Option<i64>>(24)?,
+            ))
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // 递归祖先查询：独立删除的子/孙任务若任一祖先仍在回收站，则标记不可恢复
+    let mut rows: Vec<TrashedTask> = Vec::new();
+    for (item, parent_deleted_at, _parent_parent_id) in all_rows.drain(..) {
+        let deleted_at = item.task.deleted_at.clone().unwrap_or_default();
+        let hide = is_same_stamp_cascaded_child(
+            conn,
+            item.task.id,
+            item.task.parent_id,
+            &deleted_at,
+            parent_deleted_at.as_deref(),
+        )?;
+        if !hide {
+            rows.push(item);
+        }
+    }
+
+    // 祖先查询：独立删除的子/孙任务若任一祖先仍在回收站，则标记不可恢复
     for item in &mut rows {
         if item.task.parent_id.is_some() {
             item.restore_blocked_by_deleted_ancestor = has_deleted_ancestor(conn, item.task.id)?;
@@ -354,7 +513,8 @@ pub fn get_trashed_tasks(state: State<DbState>) -> Result<Vec<TrashedTask>, Stri
 ///
 /// - 恢复顶层：恢复自身 + deleted_at 与其完全相同的后代；
 /// - 独立删除、时间不同的子任务不连带恢复；
-/// - 恢复子任务前，任一祖先仍被删除则返回明确错误。
+/// - 恢复子任务前，任一祖先仍被删除则返回明确错误；
+/// - parent_id 成环时有限遍历，不挂死。
 pub fn do_restore_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String> {
     let now = now_rfc3339();
 
@@ -371,47 +531,58 @@ pub fn do_restore_task(conn: &rusqlite::Connection, id: i64) -> Result<(), Strin
         None => return Err(format!("任务 #{} 不在回收站中", id)),
     };
 
-    // 检查祖先链：任一祖先仍删除则拒绝恢复
-    if parent_id.is_some() {
-        let blocked: i64 = conn
+    // 检查祖先链：任一严格祖先仍删除则拒绝恢复
+    if parent_id.is_some() && has_deleted_ancestor(conn, id)? {
+        return Err(
+            "无法恢复：父任务仍在回收站中。请先恢复父任务，或确认祖先链路均已恢复。"
+                .to_string(),
+        );
+    }
+
+    // 应用层 BFS：恢复自身 + 同时间戳后代；visited 防御环
+    let mut to_restore: Vec<i64> = Vec::new();
+    let mut visited: HashSet<i64> = HashSet::new();
+    let mut stack: Vec<i64> = vec![id];
+    while let Some(current) = stack.pop() {
+        if !visited.insert(current) {
+            continue;
+        }
+        let stamp: Option<String> = conn
             .query_row(
-                "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (
-                    SELECT id, parent_id, deleted_at FROM tasks WHERE id = ?1
-                    UNION ALL
-                    SELECT t.id, t.parent_id, t.deleted_at
-                    FROM tasks t
-                    INNER JOIN ancestors a ON t.id = a.parent_id
-                 )
-                 SELECT COUNT(*) FROM ancestors
-                 WHERE id != ?1 AND deleted_at IS NOT NULL",
-                params![id],
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![current],
                 |row| row.get(0),
             )
             .map_err(|e| e.to_string())?;
-        if blocked > 0 {
-            return Err(
-                "无法恢复：父任务仍在回收站中。请先恢复父任务，或确认祖先链路均已恢复。"
-                    .to_string(),
-            );
+        if stamp.as_deref() != Some(deleted_at.as_str()) {
+            continue;
+        }
+        to_restore.push(current);
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id FROM tasks WHERE parent_id = ?1 AND deleted_at = ?2 AND id != ?1",
+            )
+            .map_err(|e| e.to_string())?;
+        let child_ids: Vec<i64> = stmt
+            .query_map(params![current, deleted_at], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        for cid in child_ids {
+            if !visited.contains(&cid) {
+                stack.push(cid);
+            }
         }
     }
 
-    // 恢复自身 + deleted_at 完全相同的后代
-    conn.execute(
-        "WITH RECURSIVE tree(id) AS (
-            SELECT id FROM tasks WHERE id = ?1
-            UNION ALL
-            SELECT t.id FROM tasks t
-            INNER JOIN tree ON t.parent_id = tree.id
-            WHERE t.deleted_at = ?2
-         )
-         UPDATE tasks
-         SET deleted_at = NULL, updated_at = ?3
-         WHERE id IN (SELECT id FROM tree)
-           AND deleted_at = ?2",
-        params![id, deleted_at, now],
-    )
-    .map_err(|e| e.to_string())?;
+    for tid in to_restore {
+        conn.execute(
+            "UPDATE tasks SET deleted_at = NULL, updated_at = ?2 WHERE id = ?1 AND deleted_at = ?3",
+            params![tid, now, deleted_at],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
@@ -1173,6 +1344,197 @@ mod tests {
         assert!(
             child_still.is_some(),
             "独立删除的子任务不应随父任务恢复"
+        );
+    }
+
+    /// 回归：自环 parent_id 不得使软删除挂死，且目标应被软删除并出现在回收站
+    #[test]
+    fn test_soft_delete_self_loop_parent_terminates() {
+        use super::{do_delete_task, do_get_trashed_tasks, do_restore_task};
+        let conn = setup_db();
+        let id = insert_task(&conn, "自环");
+        conn.execute(
+            "UPDATE tasks SET parent_id = ?1 WHERE id = ?1",
+            params![id],
+        )
+        .unwrap();
+
+        do_delete_task(&conn, id).unwrap();
+        let deleted_at: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(deleted_at.is_some(), "自环任务也应被软删除");
+
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        assert!(
+            trashed.iter().any(|t| t.task.id == id),
+            "自环任务删除后必须出现在回收站顶层，保证可恢复"
+        );
+
+        do_restore_task(&conn, id).unwrap();
+        let after: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(after.is_none(), "自环任务应可恢复");
+    }
+
+    /// 回归：双节点 parent 环不得使祖先检查挂死，且删除后仍可恢复
+    #[test]
+    fn test_has_deleted_ancestor_dual_cycle_terminates() {
+        use super::{do_delete_task, do_get_trashed_tasks, do_restore_task};
+        let conn = setup_db();
+        let a = insert_task(&conn, "环A");
+        let b = insert_task(&conn, "环B");
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![b, a]).unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![a, b]).unwrap();
+
+        // 删除 A 会因 B.parent_id=A 级联到 B（同戳）
+        do_delete_task(&conn, a).unwrap();
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        assert!(
+            trashed.iter().any(|t| t.task.id == a || t.task.id == b),
+            "环任务删除后应至少有一个顶层回收站入口"
+        );
+        // 环上节点不应因互为父而永久 blocked
+        assert!(
+            trashed
+                .iter()
+                .all(|t| !t.restore_blocked_by_deleted_ancestor),
+            "双环同戳删除后不应全部 blocked"
+        );
+
+        // 恢复任一入口：应可完成，且同戳环同伴一并恢复
+        let restore_id = trashed[0].task.id;
+        do_restore_task(&conn, restore_id).unwrap();
+        for id in [a, b] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_none(),
+                "恢复环入口后 id={} 应恢复",
+                id
+            );
+        }
+    }
+
+    /// 回归：三节点环 A→B→C→A 同次删除后回收站不得空入口，且可恢复全环
+    #[test]
+    fn test_three_node_cycle_trash_entry_and_restore() {
+        use super::{do_delete_task, do_get_trashed_tasks, do_restore_task};
+        let conn = setup_db();
+        let a = insert_task(&conn, "环A");
+        let b = insert_task(&conn, "环B");
+        let c = insert_task(&conn, "环C");
+        // A → B → C → A
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![b, a])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![c, b])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![a, c])
+            .unwrap();
+
+        // 删除任一节点：BFS 会沿 parent 反向（children）扩展到整环
+        do_delete_task(&conn, a).unwrap();
+
+        for id in [a, b, c] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(deleted_at.is_some(), "三环删除后 id={} 应被软删除", id);
+        }
+
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        let top_ids: Vec<i64> = trashed.iter().map(|t| t.task.id).collect();
+        assert!(
+            !top_ids.is_empty(),
+            "三节点环同戳删除后回收站不得无顶层入口"
+        );
+        assert!(
+            top_ids.iter().any(|id| [a, b, c].contains(id)),
+            "顶层入口应来自环上任务，got={:?}",
+            top_ids
+        );
+        // 保守策略：环上节点均可展示（至少不全部隐藏）
+        assert!(
+            trashed
+                .iter()
+                .filter(|t| [a, b, c].contains(&t.task.id))
+                .all(|t| !t.restore_blocked_by_deleted_ancestor),
+            "三环同戳节点不应全部 blocked"
+        );
+
+        let restore_id = *top_ids
+            .iter()
+            .find(|id| [a, b, c].contains(id))
+            .expect("应有环上恢复入口");
+        do_restore_task(&conn, restore_id).unwrap();
+
+        for id in [a, b, c] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_none(),
+                "恢复环入口后 id={} 应恢复为活跃",
+                id
+            );
+        }
+    }
+
+    /// 回归：环外挂接在环上的同次后代仍可隐藏；环上入口保留
+    #[test]
+    fn test_cycle_external_same_stamp_child_can_hide() {
+        use super::{do_delete_task, do_get_trashed_tasks};
+        let conn = setup_db();
+        let a = insert_task(&conn, "环A");
+        let b = insert_task(&conn, "环B");
+        let c = insert_task(&conn, "环C");
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![b, a])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![c, b])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![a, c])
+            .unwrap();
+        // 环外子任务 D，parent=A
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?3)",
+            params!["环外D", a, "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let d = conn.last_insert_rowid();
+
+        do_delete_task(&conn, a).unwrap();
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        let top_ids: Vec<i64> = trashed.iter().map(|t| t.task.id).collect();
+        assert!(
+            top_ids.iter().any(|id| [a, b, c].contains(id)),
+            "环上应有入口"
+        );
+        assert!(
+            !top_ids.contains(&d),
+            "环外同戳子任务 D 应按正常级联隐藏，got={:?}",
+            top_ids
         );
     }
 }

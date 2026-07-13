@@ -135,14 +135,19 @@ fn validate_batch_actions(actions: &[AiBatchAction]) -> Result<(), String> {
     Ok(())
 }
 
-/// 若 task_id 的任一祖先也在同批删除集合中，则本条删除会被祖先级联覆盖。
+/// 若 task_id 的任一严格祖先也在同批删除集合中，则本条删除会被祖先级联覆盖。
+/// 与前端 pruneRedundantCascadeDeleteIds 对齐：父链成环时不剪枝，交由 do_delete_task 幂等处理。
 fn has_deleted_ancestor_in_set(
     conn: &rusqlite::Connection,
     task_id: i64,
     delete_ids: &HashSet<i64>,
 ) -> Result<bool, String> {
     let mut current = task_id;
-    // 防御：祖先链异常环时最多走 64 层
+    let mut visited: HashSet<i64> = HashSet::new();
+    visited.insert(task_id);
+    let mut ancestors: Vec<i64> = Vec::new();
+
+    // 防御：祖先链异常环时最多走 64 层；检测到环则不剪枝
     for _ in 0..64 {
         let parent_id: Option<i64> = conn
             .query_row(
@@ -153,15 +158,18 @@ fn has_deleted_ancestor_in_set(
             .map_err(|e| e.to_string())?;
         match parent_id {
             Some(pid) => {
-                if delete_ids.contains(&pid) {
-                    return Ok(true);
+                if !visited.insert(pid) {
+                    // 自环/互环：保守不剪，避免整批删除被静默跳过
+                    return Ok(false);
                 }
+                ancestors.push(pid);
                 current = pid;
             }
-            None => return Ok(false),
+            None => break,
         }
     }
-    Ok(false)
+
+    Ok(ancestors.iter().any(|pid| delete_ids.contains(pid)))
 }
 
 /// 核心批量执行逻辑，接受 &mut Connection 以便单元测试直接调用。
@@ -1235,5 +1243,127 @@ mod tests {
             )
             .unwrap();
         assert_eq!(completed, 0);
+    }
+
+    /// 回归：自环 parent_id 不得被 has_deleted_ancestor_in_set 误判而静默跳过删除
+    #[test]
+    fn test_batch_delete_self_loop_is_not_silently_skipped() {
+        let mut conn = setup_db();
+        let id = insert_task(&conn, "自环");
+        conn.execute(
+            "UPDATE tasks SET parent_id = ?1 WHERE id = ?1",
+            params![id],
+        )
+        .unwrap();
+
+        let actions = vec![AiBatchAction::DeleteTask(DeleteTaskData { task_id: id })];
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
+
+        let deleted_at: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(deleted_at.is_some(), "自环任务 AI 删除不得静默跳过");
+    }
+
+    /// 回归：双节点环且双方均在同批删除时，不得两条都静默跳过
+    #[test]
+    fn test_batch_delete_dual_cycle_both_selected_not_skipped() {
+        let mut conn = setup_db();
+        let a = insert_task(&conn, "环A");
+        let b = insert_task(&conn, "环B");
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![b, a]).unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![a, b]).unwrap();
+
+        let actions = vec![
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: a }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: b }),
+        ];
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
+
+        for id in [a, b] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_some(),
+                "双环同批删除 id={} 不得静默跳过",
+                id
+            );
+        }
+    }
+
+    /// 回归：三节点环 AI 单删与全选均不得静默跳过
+    #[test]
+    fn test_batch_delete_three_node_cycle_not_skipped() {
+        let mut conn = setup_db();
+        let a = insert_task(&conn, "环A");
+        let b = insert_task(&conn, "环B");
+        let c = insert_task(&conn, "环C");
+        // A → B → C → A
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![b, a])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![c, b])
+            .unwrap();
+        conn.execute("UPDATE tasks SET parent_id = ?1 WHERE id = ?2", params![a, c])
+            .unwrap();
+
+        // 单删一个环节点
+        let actions = vec![AiBatchAction::DeleteTask(DeleteTaskData { task_id: a })];
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
+        for id in [a, b, c] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_some(),
+                "三环 AI 单删后 id={} 应被级联软删除",
+                id
+            );
+        }
+
+        // 恢复后验证全选也不被剪枝成空操作
+        for id in [a, b, c] {
+            conn.execute(
+                "UPDATE tasks SET deleted_at = NULL WHERE id = ?1",
+                params![id],
+            )
+            .unwrap();
+        }
+        let actions_all = vec![
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: c }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: a }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: b }),
+        ];
+        let result_all = do_execute_ai_batch(&mut conn, &actions_all).unwrap();
+        assert!(result_all.success);
+        for id in [a, b, c] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_some(),
+                "三环 AI 全选删除 id={} 不得静默跳过",
+                id
+            );
+        }
     }
 }

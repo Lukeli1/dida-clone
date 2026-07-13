@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { pruneRedundantCascadeDeleteIds } from '../softDeleteCascade'
+import {
+  classifyParentChain,
+  hasDeletedAncestorInMap,
+  pruneRedundantCascadeDeleteIds,
+  shouldHideSameStampCascadedChild,
+} from '../softDeleteCascade'
 
 describe('pruneRedundantCascadeDeleteIds', () => {
   const tasks = [
@@ -66,5 +71,152 @@ describe('pruneRedundantCascadeDeleteIds', () => {
 
   it('保持无关树之间的删除顺序与既有行为一致', () => {
     expect(pruneRedundantCascadeDeleteIds(tasks, [5, 2, 4, 1, 3])).toEqual([4, 1])
+  })
+})
+
+describe('shouldHideSameStampCascadedChild / classifyParentChain', () => {
+  it('正常树：同戳子任务应隐藏', () => {
+    const parentById = new Map<number, number | null>([
+      [1, null],
+      [2, 1],
+      [3, 2],
+    ])
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 2, parent_id: 1, deleted_at: 't1' },
+        parentById,
+        't1',
+      ),
+    ).toBe(true)
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 3, parent_id: 2, deleted_at: 't1' },
+        parentById,
+        't1',
+      ),
+    ).toBe(true)
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 1, parent_id: null, deleted_at: 't1' },
+        parentById,
+        null,
+      ),
+    ).toBe(false)
+  })
+
+  it('独立删除（不同 deleted_at）不隐藏', () => {
+    const parentById = new Map<number, number | null>([
+      [1, null],
+      [2, 1],
+    ])
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 2, parent_id: 1, deleted_at: 't-child' },
+        parentById,
+        't-parent',
+      ),
+    ).toBe(false)
+  })
+
+  it('自环/双环/三环均不隐藏，保证回收站入口', () => {
+    const selfLoop = new Map<number, number | null>([[10, 10]])
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 10, parent_id: 10, deleted_at: 't' },
+        selfLoop,
+        't',
+      ),
+    ).toBe(false)
+
+    const dual = new Map<number, number | null>([
+      [20, 21],
+      [21, 20],
+    ])
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 20, parent_id: 21, deleted_at: 't' },
+        dual,
+        't',
+      ),
+    ).toBe(false)
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 21, parent_id: 20, deleted_at: 't' },
+        dual,
+        't',
+      ),
+    ).toBe(false)
+
+    // A→B→C→A
+    const triple = new Map<number, number | null>([
+      [1, 2],
+      [2, 3],
+      [3, 1],
+    ])
+    expect(classifyParentChain(triple, 2, 1)).toBe('cycle_to_origin')
+    expect(classifyParentChain(triple, 3, 2)).toBe('cycle_to_origin')
+    expect(classifyParentChain(triple, 1, 3)).toBe('cycle_to_origin')
+    for (const id of [1, 2, 3]) {
+      const parentId = triple.get(id) ?? null
+      expect(
+        shouldHideSameStampCascadedChild(
+          { id, parent_id: parentId, deleted_at: 't' },
+          triple,
+          't',
+        ),
+      ).toBe(false)
+    }
+  })
+
+  it('环外挂接同戳后代可隐藏；环上节点不隐藏', () => {
+    // A→B→C→A，D 挂在 A 下
+    const parentById = new Map<number, number | null>([
+      [1, 2],
+      [2, 3],
+      [3, 1],
+      [4, 1],
+    ])
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 4, parent_id: 1, deleted_at: 't' },
+        parentById,
+        't',
+      ),
+    ).toBe(true)
+    expect(
+      shouldHideSameStampCascadedChild(
+        { id: 1, parent_id: 2, deleted_at: 't' },
+        parentById,
+        't',
+      ),
+    ).toBe(false)
+  })
+
+  it('环上同伴不计入 hasDeletedAncestorInMap 阻塞', () => {
+    const parentById = new Map<number, number | null>([
+      [1, 2],
+      [2, 3],
+      [3, 1],
+    ])
+    const deletedAtById = new Map<number, string | null>([
+      [1, 't'],
+      [2, 't'],
+      [3, 't'],
+    ])
+    expect(hasDeletedAncestorInMap(1, parentById, deletedAtById)).toBe(false)
+    expect(hasDeletedAncestorInMap(2, parentById, deletedAtById)).toBe(false)
+    expect(hasDeletedAncestorInMap(3, parentById, deletedAtById)).toBe(false)
+  })
+
+  it('正常树：父仍删除时 hasDeletedAncestorInMap 为 true', () => {
+    const parentById = new Map<number, number | null>([
+      [1, null],
+      [2, 1],
+    ])
+    const deletedAtById = new Map<number, string | null>([
+      [1, 't-parent'],
+      [2, 't-child'],
+    ])
+    expect(hasDeletedAncestorInMap(2, parentById, deletedAtById)).toBe(true)
   })
 })

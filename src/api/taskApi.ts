@@ -1,5 +1,9 @@
 import { invokeCommand as invoke } from './invokeClient'
 import { isTauri, mockTasks, mockTaskTags, mockCounters } from './_shared'
+import {
+  hasDeletedAncestorInMap,
+  shouldHideSameStampCascadedChild,
+} from '../utils/softDeleteCascade'
 import type {
   Task,
   TrashedTask,
@@ -116,30 +120,29 @@ updateTask: async (id: number, updates: UpdateTaskRequest): Promise<void> => {
       const lists = await import('./listApi').then((m) => m.listApi.getLists())
       const listName = (listId: number) => lists.find((l) => l.id === listId)?.name ?? null
       const deleted = mockTasks.filter((t) => !!t.deleted_at)
-      // 不展示与父任务同次删除的子任务
+      const parentById = new Map(mockTasks.map((t) => [t.id, t.parent_id ?? null]))
+      const deletedAtById = new Map(mockTasks.map((t) => [t.id, t.deleted_at ?? null]))
+      // 不展示与父任务同次删除的子任务；任意长度 parent 环保守展示为顶层
       const tops = deleted.filter((t) => {
-        if (t.parent_id == null) return true
         const parent = mockTasks.find((p) => p.id === t.parent_id)
-        return !(parent?.deleted_at && parent.deleted_at === t.deleted_at)
+        return !shouldHideSameStampCascadedChild(
+          t,
+          parentById,
+          parent?.deleted_at ?? null,
+        )
       })
       return tops.map((t) => {
-        let blocked = false
-        let pid = t.parent_id
-        while (pid != null) {
-          const p = mockTasks.find((x) => x.id === pid)
-          if (p?.deleted_at) {
-            blocked = true
-            break
-          }
-          pid = p?.parent_id ?? null
-        }
         return {
           ...t,
           list_name: listName(t.list_id),
           has_cascaded_children: deleted.some(
-            (c) => c.parent_id === t.id && c.deleted_at === t.deleted_at,
+            (c) => c.parent_id === t.id && c.id !== t.id && c.deleted_at === t.deleted_at,
           ),
-          restore_blocked_by_deleted_ancestor: blocked,
+          restore_blocked_by_deleted_ancestor: hasDeletedAncestorInMap(
+            t.id,
+            parentById,
+            deletedAtById,
+          ),
         }
       })
     }
@@ -150,12 +153,11 @@ updateTask: async (id: number, updates: UpdateTaskRequest): Promise<void> => {
     if (!isTauri) {
       const target = mockTasks.find((t) => t.id === id)
       if (!target?.deleted_at) throw new Error('任务不在回收站中')
-      // 祖先仍删除则拒绝
-      let pid = target.parent_id
-      while (pid != null) {
-        const p = mockTasks.find((x) => x.id === pid)
-        if (p?.deleted_at) throw new Error('无法恢复：父任务仍在回收站中')
-        pid = p?.parent_id ?? null
+      // 祖先仍删除则拒绝；环上同伴不阻塞（与后端 has_deleted_ancestor 对齐）
+      const parentById = new Map(mockTasks.map((t) => [t.id, t.parent_id ?? null]))
+      const deletedAtById = new Map(mockTasks.map((t) => [t.id, t.deleted_at ?? null]))
+      if (hasDeletedAncestorInMap(id, parentById, deletedAtById)) {
+        throw new Error('无法恢复：父任务仍在回收站中')
       }
       const stamp = target.deleted_at
       const now = new Date().toISOString()
