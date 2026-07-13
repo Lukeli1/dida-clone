@@ -7,7 +7,7 @@ import { TaskSidebar } from './calendar/TaskSidebar'
 import { useCalendarStore } from '../stores/calendarStore'
 import { filterCalendarTasks } from '../utils/calendarFilters'
 import type { TaskActions } from '../hooks/useTaskActions'
-import type { MoveTask } from './calendar/shared/types'
+import type { CreateTaskOnRange, MoveTask } from './calendar/shared/types'
 
 interface CalendarViewProps {
   tasks: Task[]
@@ -16,17 +16,7 @@ interface CalendarViewProps {
   onToggleTask: (taskId: number) => void
   onMoveTask: MoveTask
   onCreateTask: (date: string, title?: string) => void
-  onCreateTaskOnRange: (data: {
-    dateKey: string
-    title: string
-    notes?: string
-    priority: number
-    listId: number
-    startHour: number
-    startMin: number
-    endHour: number
-    endMin: number
-  }) => void
+  onCreateTaskOnRange: CreateTaskOnRange
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
   actions: TaskActions
 }

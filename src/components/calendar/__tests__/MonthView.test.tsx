@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MonthView } from '../MonthView'
 import type { List, Task } from '../../../types'
@@ -176,7 +176,6 @@ describe('MonthView 任务显示优化', () => {
     expect(onToggleTask).toHaveBeenCalledWith(1)
   })
 
-
   it('reserves rows for quick add input and summary in crowded month cell', () => {
     const tasks = Array.from({ length: 5 }, (_, i) => makeTask(i + 1))
 
@@ -217,6 +216,124 @@ describe('MonthView 任务显示优化', () => {
     }
   })
 
+  it('拖拽月视图日期格可选择跨日期范围并预填创建弹窗', () => {
+    const restoreRect = mockCalendarGridHeight(500)
+    try {
+      renderMonthView([])
+      const grid = screen.getByTestId('month-calendar-grid')
+      fireEvent.pointerDown(grid, {
+        pointerId: 21,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 250,
+        clientY: 50,
+      })
+      fireEvent.pointerMove(grid, {
+        pointerId: 21,
+        pointerType: 'mouse',
+        isPrimary: true,
+        clientX: 450,
+        clientY: 50,
+      })
+
+      expect(screen.getByTestId('month-day-cell-2026-07-01')).toHaveClass('bg-[var(--color-calendar-selection-bg)]')
+      expect(screen.getByTestId('month-day-cell-2026-07-02')).toHaveClass('bg-[var(--color-calendar-selection-bg)]')
+      expect(screen.getByTestId('month-day-cell-2026-07-03')).toHaveClass('bg-[var(--color-calendar-selection-bg)]')
+
+      fireEvent.pointerUp(grid, {
+        pointerId: 21,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 450,
+        clientY: 50,
+      })
+
+      expect(screen.getByText('创建跨日任务')).toBeInTheDocument()
+      expect(screen.getByLabelText('月视图开始日期')).toHaveValue('2026-07-01')
+      expect(screen.getByLabelText('月视图结束日期')).toHaveValue('2026-07-03')
+      expect(screen.getByLabelText('月视图开始时间')).toHaveValue('09:00')
+      expect(screen.getByLabelText('月视图结束时间')).toHaveValue('10:00')
+    } finally {
+      restoreRect()
+    }
+  })
+
+  it('月视图反向跨日期拖拽自动归一化并提交共享创建契约', async () => {
+    const restoreRect = mockCalendarGridHeight(500)
+    const onCreateTaskOnRange = vi.fn(() => true)
+    try {
+      renderMonthView([], { onCreateTaskOnRange })
+      const grid = screen.getByTestId('month-calendar-grid')
+      fireEvent.pointerDown(grid, {
+        pointerId: 22,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 450,
+        clientY: 50,
+      })
+      fireEvent.pointerMove(grid, {
+        pointerId: 22,
+        pointerType: 'mouse',
+        isPrimary: true,
+        clientX: 250,
+        clientY: 50,
+      })
+      fireEvent.pointerUp(grid, {
+        pointerId: 22,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 250,
+        clientY: 50,
+      })
+
+      fireEvent.change(screen.getByPlaceholderText('任务标题'), { target: { value: '月视图跨日任务' } })
+      fireEvent.click(screen.getByRole('button', { name: '创建任务' }))
+
+      await waitFor(() => {
+        expect(onCreateTaskOnRange).toHaveBeenCalledWith({
+          startDateKey: '2026-07-01',
+          startMinute: 540,
+          endDateKey: '2026-07-03',
+          endMinute: 600,
+          title: '月视图跨日任务',
+          notes: undefined,
+          priority: 2,
+          listId: 1,
+        })
+      })
+    } finally {
+      restoreRect()
+    }
+  })
+
+  it('从月视图已有任务块按下不会启动日期范围选择', () => {
+    const restoreRect = mockCalendarGridHeight(500)
+    try {
+      renderMonthView([makeTask(1, { title: '已有月任务' })])
+      fireEvent.pointerDown(screen.getByText('已有月任务'), {
+        pointerId: 23,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 450,
+        clientY: 50,
+      })
+      fireEvent.pointerMove(screen.getByTestId('month-calendar-grid'), {
+        pointerId: 23,
+        pointerType: 'mouse',
+        isPrimary: true,
+        clientX: 250,
+        clientY: 50,
+      })
+      expect(screen.queryByTestId('month-range-create-popup')).not.toBeInTheDocument()
+    } finally {
+      restoreRect()
+    }
+  })
   it('drops timed tasks as timed tasks while preserving their time', () => {
     const onMoveTask = vi.fn()
     renderMonthView([makeTask(1, { title: '普通拖拽', due_date: '2026-07-03T14:30:00.000' })], { onMoveTask })

@@ -4,11 +4,7 @@ import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
 import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
-import {
-  getOccurrencesForRange,
-  isTaskAllDayLike,
-  isTaskMultiDay,
-} from '../../utils/calendarTaskOccurrences'
+import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
@@ -52,6 +48,8 @@ export function WeekView({
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const timeGridRef = useRef<HTMLDivElement>(null)
+  const weekScrollRef = useRef<HTMLDivElement>(null)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
   // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
@@ -63,6 +61,8 @@ export function WeekView({
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 })
     return eachDayOfInterval({ start: weekStart, end: weekEnd })
   }, [currentDate])
+
+  const dateKeys = useMemo(() => days.map((day) => format(day, 'yyyy-MM-dd')), [days])
 
   const allDaySegments = useMemo(() => {
     const occurrences = getOccurrencesForRange(tasks, days[0], days[6]).filter(
@@ -96,6 +96,13 @@ export function WeekView({
     return getHours(d) * HOUR_HEIGHT + getMinutes(d)
   }
 
+  function getCrossDayRangeLabel(task: Task): string | undefined {
+    if (!task.due_date || !task.end_date || !isTaskMultiDay(task)) return undefined
+    const start = format(new Date(task.due_date), 'EEE HH:mm', { locale: zhCN })
+    const end = format(new Date(task.end_date), 'EEE HH:mm', { locale: zhCN })
+    return `${start} → ${end}`
+  }
+
   function getTaskHeight(task: Task) {
     if (!task.due_date) return 30
     if (!task.end_date) return 30
@@ -109,7 +116,9 @@ export function WeekView({
 
   const resize = useTaskResize({ tasks, onUpdateTask, getTaskTop, getTaskHeight })
   const sel = useTimeSelection({
-    columnRefs,
+    gridRef: timeGridRef,
+    scrollContainerRef: weekScrollRef,
+    dateKeys,
     defaultListId,
     onCreateTaskOnRange,
     resizeMode: resize.resizeMode,
@@ -224,8 +233,8 @@ export function WeekView({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto select-none">
-        <div className="flex">
+      <div ref={weekScrollRef} data-testid="week-scroll-container" className="flex-1 overflow-auto select-none">
+        <div className="flex min-w-[760px]">
           <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)]">
             <div className="h-12 border-b border-[var(--color-border)]" />
             <div
@@ -306,6 +315,7 @@ export function WeekView({
                   segment={segment.segment}
                   dragged={draggedTaskId === segment.task.id}
                   className="absolute z-20 shadow-sm"
+                  timeRangeLabel={getCrossDayRangeLabel(segment.task)}
                   style={{
                     top: `${4 + segment.rowIndex * 24}px`,
                     left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
@@ -324,7 +334,15 @@ export function WeekView({
               ))}
             </div>
 
-            <div className="grid grid-cols-7">
+            <div
+              ref={timeGridRef}
+              data-testid="week-time-grid"
+              className="relative grid grid-cols-7"
+              onPointerDown={sel.handleTimePointerDown}
+              onPointerMove={sel.handleTimePointerMove}
+              onPointerUp={sel.handleTimePointerUp}
+              onPointerCancel={sel.handleTimePointerCancel}
+            >
               {days.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
                 const dayTasks = tasksByDate.get(key) || []
@@ -334,7 +352,7 @@ export function WeekView({
                 )
                 const today = isToday(day)
                 const isDragOver = dragOverDate === key
-                const isSelecting = sel.selection?.dateKey === key
+                const selectionSegment = sel.selection?.segments.find((segment) => segment.dateKey === key)
 
                 return (
                   <div
@@ -350,9 +368,6 @@ export function WeekView({
                         if (el) columnRefs.current.set(key, el)
                       }}
                       className="relative group"
-                      onMouseDown={(e) => sel.handleTimeMouseDown(e, key)}
-                      onMouseMove={(e) => sel.handleTimeMouseMove(e, key)}
-                      onMouseUp={(e) => sel.handleTimeMouseUp(e, key)}
                     >
                       {HOURS.map((hour) => (
                         <div
@@ -377,19 +392,31 @@ export function WeekView({
                         点击添加
                       </div>
 
-                      {isSelecting && sel.selection && (
+                      {selectionSegment ? (
                         <div
-                          className="absolute left-0 right-0 bg-[var(--color-accent-light)] border border-[var(--color-accent)] rounded-sm pointer-events-none z-10"
+                          data-testid={`week-selection-${key}`}
+                          className={`pointer-events-none absolute left-0 right-0 z-30 border-2 bg-[var(--color-calendar-selection-bg)] text-[var(--color-calendar-selection-text)] ${
+                            selectionSegment.isStart ? 'rounded-t-md' : ''
+                          } ${selectionSegment.isEnd ? 'rounded-b-md' : ''}`}
                           style={{
-                            top: `${(sel.selection.startMinute / 60) * HOUR_HEIGHT}px`,
-                            height: `${((sel.selection.endMinute - sel.selection.startMinute) / 60) * HOUR_HEIGHT}px`,
+                            top: `${(selectionSegment.startMinute / 60) * HOUR_HEIGHT}px`,
+                            height: `${Math.max(
+                              2,
+                              ((selectionSegment.endMinute - selectionSegment.startMinute) / 60) * HOUR_HEIGHT,
+                            )}px`,
+                            borderColor: 'var(--color-calendar-selection-border)',
                           }}
                         >
-                          <span className="absolute -top-5 left-1 text-xs text-[var(--color-accent)] font-medium whitespace-nowrap">
-                            {sel.formatMinute(sel.selection.startMinute)} - {sel.formatMinute(sel.selection.endMinute)}
-                          </span>
+                          {selectionSegment.isStart && sel.selectionSummary ? (
+                            <div className="absolute left-1 top-1 z-40 max-w-[22rem] rounded-md border border-[var(--color-calendar-selection-border)] bg-[var(--color-surface)]/95 px-2 py-1 text-[11px] font-medium shadow-sm">
+                              <div className="whitespace-nowrap">{sel.selectionSummary.label}</div>
+                              <div className="whitespace-nowrap text-[var(--color-text-secondary)]">
+                                {sel.selectionSummary.durationLabel}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
-                      )}
+                      ) : null}
 
                       {timedTaskLayouts.map(({ task, top, height, leftPercent, widthPercent }) => {
                         const isResizing = resize.resizingTaskId === task.id
@@ -425,6 +452,7 @@ export function WeekView({
                             {task.end_date && (
                               <div
                                 draggable={false}
+                                data-resize-handle
                                 className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
                                 onMouseDown={(e) => resize.handleResizeStart(e, task, 'top', key)}
                               />
@@ -440,6 +468,7 @@ export function WeekView({
                             {task.due_date && (
                               <div
                                 draggable={false}
+                                data-resize-handle
                                 className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
                                 onMouseDown={(e) => resize.handleResizeStart(e, task, 'bottom', key)}
                               />
@@ -447,12 +476,11 @@ export function WeekView({
                           </TaskBar>
                         )
                       })}
-
-                      <WeekCreatePopups dateKey={key} sel={sel} lists={lists} defaultListId={defaultListId} />
                     </div>
                   </div>
                 )
               })}
+              <WeekCreatePopups sel={sel} lists={lists} defaultListId={defaultListId} />
             </div>
           </div>
         </div>

@@ -20,6 +20,7 @@ import { MonthMorePopover, type MonthMorePopoverPosition } from './MonthMorePopo
 import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
+import { normalizeDateKeyRange, type NormalizedDateKeyRange } from '../../utils/calendarRangeSelection'
 
 const MIN_MONTH_VISIBLE_TASKS = 2
 const MAX_MONTH_VISIBLE_TASKS = 5
@@ -85,11 +86,18 @@ export function MonthView({
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const [creatingDate, setCreatingDate] = useState<string | null>(null)
   const [newTitle, setNewTitle] = useState('')
-  const [detailPopup, setDetailPopup] = useState<string | null>(null)
+  const [detailPopup, setDetailPopup] = useState<{ startDateKey: string; endDateKey: string } | null>(null)
+  const [rangeSelection, setRangeSelection] = useState<NormalizedDateKeyRange | null>(null)
   const [morePopover, setMorePopover] = useState<{ dateKey: string; position: MonthMorePopoverPosition } | null>(null)
   const [visibleTaskCount, setVisibleTaskCount] = useState(MIN_MONTH_VISIBLE_TASKS)
   const inputRef = useRef<HTMLInputElement>(null)
   const calendarGridRef = useRef<HTMLDivElement>(null)
+  const monthPointerIdRef = useRef<number | null>(null)
+  const monthAnchorIndexRef = useRef<number | null>(null)
+  const monthPointerStartRef = useRef<{ x: number; y: number } | null>(null)
+  const monthDidDragRef = useRef(false)
+  const rangeSelectionRef = useRef<NormalizedDateKeyRange | null>(null)
+  const suppressCellClickRef = useRef(false)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
 
   const weeks = useMemo(() => {
@@ -99,6 +107,8 @@ export function MonthView({
     const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
     return eachDayOfInterval({ start: calStart, end: calEnd })
   }, [currentDate])
+
+  const monthDateKeys = useMemo(() => weeks.map((day) => format(day, 'yyyy-MM-dd')), [weeks])
 
   const weekRows = useMemo(() => {
     const rows: Date[][] = []
@@ -115,7 +125,9 @@ export function MonthView({
       const rowCount = Math.max(1, weekRows.length)
       const rowHeight = observedGrid.getBoundingClientRect().height / rowCount
       const availableTaskHeight = rowHeight - MONTH_CELL_VERTICAL_PADDING - MONTH_CELL_HEADER_HEIGHT
-      const estimated = Math.floor((availableTaskHeight + MONTH_TASK_ROW_GAP) / (MONTH_TASK_ROW_HEIGHT + MONTH_TASK_ROW_GAP))
+      const estimated = Math.floor(
+        (availableTaskHeight + MONTH_TASK_ROW_GAP) / (MONTH_TASK_ROW_HEIGHT + MONTH_TASK_ROW_GAP),
+      )
       const next = Math.max(MIN_MONTH_VISIBLE_TASKS, Math.min(MAX_MONTH_VISIBLE_TASKS, estimated))
       setVisibleTaskCount(next)
     }
@@ -164,6 +176,94 @@ export function MonthView({
   }, [tasks, weeks])
 
   const weekDays = ['\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d', '\u65e5']
+
+  function getMonthDateIndex(clientX: number, clientY: number): number | null {
+    const grid = calendarGridRef.current
+    if (!grid || monthDateKeys.length === 0) return null
+    const rect = grid.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return null
+    const rowCount = Math.max(1, weekRows.length)
+    const column = Math.max(0, Math.min(6, Math.floor(((clientX - rect.left) / rect.width) * 7)))
+    const contentHeight = Math.max(rect.height, grid.scrollHeight)
+    const contentY = clientY - rect.top + grid.scrollTop
+    const row = Math.max(0, Math.min(rowCount - 1, Math.floor((contentY / contentHeight) * rowCount)))
+    return Math.min(monthDateKeys.length - 1, row * 7 + column)
+  }
+
+  function handleMonthPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0 || e.isPrimary === false || e.pointerType === 'touch') return
+    const target = e.target as HTMLElement
+    if (
+      target.closest(
+        "[data-task], [data-testid^='calendar-all-day-task-'], button, input, textarea, select, [data-calendar-popup]",
+      )
+    )
+      return
+    const index = getMonthDateIndex(e.clientX, e.clientY)
+    if (index === null) return
+    monthPointerIdRef.current = e.pointerId
+    monthAnchorIndexRef.current = index
+    monthPointerStartRef.current = { x: e.clientX, y: e.clientY }
+    monthDidDragRef.current = false
+    rangeSelectionRef.current = null
+    setRangeSelection(null)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  function handleMonthPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (monthPointerIdRef.current !== e.pointerId || monthAnchorIndexRef.current === null) return
+    const index = getMonthDateIndex(e.clientX, e.clientY)
+    const start = monthPointerStartRef.current
+    if (index === null || !start) return
+    const movedEnough = Math.hypot(e.clientX - start.x, e.clientY - start.y) >= 6
+    if (!movedEnough && index === monthAnchorIndexRef.current) return
+    monthDidDragRef.current = true
+    e.preventDefault()
+    const nextRange = normalizeDateKeyRange(monthAnchorIndexRef.current, index, monthDateKeys)
+    rangeSelectionRef.current = nextRange
+    setRangeSelection(nextRange)
+  }
+
+  function clearMonthPointer(target?: HTMLDivElement, pointerId?: number) {
+    if (target && pointerId !== undefined) {
+      try {
+        if (target.hasPointerCapture?.(pointerId)) target.releasePointerCapture(pointerId)
+      } catch {
+        // Pointer may already be released by the browser.
+      }
+    }
+    monthPointerIdRef.current = null
+    monthAnchorIndexRef.current = null
+    monthPointerStartRef.current = null
+    monthDidDragRef.current = false
+  }
+
+  function handleMonthPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (monthPointerIdRef.current !== e.pointerId) return
+    const completedRange = rangeSelectionRef.current
+    if (monthDidDragRef.current && completedRange) {
+      suppressCellClickRef.current = true
+      setDetailPopup({ startDateKey: completedRange.startDateKey, endDateKey: completedRange.endDateKey })
+      rangeSelectionRef.current = null
+      setRangeSelection(null)
+      setTimeout(() => {
+        suppressCellClickRef.current = false
+      }, 0)
+    }
+    clearMonthPointer(e.currentTarget, e.pointerId)
+  }
+
+  function handleMonthPointerCancel(e: React.PointerEvent<HTMLDivElement>) {
+    if (monthPointerIdRef.current !== e.pointerId) return
+    rangeSelectionRef.current = null
+    setRangeSelection(null)
+    clearMonthPointer(e.currentTarget, e.pointerId)
+  }
+
+  function handleMonthCellClick(day: Date) {
+    if (suppressCellClickRef.current) return
+    onDateClick(day)
+  }
 
   function handleDragStart(e: React.DragEvent, taskId: number) {
     setDraggedTaskId(taskId)
@@ -220,8 +320,9 @@ export function MonthView({
   }
 
   function handleCellDoubleClick(dateKey: string) {
+    if (suppressCellClickRef.current) return
     setMorePopover(null)
-    setDetailPopup(dateKey)
+    setDetailPopup({ startDateKey: dateKey, endDateKey: dateKey })
   }
 
   function handleQuickAddSubmit(dateKey: string) {
@@ -266,7 +367,12 @@ export function MonthView({
             className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
             aria-label={'\u4e0a\u4e2a\u6708'}
           >
-            <svg className="h-5 w-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="h-5 w-5 text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -282,7 +388,12 @@ export function MonthView({
             className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
             aria-label={'\u4e0b\u4e2a\u6708'}
           >
-            <svg className="h-5 w-5 text-[var(--color-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="h-5 w-5 text-[var(--color-text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -304,11 +415,20 @@ export function MonthView({
         ))}
       </div>
 
-      <div ref={calendarGridRef} data-testid="month-calendar-grid" className="flex flex-1 flex-col overflow-y-auto">
+      <div
+        ref={calendarGridRef}
+        data-testid="month-calendar-grid"
+        className="flex flex-1 select-none flex-col overflow-y-auto"
+        onPointerDown={handleMonthPointerDown}
+        onPointerMove={handleMonthPointerMove}
+        onPointerUp={handleMonthPointerUp}
+        onPointerCancel={handleMonthPointerCancel}
+      >
         {weekRows.map((week, ri) => {
           const weekNum = getISOWeek(week[0])
           const allDaySegments = getAllDaySegmentsForDays(week, monthAllDayOccurrences)
-          const allDayRowCount = allDaySegments.length > 0 ? Math.max(...allDaySegments.map((segment) => segment.rowIndex + 1)) : 0
+          const allDayRowCount =
+            allDaySegments.length > 0 ? Math.max(...allDaySegments.map((segment) => segment.rowIndex + 1)) : 0
           const rowMinHeight = 110 + allDayRowCount * 24
           return (
             <div
@@ -346,7 +466,7 @@ export function MonthView({
                   }}
                 />
               ))}
-              {week.map((day) => {
+              {week.map((day, dayIndex) => {
                 const key = format(day, 'yyyy-MM-dd')
                 const group = tasksByDate.get(key) || { active: [], completed: [] }
                 const inMonth = isSameMonth(day, currentDate)
@@ -354,6 +474,11 @@ export function MonthView({
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6
                 const isDragOver = dragOverDate === key
                 const isCreating = creatingDate === key
+                const flatIndex = ri * 7 + dayIndex
+                const isRangeSelected =
+                  rangeSelection !== null &&
+                  flatIndex >= rangeSelection.startIndex &&
+                  flatIndex <= rangeSelection.endIndex
                 const effectiveVisibleTaskCount = Math.max(0, visibleTaskCount - allDayRowCount)
                 const { visibleActiveTasks, hiddenActiveCount, showSummaryRow } = getVisibleActiveTasks(
                   group,
@@ -365,23 +490,39 @@ export function MonthView({
                 return (
                   <div
                     key={key}
-                    onClick={() => onDateClick(day)}
+                    onClick={() => handleMonthCellClick(day)}
                     onDoubleClick={() => handleCellDoubleClick(key)}
                     onDragEnter={(e) => handleDragEnter(e)}
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, key)}
                     data-testid={`month-day-cell-${key}`}
+                    data-month-date={key}
                     className={`group relative flex min-h-0 cursor-pointer flex-col overflow-hidden border-r border-[var(--color-border-light)] p-1.5 transition-colors last:border-r-0 ${
-                      isDragOver
-                        ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
-                        : !inMonth
-                          ? 'bg-[var(--color-bg-secondary)]/40'
-                          : isWeekend
-                            ? 'bg-[var(--color-bg-secondary)]/60 hover:bg-[var(--color-accent-light)]/20'
-                            : 'hover:bg-[var(--color-accent-light)]/20'
+                      isRangeSelected
+                        ? 'bg-[var(--color-calendar-selection-bg)] ring-2 ring-inset ring-[var(--color-calendar-selection-border)]'
+                        : isDragOver
+                          ? 'bg-[var(--color-accent-light)] ring-2 ring-[var(--color-accent)]/30 ring-inset'
+                          : !inMonth
+                            ? 'bg-[var(--color-bg-secondary)]/40'
+                            : isWeekend
+                              ? 'bg-[var(--color-bg-secondary)]/60 hover:bg-[var(--color-accent-light)]/20'
+                              : 'hover:bg-[var(--color-accent-light)]/20'
                     }`}
                   >
+                    {isRangeSelected &&
+                    rangeSelection &&
+                    (flatIndex === rangeSelection.startIndex || flatIndex === rangeSelection.endIndex) ? (
+                      <span className="pointer-events-none absolute right-1 top-1 z-20 rounded bg-[var(--color-surface)]/90 px-1.5 py-0.5 text-[9px] font-medium text-[var(--color-calendar-selection-text)] shadow-sm">
+                        {rangeSelection.startIndex === rangeSelection.endIndex
+                          ? '单日'
+                          : flatIndex === rangeSelection.startIndex
+                            ? '开始'
+                            : flatIndex === rangeSelection.endIndex
+                              ? '结束'
+                              : ''}
+                      </span>
+                    ) : null}{' '}
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex flex-col items-start leading-tight">
                         <span
@@ -420,7 +561,6 @@ export function MonthView({
                         </svg>
                       </button>
                     </div>
-
                     <div
                       className="min-h-0 flex-1 space-y-1 overflow-hidden"
                       style={{ paddingTop: allDayRowCount > 0 ? `${allDayRowCount * 24}px` : undefined }}
@@ -450,6 +590,7 @@ export function MonthView({
                           task={task}
                           lists={lists}
                           variant="month"
+                          dataTask
                           dragged={draggedTaskId === task.id}
                           timeLabel={task.due_date ? formatTaskTime(task.due_date) : undefined}
                           onDragStart={(e) => handleDragStart(e, task.id)}
@@ -517,8 +658,9 @@ export function MonthView({
 
       {detailPopup && (
         <MonthDetailPopup
-          key={detailPopup}
-          dateKey={detailPopup}
+          key={`${detailPopup.startDateKey}-${detailPopup.endDateKey}`}
+          startDateKey={detailPopup.startDateKey}
+          endDateKey={detailPopup.endDateKey}
           lists={lists}
           defaultListId={defaultListId}
           onSubmit={onCreateTaskOnRange}

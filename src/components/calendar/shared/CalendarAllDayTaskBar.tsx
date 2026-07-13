@@ -10,6 +10,7 @@ interface CalendarAllDayTaskBarProps {
   draggable?: boolean
   style?: CSSProperties
   className?: string
+  timeRangeLabel?: string
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
   onTaskClick?: (e: MouseEvent<HTMLDivElement>) => void
   onToggle?: (e: SyntheticEvent) => void
@@ -30,6 +31,7 @@ export function CalendarAllDayTaskBar({
   draggable = true,
   style,
   className = '',
+  timeRangeLabel,
   onDragStart,
   onTaskClick,
   onToggle,
@@ -69,7 +71,13 @@ export function CalendarAllDayTaskBar({
           </svg>
         )}
       </button>
-      <span className={`min-w-0 flex-1 truncate ${task.completed ? 'line-through' : ''}`}>{task.title}</span>
+      <span
+        className={`min-w-0 flex-1 truncate ${task.completed ? 'line-through' : ''}`}
+        title={timeRangeLabel ? `${task.title} · ${timeRangeLabel}` : task.title}
+      >
+        {task.title}
+        {timeRangeLabel ? <span className="opacity-80"> · {timeRangeLabel}</span> : null}
+      </span>
     </div>
   )
 }

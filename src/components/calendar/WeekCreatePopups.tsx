@@ -1,4 +1,4 @@
-// 周视图：「快速添加」与「拖选后详细创建」两个弹窗（从 WeekView 提取，行为不变）
+import type { KeyboardEvent } from 'react'
 import type { List } from '../../types'
 import type { TimeSelectionApi } from './useTimeSelection'
 
@@ -17,51 +17,79 @@ const priorityFlags = [
 ]
 
 interface WeekCreatePopupsProps {
-  /** 当前所在列的日期 key（yyyy-MM-dd） */
-  dateKey: string
   sel: TimeSelectionApi
   lists: List[]
   defaultListId: number
 }
 
-export function WeekCreatePopups({ dateKey, sel, lists, defaultListId }: WeekCreatePopupsProps) {
+function getPopupPosition(top: number, left: number, width: number, height: number) {
+  const viewportWidth = typeof window === 'undefined' ? 1200 : window.innerWidth
+  const viewportHeight = typeof window === 'undefined' ? 800 : window.innerHeight
+  return {
+    top: Math.max(12, Math.min(top, viewportHeight - height - 12)),
+    left: Math.max(12, Math.min(left, viewportWidth - width - 12)),
+  }
+}
+
+export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopupsProps) {
   const createPopup = sel.createPopup
-  if (!createPopup || createPopup.dateKey !== dateKey) return null
+  if (!createPopup) return null
+
   const {
-    formatMinute,
     popupTitle,
     popupNotes,
     popupPriority,
     popupListId,
+    popupStartDateKey,
+    popupStartTime,
+    popupEndDateKey,
+    popupEndTime,
+    popupError,
+    isSubmitting,
     popupInputRef,
     setPopupTitle,
     setPopupNotes,
     setPopupPriority,
     setPopupListId,
+    setPopupStartDateKey,
+    setPopupStartTime,
+    setPopupEndDateKey,
+    setPopupEndTime,
     handlePopupSubmit,
     cyclePriority,
     closeCreatePopup,
   } = sel
 
+  function handleTitleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      void handlePopupSubmit()
+    }
+    if (e.key === 'Escape') closeCreatePopup()
+  }
+
   if (createPopup.isQuickAdd) {
+    const position = getPopupPosition(createPopup.viewportTop, createPopup.viewportLeft, 256, 130)
     return (
       <div
-        className="absolute z-20 bg-[var(--color-surface)] rounded-lg shadow-xl border border-[var(--color-accent-light)] p-3 w-64"
-        style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: `${Math.min(createPopup.left, 60)}px` }}
+        data-calendar-popup
+        data-testid="week-create-popup"
+        className="fixed z-50 w-64 rounded-lg border border-[var(--color-accent-light)] bg-[var(--color-surface)] p-3 shadow-xl"
+        style={position}
         onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs text-[var(--color-accent)] font-medium">
-            {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} -{' '}
-            {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-medium text-[var(--color-accent)]">
+            {popupStartDateKey} {popupStartTime} → {popupEndDateKey} {popupEndTime}
           </span>
           <button
+            type="button"
             onClick={cyclePriority}
-            className={`ml-auto p-1 rounded hover:bg-[var(--color-bg-tertiary)] ${priorityFlags[popupPriority].color}`}
+            className={`ml-auto rounded p-1 hover:bg-[var(--color-bg-tertiary)] ${priorityFlags[popupPriority].color}`}
             title={priorityFlags[popupPriority].label}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -74,102 +102,156 @@ export function WeekCreatePopups({ dateKey, sel, lists, defaultListId }: WeekCre
         <input
           ref={popupInputRef}
           value={popupTitle}
-          onChange={(e) => setPopupTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handlePopupSubmit()
-            if (e.key === 'Escape') closeCreatePopup()
+          onChange={(e) => {
+            setPopupTitle(e.target.value)
           }}
+          onKeyDown={handleTitleKeyDown}
           placeholder="任务标题，回车保存"
-          className="w-full px-2.5 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+          className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
         />
+        {popupError ? <p className="mt-2 text-xs text-[var(--color-danger)]">{popupError}</p> : null}
       </div>
     )
   }
 
+  const position = getPopupPosition(createPopup.viewportTop, createPopup.viewportLeft, 336, 500)
   return (
     <div
-      className="absolute z-20 bg-[var(--color-surface)] rounded-xl shadow-xl border border-[var(--color-border)] p-4 w-72"
-      style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: `${Math.min(createPopup.left, 80)}px` }}
+      data-calendar-popup
+      data-testid="week-create-popup"
+      className="fixed z-50 w-[21rem] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl"
+      style={position}
       onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="mb-3 flex items-center gap-2">
+        <svg className="h-4 w-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002 2z"
           />
         </svg>
-        <span className="text-sm font-medium text-[var(--color-text-secondary)]">
-          {formatMinute(createPopup.startHour * 60 + createPopup.startMin)} -{' '}
-          {formatMinute(createPopup.endHour * 60 + createPopup.endMin)}
-        </span>
+        <span className="text-sm font-medium text-[var(--color-text-secondary)]">创建跨日任务</span>
       </div>
 
       <input
         ref={popupInputRef}
         value={popupTitle}
         onChange={(e) => setPopupTitle(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') handlePopupSubmit()
-          if (e.key === 'Escape') closeCreatePopup()
-        }}
+        onKeyDown={handleTitleKeyDown}
         placeholder="任务标题"
-        className="w-full px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-2"
+        className="mb-3 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       />
+
+      <div className="mb-3 grid grid-cols-[3rem_1fr_6.5rem] items-center gap-2">
+        <label className="text-xs font-medium text-[var(--color-text-secondary)]">开始</label>
+        <input
+          aria-label="开始日期"
+          type="date"
+          value={popupStartDateKey}
+          onChange={(e) => setPopupStartDateKey(e.target.value)}
+          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+        />
+        <input
+          aria-label="开始时间"
+          type="time"
+          step={900}
+          value={popupStartTime}
+          onChange={(e) => setPopupStartTime(e.target.value)}
+          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+        />
+
+        <label className="text-xs font-medium text-[var(--color-text-secondary)]">结束</label>
+        <input
+          aria-label="结束日期"
+          type="date"
+          value={popupEndDateKey}
+          onChange={(e) => setPopupEndDateKey(e.target.value)}
+          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+        />
+        <input
+          aria-label="结束时间"
+          type="time"
+          step={900}
+          value={popupEndTime}
+          onChange={(e) => setPopupEndTime(e.target.value)}
+          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+        />
+      </div>
 
       <textarea
         value={popupNotes}
         onChange={(e) => setPopupNotes(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') closeCreatePopup()
+        }}
         placeholder="备注（可选）"
         rows={2}
-        className="w-full px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] mb-3 resize-none"
+        className="mb-3 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       />
 
       <div className="mb-3">
-        <label className="block text-xs text-[var(--color-text-secondary)] mb-1.5">优先级</label>
+        <label className="mb-1.5 block text-xs text-[var(--color-text-secondary)]">优先级</label>
         <div className="flex gap-1.5">
-          {priorityOptions.map((opt) => (
+          {priorityOptions.map((option) => (
             <button
-              key={opt.value}
-              onClick={() => setPopupPriority(opt.value)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${popupPriority === opt.value ? `${opt.color} border-current font-medium bg-[var(--color-bg-secondary)]` : 'text-[var(--color-text-tertiary)] border-[var(--color-border)] hover:border-[var(--color-border)]'}`}
+              type="button"
+              key={option.value}
+              onClick={() => setPopupPriority(option.value)}
+              className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                popupPriority === option.value
+                  ? `${option.color} border-current bg-[var(--color-bg-secondary)] font-medium`
+                  : 'border-[var(--color-border)] text-[var(--color-text-tertiary)] hover:border-[var(--color-border-focus)]'
+              }`}
             >
-              {opt.label}
+              {option.label}
             </button>
           ))}
         </div>
       </div>
 
-      {lists.length > 1 && (
+      {lists.length > 1 ? (
         <div className="mb-3">
-          <label className="block text-xs text-[var(--color-text-secondary)] mb-1.5">清单</label>
+          <label className="mb-1.5 block text-xs text-[var(--color-text-secondary)]">清单</label>
           <select
             value={popupListId || defaultListId}
             onChange={(e) => setPopupListId(Number(e.target.value))}
-            className="w-full px-3 py-1.5 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
           >
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
+            {lists.map((list) => (
+              <option key={list.id} value={list.id}>
+                {list.name}
               </option>
             ))}
           </select>
         </div>
-      )}
+      ) : null}
+
+      {popupError ? (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg bg-[var(--color-danger-light)] px-3 py-2 text-xs text-[var(--color-danger)]"
+        >
+          {popupError}
+        </div>
+      ) : null}
 
       <div className="flex gap-2">
         <button
-          onClick={handlePopupSubmit}
-          className="flex-1 px-3 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors font-medium"
+          type="button"
+          onClick={() => void handlePopupSubmit()}
+          disabled={isSubmitting}
+          className="flex-1 rounded-lg bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          创建任务
+          {isSubmitting ? '创建中…' : '创建任务'}
         </button>
         <button
+          type="button"
           onClick={closeCreatePopup}
-          className="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+          disabled={isSubmitting}
+          className="rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:opacity-60"
         >
           取消
         </button>

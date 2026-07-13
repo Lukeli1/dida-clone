@@ -1,21 +1,20 @@
 // 日历视图间共享的类型定义
 import type { Task } from '../../../types'
 
-/** 在时间范围内创建任务时携带的数据（月/周/日视图通用） */
+/** 在时间范围内创建任务时携带的数据（日/周视图通用） */
 export interface CreateTaskOnRangeData {
-  dateKey: string
+  startDateKey: string
+  startMinute: number
+  endDateKey: string
+  endMinute: number
   title: string
   notes?: string
   priority: number
   listId: number
-  startHour: number
-  startMin: number
-  endHour: number
-  endMin: number
 }
 
-/** 在时间范围内创建任务的回调签名 */
-export type CreateTaskOnRange = (data: CreateTaskOnRangeData) => void
+/** 在时间范围内创建任务；false 表示创建失败并应保留创建表单 */
+export type CreateTaskOnRange = (data: CreateTaskOnRangeData) => boolean | void | Promise<boolean | void>
 
 export interface MoveTaskOptions {
   allDay?: boolean

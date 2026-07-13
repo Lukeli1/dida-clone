@@ -14,7 +14,7 @@ import {
 import { DayViewGrid } from './calendar/DayViewGrid'
 import { useTaskResize } from './calendar/useTaskResize'
 import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
-import type { MoveTask } from './calendar/shared/types'
+import type { CreateTaskOnRange, MoveTask } from './calendar/shared/types'
 
 interface DayViewProps {
   currentDate: Date
@@ -27,17 +27,7 @@ interface DayViewProps {
   onNextDay: () => void
   onToday: () => void
   onMoveTask: MoveTask
-  onCreateTaskOnRange: (data: {
-    dateKey: string
-    title: string
-    notes?: string
-    priority: number
-    listId: number
-    startHour: number
-    startMin: number
-    endHour: number
-    endMin: number
-  }) => void
+  onCreateTaskOnRange: CreateTaskOnRange
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
 }
 
@@ -155,23 +145,21 @@ export function DayView({
   }, [handleGlobalMouseUp])
 
   // 弹窗提交 → 创建任务
-  function handlePopupSubmit() {
+  async function handlePopupSubmit() {
     if (!createPopup) return
     const title = popupTitle.trim()
-    if (title) {
-      onCreateTaskOnRange({
-        dateKey,
-        title,
-        notes: popupNotes.trim() || undefined,
-        priority: popupPriority,
-        listId: popupListId || defaultListId,
-        startHour: createPopup.startHour,
-        startMin: createPopup.startMin,
-        endHour: createPopup.endHour,
-        endMin: createPopup.endMin,
-      })
-    }
-    setCreatePopup(null)
+    if (!title) return
+    const result = await onCreateTaskOnRange({
+      startDateKey: dateKey,
+      startMinute: createPopup.startHour * 60 + createPopup.startMin,
+      endDateKey: dateKey,
+      endMinute: createPopup.endHour * 60 + createPopup.endMin,
+      title,
+      notes: popupNotes.trim() || undefined,
+      priority: popupPriority,
+      listId: popupListId || defaultListId,
+    })
+    if (result !== false) setCreatePopup(null)
   }
 
   function cyclePriority() {

@@ -1,36 +1,76 @@
-// 周视图时间网格的「拖选创建任务」交互逻辑（从 WeekView 提取，行为不变）
-import { useState, useRef, useCallback, useEffect } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 import type { CreateTaskOnRange } from './shared/types'
+import {
+  buildLocalDateTime,
+  canonicalizeDateAndMinute,
+  formatCalendarRangeDuration,
+  formatMinuteOfDay,
+  getCalendarRangeDurationMinutes,
+  getPointerDayAndMinute,
+  normalizeCalendarRange,
+  parseTimeInput,
+  splitCalendarRangeIntoDaySegments,
+  type CalendarRangePoint,
+  type CalendarRangeSegment,
+  type NormalizedCalendarRange,
+} from '../../utils/calendarRangeSelection'
 
 export interface Selection {
-  dateKey: string
-  startMinute: number
-  endMinute: number
+  anchor: CalendarRangePoint
+  focus: CalendarRangePoint
+  range: NormalizedCalendarRange
+  segments: CalendarRangeSegment[]
 }
 
 export interface CreatePopup {
-  dateKey: string
-  startHour: number
-  startMin: number
-  endHour: number
-  endMin: number
-  top: number
-  left: number
+  startDateKey: string
+  startMinute: number
+  endDateKey: string
+  endMinute: number
+  viewportTop: number
+  viewportLeft: number
   isQuickAdd: boolean
 }
 
 interface UseTimeSelectionOpts {
-  columnRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
+  gridRef: RefObject<HTMLDivElement | null>
+  scrollContainerRef: RefObject<HTMLDivElement | null>
+  dateKeys: string[]
   defaultListId: number
   onCreateTaskOnRange: CreateTaskOnRange
-  /** 当前是否处于调整大小状态（调整中禁用时间选择） */
   resizeMode: 'top' | 'bottom' | null
-  /** 每小时占用像素高度 */
   hourHeight: number
 }
 
+function makeSelection(anchor: CalendarRangePoint, focus: CalendarRangePoint, dateKeys: string[]): Selection {
+  const range = normalizeCalendarRange(anchor, focus)
+  return {
+    anchor,
+    focus,
+    range,
+    segments: splitCalendarRangeIntoDaySegments(range, dateKeys),
+  }
+}
+
+function formatRangeEndpoint(dateKey: string, minute: number): string {
+  const date = buildLocalDateTime(dateKey, minute)
+  return format(date, 'EEE HH:mm', { locale: zhCN })
+}
+
 export function useTimeSelection({
-  columnRefs,
+  gridRef,
+  scrollContainerRef,
+  dateKeys,
   defaultListId,
   onCreateTaskOnRange,
   resizeMode,
@@ -42,177 +82,330 @@ export function useTimeSelection({
   const [popupNotes, setPopupNotes] = useState('')
   const [popupPriority, setPopupPriority] = useState(2)
   const [popupListId, setPopupListId] = useState(0)
+  const [popupStartDateKey, setPopupStartDateKey] = useState('')
+  const [popupStartTime, setPopupStartTime] = useState('09:00')
+  const [popupEndDateKey, setPopupEndDateKey] = useState('')
+  const [popupEndTime, setPopupEndTime] = useState('10:00')
+  const [popupError, setPopupError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const popupInputRef = useRef<HTMLInputElement>(null)
 
-  const selectingRef = useRef(false)
-  const selStartRef = useRef<{ dateKey: string; minute: number } | null>(null)
+  const anchorRef = useRef<CalendarRangePoint | null>(null)
+  const activePointerIdRef = useRef<number | null>(null)
+  const autoScrollFrameRef = useRef<number | null>(null)
+  const latestPointerRef = useRef<{ clientX: number; clientY: number } | null>(null)
 
-  function getMinuteFromEvent(e: React.MouseEvent, dateKey: string): number | null {
-    const colEl = columnRefs.current.get(dateKey)
-    if (!colEl) return null
-    const rect = colEl.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    const raw = (y / hourHeight) * 60
-    return Math.max(0, Math.min(24 * 60, Math.round(raw / 15) * 15))
-  }
-
-  const handleTimeMouseDown = useCallback(
-    (e: React.MouseEvent, dateKey: string) => {
-      if (e.button !== 0) return
-      if (resizeMode !== null) return
-      if ((e.target as HTMLElement).closest('[data-task]')) return
-      const minute = getMinuteFromEvent(e, dateKey)
-      if (minute === null) return
-      selectingRef.current = true
-      selStartRef.current = { dateKey, minute }
-      setSelection({ dateKey, startMinute: minute, endMinute: minute })
-      setCreatePopup(null)
+  const getPointFromClient = useCallback(
+    (clientX: number, clientY: number): CalendarRangePoint | null => {
+      const grid = gridRef.current
+      if (!grid) return null
+      return getPointerDayAndMinute(clientX, clientY, grid.getBoundingClientRect(), dateKeys, hourHeight)
     },
-    [resizeMode],
+    [dateKeys, gridRef, hourHeight],
   )
 
-  const handleTimeMouseMove = useCallback((e: React.MouseEvent, dateKey: string) => {
-    if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) return
-    const minute = getMinuteFromEvent(e, dateKey)
-    if (minute === null) return
-    setSelection({
-      dateKey,
-      startMinute: Math.min(selStartRef.current.minute, minute),
-      endMinute: Math.max(selStartRef.current.minute, minute),
-    })
+  const getPointFromPointer = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>): CalendarRangePoint | null => getPointFromClient(e.clientX, e.clientY),
+    [getPointFromClient],
+  )
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollFrameRef.current !== null) cancelAnimationFrame(autoScrollFrameRef.current)
+    autoScrollFrameRef.current = null
+    latestPointerRef.current = null
   }, [])
 
-  const handleTimeMouseUp = useCallback(
-    (e: React.MouseEvent, dateKey: string) => {
-      if (!selectingRef.current || !selStartRef.current || selStartRef.current.dateKey !== dateKey) {
-        selectingRef.current = false
-        return
-      }
-      const minute = getMinuteFromEvent(e, dateKey)
-      if (minute === null) {
-        selectingRef.current = false
-        setSelection(null)
-        return
-      }
-      const startMinute = Math.min(selStartRef.current.minute, minute)
-      const endMinute = Math.max(selStartRef.current.minute, minute)
-      selectingRef.current = false
-      selStartRef.current = null
+  const updateAutoScroll = useCallback(
+    (clientX: number, clientY: number) => {
+      latestPointerRef.current = { clientX, clientY }
+      if (autoScrollFrameRef.current !== null) return
 
-      const colEl = columnRefs.current.get(dateKey)
-      let top = 0
-      let left = 0
-      if (colEl) {
-        top = (startMinute / 60) * hourHeight
-        left = colEl.getBoundingClientRect().width / 2
+      const edgeSize = 56
+      const maxSpeed = 20
+      const getSpeed = (position: number, start: number, end: number) => {
+        if (position < start + edgeSize) {
+          return -Math.ceil(((start + edgeSize - position) / edgeSize) * maxSpeed)
+        }
+        if (position > end - edgeSize) {
+          return Math.ceil(((position - (end - edgeSize)) / edgeSize) * maxSpeed)
+        }
+        return 0
       }
 
-      // 短按（< 15分钟）→ 快速添加弹窗（默认1小时）
-      if (endMinute - startMinute < 15) {
-        const quickStart = startMinute
-        const quickEnd = Math.min(startMinute + 60, 24 * 60)
-        setSelection(null)
-        setCreatePopup({
-          dateKey,
-          startHour: Math.floor(quickStart / 60),
-          startMin: quickStart % 60,
-          endHour: Math.floor(quickEnd / 60),
-          endMin: quickEnd % 60,
-          top,
-          left,
-          isQuickAdd: true,
-        })
-        setPopupTitle('')
-        setPopupNotes('')
-        setPopupPriority(2)
-        setPopupListId(defaultListId)
-        setTimeout(() => popupInputRef.current?.focus(), 50)
-        return
+      const tick = () => {
+        const pointer = latestPointerRef.current
+        const container = scrollContainerRef.current
+        if (!pointer || !container || !anchorRef.current || activePointerIdRef.current === null) {
+          stopAutoScroll()
+          return
+        }
+
+        const rect = container.getBoundingClientRect()
+        const scrollX = getSpeed(pointer.clientX, rect.left, rect.right)
+        const scrollY = getSpeed(pointer.clientY, rect.top, rect.bottom)
+        if (scrollX === 0 && scrollY === 0) {
+          autoScrollFrameRef.current = null
+          return
+        }
+
+        container.scrollBy({ left: scrollX, top: scrollY, behavior: 'auto' })
+        const point = getPointFromClient(pointer.clientX, pointer.clientY)
+        if (point && anchorRef.current) setSelection(makeSelection(anchorRef.current, point, dateKeys))
+        autoScrollFrameRef.current = requestAnimationFrame(tick)
       }
 
-      // 拖选 → 详细弹窗
-      setSelection(null)
-      setCreatePopup({
-        dateKey,
-        startHour: Math.floor(startMinute / 60),
-        startMin: startMinute % 60,
-        endHour: Math.floor(endMinute / 60),
-        endMin: endMinute % 60,
-        top,
-        left,
-        isQuickAdd: false,
-      })
+      autoScrollFrameRef.current = requestAnimationFrame(tick)
+    },
+    [dateKeys, getPointFromClient, scrollContainerRef, stopAutoScroll],
+  )
+
+  const resetForm = useCallback(
+    (popup: CreatePopup) => {
+      const canonicalStart = canonicalizeDateAndMinute(popup.startDateKey, popup.startMinute)
+      const canonicalEnd = canonicalizeDateAndMinute(popup.endDateKey, popup.endMinute)
       setPopupTitle('')
       setPopupNotes('')
       setPopupPriority(2)
       setPopupListId(defaultListId)
+      setPopupStartDateKey(canonicalStart.dateKey)
+      setPopupStartTime(formatMinuteOfDay(canonicalStart.minute))
+      setPopupEndDateKey(canonicalEnd.dateKey)
+      setPopupEndTime(formatMinuteOfDay(canonicalEnd.minute))
+      setPopupError(null)
+      setIsSubmitting(false)
       setTimeout(() => popupInputRef.current?.focus(), 50)
     },
     [defaultListId],
   )
 
-  const handleGlobalMouseUp = useCallback(() => {
-    if (selectingRef.current) {
-      selectingRef.current = false
-      selStartRef.current = null
+  const finishSelection = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>, focus: CalendarRangePoint) => {
+      const anchor = anchorRef.current
+      if (!anchor) return
+      const nextSelection = makeSelection(anchor, focus, dateKeys)
+      const range = nextSelection.range
+      const duration = getCalendarRangeDurationMinutes(
+        range.startDateKey,
+        range.startMinute,
+        range.endDateKey,
+        range.endMinute,
+      )
+
+      let popup: CreatePopup
+      if (duration < 15) {
+        const end = buildLocalDateTime(range.startDateKey, range.startMinute + 60)
+        popup = {
+          startDateKey: range.startDateKey,
+          startMinute: range.startMinute,
+          endDateKey: format(end, 'yyyy-MM-dd'),
+          endMinute: end.getHours() * 60 + end.getMinutes(),
+          viewportTop: e.clientY + 8,
+          viewportLeft: e.clientX + 8,
+          isQuickAdd: true,
+        }
+      } else {
+        popup = {
+          startDateKey: range.startDateKey,
+          startMinute: range.startMinute,
+          endDateKey: range.endDateKey,
+          endMinute: range.endMinute,
+          viewportTop: e.clientY + 8,
+          viewportLeft: e.clientX + 8,
+          isQuickAdd: false,
+        }
+      }
+
       setSelection(null)
+      setCreatePopup(popup)
+      resetForm(popup)
+    },
+    [dateKeys, resetForm],
+  )
+
+  const releasePointerCapture = useCallback((target: HTMLDivElement, pointerId: number) => {
+    try {
+      if (target.hasPointerCapture?.(pointerId)) target.releasePointerCapture(pointerId)
+    } catch {
+      // Pointer 已由浏览器释放时无需额外处理。
     }
   }, [])
 
-  useEffect(() => {
-    window.addEventListener('mouseup', handleGlobalMouseUp)
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
-  }, [handleGlobalMouseUp])
+  const handleTimePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || e.isPrimary === false) return
+      if (e.pointerType === 'touch') return
+      if (resizeMode !== null) return
+      const target = e.target as HTMLElement
+      if (target.closest('[data-task], [data-resize-handle], [data-calendar-popup]')) return
+      const point = getPointFromPointer(e)
+      if (!point) return
 
-  function handlePopupSubmit() {
-    if (!createPopup) return
+      e.preventDefault()
+      activePointerIdRef.current = e.pointerId
+      latestPointerRef.current = { clientX: e.clientX, clientY: e.clientY }
+      anchorRef.current = point
+      setSelection(makeSelection(point, point, dateKeys))
+      setCreatePopup(null)
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    },
+    [dateKeys, getPointFromPointer, resizeMode],
+  )
+
+  const handleTimePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (activePointerIdRef.current !== e.pointerId || !anchorRef.current) return
+      const point = getPointFromPointer(e)
+      if (!point) return
+      e.preventDefault()
+      setSelection(makeSelection(anchorRef.current, point, dateKeys))
+      updateAutoScroll(e.clientX, e.clientY)
+    },
+    [dateKeys, getPointFromPointer, updateAutoScroll],
+  )
+
+  const handleTimePointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (activePointerIdRef.current !== e.pointerId || !anchorRef.current) return
+      const point = getPointFromPointer(e) ?? anchorRef.current
+      stopAutoScroll()
+      finishSelection(e, point)
+      releasePointerCapture(e.currentTarget, e.pointerId)
+      activePointerIdRef.current = null
+      anchorRef.current = null
+    },
+    [finishSelection, getPointFromPointer, releasePointerCapture, stopAutoScroll],
+  )
+
+  const cancelSelection = useCallback(() => {
+    stopAutoScroll()
+    activePointerIdRef.current = null
+    anchorRef.current = null
+    setSelection(null)
+  }, [stopAutoScroll])
+
+  const handleTimePointerCancel = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (activePointerIdRef.current !== e.pointerId) return
+      releasePointerCapture(e.currentTarget, e.pointerId)
+      cancelSelection()
+    },
+    [cancelSelection, releasePointerCapture],
+  )
+
+  useEffect(() => {
+    window.addEventListener('blur', cancelSelection)
+    return () => {
+      window.removeEventListener('blur', cancelSelection)
+      stopAutoScroll()
+    }
+  }, [cancelSelection, stopAutoScroll])
+
+  const selectionSummary = useMemo(() => {
+    if (!selection) return null
+    const { range } = selection
+    const duration = getCalendarRangeDurationMinutes(
+      range.startDateKey,
+      range.startMinute,
+      range.endDateKey,
+      range.endMinute,
+    )
+    return {
+      label: `${formatRangeEndpoint(range.startDateKey, range.startMinute)} → ${formatRangeEndpoint(
+        range.endDateKey,
+        range.endMinute,
+      )}`,
+      durationLabel: `持续 ${formatCalendarRangeDuration(duration)}`,
+    }
+  }, [selection])
+
+  async function handlePopupSubmit() {
+    if (!createPopup || isSubmitting) return
     const title = popupTitle.trim()
-    if (title) {
-      onCreateTaskOnRange({
-        dateKey: createPopup.dateKey,
+    const startMinute = parseTimeInput(popupStartTime)
+    const endMinute = parseTimeInput(popupEndTime)
+
+    if (!title) {
+      setPopupError('请输入任务标题')
+      return
+    }
+    if (!popupStartDateKey || !popupEndDateKey || startMinute === null || endMinute === null) {
+      setPopupError('请输入有效的开始和结束日期时间')
+      return
+    }
+
+    const start = buildLocalDateTime(popupStartDateKey, startMinute)
+    const end = buildLocalDateTime(popupEndDateKey, endMinute)
+    if (end.getTime() <= start.getTime()) {
+      setPopupError('结束时间必须晚于开始时间')
+      return
+    }
+
+    setPopupError(null)
+    setIsSubmitting(true)
+    try {
+      const result = await onCreateTaskOnRange({
+        startDateKey: popupStartDateKey,
+        startMinute,
+        endDateKey: popupEndDateKey,
+        endMinute,
         title,
         notes: popupNotes.trim() || undefined,
         priority: popupPriority,
         listId: popupListId || defaultListId,
-        startHour: createPopup.startHour,
-        startMin: createPopup.startMin,
-        endHour: createPopup.endHour,
-        endMin: createPopup.endMin,
       })
+      if (result === false) {
+        setPopupError('创建失败，请检查任务信息后重试')
+        return
+      }
+      closeCreatePopup()
+    } catch {
+      setPopupError('创建失败，请稍后重试')
+    } finally {
+      setIsSubmitting(false)
     }
-    setCreatePopup(null)
   }
 
-  // 快速添加：优先级循环 0→1→2→3→0
   function cyclePriority() {
-    setPopupPriority((p) => (p + 1) % 4)
+    setPopupPriority((priority) => (priority + 1) % 4)
   }
 
-  function formatMinute(m: number) {
-    const h = Math.floor(m / 60)
-    const min = m % 60
-    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+  function closeCreatePopup() {
+    setCreatePopup(null)
+    setPopupError(null)
+    setIsSubmitting(false)
   }
 
   return {
     selection,
+    selectionSummary,
     createPopup,
     popupTitle,
     popupNotes,
     popupPriority,
     popupListId,
+    popupStartDateKey,
+    popupStartTime,
+    popupEndDateKey,
+    popupEndTime,
+    popupError,
+    isSubmitting,
     popupInputRef,
     setPopupTitle,
     setPopupNotes,
     setPopupPriority,
     setPopupListId,
-    closeCreatePopup: () => setCreatePopup(null),
-    handleTimeMouseDown,
-    handleTimeMouseMove,
-    handleTimeMouseUp,
+    setPopupStartDateKey,
+    setPopupStartTime,
+    setPopupEndDateKey,
+    setPopupEndTime,
+    handleTimePointerDown,
+    handleTimePointerMove,
+    handleTimePointerUp,
+    handleTimePointerCancel,
     handlePopupSubmit,
     cyclePriority,
-    formatMinute,
+    closeCreatePopup,
+    formatMinute: formatMinuteOfDay,
   }
 }
 

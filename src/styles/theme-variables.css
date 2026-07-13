@@ -25,6 +25,12 @@
   --color-accent-text: #1a5fd1;
   --color-accent-soft: rgba(79, 134, 247, 0.08);
 
+  /* 日历时间范围拖选 */
+  --color-calendar-selection-bg: rgba(79, 134, 247, 0.2);
+  --color-calendar-selection-border: #3a75e6;
+  --color-calendar-selection-text: #1a5fd1;
+  --color-calendar-selection-handle: #2563eb;
+
   /* 语义色 - 更柔和 */
   --color-success: #34a853;
   --color-success-light: #e6f4ea;
@@ -106,6 +112,12 @@
   --color-accent-light: rgba(92, 156, 252, 0.15);
   --color-accent-text: #8abbfd;
   --color-accent-soft: rgba(92, 156, 252, 0.1);
+
+  /* 日历时间范围拖选 */
+  --color-calendar-selection-bg: rgba(92, 156, 252, 0.24);
+  --color-calendar-selection-border: #7aadfd;
+  --color-calendar-selection-text: #d9e9ff;
+  --color-calendar-selection-handle: #8abbfd;
 
   /* 语义色 */
   --color-success: #5bb974;

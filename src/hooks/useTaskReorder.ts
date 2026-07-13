@@ -4,6 +4,8 @@ import { useTaskStore } from '../stores/taskStore'
 import { useListStore } from '../stores/listStore'
 import { useUIStore } from '../stores/uiStore'
 import type { ToastApi } from '../components/Toast'
+import type { CreateTaskOnRangeData } from '../components/calendar/shared/types'
+import { buildLocalDateTime } from '../utils/calendarRangeSelection'
 
 /**
  * 拖拽排序/移动/日历投放
@@ -36,7 +38,9 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   async function handleDropToCalendarDate(taskId: number, dateKey: string) {
     const [year, month, day] = dateKey.split('-').map(Number)
     const dueDate = new Date(year, month - 1, day, 9, 0)
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: dueDate.toISOString(), all_day: false })
+    const success = await useTaskStore
+      .getState()
+      .updateTask(taskId, { due_date: dueDate.toISOString(), all_day: false })
     if (success) toast.success(`已设置截止日期为 ${month}月${day}日`)
     else toast.error('设置截止日期失败')
   }
@@ -75,22 +79,14 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
     }
   }
 
-  async function handleCreateTaskOnRange(data: {
-    dateKey: string
-    title: string
-    notes?: string
-    priority: number
-    listId: number
-    startHour: number
-    startMin: number
-    endHour: number
-    endMin: number
-  }) {
+  async function handleCreateTaskOnRange(data: CreateTaskOnRangeData): Promise<boolean> {
     try {
-      const [year, month, day] = data.dateKey.split('-').map(Number)
-      const dueDate = new Date(year, month - 1, day, data.startHour, data.startMin)
-      const endDate = new Date(year, month - 1, day, data.endHour, data.endMin)
-      const reminder = new Date(year, month - 1, day, data.startHour, data.startMin)
+      const dueDate = buildLocalDateTime(data.startDateKey, data.startMinute)
+      const endDate = buildLocalDateTime(data.endDateKey, data.endMinute)
+      if (endDate.getTime() <= dueDate.getTime()) {
+        toast.error('结束时间必须晚于开始时间')
+        return false
+      }
       const newTask = await useTaskStore.getState().createTask({
         title: data.title,
         notes: data.notes,
@@ -99,20 +95,21 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
         due_date: dueDate.toISOString(),
         end_date: endDate.toISOString(),
         all_day: false,
-        reminder: reminder.toISOString(),
+        reminder: dueDate.toISOString(),
       })
       if (newTask) {
         useUIStore.getState().setSelectedTaskId(newTask.id)
         toast.success('任务已创建')
-      } else {
-        toast.error('创建任务失败')
+        return true
       }
+      toast.error('创建任务失败')
+      return false
     } catch {
       toast.error('创建任务失败')
+      return false
     }
   }
 
-  // 稳定引用：所有 handler 使用 getState() 模式，不依赖响应式状态
   return useMemo(
     () => ({
       handleReorderTasks,
