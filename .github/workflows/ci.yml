@@ -1,10 +1,10 @@
+# CI 已关闭自动触发（个人使用场景，避免每次 push 刷失败邮件）。
+# 如需临时跑一遍，可在 GitHub Actions 页面手动 Run workflow。
+# 若要恢复自动检查，把下面 on 改回 push/pull_request 即可。
 name: CI
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   # ============ 前端：ESLint + Prettier + tsc + test + build ============
