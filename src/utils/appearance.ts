@@ -1,70 +1,78 @@
+import { STORAGE_KEYS } from '../config/localStorageKeys'
 import { getItem, setItem } from './storage'
-// 外观设置：字体大小、侧边栏密度
 
 export type FontSizeLevel = 'normal' | 'large' | 'xlarge'
 export type SidebarDensity = 'compact' | 'comfortable' | 'spacious'
 
 export interface AppearanceSetting {
   fontSize: FontSizeLevel
+  /** 历史字段名保留兼容；v1.45 起同时控制侧边栏与高频任务行密度。 */
   sidebarDensity: SidebarDensity
 }
 
-// 字体大小 -> CSS zoom 映射
 const FONT_SIZE_ZOOM: Record<FontSizeLevel, number> = {
-  normal: 1.0,
+  normal: 1,
   large: 1.15,
   xlarge: 1.3,
 }
 
-// 侧边栏密度 -> 纵向内边距映射
-const SIDEBAR_PY: Record<SidebarDensity, string> = {
-  compact: '4px',
-  comfortable: '8px',
-  spacious: '12px',
+const DENSITY_CONFIG: Record<
+  SidebarDensity,
+  { sidebarPy: string; taskItemPy: string; taskItemGap: string; settingsRowPy: string }
+> = {
+  compact: { sidebarPy: '4px', taskItemPy: '9px', taskItemGap: '8px', settingsRowPy: '10px' },
+  comfortable: { sidebarPy: '8px', taskItemPy: '14px', taskItemGap: '12px', settingsRowPy: '14px' },
+  spacious: { sidebarPy: '12px', taskItemPy: '18px', taskItemGap: '14px', settingsRowPy: '18px' },
 }
-
-const STORAGE_KEY = 'appAppearance'
 
 export const DEFAULT_APPEARANCE: AppearanceSetting = {
   fontSize: 'normal',
   sidebarDensity: 'comfortable',
 }
 
-// 从 localStorage 读取
+function isFontSizeLevel(value: unknown): value is FontSizeLevel {
+  return value === 'normal' || value === 'large' || value === 'xlarge'
+}
+
+function isDensity(value: unknown): value is SidebarDensity {
+  return value === 'compact' || value === 'comfortable' || value === 'spacious'
+}
+
 export function getAppearance(): AppearanceSetting {
   try {
-    const raw = getItem(STORAGE_KEY)
+    const raw = getItem(STORAGE_KEYS.appAppearance) ?? getItem('appAppearance')
     if (!raw) return DEFAULT_APPEARANCE
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(raw) as Partial<AppearanceSetting>
     return {
-      fontSize: parsed.fontSize || 'normal',
-      sidebarDensity: parsed.sidebarDensity || 'comfortable',
+      fontSize: isFontSizeLevel(parsed.fontSize) ? parsed.fontSize : DEFAULT_APPEARANCE.fontSize,
+      sidebarDensity: isDensity(parsed.sidebarDensity) ? parsed.sidebarDensity : DEFAULT_APPEARANCE.sidebarDensity,
     }
   } catch {
     return DEFAULT_APPEARANCE
   }
 }
 
-// 写入 localStorage
 export function saveAppearance(setting: AppearanceSetting): void {
-  setItem(STORAGE_KEY, JSON.stringify(setting))
+  setItem(STORAGE_KEYS.appAppearance, JSON.stringify(setting))
 }
 
-// 应用字体大小（通过 CSS zoom 全局缩放）
 export function applyFontSize(level: FontSizeLevel): void {
-  document.documentElement.style.setProperty('--app-zoom', String(FONT_SIZE_ZOOM[level]))
+  const zoom = FONT_SIZE_ZOOM[level] ?? FONT_SIZE_ZOOM.normal
+  document.documentElement.style.setProperty('--app-zoom', String(zoom))
   const container = document.getElementById('root')
-  if (container) {
-    container.style.zoom = String(FONT_SIZE_ZOOM[level])
-  }
+  if (container) container.style.zoom = String(zoom)
 }
 
-// 应用侧边栏密度
 export function applySidebarDensity(density: SidebarDensity): void {
-  document.documentElement.style.setProperty('--sidebar-py', SIDEBAR_PY[density])
+  const selected = DENSITY_CONFIG[density] ?? DENSITY_CONFIG.comfortable
+  const root = document.documentElement
+  root.style.setProperty('--sidebar-py', selected.sidebarPy)
+  root.style.setProperty('--task-item-py', selected.taskItemPy)
+  root.style.setProperty('--task-item-gap', selected.taskItemGap)
+  root.style.setProperty('--settings-row-py', selected.settingsRowPy)
+  root.dataset.uiDensity = density in DENSITY_CONFIG ? density : 'comfortable'
 }
 
-// 应用全部外观设置
 export function applyAppearance(setting: AppearanceSetting): void {
   applyFontSize(setting.fontSize)
   applySidebarDensity(setting.sidebarDensity)

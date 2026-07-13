@@ -1,102 +1,89 @@
-import { getItem, setItem } from '../utils/storage'
-// 主题持久化 hook：统一管理模式（浅色/深色/系统）+ 预设 + 强调色
-
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
-  applyThemePreset,
-  applyAccentColor,
-  savePresetId,
-  saveAccentColor,
+  DEFAULT_CORNER_STYLE,
+  DEFAULT_PRESET_ID,
+  getThemePreset,
+  type CornerStyle,
+  type ThemeMode,
+} from '../styles/themes'
+import {
+  applyThemeConfiguration,
   clearThemeOverride,
+  getCurrentTheme,
+  isValidHexColor,
+  resolveThemeMode,
+  saveAccentColor,
+  saveCornerStyle,
+  savePresetId,
+  saveThemeMode,
+  type ThemeConfiguration,
 } from '../utils/themeUtils'
-import { DEFAULT_PRESET_ID } from '../styles/themes'
 
-export type ThemeMode = 'light' | 'dark' | 'system'
+export type { ThemeMode }
 
-export interface ThemeState {
-  mode: ThemeMode
-  presetId: string
-  accentColor: string | null
-}
-
-const STORAGE_MODE = 'theme'
-const STORAGE_PRESET = 'theme_preset'
-const STORAGE_ACCENT = 'theme_accent'
-
-/** 应用深色模式 class */
-function applyDarkClass(mode: ThemeMode): void {
-  const root = document.documentElement
-  if (mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    root.classList.add('dark')
-  } else {
-    root.classList.remove('dark')
-  }
+function getSystemPrefersDark(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export function useTheme() {
-  const [mode, setModeState] = useState<ThemeMode>(() => {
-    return (getItem(STORAGE_MODE) as ThemeMode) || 'system'
-  })
-  const [presetId, setPresetIdState] = useState<string>(() => {
-    return getItem(STORAGE_PRESET) || DEFAULT_PRESET_ID
-  })
-  const [accentColor, setAccentColorState] = useState<string | null>(() => {
-    return getItem(STORAGE_ACCENT)
-  })
+  const [configuration, setConfiguration] = useState<ThemeConfiguration>(() => getCurrentTheme())
+  const [systemPrefersDark, setSystemPrefersDark] = useState(getSystemPrefersDark)
+  const resolvedMode = resolveThemeMode(configuration.mode, systemPrefersDark)
 
-  // 监听系统主题变化（system 模式下自动切换）
+  useEffect(() => {
+    applyThemeConfiguration(configuration, systemPrefersDark)
+  }, [configuration, systemPrefersDark])
+
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-
-    function handleChange() {
-      if (mode === 'system') {
-        applyDarkClass('system')
-      }
-    }
-
+    const handleChange = (event: MediaQueryListEvent) => setSystemPrefersDark(event.matches)
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [mode])
-
-  const setMode = useCallback((newMode: ThemeMode) => {
-    setModeState(newMode)
-    setItem(STORAGE_MODE, newMode)
-    applyDarkClass(newMode)
   }, [])
 
-  const setPreset = useCallback((newPresetId: string) => {
-    setPresetIdState(newPresetId)
-    savePresetId(newPresetId)
-    // 选择预设主题时清除自定义强调色
-    setAccentColorState(null)
+  const setMode = useCallback((mode: ThemeMode) => {
+    saveThemeMode(mode)
+    setConfiguration((current) => ({ ...current, mode }))
+  }, [])
+
+  const setPreset = useCallback((presetId: string) => {
+    const normalizedPresetId = getThemePreset(presetId).id
+    savePresetId(normalizedPresetId)
     saveAccentColor(null)
-    applyThemePreset(newPresetId)
+    setConfiguration((current) => ({ ...current, presetId: normalizedPresetId, accentColor: null }))
   }, [])
 
-  const setAccentColor = useCallback((color: string | null) => {
-    setAccentColorState(color)
-    saveAccentColor(color)
-    if (color) {
-      applyAccentColor(color)
-    }
+  const setAccentColor = useCallback((accentColor: string | null) => {
+    const normalizedAccent = isValidHexColor(accentColor) ? accentColor.toLowerCase() : null
+    saveAccentColor(normalizedAccent)
+    setConfiguration((current) => ({ ...current, accentColor: normalizedAccent }))
+  }, [])
+
+  const setCornerStyle = useCallback((cornerStyle: CornerStyle) => {
+    saveCornerStyle(cornerStyle)
+    setConfiguration((current) => ({ ...current, cornerStyle }))
   }, [])
 
   const resetTheme = useCallback(() => {
-    setPresetIdState(DEFAULT_PRESET_ID)
-    setAccentColorState(null)
+    clearThemeOverride()
     savePresetId(DEFAULT_PRESET_ID)
     saveAccentColor(null)
-    clearThemeOverride()
-    applyThemePreset(DEFAULT_PRESET_ID)
+    saveCornerStyle(DEFAULT_CORNER_STYLE)
+    setConfiguration((current) => ({
+      ...current,
+      presetId: DEFAULT_PRESET_ID,
+      accentColor: null,
+      cornerStyle: DEFAULT_CORNER_STYLE,
+    }))
   }, [])
 
   return {
-    mode,
-    presetId,
-    accentColor,
+    ...configuration,
+    resolvedMode,
     setMode,
     setPreset,
     setAccentColor,
+    setCornerStyle,
     resetTheme,
   }
 }

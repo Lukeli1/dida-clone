@@ -705,7 +705,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                           <div
                             key={h.id}
                             data-task-item
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                            className="task-item-surface flex items-center px-3 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
                             onClick={() => handleHabitCheck(h.id, h.todayCount, h.target_count)}
                           >
                             <span className="text-lg flex-shrink-0">{h.icon}</span>

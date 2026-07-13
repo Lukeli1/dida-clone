@@ -15,7 +15,18 @@ import { FontPanel } from './appearance/FontPanel'
 import { DensityPanel } from './appearance/DensityPanel'
 
 export function AppearancePanel() {
-  const { mode: theme, presetId, accentColor, setMode: setTheme, setPreset, setAccentColor, resetTheme } = useTheme()
+  const {
+    mode: theme,
+    resolvedMode,
+    presetId,
+    accentColor,
+    cornerStyle,
+    setMode: setTheme,
+    setPreset,
+    setAccentColor,
+    setCornerStyle,
+    resetTheme,
+  } = useTheme()
   const confirm = useConfirm()
 
   // 字体设置
@@ -76,11 +87,17 @@ export function AppearancePanel() {
   async function handleResetTheme() {
     const ok = await confirm({
       title: '重置为默认',
-      message: '确定要将主题和强调色重置为默认设置吗？',
+      message: '确定要将配色、强调色、圆角和界面密度恢复为默认设置吗？',
       confirmText: '重置',
       cancelText: '取消',
     })
-    if (ok) resetTheme()
+    if (ok) {
+      resetTheme()
+      const next = { ...appearance, sidebarDensity: 'comfortable' as const }
+      setAppearance(next)
+      saveAppearance(next)
+      applyAppearance(next)
+    }
   }
 
   return (
@@ -98,10 +115,13 @@ export function AppearancePanel() {
           theme={theme}
           presetId={presetId}
           accentColor={accentColor}
+          resolvedMode={resolvedMode}
+          cornerStyle={cornerStyle}
           onSidebarDensityChange={handleSidebarDensityChange}
           onThemeChange={setTheme}
           onPresetChange={setPreset}
           onAccentColorChange={setAccentColor}
+          onCornerStyleChange={setCornerStyle}
           onResetTheme={handleResetTheme}
         />
       </div>

@@ -9,6 +9,9 @@
   --app-font-family:
     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --sidebar-py: 8px;
+  --task-item-py: 14px;
+  --task-item-gap: 12px;
+  --settings-row-py: 14px;
 
   /* 精致阴影层级 */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -34,6 +37,48 @@
 .sidebar-nav-item {
   padding-top: var(--sidebar-py, 8px);
   padding-bottom: var(--sidebar-py, 8px);
+}
+
+.task-item-surface {
+  gap: var(--task-item-gap, 12px);
+  padding-top: var(--task-item-py, 14px);
+  padding-bottom: var(--task-item-py, 14px);
+}
+
+.settings-density-row {
+  padding-top: var(--settings-row-py, 14px);
+  padding-bottom: var(--settings-row-py, 14px);
+}
+
+/* 强调色背景按钮自动使用可读文字，兼容浅黄等高亮度自定义色。 */
+.bg-\[var\(--color-accent\)\].text-white {
+  color: var(--color-accent-contrast) !important;
+}
+
+/* Tailwind 圆角工具统一映射到主题变量，使圆角风格可全局切换。 */
+.rounded-sm {
+  border-radius: var(--radius-sm) !important;
+}
+.rounded,
+.rounded-md {
+  border-radius: var(--radius-md) !important;
+}
+.rounded-lg {
+  border-radius: var(--radius-lg) !important;
+}
+.rounded-xl {
+  border-radius: var(--radius-xl) !important;
+}
+.rounded-2xl {
+  border-radius: calc(var(--radius-xl) + 4px) !important;
+}
+.rounded-t-xl {
+  border-top-left-radius: var(--radius-xl) !important;
+  border-top-right-radius: var(--radius-xl) !important;
+}
+.rounded-b-xl {
+  border-bottom-left-radius: var(--radius-xl) !important;
+  border-bottom-right-radius: var(--radius-xl) !important;
 }
 
 /* ============ 全局过渡优化 ============ */

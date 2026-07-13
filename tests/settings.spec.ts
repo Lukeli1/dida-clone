@@ -86,3 +86,99 @@ test('折叠侧边栏后隐藏入口的图标也不出现', async ({ page }) => 
   const fullStats = page.getByTestId('nav-stats')
   await expect(fullStats.or(collapsedStats)).toHaveCount(0)
 })
+test('完整主题可切换、持久化并应用深浅色变量', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-settings').click()
+  await expect(page.getByTestId('theme-preset-default')).toBeVisible({ timeout: 10000 })
+  await expect(page.locator('[data-testid^="theme-preset-"]:not([data-testid="theme-preset-grid"])')).toHaveCount(10)
+
+  await page.getByTestId('theme-preset-ocean').click()
+  await page.getByTestId('theme-mode-dark').click()
+  await page.getByTestId('corner-style-soft').click()
+  await page.getByTestId('ui-density-compact').click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        dark: document.documentElement.classList.contains('dark'),
+        preset: document.documentElement.dataset.themePreset,
+        corner: document.documentElement.dataset.cornerStyle,
+        density: document.documentElement.dataset.uiDensity,
+        background: document.documentElement.style.getPropertyValue('--color-bg'),
+        surface: document.documentElement.style.getPropertyValue('--color-surface'),
+      })),
+    )
+    .toEqual({
+      dark: true,
+      preset: 'ocean',
+      corner: 'soft',
+      density: 'compact',
+      background: '#091719',
+      surface: '#12292c',
+    })
+
+  await page.reload()
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        preset: localStorage.getItem('dida:theme_preset'),
+        mode: localStorage.getItem('dida:theme'),
+        corner: localStorage.getItem('dida:theme_corner_style'),
+        density: JSON.parse(localStorage.getItem('dida:appAppearance') || '{}').sidebarDensity,
+        appliedPreset: document.documentElement.dataset.themePreset,
+      })),
+    )
+    .toEqual({ preset: 'ocean', mode: 'dark', corner: 'soft', density: 'compact', appliedPreset: 'ocean' })
+})
+
+test('自定义强调色自动选择可读按钮文字', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-settings').click()
+  const picker = page.getByTestId('theme-accent-picker')
+  await expect(picker).toBeVisible({ timeout: 10000 })
+  await picker.evaluate((element) => {
+    const input = element as HTMLInputElement
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    nativeSetter?.call(input, '#facc15')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        accent: document.documentElement.style.getPropertyValue('--color-accent'),
+        contrast: document.documentElement.style.getPropertyValue('--color-accent-contrast'),
+        stored: localStorage.getItem('dida:theme_accent'),
+      })),
+    )
+    .toEqual({ accent: '#facc15', contrast: '#000000', stored: '#facc15' })
+
+  await page.getByText('关于', { exact: true }).first().click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const button = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
+          (element) =>
+            element.classList.contains('bg-[var(--color-accent)]') && element.classList.contains('text-white'),
+        )
+        return button ? getComputedStyle(button).color : null
+      }),
+    )
+    .toBe('rgb(0, 0, 0)')
+})
+test('窄窗口主题预览可纵向浏览且不横向溢出', async ({ page }) => {
+  await page.setViewportSize({ width: 520, height: 760 })
+  await page.goto('/')
+  await page.getByRole('button', { name: '打开侧边栏' }).click()
+  await page.getByTestId('nav-settings').click()
+  const grid = page.getByTestId('theme-preset-grid')
+  await expect(grid).toBeVisible({ timeout: 10000 })
+  await expect(page.locator('[data-testid^="theme-preset-"]:not([data-testid="theme-preset-grid"])')).toHaveCount(10)
+  expect(
+    await grid.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth })),
+  ).toMatchObject({ clientWidth: expect.any(Number), scrollWidth: expect.any(Number) })
+  expect(await grid.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  await page.getByTestId('theme-preset-midnight').click()
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.themePreset)).toBe('midnight')
+})

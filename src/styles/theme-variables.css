@@ -23,6 +23,7 @@
   --color-accent-hover: #3a75e6;
   --color-accent-light: #e8f0fe;
   --color-accent-text: #1a5fd1;
+  --color-accent-contrast: #ffffff;
   --color-accent-soft: rgba(79, 134, 247, 0.08);
 
   /* 日历时间范围拖选 */
@@ -111,6 +112,7 @@
   --color-accent-hover: #7aadfd;
   --color-accent-light: rgba(92, 156, 252, 0.15);
   --color-accent-text: #8abbfd;
+  --color-accent-contrast: #0f1115;
   --color-accent-soft: rgba(92, 156, 252, 0.1);
 
   /* 日历时间范围拖选 */

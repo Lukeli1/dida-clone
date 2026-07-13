@@ -28,6 +28,8 @@ export const STORAGE_KEYS = {
   themePreset: `${PREFIX}theme_preset`,
   /** 自定义强调色 */
   themeAccent: `${PREFIX}theme_accent`,
+  /** 主题圆角风格 */
+  themeCornerStyle: `${PREFIX}theme_corner_style`,
   /** 大模型 Base URL */
   llmBaseUrl: `${PREFIX}llm_base_url`,
   /** 大模型 API Key */
@@ -85,6 +87,7 @@ const MIGRATION_MAP: ReadonlyArray<readonly [string, string]> = [
   ['theme', STORAGE_KEYS.theme],
   ['theme_preset', STORAGE_KEYS.themePreset],
   ['theme_accent', STORAGE_KEYS.themeAccent],
+  ['theme_corner_style', STORAGE_KEYS.themeCornerStyle],
   ['llm_base_url', STORAGE_KEYS.llmBaseUrl],
   ['llm_api_key', STORAGE_KEYS.llmApiKey],
   ['llm_model', STORAGE_KEYS.llmModel],

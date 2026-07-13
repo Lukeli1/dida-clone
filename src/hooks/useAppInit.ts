@@ -9,7 +9,7 @@ import { useUIStore } from '../stores/uiStore'
 import { getFontSetting, applyFont } from '../utils/font'
 import { getAppearance, applyAppearance } from '../utils/appearance'
 import { migrateHabits, cleanupOldHabitBackup } from '../utils/migrateHabits'
-import { applyThemePreset, applyAccentColor, getCurrentTheme } from '../utils/themeUtils'
+import { applyThemeConfiguration, getCurrentTheme } from '../utils/themeUtils'
 import { logError } from '../utils/errorLogger'
 import { measureAsync } from '../utils/perfMonitor'
 import { checkNotificationPermission, requestNotificationPermission } from '../utils/notification'
@@ -54,23 +54,15 @@ export function useAppInit(toast: ToastApi) {
     // 习惯与模板数据由 HabitView / TemplateView 在视图挂载时按需加载，天然不阻塞首屏渲染；
     // 当前不存在 habitStore / templateStore，遵循“方法不存在则跳过”原则，不在此预加载。
 
-    const savedTheme = (getItem('theme') as 'light' | 'dark' | 'system') || 'system'
-    const root = document.documentElement
-    if (
-      savedTheme === 'dark' ||
-      (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
+    const themeConfiguration = getCurrentTheme()
+    applyThemeConfiguration(themeConfiguration)
 
-    // 恢复主题预设与自定义强调色
-    const { presetId, accentColor } = getCurrentTheme()
-    applyThemePreset(presetId)
-    if (accentColor) {
-      applyAccentColor(accentColor)
+    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleSystemThemeChange = () => {
+      const currentTheme = getCurrentTheme()
+      if (currentTheme.mode === 'system') applyThemeConfiguration(currentTheme, systemThemeQuery.matches)
     }
+    systemThemeQuery.addEventListener('change', handleSystemThemeChange)
 
     applyFont(getFontSetting())
     applyAppearance(getAppearance())
@@ -79,6 +71,8 @@ export function useAppInit(toast: ToastApi) {
     migrateHabits().finally(() => {
       cleanupOldHabitBackup()
     })
+
+    return () => systemThemeQuery.removeEventListener('change', handleSystemThemeChange)
   }, [])
 
   // ===== 首次启动：请求系统通知权限（仅请求一次） =====

@@ -1,121 +1,140 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { applyThemePreset, applyAccentColor, getCurrentTheme, clearThemeOverride } from '../themeUtils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { STORAGE_KEYS } from '../../config/localStorageKeys'
+import { DEFAULT_PRESET_ID, THEME_PRESETS, THEME_VARIABLE_KEYS } from '../../styles/themes'
+import {
+  applyAccentColor,
+  applyCornerStyle,
+  applyThemeConfiguration,
+  applyThemePreset,
+  clearThemeOverride,
+  getContrastRatio,
+  getCurrentTheme,
+  getReadableTextColor,
+  resolveThemeMode,
+} from '../themeUtils'
 
-// ============ mock localStorage ============
-// 用一个带内存存储的 mock 替换 window.localStorage：既保留真实读写行为，又可追踪调用。
-function createLocalStorageMock() {
-  const store = new Map<string, string>()
-  return {
-    getItem: vi.fn((key: string): string | null => (store.has(key) ? store.get(key)! : null)),
-    setItem: vi.fn((key: string, value: string): void => {
-      store.set(key, String(value))
-    }),
-    removeItem: vi.fn((key: string): void => {
-      store.delete(key)
-    }),
-    clear: vi.fn((): void => {
-      store.clear()
-    }),
-    __store: store,
-  }
-}
-
-const localStorageMock = createLocalStorageMock()
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  configurable: true,
-  writable: true,
-})
-
-// ============ spy document.documentElement.style ============
 const setPropertySpy = vi.spyOn(document.documentElement.style, 'setProperty')
 const removePropertySpy = vi.spyOn(document.documentElement.style, 'removeProperty')
 
-describe('themeUtils 主题工具函数', () => {
+describe('themeUtils 完整主题工具', () => {
   beforeEach(() => {
-    // 清空内存存储
-    localStorageMock.__store.clear()
-    // 清除所有 mock 调用记录（保留实现）
-    vi.clearAllMocks()
-    // 重置 documentElement 上残留的内联样式
+    localStorage.clear()
     document.documentElement.style.cssText = ''
+    document.documentElement.className = ''
+    delete document.documentElement.dataset.themePreset
+    delete document.documentElement.dataset.cornerStyle
+    vi.clearAllMocks()
   })
 
-  describe('applyThemePreset', () => {
-    it('applyThemePreset("green") 正确设置 --color-accent 到 document.documentElement.style', () => {
-      applyThemePreset('green')
-      expect(setPropertySpy).toHaveBeenCalledWith('--color-accent', '#10b981')
-      // 真实写入后可读回相同值
-      expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#10b981')
+  it('按解析后的明暗模式应用完整预设变量', () => {
+    applyThemePreset('green', 'dark')
+    const expected = THEME_PRESETS.find((preset) => preset.id === 'green')!.modes.dark
+    expect(document.documentElement.style.getPropertyValue('--color-bg')).toBe(expected['--color-bg'])
+    expect(document.documentElement.style.getPropertyValue('--color-text-primary')).toBe(
+      expected['--color-text-primary'],
+    )
+    expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe(expected['--color-accent'])
+    expect(document.documentElement.dataset.themePreset).toBe('green')
+    expect(removePropertySpy).toHaveBeenCalledTimes(THEME_VARIABLE_KEYS.length)
+  })
+
+  it('无效预设回退经典蓝', () => {
+    expect(applyThemePreset('missing-theme', 'light')).toBe(DEFAULT_PRESET_ID)
+    expect(document.documentElement.dataset.themePreset).toBe(DEFAULT_PRESET_ID)
+  })
+
+  it('自定义强调色同步更新按钮文字和日历选择态', () => {
+    applyAccentColor('#facc15', 'light')
+    const contrastText = document.documentElement.style.getPropertyValue('--color-accent-contrast')
+    expect(contrastText).toBe('#000000')
+    expect(getContrastRatio(contrastText, '#facc15')).toBeGreaterThanOrEqual(4.5)
+    expect(document.documentElement.style.getPropertyValue('--color-calendar-selection-bg')).toContain('rgba')
+    expect(setPropertySpy).toHaveBeenCalledWith('--color-calendar-selection-handle', '#facc15')
+  })
+
+  it('自定义强调色文字在当前主题表面上保持 4.5:1 对比度', () => {
+    applyThemePreset('paper', 'dark')
+    applyAccentColor('#7c3aed', 'dark')
+    const accentText = document.documentElement.style.getPropertyValue('--color-accent-text')
+    const surface = document.documentElement.style.getPropertyValue('--color-surface')
+    expect(getContrastRatio(accentText, surface)).toBeGreaterThanOrEqual(4.5)
+  })
+  it('可读文字颜色会根据背景自动选择深色或白色', () => {
+    expect(getReadableTextColor('#facc15')).toBe('#000000')
+    expect(getReadableTextColor('#1e3a8a')).toBe('#ffffff')
+  })
+
+  it('完整配置会应用深色 class、预设、自定义色和圆角', () => {
+    const resolved = applyThemeConfiguration(
+      { mode: 'system', presetId: 'purple', accentColor: '#22c55e', cornerStyle: 'soft' },
+      true,
+    )
+    expect(resolved).toBe('dark')
+    expect(document.documentElement).toHaveClass('dark')
+    expect(document.documentElement.dataset.themePreset).toBe('purple')
+    expect(document.documentElement.dataset.cornerStyle).toBe('soft')
+    expect(document.documentElement.style.getPropertyValue('--radius-xl')).toBe('26px')
+    expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#22c55e')
+  })
+
+  it('主题模式解析支持显式模式和系统模式', () => {
+    expect(resolveThemeMode('light', true)).toBe('light')
+    expect(resolveThemeMode('dark', false)).toBe('dark')
+    expect(resolveThemeMode('system', true)).toBe('dark')
+    expect(resolveThemeMode('system', false)).toBe('light')
+  })
+
+  it('读取 namespaced 配置并对无效值保守回退', () => {
+    localStorage.setItem(STORAGE_KEYS.theme, 'dark')
+    localStorage.setItem(STORAGE_KEYS.themePreset, 'ocean')
+    localStorage.setItem(STORAGE_KEYS.themeAccent, '#ABCDEF')
+    localStorage.setItem(STORAGE_KEYS.themeCornerStyle, 'compact')
+    expect(getCurrentTheme()).toEqual({
+      mode: 'dark',
+      presetId: 'ocean',
+      accentColor: '#abcdef',
+      cornerStyle: 'compact',
     })
 
-    it('applyThemePreset 切换主题时先清除旧变量（调用 removeProperty）', () => {
-      applyThemePreset('purple')
-      // THEME_VARIABLE_KEYS 共 7 个键，每个都应被 removeProperty
-      expect(removePropertySpy).toHaveBeenCalledTimes(7)
-      expect(removePropertySpy).toHaveBeenCalledWith('--color-accent')
-      expect(removePropertySpy).toHaveBeenCalledWith('--color-bg')
-      expect(removePropertySpy).toHaveBeenCalledWith('--color-surface')
-      // 清除操作应发生在设置新变量之前
-      const lastRemoveOrder =
-        removePropertySpy.mock.invocationCallOrder[removePropertySpy.mock.invocationCallOrder.length - 1]
-      const firstSetOrder = setPropertySpy.mock.invocationCallOrder[0]
-      expect(lastRemoveOrder).toBeLessThan(firstSetOrder)
+    localStorage.setItem(STORAGE_KEYS.theme, 'invalid')
+    localStorage.setItem(STORAGE_KEYS.themePreset, 'missing')
+    localStorage.setItem(STORAGE_KEYS.themeAccent, 'red')
+    localStorage.setItem(STORAGE_KEYS.themeCornerStyle, 'rounder')
+    expect(getCurrentTheme()).toEqual({
+      mode: 'system',
+      presetId: 'default',
+      accentColor: null,
+      cornerStyle: 'standard',
     })
   })
 
-  describe('applyAccentColor', () => {
-    it('applyAccentColor("#ff0000") 设置 4 个变量（accent, accent-hover, accent-light, accent-text）', () => {
-      applyAccentColor('#ff0000')
-      expect(setPropertySpy).toHaveBeenCalledWith('--color-accent', '#ff0000')
-      expect(setPropertySpy).toHaveBeenCalledWith('--color-accent-hover', expect.any(String))
-      expect(setPropertySpy).toHaveBeenCalledWith('--color-accent-light', expect.any(String))
-      expect(setPropertySpy).toHaveBeenCalledWith('--color-accent-text', expect.any(String))
-      // 恰好 4 次 setProperty 调用
-      expect(setPropertySpy).toHaveBeenCalledTimes(4)
-      // 变体不应与主色完全相同（hover 更深、light 更浅、text 更深）
-      expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#ff0000')
-      expect(document.documentElement.style.getPropertyValue('--color-accent-light')).not.toBe('#ff0000')
+  it('兼容迁移前的旧主题 key', () => {
+    localStorage.setItem('theme', 'light')
+    localStorage.setItem('theme_preset', 'rose')
+    localStorage.setItem('theme_accent', '#ff3366')
+    localStorage.setItem('theme_corner_style', 'soft')
+    expect(getCurrentTheme()).toEqual({
+      mode: 'light',
+      presetId: 'rose',
+      accentColor: '#ff3366',
+      cornerStyle: 'soft',
     })
   })
 
-  describe('getCurrentTheme', () => {
-    it('getCurrentTheme() 从 localStorage 正确读取（无值时返回默认）', () => {
-      const result = getCurrentTheme()
-      expect(result.presetId).toBe('default')
-      expect(result.accentColor).toBeNull()
-      // 确实读取了 localStorage 的对应键
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('theme_preset')
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('theme_accent')
-    })
+  it('清除主题覆盖会删除变量及持久化预设，但保留明暗模式', () => {
+    localStorage.setItem(STORAGE_KEYS.theme, 'dark')
+    localStorage.setItem(STORAGE_KEYS.themePreset, 'purple')
+    localStorage.setItem(STORAGE_KEYS.themeAccent, '#abcdef')
+    localStorage.setItem(STORAGE_KEYS.themeCornerStyle, 'soft')
+    applyCornerStyle('soft')
 
-    it('getCurrentTheme() 读取已保存的预设 ID 和强调色', () => {
-      localStorageMock.__store.set('theme_preset', 'green')
-      localStorageMock.__store.set('theme_accent', '#ff0000')
-      const result = getCurrentTheme()
-      expect(result.presetId).toBe('green')
-      expect(result.accentColor).toBe('#ff0000')
-    })
-  })
+    clearThemeOverride()
 
-  describe('clearThemeOverride', () => {
-    it('clearThemeOverride() 清除 localStorage 和 style', () => {
-      // 预置一些数据，验证清除行为
-      localStorageMock.__store.set('theme_preset', 'purple')
-      localStorageMock.__store.set('theme_accent', '#abcdef')
-
-      clearThemeOverride()
-
-      // 清除 localStorage 中的 preset 和 accent
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('theme_preset')
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('theme_accent')
-      // 内存存储已被清空
-      expect(localStorageMock.__store.has('theme_preset')).toBe(false)
-      expect(localStorageMock.__store.has('theme_accent')).toBe(false)
-      // 清除 style 中的所有主题变量
-      expect(removePropertySpy).toHaveBeenCalledTimes(7)
-      expect(removePropertySpy).toHaveBeenCalledWith('--color-accent')
-      expect(removePropertySpy).toHaveBeenCalledWith('--color-bg-secondary')
-    })
+    expect(localStorage.getItem(STORAGE_KEYS.theme)).toBe('dark')
+    expect(localStorage.getItem(STORAGE_KEYS.themePreset)).toBeNull()
+    expect(localStorage.getItem(STORAGE_KEYS.themeAccent)).toBeNull()
+    expect(localStorage.getItem(STORAGE_KEYS.themeCornerStyle)).toBeNull()
+    expect(removePropertySpy).toHaveBeenCalledWith('--color-bg')
+    expect(removePropertySpy).toHaveBeenCalledWith('--radius-xl')
   })
 })

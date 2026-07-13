@@ -273,6 +273,7 @@ const TaskItem = memo(function TaskItem({
   return (
     <div
       role="listitem"
+      data-task-item
       draggable={!batchMode && !isEditing}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -287,7 +288,7 @@ const TaskItem = memo(function TaskItem({
       <div
         onClick={handleMainClick}
         onDoubleClick={handleDoubleClick}
-        className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 border border-[var(--color-border-light)] ${
+        className={`group task-item-surface flex items-center px-4 rounded-xl cursor-pointer transition-all duration-200 border border-[var(--color-border-light)] ${
           isSelected
             ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/30 shadow-[0_0_0_1px_var(--color-accent-light)]'
             : task.pinned
