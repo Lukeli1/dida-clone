@@ -135,6 +135,35 @@ fn validate_batch_actions(actions: &[AiBatchAction]) -> Result<(), String> {
     Ok(())
 }
 
+/// 若 task_id 的任一祖先也在同批删除集合中，则本条删除会被祖先级联覆盖。
+fn has_deleted_ancestor_in_set(
+    conn: &rusqlite::Connection,
+    task_id: i64,
+    delete_ids: &HashSet<i64>,
+) -> Result<bool, String> {
+    let mut current = task_id;
+    // 防御：祖先链异常环时最多走 64 层
+    for _ in 0..64 {
+        let parent_id: Option<i64> = conn
+            .query_row(
+                "SELECT parent_id FROM tasks WHERE id = ?1",
+                rusqlite::params![current],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        match parent_id {
+            Some(pid) => {
+                if delete_ids.contains(&pid) {
+                    return Ok(true);
+                }
+                current = pid;
+            }
+            None => return Ok(false),
+        }
+    }
+    Ok(false)
+}
+
 /// 核心批量执行逻辑，接受 &mut Connection 以便单元测试直接调用。
 ///
 /// - 全部通过则提交，任一失败则回滚。
@@ -144,6 +173,15 @@ pub fn do_execute_ai_batch(
     actions: &[AiBatchAction],
 ) -> Result<AiBatchResult, String> {
     validate_batch_actions(actions)?;
+
+    // 同批 delete 目标集合：用于剪掉可被祖先级联覆盖的后代删除，避免拆开 deleted_at
+    let delete_ids_in_batch: HashSet<i64> = actions
+        .iter()
+        .filter_map(|a| match a {
+            AiBatchAction::DeleteTask(d) => Some(d.task_id),
+            _ => None,
+        })
+        .collect();
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
@@ -195,8 +233,11 @@ pub fn do_execute_ai_batch(
                 }
             }
             AiBatchAction::DeleteTask(data) => {
-                // 软删除：移入回收站，保留附件/标签/时间记录等关联
-                do_delete_task(&tx, data.task_id)?;
+                // 软删除：移入回收站，保留附件/标签/时间记录等关联。
+                // 若同批已包含祖先删除，跳过本条，避免后代先独立删除导致时间戳不一致。
+                if !has_deleted_ancestor_in_set(&tx, data.task_id, &delete_ids_in_batch)? {
+                    do_delete_task(&tx, data.task_id)?;
+                }
                 AiActionResult {
                     index: i,
                     action_type: "delete_task".to_string(),
@@ -832,6 +873,118 @@ mod tests {
             )
             .unwrap();
         assert_eq!(active, 0);
+    }
+
+    /// 同批同时删除父+子：剪枝后代删除，父子共用同一 deleted_at，恢复父可连带恢复子
+    #[test]
+    fn test_batch_delete_parent_and_child_share_timestamp() {
+        use super::super::do_restore_task;
+        let mut conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+
+        // 故意把子放在父前面，验证剪枝与顺序无关
+        let actions = vec![
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: child }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: parent }),
+        ];
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
+        assert_eq!(result.results.len(), 2);
+
+        let parent_ts: String = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![parent],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let child_ts: String = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            parent_ts, child_ts,
+            "同批父子删除应共用级联时间戳"
+        );
+
+        do_restore_task(&conn, parent).unwrap();
+        let child_active: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(child_active.is_none(), "恢复父任务应连带恢复同次级联子任务");
+    }
+
+    /// 同批祖/父/孙乱序删除：三者共用同一次级联时间戳，恢复祖先后全部恢复
+    #[test]
+    fn test_batch_delete_parent_child_grandchild_share_timestamp() {
+        use super::super::do_restore_task;
+        let mut conn = setup_db();
+        let parent = insert_task(&conn, "祖");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["父", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["孙", child, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let grand = conn.last_insert_rowid();
+
+        // 故意乱序：孙 → 祖 → 父
+        let actions = vec![
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: grand }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: parent }),
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id: child }),
+        ];
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
+        assert_eq!(result.results.len(), 3);
+
+        let stamps: Vec<String> = [parent, child, grand]
+            .iter()
+            .map(|id| {
+                conn.query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+            })
+            .collect();
+        assert_eq!(stamps[0], stamps[1], "祖/父应共用级联时间戳");
+        assert_eq!(stamps[1], stamps[2], "父/孙应共用级联时间戳");
+
+        do_restore_task(&conn, parent).unwrap();
+        for id in [parent, child, grand] {
+            let deleted_at: Option<String> = conn
+                .query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                deleted_at.is_none(),
+                "恢复祖先后 id={} 应恢复",
+                id
+            );
+        }
     }
 
     #[test]

@@ -23,14 +23,14 @@ export function BatchToolbar({ selectedTaskIds, selectAllTasks, clearSelection, 
   async function handleBatchDelete() {
     const ok = await confirm({
       title: '批量删除',
-      message: `确定要删除选中的 ${selectedCount} 个任务吗？`,
+      message: `确定要删除选中的 ${selectedCount} 个任务吗？删除后将移入回收站，可在回收站恢复。`,
       danger: true,
       confirmText: '删除',
       cancelText: '取消',
     })
     if (ok) {
-      actions.handleBatchDelete()
-      toast.success(`已删除 ${selectedCount} 个任务`)
+      // toast 由 useTaskBatch 在真正删除成功后发出，避免提前误报成功
+      await actions.handleBatchDelete()
     }
   }
 

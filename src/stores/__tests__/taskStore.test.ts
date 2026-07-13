@@ -246,6 +246,38 @@ describe('taskStore', () => {
     expect(deleted.deleted_at).toBeTruthy()
   })
 
+  it('loadTasks 防御性过滤 deleted_at，避免污染普通视图', async () => {
+    vi.mocked(api.getTasks).mockResolvedValue([
+      makeTask({ id: 1, title: '活跃' }),
+      makeTask({ id: 2, title: '已删', deleted_at: '2026-07-01T00:00:00.000Z' }),
+    ])
+    await useTaskStore.getState().loadTasks()
+    expect(useTaskStore.getState().tasks.map((t) => t.id)).toEqual([1])
+  })
+
+  it('deleteTask 仅删除子任务时不影响父任务与兄弟', async () => {
+    useTaskStore.getState().setTasks([
+      makeTask({
+        id: 1,
+        title: 'parent',
+        subtasks: [
+          makeTask({ id: 2, parent_id: 1, title: 'child-a' }),
+          makeTask({ id: 3, parent_id: 1, title: 'child-b' }),
+        ],
+      }),
+      makeTask({ id: 2, title: 'child-a', parent_id: 1 }),
+      makeTask({ id: 3, title: 'child-b', parent_id: 1 }),
+    ])
+    vi.mocked(api.deleteTask).mockResolvedValue()
+
+    const ok = await useTaskStore.getState().deleteTask(2)
+    expect(ok).toBe(true)
+    const tasks = useTaskStore.getState().tasks
+    expect(tasks.map((t) => t.id).sort()).toEqual([1, 3])
+    const parent = tasks.find((t) => t.id === 1)!
+    expect(parent.subtasks?.map((s) => s.id)).toEqual([3])
+  })
+
   // 10. duplicateTask 成功：前置插入复制出的任务
   it('duplicateTask 成功时将复制任务插入到最前面', async () => {
     useTaskStore.getState().setTasks([makeTask({ id: 1, title: 'origin' })])

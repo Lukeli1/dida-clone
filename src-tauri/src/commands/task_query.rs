@@ -984,4 +984,195 @@ mod tests {
         let err = do_restore_task(&conn, grand).unwrap_err();
         assert!(err.contains("父任务仍在回收站"));
     }
+
+    /// 恢复后核心字段与完成状态保持不变（仅清除 deleted_at）
+    #[test]
+    fn test_restore_preserves_fields_and_completed_status() {
+        use super::{do_delete_task, do_restore_task};
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (title, notes, priority, due_date, end_date, all_day, reminder, completed, completed_at, status, list_id, repeat_rule, sort_order, created_at, updated_at)
+             VALUES (?1, ?2, 1, ?3, ?4, 1, ?5, 1, ?6, 'done', 1, 'FREQ=DAILY', 42.0, ?7, ?7)",
+            params![
+                "已完成重复任务",
+                "备注保留",
+                "2026-07-01T09:00:00+08:00",
+                "2026-07-01T10:00:00+08:00",
+                "2026-07-01T08:45:00+08:00",
+                "2026-07-01T09:05:00+08:00",
+                "2026-07-01T00:00:00+08:00"
+            ],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+        link_tag(&conn, id, 1);
+
+        do_delete_task(&conn, id).unwrap();
+        do_restore_task(&conn, id).unwrap();
+
+        let (
+            title,
+            notes,
+            priority,
+            due_date,
+            end_date,
+            all_day,
+            reminder,
+            completed,
+            completed_at,
+            status,
+            repeat_rule,
+            sort_order,
+            deleted_at,
+        ): (
+            String,
+            Option<String>,
+            i64,
+            Option<String>,
+            Option<String>,
+            i64,
+            Option<String>,
+            i64,
+            Option<String>,
+            String,
+            Option<String>,
+            f64,
+            Option<String>,
+        ) = conn
+            .query_row(
+                "SELECT title, notes, priority, due_date, end_date, all_day, reminder, completed, completed_at, status, repeat_rule, sort_order, deleted_at
+                 FROM tasks WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                        row.get(8)?,
+                        row.get(9)?,
+                        row.get(10)?,
+                        row.get(11)?,
+                        row.get(12)?,
+                    ))
+                },
+            )
+            .unwrap();
+
+        assert!(deleted_at.is_none());
+        assert_eq!(title, "已完成重复任务");
+        assert_eq!(notes.as_deref(), Some("备注保留"));
+        assert_eq!(priority, 1);
+        assert_eq!(due_date.as_deref(), Some("2026-07-01T09:00:00+08:00"));
+        assert_eq!(end_date.as_deref(), Some("2026-07-01T10:00:00+08:00"));
+        assert_eq!(all_day, 1);
+        assert_eq!(reminder.as_deref(), Some("2026-07-01T08:45:00+08:00"));
+        assert_eq!(completed, 1);
+        assert_eq!(completed_at.as_deref(), Some("2026-07-01T09:05:00+08:00"));
+        assert_eq!(status, "done");
+        assert_eq!(repeat_rule.as_deref(), Some("FREQ=DAILY"));
+        assert_eq!(sort_order, 42.0);
+
+        let tag_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM task_tags WHERE task_id = ?1 AND tag_id = 1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(tag_count, 1, "恢复不得丢失标签关联");
+    }
+
+    /// 软删除不物理删除行，附件引用应保留
+    #[test]
+    fn test_soft_delete_preserves_attachment_rows() {
+        use super::do_delete_task;
+        let conn = setup_db();
+        let id = insert_task(&conn, "带附件");
+        conn.execute(
+            "INSERT INTO attachments (task_id, file_name, file_path, file_size, mime_type, created_at)
+             VALUES (?1, 'a.txt', '/tmp/a.txt', 12, 'text/plain', ?2)",
+            params![id, "2026-07-01T00:00:00Z"],
+        )
+        .unwrap();
+
+        do_delete_task(&conn, id).unwrap();
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM attachments WHERE task_id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1, "软删除不得级联物理删除附件行");
+    }
+
+    /// 重复恢复活跃任务应明确失败，不能静默复制
+    #[test]
+    fn test_restore_active_task_is_rejected() {
+        use super::do_restore_task;
+        let conn = setup_db();
+        let id = insert_task(&conn, "活跃");
+        let err = do_restore_task(&conn, id).unwrap_err();
+        assert!(err.contains("不在回收站"));
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tasks WHERE title = '活跃'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    /// 父+子先后独立 delete 会拆开时间戳；恢复父后独立子仍删除（契约回归）
+    #[test]
+    fn test_separate_parent_child_deletes_split_timestamps() {
+        use super::{do_delete_task, do_restore_task};
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+
+        do_delete_task(&conn, child).unwrap();
+        // 确保时间戳不同
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        do_delete_task(&conn, parent).unwrap();
+
+        let parent_ts: String = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![parent],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let child_ts: String = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_ne!(parent_ts, child_ts, "独立删除应保留不同时间戳");
+
+        do_restore_task(&conn, parent).unwrap();
+        let child_still: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            child_still.is_some(),
+            "独立删除的子任务不应随父任务恢复"
+        );
+    }
 }
