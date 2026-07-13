@@ -1,6 +1,13 @@
 import { invokeCommand as invoke } from './invokeClient'
 import { isTauri, mockTasks, mockTaskTags, mockCounters } from './_shared'
-import type { Task, CreateTaskRequest, ReorderItem, CompleteResult, UpdateTaskRequest } from '../types'
+import type {
+  Task,
+  TrashedTask,
+  CreateTaskRequest,
+  ReorderItem,
+  CompleteResult,
+  UpdateTaskRequest,
+} from '../types'
 
 export const taskApi = {
   getTasks: async (filter?: {
@@ -16,7 +23,12 @@ export const taskApi = {
     tag_id?: number
   }): Promise<Task[]> => {
     if (!isTauri) {
-      return Promise.resolve(mockTasks.map((t) => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })))
+      // mock：默认排除软删除任务
+      return Promise.resolve(
+        mockTasks
+          .filter((t) => !t.deleted_at)
+          .map((t) => ({ ...t, tag_ids: mockTaskTags[t.id] || [] })),
+      )
     }
     return await invoke<Task[]>('get_tasks', {
       listId: filter?.list_id ?? null,
@@ -52,6 +64,7 @@ export const taskApi = {
         sort_order: Date.now(),
         created_at: now,
         updated_at: now,
+        deleted_at: null,
         tag_ids: [],
       }
       mockTasks.unshift(task)
@@ -60,12 +73,13 @@ export const taskApi = {
     return await invoke<Task>('create_task', { req })
   },
 
-  updateTask: async (id: number, updates: UpdateTaskRequest): Promise<void> => {
+updateTask: async (id: number, updates: UpdateTaskRequest): Promise<void> => {
     if (!isTauri) {
-      const index = mockTasks.findIndex((t) => t.id === id)
-      if (index !== -1) {
-        mockTasks[index] = { ...mockTasks[index], ...updates }
+      const idx = mockTasks.findIndex((t) => t.id === id && !t.deleted_at)
+      if (idx < 0) {
+        throw new Error(`任务不存在或已移入回收站（#${id}）`)
       }
+      mockTasks[idx] = { ...mockTasks[idx], ...updates, updated_at: new Date().toISOString() }
       return Promise.resolve()
     }
     await invoke('update_task', { id, updates })
@@ -73,13 +87,103 @@ export const taskApi = {
 
   deleteTask: async (id: number): Promise<void> => {
     if (!isTauri) {
-      const index = mockTasks.findIndex((t) => t.id === id)
-      if (index !== -1) {
-        mockTasks.splice(index, 1)
+      // mock：软删除自身 + 尚未删除的后代（同时间戳）
+      const now = new Date().toISOString()
+      const toDelete = new Set<number>([id])
+      let grew = true
+      while (grew) {
+        grew = false
+        for (const t of mockTasks) {
+          if (t.parent_id != null && toDelete.has(t.parent_id) && !toDelete.has(t.id) && !t.deleted_at) {
+            toDelete.add(t.id)
+            grew = true
+          }
+        }
+      }
+      for (const t of mockTasks) {
+        if (toDelete.has(t.id) && !t.deleted_at) {
+          t.deleted_at = now
+          t.updated_at = now
+        }
       }
       return Promise.resolve()
     }
     await invoke('delete_task', { id })
+  },
+
+  getTrashedTasks: async (): Promise<TrashedTask[]> => {
+    if (!isTauri) {
+      const lists = await import('./listApi').then((m) => m.listApi.getLists())
+      const listName = (listId: number) => lists.find((l) => l.id === listId)?.name ?? null
+      const deleted = mockTasks.filter((t) => !!t.deleted_at)
+      // 不展示与父任务同次删除的子任务
+      const tops = deleted.filter((t) => {
+        if (t.parent_id == null) return true
+        const parent = mockTasks.find((p) => p.id === t.parent_id)
+        return !(parent?.deleted_at && parent.deleted_at === t.deleted_at)
+      })
+      return tops.map((t) => {
+        let blocked = false
+        let pid = t.parent_id
+        while (pid != null) {
+          const p = mockTasks.find((x) => x.id === pid)
+          if (p?.deleted_at) {
+            blocked = true
+            break
+          }
+          pid = p?.parent_id ?? null
+        }
+        return {
+          ...t,
+          list_name: listName(t.list_id),
+          has_cascaded_children: deleted.some(
+            (c) => c.parent_id === t.id && c.deleted_at === t.deleted_at,
+          ),
+          restore_blocked_by_deleted_ancestor: blocked,
+        }
+      })
+    }
+    return await invoke<TrashedTask[]>('get_trashed_tasks')
+  },
+
+  restoreTask: async (id: number): Promise<void> => {
+    if (!isTauri) {
+      const target = mockTasks.find((t) => t.id === id)
+      if (!target?.deleted_at) throw new Error('任务不在回收站中')
+      // 祖先仍删除则拒绝
+      let pid = target.parent_id
+      while (pid != null) {
+        const p = mockTasks.find((x) => x.id === pid)
+        if (p?.deleted_at) throw new Error('无法恢复：父任务仍在回收站中')
+        pid = p?.parent_id ?? null
+      }
+      const stamp = target.deleted_at
+      const now = new Date().toISOString()
+      const toRestore = new Set<number>([id])
+      let grew = true
+      while (grew) {
+        grew = false
+        for (const t of mockTasks) {
+          if (
+            t.parent_id != null &&
+            toRestore.has(t.parent_id) &&
+            t.deleted_at === stamp &&
+            !toRestore.has(t.id)
+          ) {
+            toRestore.add(t.id)
+            grew = true
+          }
+        }
+      }
+      for (const t of mockTasks) {
+        if (toRestore.has(t.id) && t.deleted_at === stamp) {
+          t.deleted_at = null
+          t.updated_at = now
+        }
+      }
+      return Promise.resolve()
+    }
+    await invoke('restore_task', { id })
   },
 
   // ===== 复制任务 =====
@@ -115,10 +219,13 @@ export const taskApi = {
 
   reorderTasks: async (items: ReorderItem[]): Promise<void> => {
     if (!isTauri) {
-      items.forEach((item) => {
-        const idx = mockTasks.findIndex((t) => t.id === item.id)
-        if (idx !== -1) mockTasks[idx].sort_order = item.sort_order
-      })
+      for (const item of items) {
+        const idx = mockTasks.findIndex((t) => t.id === item.id && !t.deleted_at)
+        if (idx === -1) {
+          throw new Error(`任务不存在或已移入回收站（#${item.id}）`)
+        }
+        mockTasks[idx].sort_order = item.sort_order
+      }
       return Promise.resolve()
     }
     await invoke('reorder_tasks', { items })
@@ -126,32 +233,34 @@ export const taskApi = {
 
   completeTask: async (id: number): Promise<CompleteResult> => {
     if (!isTauri) {
-      const idx = mockTasks.findIndex((t) => t.id === id)
-      if (idx !== -1) {
-        mockTasks[idx].completed = true
-        mockTasks[idx].completed_at = new Date().toISOString()
-        mockTasks[idx].status = 'done'
-        const task = mockTasks[idx]
-        if (task.repeat_rule && task.due_date) {
-          const now = new Date().toISOString()
-          const nextDue = new Date(task.due_date)
-          if (task.repeat_rule === 'daily') nextDue.setDate(nextDue.getDate() + 1)
-          else if (task.repeat_rule === 'weekly') nextDue.setDate(nextDue.getDate() + 7)
-          else if (task.repeat_rule === 'monthly') nextDue.setDate(nextDue.getDate() + 30)
-          const newTask: Task = {
-            ...task,
-            id: mockCounters.nextTaskId++,
-            completed: false,
-            completed_at: null,
-            status: 'todo',
-            due_date: nextDue.toISOString(),
-            sort_order: Date.now(),
-            created_at: now,
-            updated_at: now,
-          }
-          mockTasks.unshift(newTask)
-          return Promise.resolve({ new_task_id: newTask.id })
+      const idx = mockTasks.findIndex((t) => t.id === id && !t.deleted_at)
+      if (idx === -1) {
+        throw new Error(`任务不存在或已移入回收站（#${id}）`)
+      }
+      mockTasks[idx].completed = true
+      mockTasks[idx].completed_at = new Date().toISOString()
+      mockTasks[idx].status = 'done'
+      const task = mockTasks[idx]
+      if (task.repeat_rule && task.due_date) {
+        const now = new Date().toISOString()
+        const nextDue = new Date(task.due_date)
+        if (task.repeat_rule === 'daily') nextDue.setDate(nextDue.getDate() + 1)
+        else if (task.repeat_rule === 'weekly') nextDue.setDate(nextDue.getDate() + 7)
+        else if (task.repeat_rule === 'monthly') nextDue.setDate(nextDue.getDate() + 30)
+        const newTask: Task = {
+          ...task,
+          id: mockCounters.nextTaskId++,
+          completed: false,
+          completed_at: null,
+          status: 'todo',
+          deleted_at: null,
+          due_date: nextDue.toISOString(),
+          sort_order: Date.now(),
+          created_at: now,
+          updated_at: now,
         }
+        mockTasks.unshift(newTask)
+        return Promise.resolve({ new_task_id: newTask.id })
       }
       return Promise.resolve({ new_task_id: null })
     }

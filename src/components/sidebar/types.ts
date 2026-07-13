@@ -8,6 +8,7 @@ export type ViewType =
   | 'settings'
   | 'ai'
   | 'archived'
+  | 'trash'
   | 'quadrant'
   | 'pomodoro'
   | 'habit'

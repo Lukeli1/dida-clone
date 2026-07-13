@@ -524,10 +524,11 @@ pub fn import_json(
             } else {
                 None
             };
+            // 旧导入文件缺失 deleted_at 时按活跃任务处理（serde default None）
             let n = tx
                 .execute(
-                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+                    "INSERT OR IGNORE INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at, deleted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
                     params![
                         task.id,
                         task.title,
@@ -549,6 +550,7 @@ pub fn import_json(
                         task.sort_order,
                         task.created_at,
                         task.updated_at,
+                        task.deleted_at,
                     ],
                 )
                 .map_err(|e| e.to_string())?;

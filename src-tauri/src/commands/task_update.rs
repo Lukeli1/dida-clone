@@ -162,11 +162,13 @@ pub fn do_update_task(
             }
             let parent_parent_id: Option<i64> = conn
                 .query_row(
-                    "SELECT parent_id FROM tasks WHERE id = ?1",
+                    "SELECT parent_id FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
                     rusqlite::params![pid],
                     |row| row.get(0),
                 )
-                .map_err(|e| format!("更新任务失败：父任务 #{} 不存在或查询出错: {}", pid, e))?;
+                .map_err(|e| {
+                    format!("更新任务失败：父任务 #{} 不存在或已移入回收站: {}", pid, e)
+                })?;
             if parent_parent_id.is_some() {
                 return Err("更新任务失败：当前仅支持一层子任务".to_string());
             }
@@ -191,7 +193,10 @@ pub fn do_update_task(
     set_clauses.push("updated_at = ?".to_string());
     params_vec.push(Box::new(now));
 
-    let sql = format!("UPDATE tasks SET {} WHERE id = ?", set_clauses.join(", "));
+    let sql = format!(
+        "UPDATE tasks SET {} WHERE id = ? AND deleted_at IS NULL",
+        set_clauses.join(", ")
+    );
     params_vec.push(Box::new(id));
 
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
@@ -200,7 +205,7 @@ pub fn do_update_task(
         .execute(&sql, params_refs.as_slice())
         .map_err(|e| e.to_string())?;
     if affected == 0 {
-        return Err(format!("更新任务失败：任务 #{} 不存在", id));
+        return Err(format!("任务不存在或已移入回收站（#{}）", id));
     }
 
     Ok(())
@@ -468,5 +473,102 @@ mod tests {
         let result = super::do_update_task(&conn, moving_task_id, &updates);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("一层子任务"));
+    }
+
+    #[test]
+    fn test_update_deleted_task_is_rejected() {
+        let conn = setup_with_task();
+        let task_id = conn.last_insert_rowid();
+        conn.execute(
+            "UPDATE tasks SET deleted_at = ?1 WHERE id = ?2",
+            params!["2026-07-01T00:00:00Z", task_id],
+        )
+        .unwrap();
+
+        let updates = super::UpdateTaskRequest {
+            title: Some("不该成功".to_string()),
+            notes: None,
+            priority: None,
+            due_date: None,
+            end_date: None,
+            all_day: None,
+            reminder: None,
+            reminder_minutes: None,
+            completed: None,
+            completed_at: None,
+            status: None,
+            archived: None,
+            pinned: None,
+            list_id: None,
+            parent_id: None,
+            repeat_rule: None,
+            sort_order: None,
+        };
+
+        let err = super::do_update_task(&conn, task_id, &updates).unwrap_err();
+        assert!(err.contains("不存在或已移入回收站"));
+
+        let title: String = conn
+            .query_row(
+                "SELECT title FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(title, "测试任务");
+    }
+
+    #[test]
+    fn test_update_parent_rejects_deleted_parent() {
+        let conn = setup_with_task();
+        let parent_id = conn.last_insert_rowid();
+        conn.execute(
+            "UPDATE tasks SET deleted_at = ?1 WHERE id = ?2",
+            params!["2026-07-01T00:00:00Z", parent_id],
+        )
+        .unwrap();
+        let moving = super::super::task_create::do_create_task(
+            &conn,
+            &super::super::task_create::CreateTaskRequest {
+                title: "待挂载".to_string(),
+                notes: None,
+                priority: None,
+                due_date: None,
+                end_date: None,
+                all_day: false,
+                reminder: None,
+                reminder_minutes: None,
+                list_id: 1,
+                parent_id: None,
+                repeat_rule: None,
+            },
+        )
+        .unwrap()
+        .id;
+
+        let updates = super::UpdateTaskRequest {
+            title: None,
+            notes: None,
+            priority: None,
+            due_date: None,
+            end_date: None,
+            all_day: None,
+            reminder: None,
+            reminder_minutes: None,
+            completed: None,
+            completed_at: None,
+            status: None,
+            archived: None,
+            pinned: None,
+            list_id: None,
+            parent_id: Some(Some(parent_id)),
+            repeat_rule: None,
+            sort_order: None,
+        };
+        let err = super::do_update_task(&conn, moving, &updates).unwrap_err();
+        assert!(
+            err.contains("不存在或已移入回收站") || err.contains("父任务"),
+            "err={err}"
+        );
     }
 }

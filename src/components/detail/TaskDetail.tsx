@@ -104,8 +104,8 @@ export function TaskDetail({
 
   async function handleDelete() {
     const ok = await confirm({
-      title: '删除任务',
-      message: '确定删除这个任务吗？',
+      title: '删除任务？',
+      message: '删除后将移入回收站，可在回收站恢复。',
       danger: true,
       confirmText: '删除',
       cancelText: '取消',
@@ -259,8 +259,9 @@ export function TaskDetail({
                 handleDelete()
               }}
               className="w-full text-left px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 active:bg-[var(--color-danger)]/15 transition-colors"
+              data-testid="detail-delete"
             >
-              删除任务
+              删除
             </button>
             <div className="my-1 border-t border-[var(--color-border-light)]" />
             <div className="px-3 py-1.5 text-xs text-[var(--color-text-tertiary)]">

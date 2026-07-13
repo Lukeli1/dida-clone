@@ -32,7 +32,7 @@ pub fn do_create_task(
     if let Some(parent_id) = req.parent_id {
         let parent_parent_id: Option<i64> = conn
             .query_row(
-                "SELECT parent_id FROM tasks WHERE id = ?1",
+                "SELECT parent_id FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
                 params![parent_id],
                 |row| row.get(0),
             )
@@ -91,6 +91,7 @@ pub fn do_create_task(
         sort_order,
         created_at: now.clone(),
         updated_at: now,
+        deleted_at: None,
         tag_ids: Vec::new(),
     })
 }

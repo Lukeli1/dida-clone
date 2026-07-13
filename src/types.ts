@@ -22,8 +22,40 @@ export interface Task {
   sort_order: number
   created_at: string
   updated_at: string
+  /** 软删除时间（RFC3339）；null/undefined 表示活跃任务 */
+  deleted_at?: string | null
   tag_ids?: number[]
   subtasks?: Task[]
+}
+
+/** 回收站列表条目（含清单名与是否含同次连带子任务） */
+export interface TrashedTask {
+  id: number
+  title: string
+  notes?: string | null
+  priority: number
+  due_date?: string | null
+  end_date?: string | null
+  all_day?: boolean
+  reminder?: string | null
+  reminder_minutes?: number | null
+  completed: boolean
+  completed_at?: string | null
+  status?: TaskStatus
+  archived?: boolean
+  pinned?: boolean
+  list_id: number
+  parent_id?: number | null
+  repeat_rule?: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+  tag_ids?: number[]
+  list_name?: string | null
+  has_cascaded_children: boolean
+  /** true：独立删除的后代，但任一祖先仍在回收站，当前不可恢复 */
+  restore_blocked_by_deleted_ancestor: boolean
 }
 
 export interface List {

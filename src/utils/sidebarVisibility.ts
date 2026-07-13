@@ -7,7 +7,7 @@ import { STORAGE_KEYS } from '../config/localStorageKeys'
 import { getItem, setItem } from './storage'
 
 /** 不可隐藏的核心入口（数据层 + UI 层双防护） */
-export const ALWAYS_VISIBLE_SIDEBAR_ITEMS = ['tasks', 'today', 'settings'] as const
+export const ALWAYS_VISIBLE_SIDEBAR_ITEMS = ['tasks', 'today', 'settings', 'trash'] as const
 
 export type AlwaysVisibleSidebarItemId = (typeof ALWAYS_VISIBLE_SIDEBAR_ITEMS)[number]
 

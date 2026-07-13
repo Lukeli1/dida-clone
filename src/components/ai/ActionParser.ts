@@ -34,7 +34,8 @@ export async function executeAction(action: ActionOp, tasks: Task[]): Promise<st
       return `✅ 已更新任务 #${data.task_id}`
     }
     case 'delete_task': {
-      throw new Error('AI 删除任务暂不可用，请手动删除')
+      await api.deleteTask(data.task_id)
+      return `✅ 已删除任务 #${data.task_id}（已移入回收站）`
     }
     case 'complete_task': {
       await api.completeTask(data.task_id)

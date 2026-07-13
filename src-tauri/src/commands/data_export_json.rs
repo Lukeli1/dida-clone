@@ -61,9 +61,9 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
     drop(stmt);
 
-    // 2. 查询所有任务（含 tag_ids）
+    // 2. 查询所有任务（含 tag_ids；导出包含软删除任务以便完整备份）
     let mut stmt = conn
-        .prepare("SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at, deleted_at FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
     let mut tasks: Vec<Task> = stmt
         .query_map([], |row| {
@@ -88,6 +88,7 @@ pub fn export_json(state: State<DbState>) -> Result<String, String> {
                 sort_order: row.get(17)?,
                 created_at: row.get(18)?,
                 updated_at: row.get(19)?,
+                deleted_at: row.get(20)?,
                 tag_ids: Vec::new(),
             })
         })

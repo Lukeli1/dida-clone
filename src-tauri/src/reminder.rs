@@ -34,13 +34,14 @@ async fn scan_and_fire(app: &AppHandle) -> Result<(), String> {
     let now = Local::now();
     let now_rfc = now.to_rfc3339();
 
-    // 查询 reminder <= now 且未完成且未通知的任务
+    // 查询 reminder <= now 且未完成且未通知的任务（排除软删除）
     let mut stmt = conn
         .prepare(
             "SELECT id, title, reminder FROM tasks
              WHERE reminder IS NOT NULL
              AND reminder != ''
              AND completed = 0 AND archived = 0
+             AND deleted_at IS NULL
              AND reminder <= ?1
              AND (last_notified IS NULL OR last_notified < reminder)",
         )

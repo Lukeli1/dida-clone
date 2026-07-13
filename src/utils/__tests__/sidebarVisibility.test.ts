@@ -43,6 +43,13 @@ describe('sidebarVisibility', () => {
     }
   })
 
+  it('回收站属于不可隐藏核心入口', () => {
+    expect((ALWAYS_VISIBLE_SIDEBAR_ITEMS as readonly string[]).includes('trash')).toBe(true)
+    expect(isAlwaysVisibleSidebarItem('trash')).toBe(true)
+    expect(isSidebarItemVisible('trash', { trash: false })).toBe(true)
+    expect(TOGGLEABLE_SIDEBAR_ITEMS.some((i) => (i.id as string) === 'trash')).toBe(false)
+  })
+
   it('merge 时缺失字段默认可见，显式 false 隐藏', () => {
     const merged = mergeSidebarVisibility({ pomodoro: false })
     expect(merged.pomodoro).toBe(false)

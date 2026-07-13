@@ -45,6 +45,8 @@ interface UIState {
   // 任务交互
   expandedTasks: Set<number>
   subtaskInputs: Record<number, string>
+  /** 一次性请求：右键「添加子任务」后聚焦对应父任务输入框 */
+  subtaskInputFocusRequest: number | null
   batchMode: boolean
   selectedTaskIds: Set<number>
 
@@ -95,6 +97,8 @@ interface UIState {
   setShowCompleted: (show: boolean) => void
   setShowOverdue: (show: boolean) => void
   toggleTaskExpand: (taskId: number) => void
+  /** 确保任务展开（已展开时不折叠） */
+  expandTask: (taskId: number) => void
   toggleTaskSelection: (taskId: number) => void
   selectAllTasks: (ids: number[]) => void
   clearSelection: () => void
@@ -102,6 +106,10 @@ interface UIState {
   toggleBatchMode: () => void
   toggleFilters: () => void
   setSubtaskInput: (taskId: number, value: string) => void
+  /** 展开父任务并请求聚焦「添加子任务…」输入框（不创建空子任务） */
+  openSubtaskInput: (taskId: number) => void
+  /** 消费一次性 focus 请求；仅目标父任务匹配时清理 */
+  consumeSubtaskInputFocus: (taskId: number) => void
   setAiMode: (mode: boolean) => void
   setAiParsing: (parsing: boolean) => void
   toggleSidebar: () => void
@@ -149,6 +157,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   })(),
   expandedTasks: new Set<number>(),
   subtaskInputs: {},
+  subtaskInputFocusRequest: null,
   batchMode: false,
   selectedTaskIds: new Set<number>(),
   isDraggingTask: false,
@@ -209,6 +218,14 @@ export const useUIStore = create<UIState>((set, get) => ({
       return { expandedTasks: next }
     }),
 
+  expandTask: (taskId) =>
+    set((state) => {
+      if (state.expandedTasks.has(taskId)) return state
+      const next = new Set(state.expandedTasks)
+      next.add(taskId)
+      return { expandedTasks: next }
+    }),
+
   toggleTaskSelection: (taskId) =>
     set((state) => {
       const next = new Set(state.selectedTaskIds)
@@ -227,6 +244,22 @@ export const useUIStore = create<UIState>((set, get) => ({
     set((state) => ({
       subtaskInputs: { ...state.subtaskInputs, [taskId]: value },
     })),
+
+  openSubtaskInput: (taskId) =>
+    set((state) => {
+      const next = new Set(state.expandedTasks)
+      next.add(taskId)
+      return {
+        expandedTasks: next,
+        subtaskInputFocusRequest: taskId,
+      }
+    }),
+
+  consumeSubtaskInputFocus: (taskId) =>
+    set((state) => {
+      if (state.subtaskInputFocusRequest !== taskId) return state
+      return { subtaskInputFocusRequest: null }
+    }),
 
   setAiMode: (aiMode) => set({ aiMode }),
   setAiParsing: (aiParsing) => set({ aiParsing }),

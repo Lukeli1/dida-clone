@@ -32,7 +32,7 @@ pub fn export_markdown(state: State<DbState>) -> Result<String, String> {
 
     // 查询所有任务
     let mut stmt = conn
-        .prepare("SELECT id, title, priority, due_date, completed, list_id FROM tasks ORDER BY pinned DESC, sort_order ASC, created_at DESC")
+        .prepare("SELECT id, title, priority, due_date, completed, list_id FROM tasks WHERE deleted_at IS NULL ORDER BY pinned DESC, sort_order ASC, created_at DESC")
         .map_err(|e| e.to_string())?;
     let tasks: Vec<(i64, String, i64, Option<String>, bool, i64)> = stmt
         .query_map([], |row| {

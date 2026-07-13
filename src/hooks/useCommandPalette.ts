@@ -48,6 +48,7 @@ export type CommandId =
   | 'view-template'
   | 'view-goals'
   | 'view-settings'
+  | 'view-trash'
   | 'action-new-task'
   | 'action-focus-search'
   | 'action-shortcuts-help'
@@ -100,6 +101,13 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   },
   { id: 'view-settings', title: '设置', keywords: ['settings', '偏好', '配置'], view: 'settings', subtitle: '视图' },
   {
+    id: 'view-trash',
+    title: '打开回收站',
+    keywords: ['trash', 'recycle', '回收站', '回收', '已删除'],
+    view: 'trash',
+    subtitle: '视图',
+  },
+  {
     id: 'action-new-task',
     title: '新建任务',
     keywords: ['new', 'create', '新建', '创建任务'],
@@ -139,6 +147,7 @@ export function searchTasksForCommandPalette(tasks: Task[], query: string, limit
   const matched: Task[] = []
   for (const task of tasks) {
     if (task.archived) continue
+    if (task.deleted_at) continue
     if (!task.title.toLowerCase().includes(q)) continue
     matched.push(task)
     if (matched.length >= limit) break
@@ -277,6 +286,7 @@ export function useCommandPalette({ newTaskInputRef, searchInputRef }: UseComman
         case 'view-template':
         case 'view-goals':
         case 'view-settings':
+        case 'view-trash':
           if (def.view) navigateToView(def.view)
           // 普通视图跳转：恢复打开前焦点
           closePalette({ focus: { mode: 'restore' } })

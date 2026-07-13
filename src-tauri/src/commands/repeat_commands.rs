@@ -7,19 +7,19 @@ use super::{now_rfc3339, task_ops::shift_end_date};
 use crate::db::DbState;
 use crate::repeat;
 
-/// 完成重复任务。
+/// 核心完成重复任务逻辑（可在事务/测试中复用）。
 ///
 /// 逻辑：
-/// 1. 查询任务获取 repeat_rule
+/// 1. 查询任务获取 repeat_rule（排除已删除）
 /// 2. 解析规则，计算下一个出现日期
 /// 3. 若规则已到期（endDate/count 到达）→ 标记当前任务完成，返回 0
 /// 4. 否则：创建新任务（复制标题/优先级/notes/repeat_rule，设置 due_date 为下次出现日期）
 ///    → 标记当前任务完成 → 返回新任务 id
-#[tauri::command]
-pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i64, String> {
-    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+pub fn do_complete_recurring_task(
+    conn: &rusqlite::Connection,
+    task_id: i64,
+) -> Result<i64, String> {
     let now = now_rfc3339();
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // 1. 查询任务详情
     #[allow(clippy::type_complexity)]
@@ -35,10 +35,10 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
         i64,            // list_id
         Option<i64>,    // parent_id
         Option<String>, // repeat_rule
-    ) = tx
+    ) = conn
         .query_row(
             "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule
-             FROM tasks WHERE id = ?1",
+             FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             params![task_id],
             |row| {
                 Ok((
@@ -56,7 +56,7 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                 ))
             },
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| format!("任务不存在或已移入回收站（#{}）", task_id))?;
 
     let (
         title,
@@ -72,12 +72,17 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
         repeat_rule,
     ) = task;
 
-    // 2. 标记当前任务为已完成
-    tx.execute(
-        "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2",
-        params![now, task_id],
-    )
-    .map_err(|e| e.to_string())?;
+    // 2. 标记当前任务为已完成（拒绝回收站任务）
+    let affected = conn
+        .execute(
+            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NULL",
+            params![now, task_id],
+        )
+        .map_err(|e| e.to_string())?;
+    if affected == 0 {
+        return Err(format!("任务不存在或已移入回收站（#{}）", task_id));
+    }
 
     // 3. 处理重复规则
     if let Some(ref rule_str) = repeat_rule {
@@ -109,7 +114,7 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                 };
                 let sort_order = chrono::Local::now().timestamp_millis() as f64;
 
-                tx.execute(
+                conn.execute(
                     "INSERT INTO tasks
                         (title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, sort_order, completed, completed_at, status, created_at, updated_at)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, NULL, 'todo', ?13, ?14)",
@@ -132,10 +137,10 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                 )
                 .map_err(|e| e.to_string())?;
 
-                let new_id = tx.last_insert_rowid();
+                let new_id = conn.last_insert_rowid();
 
                 // 4.1 复制标签关联
-                let tag_ids: Vec<i64> = tx
+                let tag_ids: Vec<i64> = conn
                     .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1")
                     .map_err(|e| e.to_string())?
                     .query_map(params![task_id], |row| row.get(0))
@@ -144,20 +149,70 @@ pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i6
                     .collect();
 
                 for tag_id in tag_ids {
-                    tx.execute(
+                    conn.execute(
                         "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
                         params![new_id, tag_id],
                     )
                     .map_err(|e| e.to_string())?;
                 }
 
-                tx.commit().map_err(|e| e.to_string())?;
                 return Ok(new_id);
             }
         }
     }
 
     // 规则已到期或无重复规则
-    tx.commit().map_err(|e| e.to_string())?;
     Ok(0)
+}
+
+#[tauri::command]
+pub fn complete_recurring_task(state: State<DbState>, task_id: i64) -> Result<i64, String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let result = do_complete_recurring_task(&tx, task_id)?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::do_complete_recurring_task;
+    use crate::db::init_schema;
+    use rusqlite::params;
+
+    #[test]
+    fn complete_deleted_recurring_task_is_rejected() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        let now = "2026-07-01T00:00:00+08:00";
+        conn.execute(
+            "INSERT INTO tasks (title, due_date, repeat_rule, list_id, created_at, updated_at, deleted_at) \
+             VALUES (?1, ?2, ?3, 1, ?4, ?4, ?4)",
+            params![
+                "已删重复任务",
+                "2026-07-01T09:00:00+08:00",
+                "FREQ=DAILY;INTERVAL=1",
+                now
+            ],
+        )
+        .unwrap();
+        let task_id = conn.last_insert_rowid();
+
+        let err = do_complete_recurring_task(&conn, task_id).unwrap_err();
+        assert!(err.contains("不存在或已移入回收站"));
+
+        let completed: i64 = conn
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
+
+        let total: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(total, 1, "不得为回收站任务创建下一周期");
+    }
 }

@@ -23,6 +23,7 @@ const initialUIState = {
   aiParsing: false,
   expandedTasks: new Set<number>(),
   subtaskInputs: {} as Record<number, string>,
+  subtaskInputFocusRequest: null as number | null,
   batchMode: false,
   selectedTaskIds: new Set<number>(),
   isDraggingTask: false,
@@ -163,6 +164,28 @@ describe('uiStore', () => {
     useUIStore.getState().setSubtaskInput(6, 'foo')
     expect(useUIStore.getState().subtaskInputs[5]).toBe('world')
     expect(useUIStore.getState().subtaskInputs[6]).toBe('foo')
+  })
+
+  it('expandTask 仅展开不折叠', () => {
+    useUIStore.getState().expandTask(7)
+    expect(useUIStore.getState().expandedTasks.has(7)).toBe(true)
+    useUIStore.getState().expandTask(7)
+    expect(useUIStore.getState().expandedTasks.has(7)).toBe(true)
+  })
+
+  it('openSubtaskInput 展开并写入一次性 focus 请求；consume 后清理', () => {
+    useUIStore.getState().openSubtaskInput(9)
+    expect(useUIStore.getState().expandedTasks.has(9)).toBe(true)
+    expect(useUIStore.getState().subtaskInputFocusRequest).toBe(9)
+    // 重复 open 不会折叠
+    useUIStore.getState().openSubtaskInput(9)
+    expect(useUIStore.getState().expandedTasks.has(9)).toBe(true)
+    expect(useUIStore.getState().subtaskInputFocusRequest).toBe(9)
+    // 消费其它 id 不清理
+    useUIStore.getState().consumeSubtaskInputFocus(1)
+    expect(useUIStore.getState().subtaskInputFocusRequest).toBe(9)
+    useUIStore.getState().consumeSubtaskInputFocus(9)
+    expect(useUIStore.getState().subtaskInputFocusRequest).toBeNull()
   })
 
   // 11. setSearchQuery 更新搜索词

@@ -56,6 +56,7 @@ pub fn export_csv(state: State<DbState>) -> Result<String, String> {
             "SELECT t.id, t.title, l.name, t.priority, t.due_date, t.completed, t.archived, t.created_at
              FROM tasks t
              LEFT JOIN lists l ON t.list_id = l.id
+             WHERE t.deleted_at IS NULL
              ORDER BY t.created_at ASC",
         )
         .map_err(|e| e.to_string())?;

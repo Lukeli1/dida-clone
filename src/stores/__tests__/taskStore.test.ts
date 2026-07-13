@@ -9,6 +9,8 @@ vi.mock('../../api', () => ({
     createTask: vi.fn(),
     updateTask: vi.fn(),
     deleteTask: vi.fn(),
+    getTrashedTasks: vi.fn(),
+    restoreTask: vi.fn(),
     duplicateTask: vi.fn(),
     reorderTasks: vi.fn(),
     completeTask: vi.fn(),
@@ -174,6 +176,74 @@ describe('taskStore', () => {
     expect(tasks.map((t) => t.id)).toEqual([1, 7])
     // parent 的子任务中 id=5 已被移除
     expect(tasks[0].subtasks).toEqual([])
+  })
+
+  it('deleteTask 删除父任务时同时从活跃列表移除子树', async () => {
+    useTaskStore.getState().setTasks([
+      makeTask({ id: 1, title: 'parent', subtasks: [makeTask({ id: 2, parent_id: 1 })] }),
+      makeTask({ id: 2, title: 'child', parent_id: 1 }),
+      makeTask({ id: 3, title: 'keep' }),
+    ])
+    vi.mocked(api.deleteTask).mockResolvedValue()
+
+    const ok = await useTaskStore.getState().deleteTask(1)
+    expect(ok).toBe(true)
+    expect(useTaskStore.getState().tasks.map((t) => t.id)).toEqual([3])
+  })
+
+  it('restoreTask 成功时刷新回收站与活跃列表', async () => {
+    vi.mocked(api.restoreTask).mockResolvedValue()
+    vi.mocked(api.getTrashedTasks).mockResolvedValue([])
+    vi.mocked(api.getTasks).mockResolvedValue([makeTask({ id: 9, title: 'restored' })])
+
+    const result = await useTaskStore.getState().restoreTask(9)
+    expect(result.success).toBe(true)
+    expect(api.restoreTask).toHaveBeenCalledWith(9)
+    expect(api.getTrashedTasks).toHaveBeenCalled()
+    expect(api.getTasks).toHaveBeenCalled()
+    expect(useTaskStore.getState().tasks.map((t) => t.id)).toEqual([9])
+  })
+
+  it('restoreTask 失败时返回错误信息', async () => {
+    vi.mocked(api.restoreTask).mockRejectedValue(new Error('无法恢复：父任务仍在回收站中'))
+    const result = await useTaskStore.getState().restoreTask(2)
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('父任务仍在回收站')
+  })
+
+  it('updateTask 收到回收站错误时失败且不修改活跃列表', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const active = makeTask({ id: 1, title: '活跃' })
+    useTaskStore.getState().setTasks([active])
+    useTaskStore.setState({
+      trashedTasks: [
+        {
+          ...makeTask({ id: 9, title: '回收站任务', deleted_at: '2026-07-01T00:00:00.000Z' }),
+          list_name: '收件箱',
+          has_cascaded_children: false,
+          restore_blocked_by_deleted_ancestor: false,
+        },
+      ],
+    })
+
+    vi.mocked(api.updateTask).mockRejectedValue(new Error('任务不存在或已移入回收站（#9）'))
+    const ok = await useTaskStore.getState().updateTask(9, { title: '不该写入' })
+
+    expect(ok).toBe(false)
+    expect(useTaskStore.getState().tasks).toEqual([active])
+    expect(useTaskStore.getState().trashedTasks[0].title).toBe('回收站任务')
+    expect(api.getTasks).not.toHaveBeenCalled()
+    expect(api.getTrashedTasks).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('归档任务与已删除任务语义保持独立', () => {
+    const archived = makeTask({ id: 1, archived: true, deleted_at: null })
+    const deleted = makeTask({ id: 2, archived: false, deleted_at: '2026-01-01T00:00:00.000Z' })
+    expect(archived.archived).toBe(true)
+    expect(archived.deleted_at).toBeNull()
+    expect(deleted.archived).toBe(false)
+    expect(deleted.deleted_at).toBeTruthy()
   })
 
   // 10. duplicateTask 成功：前置插入复制出的任务

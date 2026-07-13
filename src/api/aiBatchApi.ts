@@ -127,7 +127,13 @@ export const aiBatchApi = {
             break
           }
           case 'delete_task': {
-            return { success: false, results: [], error: 'AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除' }
+            // mock：软删除
+            const idx = mockTasks.findIndex((t) => t.id === action.data.task_id && !t.deleted_at)
+            if (idx === -1) {
+              return { success: false, results: [], error: `任务 #${action.data.task_id} 不存在` }
+            }
+            mockTasks[idx] = { ...mockTasks[idx], deleted_at: now, updated_at: now }
+            break
           }
           case 'complete_task': {
             const idx = mockTasks.findIndex((t) => t.id === action.data.task_id)

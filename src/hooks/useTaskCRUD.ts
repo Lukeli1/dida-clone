@@ -32,9 +32,9 @@ export function useTaskCRUD(toast: ToastApi) {
     const success = await useTaskStore.getState().deleteTask(id)
     if (success) {
       useUIStore.getState().setSelectedTaskId(null)
-      toast.success('任务已删除')
+      toast.success('已删除，已移入回收站')
     } else {
-      toast.error('删除任务失败')
+      toast.error('删除失败')
     }
   }
 

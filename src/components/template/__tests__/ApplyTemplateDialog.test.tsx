@@ -123,12 +123,11 @@ describe('ApplyTemplateDialog', () => {
     const { onApplied } = await renderDialog({ defaultListId: 7 })
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/目标清单/)).toBeInTheDocument()
+      const listSelect = screen.getByLabelText(/目标清单/) as HTMLSelectElement
+      expect(listSelect.value).toBe('7')
     })
 
     // defaultListId=7 时应预填，不静默落到收件箱
-    const listSelect = screen.getByLabelText(/目标清单/) as HTMLSelectElement
-    expect(listSelect.value).toBe('7')
 
     // 设置日期
     const dateField = document.querySelector('input[type="date"]') as HTMLInputElement

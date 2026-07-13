@@ -243,10 +243,10 @@ pub fn do_add_time_entry(
     duration_secs: i64,
     note: Option<String>,
 ) -> Result<i64, String> {
-    // 校验 task_id 存在
+    // 校验 task_id 存在且未软删除
     let task_exists: bool = conn
         .query_row(
-            "SELECT 1 FROM tasks WHERE id = ?1",
+            "SELECT 1 FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             params![task_id],
             |_| Ok(true),
         )

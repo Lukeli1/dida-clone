@@ -31,6 +31,9 @@ pub struct Task {
     pub repeat_rule: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    /// 软删除时间（RFC3339）；NULL 表示活跃任务
+    #[serde(default)]
+    pub deleted_at: Option<String>,
     #[serde(default)]
     pub pinned: bool,
     pub sort_order: f64,
@@ -167,6 +170,7 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
             parent_id INTEGER,
             repeat_rule TEXT,
             sort_order REAL DEFAULT 0,
+            deleted_at TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (list_id) REFERENCES lists(id),
@@ -185,6 +189,8 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
     add_column_if_not_exists(conn, "tasks", "reminder_minutes", "INTEGER")?;
     add_column_if_not_exists(conn, "tasks", "completed_at", "TEXT")?;
     add_column_if_not_exists(conn, "tasks", "status", "TEXT DEFAULT 'todo'")?;
+    // v1.43.0：软删除回收站字段；旧任务默认 NULL（活跃）
+    add_column_if_not_exists(conn, "tasks", "deleted_at", "TEXT")?;
     conn.execute(
         "UPDATE tasks SET status = CASE WHEN completed = 1 THEN 'done' ELSE 'todo' END WHERE status IS NULL OR status = '' OR (completed = 1 AND status = 'todo')",
         [],
@@ -223,6 +229,7 @@ pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
          CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived);
          CREATE INDEX IF NOT EXISTS idx_tasks_pinned ON tasks(pinned);
          CREATE INDEX IF NOT EXISTS idx_tasks_sort_order ON tasks(pinned DESC, sort_order ASC, created_at DESC);
+         CREATE INDEX IF NOT EXISTS idx_tasks_deleted_at_parent_id ON tasks(deleted_at, parent_id);
          CREATE INDEX IF NOT EXISTS idx_task_tags_task_id ON task_tags(task_id);
          CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);"
     )?;
@@ -690,5 +697,104 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pid, Some(parent_id));
+    }
+
+    /// 旧 JSON 缺失 deleted_at 时按活跃任务导入（serde default None）
+    #[test]
+    fn test_task_json_missing_deleted_at_imports_as_active() {
+        let json = r#"{
+            "id": 1,
+            "title": "旧任务",
+            "notes": null,
+            "priority": 0,
+            "due_date": null,
+            "end_date": null,
+            "all_day": false,
+            "reminder": null,
+            "reminder_minutes": null,
+            "completed": false,
+            "completed_at": null,
+            "status": "todo",
+            "archived": false,
+            "list_id": 1,
+            "parent_id": null,
+            "repeat_rule": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "sort_order": 1.0
+        }"#;
+        let task: Task = serde_json::from_str(json).unwrap();
+        assert!(task.deleted_at.is_none());
+
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at, deleted_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+            params![
+                task.id,
+                task.title,
+                task.notes,
+                task.priority,
+                task.due_date,
+                task.end_date,
+                task.all_day,
+                task.reminder,
+                task.reminder_minutes,
+                task.completed,
+                task.completed_at,
+                task.status,
+                task.archived,
+                task.pinned,
+                task.list_id,
+                task.parent_id,
+                task.repeat_rule,
+                task.sort_order,
+                task.created_at,
+                task.updated_at,
+                task.deleted_at,
+            ],
+        )
+        .unwrap();
+
+        let deleted_at: Option<String> = conn
+            .query_row("SELECT deleted_at FROM tasks WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert!(deleted_at.is_none(), "缺失 deleted_at 应导入为活跃任务");
+    }
+
+    /// JSON 全量备份导出路径包含已删除任务及其 deleted_at
+    #[test]
+    fn test_json_export_query_includes_deleted_tasks() {
+        let conn = setup_db();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at) VALUES (?1, 1, ?2, ?2)",
+            params!["活跃", "2026-01-01T00:00:00Z"],
+        )
+        .unwrap();
+        let active_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at, deleted_at) VALUES (?1, 1, ?2, ?2, ?3)",
+            params!["已删", "2026-01-01T00:00:00Z", "2026-07-01T00:00:00Z"],
+        )
+        .unwrap();
+        let deleted_id = conn.last_insert_rowid();
+
+        // 与 export_json 一致：不按 deleted_at 过滤
+        let rows: Vec<(i64, Option<String>)> = conn
+            .prepare("SELECT id, deleted_at FROM tasks ORDER BY id ASC")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(rows.iter().any(|(id, _)| *id == active_id));
+        let deleted = rows
+            .iter()
+            .find(|(id, _)| *id == deleted_id)
+            .expect("导出应包含已删除任务");
+        assert_eq!(deleted.1.as_deref(), Some("2026-07-01T00:00:00Z"));
     }
 }

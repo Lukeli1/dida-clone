@@ -24,11 +24,15 @@ pub fn reorder_tasks(state: State<DbState>, items: Vec<ReorderItem>) -> Result<(
     // P3-3: 事务包裹，确保批量排序的原子性
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     for item in &items {
-        tx.execute(
-            "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
-            params![item.sort_order, now, item.id],
-        )
-        .map_err(|e| e.to_string())?;
+        let affected = tx
+            .execute(
+                "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL",
+                params![item.sort_order, now, item.id],
+            )
+            .map_err(|e| e.to_string())?;
+        if affected == 0 {
+            return Err(format!("任务不存在或已移入回收站（#{}）", item.id));
+        }
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
@@ -62,7 +66,7 @@ pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<Complete
         f64,
     ) = conn
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, completed, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, list_id, parent_id, repeat_rule, completed, sort_order FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             params![id],
             |row| {
                 Ok((
@@ -82,7 +86,7 @@ pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<Complete
                 ))
             },
         )
-        .map_err(|e| format!("完成任务失败：任务 #{} 不存在或查询出错: {}", id, e))?;
+        .map_err(|_| format!("任务不存在或已移入回收站（#{}）", id))?;
 
     let (
         title,
@@ -103,15 +107,16 @@ pub fn do_complete_task(conn: &rusqlite::Connection, id: i64) -> Result<Complete
         return Err(format!("完成任务失败：任务 #{} 已完成", id));
     }
 
-    // 标记当前任务为已完成
+    // 标记当前任务为已完成（再次限制 deleted_at，防止并发软删除后写入）
     let affected = conn
         .execute(
-            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 WHERE id = ?2 AND completed = 0",
+            "UPDATE tasks SET completed = 1, completed_at = ?1, status = 'done', updated_at = ?1 \
+             WHERE id = ?2 AND completed = 0 AND deleted_at IS NULL",
             params![now, id],
         )
         .map_err(|e| e.to_string())?;
     if affected == 0 {
-        return Err(format!("完成任务失败：任务 #{} 不存在或已完成", id));
+        return Err(format!("任务不存在或已移入回收站（#{}）", id));
     }
 
     // 如果有重复规则，尝试创建下一个周期的任务
@@ -470,5 +475,31 @@ mod tests {
             "2026-07-08T09:00:00+08:00"
         )
         .is_none());
+    }
+
+    #[test]
+    fn complete_deleted_task_is_rejected() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::init_schema(&conn).unwrap();
+        let now = "2026-07-01T00:00:00+08:00";
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, created_at, updated_at, deleted_at) \
+             VALUES (?1, 1, ?2, ?2, ?2)",
+            params!["已删任务", now],
+        )
+        .unwrap();
+        let task_id = conn.last_insert_rowid();
+
+        let err = super::do_complete_task(&conn, task_id).unwrap_err();
+        assert!(err.contains("不存在或已移入回收站"));
+
+        let completed: i64 = conn
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
     }
 }

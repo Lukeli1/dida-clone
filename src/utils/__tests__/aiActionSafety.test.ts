@@ -151,14 +151,25 @@ describe('validateActions', () => {
     expect(updates).not.toHaveProperty('malicious_field')
   })
 
-  it('delete_task 目标任务存在时仍拒绝 AI 删除', () => {
+  it('delete_task 目标任务存在时允许软删除预览', () => {
     const actions: ActionOp[] = [
       { type: 'delete_task', data: { task_id: 1 }, description: '删除任务' },
     ]
     const result = validateActions(actions, sampleTasks)
-    expect(result.valid).toHaveLength(0)
-    expect(result.errors).toHaveLength(1)
-    expect(result.errors[0].reason).toContain('AI 删除任务暂不可用')
+    expect(result.valid).toHaveLength(1)
+    expect(result.errors).toHaveLength(0)
+    expect(result.valid[0].actionType).toBe('delete_task')
+    expect(result.valid[0].previewInfo.afterValues).toHaveProperty('deleted_at')
+  })
+
+  it('delete_task 缺省说明包含删除与回收站语义', () => {
+    // description 为空串时走默认文案生成
+    const actions: ActionOp[] = [{ type: 'delete_task', data: { task_id: 1 }, description: '' }]
+    const result = validateActions(actions, sampleTasks)
+    expect(result.valid).toHaveLength(1)
+    expect(result.valid[0].description).toMatch(/删除任务/)
+    expect(result.valid[0].description).toMatch(/移入回收站，可恢复/)
+    expect(result.valid[0].previewInfo.description).toMatch(/移入回收站，可恢复/)
   })
 
   it('delete_task 目标任务不存在时校验失败', () => {

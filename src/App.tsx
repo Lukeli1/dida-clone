@@ -30,6 +30,7 @@ const PomodoroView = lazy(() => import('./components/pomodoro/PomodoroView').the
 const HabitView = lazy(() => import('./components/habit/HabitView').then((m) => ({ default: m.HabitView })))
 const TemplateView = lazy(() => import('./components/template/TemplateView').then((m) => ({ default: m.TemplateView })))
 const GoalView = lazy(() => import('./components/goal/GoalView').then((m) => ({ default: m.GoalView })))
+const TrashView = lazy(() => import('./components/TrashView').then((m) => ({ default: m.TrashView })))
 
 /**
  * App 根组件（重构后）
@@ -203,6 +204,9 @@ function App() {
       break
     case 'goals':
       mainView = <GoalView />
+      break
+    case 'trash':
+      mainView = <TrashView />
       break
     case 'tasks':
     case 'today':

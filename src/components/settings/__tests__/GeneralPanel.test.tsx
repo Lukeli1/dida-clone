@@ -45,4 +45,11 @@ describe('GeneralPanel 侧边栏显示设置', () => {
     expect(useUIStore.getState().isSidebarItemVisible('pomodoro')).toBe(false)
     expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
+
+  it('删除前确认区域说明归档与回收站差异', () => {
+    render(<GeneralPanel />)
+    const block = screen.getByTestId('delete-confirm-setting')
+    expect(block).toHaveTextContent(/归档用于收纳任务，不会进入回收站/)
+    expect(block).toHaveTextContent(/删除后将移入回收站，可在回收站恢复/)
+  })
 })

@@ -47,10 +47,15 @@ export function GeneralPanel() {
         </div>
 
         {/* 删除确认 */}
-        <div className="flex items-center justify-between px-4 py-3.5 gap-3">
+        <div className="flex items-center justify-between px-4 py-3.5 gap-3" data-testid="delete-confirm-setting">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--color-text-primary)]">删除前确认</p>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">删除任务时弹出确认对话框</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              删除后将移入回收站，可在回收站恢复。开启后删除前会弹出确认。
+            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+              归档用于收纳任务，不会进入回收站；删除后将移入回收站，可在回收站恢复。
+            </p>
           </div>
           <Toggle checked={confirmDelete} onChange={setConfirmDelete} />
         </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Task, CreateTaskRequest, UpdateTaskRequest } from '../types'
+import type { Task, TrashedTask, CreateTaskRequest, UpdateTaskRequest } from '../types'
 import { api, repeatApi } from '../api'
 import { useUIStore } from './uiStore'
 
@@ -58,12 +58,17 @@ function getLocalWholeDaySpan(start: Date, end: Date): number | null {
 
 interface TaskState {
   tasks: Task[]
+  /** 回收站条目（不含同次连带删除的子任务顶层重复项） */
+  trashedTasks: TrashedTask[]
+  trashLoading: boolean
   loading: boolean
   setTasks: (tasks: Task[]) => void
   loadTasks: () => Promise<void>
+  loadTrashedTasks: () => Promise<void>
   createTask: (req: CreateTaskRequest) => Promise<Task | null>
   updateTask: (id: number, updates: UpdateTaskRequest) => Promise<boolean>
   deleteTask: (id: number) => Promise<boolean>
+  restoreTask: (id: number) => Promise<{ success: boolean; error?: string }>
   duplicateTask: (id: number) => Promise<Task | null>
   togglePin: (id: number) => Promise<boolean>
   toggleTask: (task: Task) => Promise<{ success: boolean; newTaskGenerated: boolean }>
@@ -74,6 +79,8 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  trashedTasks: [],
+  trashLoading: false,
   loading: true,
 
   setTasks: (tasks) => set({ tasks }),
@@ -82,10 +89,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ loading: true })
     try {
       const data = await api.getTasks()
-      set({ tasks: data, loading: false })
+      // 防御：活跃列表始终排除已软删除任务
+      set({ tasks: data.filter((t) => !t.deleted_at), loading: false })
     } catch (error) {
       console.error('Failed to load tasks:', error)
       set({ loading: false })
+    }
+  },
+
+  loadTrashedTasks: async () => {
+    set({ trashLoading: true })
+    try {
+      const data = await api.getTrashedTasks()
+      set({ trashedTasks: data, trashLoading: false })
+    } catch (error) {
+      console.error('Failed to load trashed tasks:', error)
+      set({ trashLoading: false })
     }
   },
 
@@ -145,15 +164,56 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   deleteTask: async (id) => {
     try {
       await api.deleteTask(id)
-      set((state) => ({
-        tasks: state.tasks
-          .filter((t) => t.id !== id)
-          .map((t) => (t.subtasks ? { ...t, subtasks: t.subtasks.filter((st) => st.id !== id) } : t)),
-      }))
+      // 软删除后：立即从活跃列表移除目标及其子树（级联后代）
+      set((state) => {
+        const removeIds = new Set<number>([id])
+        let grew = true
+        while (grew) {
+          grew = false
+          for (const t of state.tasks) {
+            if (t.parent_id != null && removeIds.has(t.parent_id) && !removeIds.has(t.id)) {
+              removeIds.add(t.id)
+              grew = true
+            }
+            if (t.subtasks) {
+              for (const st of t.subtasks) {
+                if (removeIds.has(st.parent_id ?? t.id) || removeIds.has(st.id)) {
+                  if (!removeIds.has(st.id)) {
+                    removeIds.add(st.id)
+                    grew = true
+                  }
+                }
+              }
+            }
+          }
+        }
+        return {
+          tasks: state.tasks
+            .filter((t) => !removeIds.has(t.id))
+            .map((t) =>
+              t.subtasks
+                ? { ...t, subtasks: t.subtasks.filter((st) => !removeIds.has(st.id)) }
+                : t,
+            ),
+        }
+      })
       return true
     } catch (error) {
       console.error('Failed to delete task:', error)
       return false
+    }
+  },
+
+  restoreTask: async (id) => {
+    try {
+      await api.restoreTask(id)
+      // 恢复成功：刷新回收站与活跃任务列表
+      await Promise.all([get().loadTrashedTasks(), get().loadTasks()])
+      return { success: true }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to restore task:', error)
+      return { success: false, error: message }
     }
   },
 

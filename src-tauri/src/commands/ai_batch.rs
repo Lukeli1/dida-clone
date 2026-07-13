@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use super::{
-    do_complete_task, do_create_task, do_update_task, CreateTaskRequest, UpdateTaskRequest,
+    do_complete_task, do_create_task, do_delete_task, do_update_task, CreateTaskRequest,
+    UpdateTaskRequest,
 };
 use crate::db::DbState;
 
@@ -94,11 +95,14 @@ fn validate_batch_actions(actions: &[AiBatchAction]) -> Result<(), String> {
 
     for action in actions {
         match action {
-            AiBatchAction::DeleteTask(_) => {
-                return Err(
-                    "AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除"
-                        .to_string(),
-                );
+            // v1.43.0：AI 删除改走软删除（回收站），允许纳入批量事务
+            AiBatchAction::DeleteTask(data) => {
+                if !touched_existing_tasks.insert(data.task_id) {
+                    return Err(format!(
+                        "批量执行失败：任务 #{} 在同一批 AI 操作中被重复修改",
+                        data.task_id
+                    ));
+                }
             }
             AiBatchAction::UpdateTask(data) => {
                 if data.updates.completed.is_some()
@@ -169,17 +173,17 @@ pub fn do_execute_ai_batch(
                 }
             }
             AiBatchAction::UpdateTask(data) => {
-                // 校验目标任务存在，不存在则报错回滚
+                // 校验目标任务存在且未软删除；do_update_task 也会再次限制 deleted_at
                 let exists: i64 = tx
                     .query_row(
-                        "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                        "SELECT COUNT(*) FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
                         rusqlite::params![data.task_id],
                         |row| row.get(0),
                     )
                     .map_err(|e| e.to_string())?;
                 if exists == 0 {
                     return Err(format!(
-                        "批量执行失败：update_task 的目标任务 #{} 不存在，已回滚",
+                        "批量执行失败：任务不存在或已移入回收站（#{}），已回滚",
                         data.task_id
                     ));
                 }
@@ -190,15 +194,24 @@ pub fn do_execute_ai_batch(
                     created_task_id: None,
                 }
             }
-            AiBatchAction::DeleteTask(_) => {
-                return Err(
-                    "AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除"
-                        .to_string(),
-                );
+            AiBatchAction::DeleteTask(data) => {
+                // 软删除：移入回收站，保留附件/标签/时间记录等关联
+                do_delete_task(&tx, data.task_id)?;
+                AiActionResult {
+                    index: i,
+                    action_type: "delete_task".to_string(),
+                    created_task_id: None,
+                }
             }
             AiBatchAction::CompleteTask(data) => {
-                // do_complete_task 内部会检查任务存在性并处理重复任务
-                let complete_result = do_complete_task(&tx, data.task_id)?;
+                // do_complete_task 内部会检查任务存在性/软删除并处理重复任务
+                let complete_result = do_complete_task(&tx, data.task_id).map_err(|e| {
+                    if e.contains("不存在或已移入回收站") {
+                        format!("批量执行失败：{}，已回滚", e)
+                    } else {
+                        e
+                    }
+                })?;
                 AiActionResult {
                     index: i,
                     action_type: "complete_task".to_string(),
@@ -208,14 +221,14 @@ pub fn do_execute_ai_batch(
             AiBatchAction::CreateSubtask(data) => {
                 let parent_parent_id: Option<i64> = tx
                     .query_row(
-                        "SELECT parent_id FROM tasks WHERE id = ?1",
+                        "SELECT parent_id FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
                         rusqlite::params![data.parent_id],
                         |row| row.get(0),
                     )
-                    .map_err(|e| {
+                    .map_err(|_| {
                         format!(
-                            "批量执行失败：create_subtask 的父任务 #{} 不存在或查询出错: {}",
-                            data.parent_id, e
+                            "批量执行失败：任务不存在或已移入回收站（#{}），已回滚",
+                            data.parent_id
                         )
                     })?;
                 if parent_parent_id.is_some() {
@@ -313,8 +326,8 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_delete_action_is_rejected() {
-        // AI 删除无法无损撤销，应在进入事务前拒绝
+    fn test_batch_delete_action_soft_deletes_in_transaction() {
+        // v1.43.0：AI 删除改为软删除，批量事务内应成功
         let mut conn = setup_db();
         let task_id = insert_task(&conn, "已有任务");
 
@@ -329,27 +342,26 @@ mod tests {
             AiBatchAction::DeleteTask(DeleteTaskData { task_id }),
         ];
 
-        let result = do_execute_ai_batch(&mut conn, &actions);
-        assert!(result.is_err(), "AI delete_task 应被拒绝");
-        assert!(result.unwrap_err().contains("AI 删除任务暂不可用"));
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
 
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM tasks WHERE title = '新任务'",
+                "SELECT COUNT(*) FROM tasks WHERE title = '新任务' AND deleted_at IS NULL",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(count, 0, "拒绝后不应创建新任务");
+        assert_eq!(count, 1, "创建动作应成功");
 
-        let count: i64 = conn
+        let deleted_at: Option<String> = conn
             .query_row(
-                "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
                 params![task_id],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(count, 1, "拒绝后原任务不应删除");
+        assert!(deleted_at.is_some(), "原任务应被软删除");
     }
 
     #[test]
@@ -793,24 +805,33 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_delete_task_is_disabled() {
+    fn test_batch_delete_task_is_soft_delete() {
         let mut conn = setup_db();
         let task_id = insert_task(&conn, "待删除任务");
 
         let actions = vec![AiBatchAction::DeleteTask(DeleteTaskData { task_id })];
 
-        let result = do_execute_ai_batch(&mut conn, &actions);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("AI 删除任务暂不可用"));
+        let result = do_execute_ai_batch(&mut conn, &actions).unwrap();
+        assert!(result.success);
 
-        let count: i64 = conn
+        // 行仍在库中，但已软删除
+        let deleted_at: Option<String> = conn
             .query_row(
-                "SELECT COUNT(*) FROM tasks WHERE id = ?1",
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
                 params![task_id],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(count, 1);
+        assert!(deleted_at.is_some(), "AI delete_task 应走软删除");
+
+        let active: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(active, 0);
     }
 
     #[test]
@@ -943,5 +964,123 @@ mod tests {
             Some(parent_id),
             "下一周期任务应保留 parent_id"
         );
+    }
+
+    #[test]
+    fn test_batch_delete_then_update_same_task_is_rejected() {
+        let mut conn = setup_db();
+        let task_id = insert_task(&conn, "先删后改");
+
+        let actions = vec![
+            AiBatchAction::DeleteTask(DeleteTaskData { task_id }),
+            AiBatchAction::UpdateTask(UpdateTaskData {
+                task_id,
+                updates: UpdateTaskRequest {
+                    title: Some("不该写入".to_string()),
+                    notes: None,
+                    priority: None,
+                    due_date: None,
+                    end_date: None,
+                    all_day: None,
+                    reminder: None,
+                    reminder_minutes: None,
+                    completed: None,
+                    completed_at: None,
+                    status: None,
+                    archived: None,
+                    pinned: None,
+                    list_id: None,
+                    parent_id: None,
+                    repeat_rule: None,
+                    sort_order: None,
+                },
+            }),
+        ];
+
+        let err = do_execute_ai_batch(&mut conn, &actions).unwrap_err();
+        assert!(
+            err.contains("重复修改") || err.contains("已移入回收站"),
+            "err={err}"
+        );
+
+        let (title, deleted_at): (String, Option<String>) = conn
+            .query_row(
+                "SELECT title, deleted_at FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(title, "先删后改");
+        assert!(deleted_at.is_none(), "整批应拒绝，不得软删除半完成");
+    }
+
+    #[test]
+    fn test_batch_update_already_deleted_task_is_rejected() {
+        let mut conn = setup_db();
+        let task_id = insert_task(&conn, "已在回收站");
+        conn.execute(
+            "UPDATE tasks SET deleted_at = ?1 WHERE id = ?2",
+            params!["2026-07-01T00:00:00Z", task_id],
+        )
+        .unwrap();
+
+        let actions = vec![AiBatchAction::UpdateTask(UpdateTaskData {
+            task_id,
+            updates: UpdateTaskRequest {
+                title: Some("不该成功".to_string()),
+                notes: None,
+                priority: None,
+                due_date: None,
+                end_date: None,
+                all_day: None,
+                reminder: None,
+                reminder_minutes: None,
+                completed: None,
+                completed_at: None,
+                status: None,
+                archived: None,
+                pinned: None,
+                list_id: None,
+                parent_id: None,
+                repeat_rule: None,
+                sort_order: None,
+            },
+        })];
+
+        let err = do_execute_ai_batch(&mut conn, &actions).unwrap_err();
+        assert!(err.contains("不存在或已移入回收站"), "err={err}");
+
+        let title: String = conn
+            .query_row(
+                "SELECT title FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(title, "已在回收站");
+    }
+
+    #[test]
+    fn test_batch_complete_already_deleted_task_is_rejected() {
+        let mut conn = setup_db();
+        let task_id = insert_task(&conn, "已删待完成");
+        conn.execute(
+            "UPDATE tasks SET deleted_at = ?1 WHERE id = ?2",
+            params!["2026-07-01T00:00:00Z", task_id],
+        )
+        .unwrap();
+
+        let actions = vec![AiBatchAction::CompleteTask(CompleteTaskData { task_id })];
+        let err = do_execute_ai_batch(&mut conn, &actions).unwrap_err();
+        assert!(err.contains("不存在或已移入回收站"), "err={err}");
+
+        let completed: i64 = conn
+            .query_row(
+                "SELECT completed FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(completed, 0);
     }
 }

@@ -181,7 +181,7 @@ export async function executeAiActions(
       case 'update_task':
         return `✅ 已更新任务 #${(action.data as { task_id: number }).task_id}`
       case 'delete_task':
-        return `✅ 已删除任务 #${(action.data as { task_id: number }).task_id}`
+        return `✅ 已删除任务 #${(action.data as { task_id: number }).task_id}（已移入回收站）`
       case 'complete_task':
         return `✅ 已完成任务 #${(action.data as { task_id: number }).task_id}`
       case 'create_subtask':

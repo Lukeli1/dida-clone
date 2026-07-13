@@ -341,16 +341,31 @@ export function validateActions(
             errors.push({ index: i, actionType, description, reason: 'delete_task 缺少必填字段 task_id' })
             continue
           }
-          const task = tasks.find((t) => t.id === data.task_id)
+          const task = tasks.find((t) => t.id === data.task_id && !t.deleted_at)
           if (!task) {
             errors.push({ index: i, actionType, description, reason: `目标任务 #${data.task_id} 不存在` })
             continue
           }
-          errors.push({
+          // v1.43.0：允许 AI 软删除（移入回收站），仍需人工预览确认
+          const action: AiBatchAction = {
+            type: 'delete_task',
+            data: { task_id: data.task_id },
+          }
+          const deleteDesc =
+            description || `删除任务：${task.title}（删除后将移入回收站，可恢复。）`
+          valid.push({
             index: i,
             actionType,
-            description,
-            reason: 'AI 删除任务暂不可用：当前删除无法无损恢复附件、时间记录和目标关联，请手动删除',
+            description: deleteDesc,
+            action,
+            previewInfo: {
+              type: 'delete_task',
+              description: deleteDesc,
+              taskId: task.id,
+              taskTitle: task.title,
+              beforeValues: { deleted_at: null },
+              afterValues: { deleted_at: '(soft-delete)' },
+            },
           })
           break
         }

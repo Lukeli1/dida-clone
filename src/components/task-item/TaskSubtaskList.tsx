@@ -1,27 +1,59 @@
+import { useEffect, useRef } from 'react'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
+import { useUIStore } from '../../stores/uiStore'
 import type { Task } from '../../types'
 
 /**
  * 子任务展开列表（含「添加子任务」输入框）。
  *
- * 从 TaskItem 容器中拆出，自身通过 useTaskActionContext 获取所需回调，
- * 行为与原内联实现完全一致。
+ * 从 TaskItem 容器中拆出，自身通过 useTaskActionContext 获取所需回调。
+ * 支持父任务尚无子任务时仅展示输入框；右键「添加子任务」通过
+ * uiStore.subtaskInputFocusRequest 一次性聚焦本输入框。
+ * 子任务行支持独立右键菜单（onSubtaskContextMenu）。
  */
 interface TaskSubtaskListProps {
   task: Task
   isSelected: boolean
   subtaskInput: string
+  onSubtaskContextMenu?: (subtask: Task, e: React.MouseEvent) => void
 }
 
-export function TaskSubtaskList({ task, isSelected, subtaskInput }: TaskSubtaskListProps) {
+export function TaskSubtaskList({
+  task,
+  isSelected,
+  subtaskInput,
+  onSubtaskContextMenu,
+}: TaskSubtaskListProps) {
   const ctx = useTaskActionContext()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const focusRequest = useUIStore((s) => s.subtaskInputFocusRequest)
+  const subtasks = task.subtasks ?? []
+
+  useEffect(() => {
+    if (focusRequest !== task.id) return
+    const el = inputRef.current
+    if (el) {
+      el.focus()
+      useUIStore.getState().consumeSubtaskInputFocus(task.id)
+    }
+  }, [focusRequest, task.id])
 
   return (
-    <div className="ml-8 mt-1 space-y-1 border-l-2 border-[var(--color-border-light)] pl-4">
-      {task.subtasks!.map((subtask) => (
+    <div
+      className="ml-8 mt-1 space-y-1 border-l-2 border-[var(--color-border-light)] pl-4"
+      data-testid={`subtask-list-${task.id}`}
+    >
+      {subtasks.map((subtask) => (
         <div
           key={subtask.id}
-          onClick={() => ctx.onClick(task.id)}
+          data-testid={`subtask-row-${subtask.id}`}
+          onClick={() => ctx.onClick(subtask.id)}
+          onContextMenu={(e) => {
+            // 必须拦截：否则会落到父任务行，表现为「子任务右键无反应/菜单不对」
+            e.preventDefault()
+            e.stopPropagation()
+            onSubtaskContextMenu?.(subtask, e)
+          }}
           className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
             isSelected ? 'bg-[var(--color-accent-light)]/60' : 'hover:bg-[var(--color-bg-secondary)]/60'
           } ${subtask.completed ? 'opacity-60' : ''}`}
@@ -55,7 +87,9 @@ export function TaskSubtaskList({ task, isSelected, subtaskInput }: TaskSubtaskL
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
         <input
+          ref={inputRef}
           type="text"
+          data-testid={`subtask-input-${task.id}`}
           value={subtaskInput}
           onChange={(e) => ctx.onSubtaskInputChange(task.id, e.target.value)}
           onKeyDown={(e) => {

@@ -103,7 +103,7 @@ describe('CommandPalette', () => {
     expect(binding?.defaultKeys).toBe('Ctrl+K')
   })
 
-  it('固定命令覆盖文档要求的 14 项', () => {
+  it('固定命令覆盖文档要求的 15 项（含回收站）', () => {
     expect(COMMAND_DEFINITIONS.map((c) => c.title)).toEqual([
       '全部任务',
       '今日任务',
@@ -116,6 +116,7 @@ describe('CommandPalette', () => {
       '模板',
       '目标 / OKR',
       '设置',
+      '打开回收站',
       '新建任务',
       '聚焦搜索',
       '打开快捷键帮助',
@@ -269,6 +270,30 @@ describe('CommandPalette', () => {
     const matched = searchTasksForCommandPalette(tasks, '会议')
     expect(matched).toHaveLength(1)
     expect(matched[0].id).toBe(2)
+  })
+
+  it('已删除任务不出现在命令面板任务搜索中', () => {
+    const tasks = [
+      makeTask(1, { title: '已删会议', deleted_at: '2026-07-01T00:00:00.000Z' }),
+      makeTask(2, { title: '活跃会议' }),
+    ]
+    const matched = searchTasksForCommandPalette(tasks, '会议')
+    expect(matched).toHaveLength(1)
+    expect(matched[0].id).toBe(2)
+  })
+
+  it('打开回收站命令可切换 currentView 为 trash', () => {
+    useUIStore.setState({ commandPaletteOpen: true, currentView: 'tasks' })
+    render(
+      <CommandPalette
+        newTaskInputRef={{ current: null }}
+        searchInputRef={{ current: null }}
+      />,
+    )
+    fireEvent.change(screen.getByTestId('command-palette-input'), { target: { value: '回收站' } })
+    fireEvent.click(screen.getByTestId('command-item-view-trash'))
+    expect(useUIStore.getState().currentView).toBe('trash')
+    expect(useUIStore.getState().commandPaletteOpen).toBe(false)
   })
 
   it('点击固定命令可切换视图', () => {

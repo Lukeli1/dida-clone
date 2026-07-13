@@ -29,6 +29,9 @@ pub fn get_tasks(
     let mut conditions: Vec<String> = Vec::new();
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
+    // 普通业务查询始终排除已软删除任务
+    conditions.push("deleted_at IS NULL".to_string());
+
     // 视图过滤（today/archived）
     if let Some(ref v) = view {
         match v.as_str() {
@@ -99,7 +102,7 @@ pub fn get_tasks(
     };
 
     let sql = format!(
-        "SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC {}",
+        "SELECT id, title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, completed_at, CASE WHEN completed = 1 THEN 'done' ELSE COALESCE(NULLIF(status, ''), 'todo') END AS status, archived, pinned, list_id, parent_id, repeat_rule, sort_order, created_at, updated_at, deleted_at FROM tasks {} ORDER BY pinned DESC, sort_order ASC, created_at DESC {}",
         where_clause, limit_clause
     );
 
@@ -130,6 +133,7 @@ pub fn get_tasks(
                 sort_order: row.get(17)?,
                 created_at: row.get(18)?,
                 updated_at: row.get(19)?,
+                deleted_at: row.get(20)?,
                 tag_ids: Vec::new(),
             })
         })
@@ -177,33 +181,246 @@ pub fn get_tasks(
     Ok(tasks)
 }
 
-/// 核心删除逻辑，接受 &Connection 以便在批量执行事务中复用。
-/// 调用方负责事务管理（batch command 在外层包裹 transaction）。
+/// 软删除任务：设置 deleted_at，递归标记全部后代。
+///
+/// 契约：
+/// - 同一次级联删除使用同一个精确时间字符串；
+/// - 已独立删除（deleted_at 非空）的后代不被覆盖；
+/// - 不删除标签关联、附件、重复规则、完成记录、时间追踪、目标关联。
 pub fn do_delete_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String> {
-    // 先删除关联的 task_tags，避免外键约束失败
-    conn.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])
+    let now = now_rfc3339();
+
+    // 确认目标任务存在且尚未删除
+    let exists: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
+            params![id],
+            |row| row.get(0),
+        )
         .map_err(|e| e.to_string())?;
-    // 删除子任务的 task_tags
+    if exists == 0 {
+        // 已删除或不存在：幂等视为成功
+        return Ok(());
+    }
+
+    // 递归 CTE：当前任务 + 所有后代；仅更新尚未删除的行
     conn.execute(
-        "DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE parent_id = ?1)",
-        params![id],
+        "WITH RECURSIVE tree(id) AS (
+            SELECT id FROM tasks WHERE id = ?1
+            UNION ALL
+            SELECT t.id FROM tasks t
+            INNER JOIN tree ON t.parent_id = tree.id
+         )
+         UPDATE tasks
+         SET deleted_at = ?2, updated_at = ?2
+         WHERE id IN (SELECT id FROM tree)
+           AND deleted_at IS NULL",
+        params![id, now],
     )
     .map_err(|e| e.to_string())?;
-    // 删除子任务
-    conn.execute("DELETE FROM tasks WHERE parent_id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
-    // 最后删除任务本身
-    conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
     let mut conn = state.0.lock().map_err(|e| e.to_string())?;
-    // P3-3: 事务包裹，确保级联删除的原子性
+    // P3-3: 事务包裹，确保级联软删除的原子性
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     do_delete_task(&tx, id)?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 回收站条目：附带清单名与是否含同次连带子任务
+#[derive(Debug, serde::Serialize)]
+pub struct TrashedTask {
+    #[serde(flatten)]
+    pub task: Task,
+    pub list_name: Option<String>,
+    /// 是否包含与该顶层任务同次级联删除的子任务
+    pub has_cascaded_children: bool,
+    /// true：独立删除的后代，但任一祖先仍在回收站，当前不可恢复
+    pub restore_blocked_by_deleted_ancestor: bool,
+}
+
+/// 递归判断任务是否存在仍在回收站中的祖先。
+fn has_deleted_ancestor(conn: &rusqlite::Connection, task_id: i64) -> Result<bool, String> {
+    let blocked: i64 = conn
+        .query_row(
+            "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (
+                SELECT id, parent_id, deleted_at FROM tasks WHERE id = ?1
+                UNION ALL
+                SELECT t.id, t.parent_id, t.deleted_at
+                FROM tasks t
+                INNER JOIN ancestors a ON t.id = a.parent_id
+             )
+             SELECT COUNT(*) FROM ancestors
+             WHERE id != ?1 AND deleted_at IS NOT NULL",
+            params![task_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(blocked > 0)
+}
+
+/// 查询回收站：仅 deleted_at IS NOT NULL。
+/// 不把“由父任务同次连带删除的子任务”作为独立顶层条目展示。
+pub fn do_get_trashed_tasks(conn: &rusqlite::Connection) -> Result<Vec<TrashedTask>, String> {
+    // 顶层回收站条目：自身已删除，且父任务不在“同次删除集合”中
+    // 规则：若父任务也已删除且 deleted_at 与自身相同，则视为连带删除子任务，不单独展示。
+    let mut stmt = conn
+        .prepare(
+            "SELECT t.id, t.title, t.notes, t.priority, t.due_date, t.end_date, t.all_day,
+                    t.reminder, t.reminder_minutes, t.completed, t.completed_at,
+                    CASE WHEN t.completed = 1 THEN 'done' ELSE COALESCE(NULLIF(t.status, ''), 'todo') END AS status,
+                    t.archived, t.pinned, t.list_id, t.parent_id, t.repeat_rule, t.sort_order,
+                    t.created_at, t.updated_at, t.deleted_at, l.name,
+                    EXISTS (
+                      SELECT 1 FROM tasks c
+                      WHERE c.parent_id = t.id
+                        AND c.deleted_at IS NOT NULL
+                        AND c.deleted_at = t.deleted_at
+                    ) AS has_cascaded_children
+             FROM tasks t
+             LEFT JOIN lists l ON l.id = t.list_id
+             WHERE t.deleted_at IS NOT NULL
+               AND (
+                 t.parent_id IS NULL
+                 OR NOT EXISTS (
+                   SELECT 1 FROM tasks p
+                   WHERE p.id = t.parent_id
+                     AND p.deleted_at IS NOT NULL
+                     AND p.deleted_at = t.deleted_at
+                 )
+               )
+             ORDER BY t.deleted_at DESC, t.updated_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let mut rows: Vec<TrashedTask> = stmt
+        .query_map([], |row| {
+            Ok(TrashedTask {
+                task: Task {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    notes: row.get(2)?,
+                    priority: row.get(3)?,
+                    due_date: row.get(4)?,
+                    end_date: row.get(5)?,
+                    all_day: row.get::<_, i64>(6)? != 0,
+                    reminder: row.get(7)?,
+                    reminder_minutes: row.get(8)?,
+                    completed: row.get(9)?,
+                    completed_at: row.get(10)?,
+                    status: row.get(11)?,
+                    archived: row.get::<_, i64>(12)? != 0,
+                    pinned: row.get::<_, i64>(13)? != 0,
+                    list_id: row.get(14)?,
+                    parent_id: row.get(15)?,
+                    repeat_rule: row.get(16)?,
+                    sort_order: row.get(17)?,
+                    created_at: row.get(18)?,
+                    updated_at: row.get(19)?,
+                    deleted_at: row.get(20)?,
+                    tag_ids: Vec::new(),
+                },
+                list_name: row.get(21)?,
+                has_cascaded_children: row.get::<_, i64>(22)? != 0,
+                restore_blocked_by_deleted_ancestor: false,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // 递归祖先查询：独立删除的子/孙任务若任一祖先仍在回收站，则标记不可恢复
+    for item in &mut rows {
+        if item.task.parent_id.is_some() {
+            item.restore_blocked_by_deleted_ancestor = has_deleted_ancestor(conn, item.task.id)?;
+        }
+    }
+
+    Ok(rows)
+}
+
+#[tauri::command]
+pub fn get_trashed_tasks(state: State<DbState>) -> Result<Vec<TrashedTask>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    do_get_trashed_tasks(&conn)
+}
+
+/// 恢复软删除任务。
+///
+/// - 恢复顶层：恢复自身 + deleted_at 与其完全相同的后代；
+/// - 独立删除、时间不同的子任务不连带恢复；
+/// - 恢复子任务前，任一祖先仍被删除则返回明确错误。
+pub fn do_restore_task(conn: &rusqlite::Connection, id: i64) -> Result<(), String> {
+    let now = now_rfc3339();
+
+    let (deleted_at, parent_id): (Option<String>, Option<i64>) = conn
+        .query_row(
+            "SELECT deleted_at, parent_id FROM tasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|_| format!("任务 #{} 不存在", id))?;
+
+    let deleted_at = match deleted_at {
+        Some(ts) => ts,
+        None => return Err(format!("任务 #{} 不在回收站中", id)),
+    };
+
+    // 检查祖先链：任一祖先仍删除则拒绝恢复
+    if parent_id.is_some() {
+        let blocked: i64 = conn
+            .query_row(
+                "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (
+                    SELECT id, parent_id, deleted_at FROM tasks WHERE id = ?1
+                    UNION ALL
+                    SELECT t.id, t.parent_id, t.deleted_at
+                    FROM tasks t
+                    INNER JOIN ancestors a ON t.id = a.parent_id
+                 )
+                 SELECT COUNT(*) FROM ancestors
+                 WHERE id != ?1 AND deleted_at IS NOT NULL",
+                params![id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if blocked > 0 {
+            return Err(
+                "无法恢复：父任务仍在回收站中。请先恢复父任务，或确认祖先链路均已恢复。"
+                    .to_string(),
+            );
+        }
+    }
+
+    // 恢复自身 + deleted_at 完全相同的后代
+    conn.execute(
+        "WITH RECURSIVE tree(id) AS (
+            SELECT id FROM tasks WHERE id = ?1
+            UNION ALL
+            SELECT t.id FROM tasks t
+            INNER JOIN tree ON t.parent_id = tree.id
+            WHERE t.deleted_at = ?2
+         )
+         UPDATE tasks
+         SET deleted_at = NULL, updated_at = ?3
+         WHERE id IN (SELECT id FROM tree)
+           AND deleted_at = ?2",
+        params![id, deleted_at, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restore_task(state: State<DbState>, id: i64) -> Result<(), String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    do_restore_task(&tx, id)?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -217,15 +434,16 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
     // P3-3: 事务包裹，确保复制 + 标签关联的原子性
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    // 查询原任务所有字段
+    // 查询原任务所有字段（拒绝回收站任务）
     #[allow(clippy::type_complexity)]
     let task: (String, Option<String>, i64, Option<String>, Option<String>, bool, Option<String>, Option<i64>, bool, bool, bool, i64, Option<i64>, Option<String>, f64) = tx
         .query_row(
-            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order FROM tasks WHERE id = ?1",
+            "SELECT title, notes, priority, due_date, end_date, all_day, reminder, reminder_minutes, completed, archived, pinned, list_id, parent_id, repeat_rule, sort_order \
+             FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             params![id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get::<_, i64>(5)? != 0, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?, row.get(13)?, row.get(14)?)),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| format!("任务不存在或已移入回收站（#{}）", id))?;
 
     let (
         title,
@@ -294,6 +512,7 @@ pub fn duplicate_task(state: State<DbState>, id: i64) -> Result<Task, String> {
         sort_order,
         created_at: now.clone(),
         updated_at: now,
+        deleted_at: None,
         tag_ids,
     })
 }
@@ -492,6 +711,188 @@ mod tests {
         assert_eq!(active_ids, vec![t1]);
     }
 
+    /// 软删除：普通删除设置 deleted_at，行仍保留
+    #[test]
+    fn test_soft_delete_sets_deleted_at() {
+        use super::do_delete_task;
+        let conn = setup_db();
+        let id = insert_task(&conn, "软删除任务");
+        do_delete_task(&conn, id).unwrap();
+
+        let deleted_at: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(deleted_at.is_some());
+
+        let active: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE deleted_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(active, 0);
+    }
+
+    /// 删除父任务级联软删除全部后代，且共用同一 deleted_at
+    #[test]
+    fn test_soft_delete_cascades_descendants_same_timestamp() {
+        use super::do_delete_task;
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["孙", child, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let grand = conn.last_insert_rowid();
+
+        do_delete_task(&conn, parent).unwrap();
+
+        let stamps: Vec<Option<String>> = [parent, child, grand]
+            .iter()
+            .map(|id| {
+                conn.query_row(
+                    "SELECT deleted_at FROM tasks WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+            })
+            .collect();
+        assert!(stamps.iter().all(|s| s.is_some()));
+        assert_eq!(stamps[0], stamps[1]);
+        assert_eq!(stamps[1], stamps[2]);
+    }
+
+    /// 已独立删除的子任务，父任务删除时不覆盖其 deleted_at
+    #[test]
+    fn test_soft_delete_does_not_overwrite_existing_deleted_at() {
+        use super::do_delete_task;
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at, deleted_at) VALUES (?1, 1, ?2, ?3, ?4, ?5)",
+            params![
+                "已删子",
+                parent,
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00",
+                "2020-01-01T00:00:00Z"
+            ],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+
+        do_delete_task(&conn, parent).unwrap();
+
+        let child_ts: String = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(child_ts, "2020-01-01T00:00:00Z");
+    }
+
+    /// 恢复父任务仅恢复同次级联删除的后代
+    #[test]
+    fn test_restore_parent_only_same_timestamp_children() {
+        use super::{do_delete_task, do_restore_task};
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["同次子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let same_child = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at, deleted_at) VALUES (?1, 1, ?2, ?3, ?4, ?5)",
+            params![
+                "独立子",
+                parent,
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00",
+                "2019-01-01T00:00:00Z"
+            ],
+        )
+        .unwrap();
+        let indep_child = conn.last_insert_rowid();
+
+        do_delete_task(&conn, parent).unwrap();
+        do_restore_task(&conn, parent).unwrap();
+
+        let parent_del: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![parent],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let same_del: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![same_child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let indep_del: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![indep_child],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(parent_del.is_none());
+        assert!(same_del.is_none());
+        assert_eq!(indep_del.as_deref(), Some("2019-01-01T00:00:00Z"));
+    }
+
+    /// 父任务未恢复时，恢复子任务失败
+    #[test]
+    fn test_restore_child_blocked_when_parent_deleted() {
+        use super::{do_delete_task, do_restore_task};
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+        do_delete_task(&conn, parent).unwrap();
+
+        let err = do_restore_task(&conn, child).unwrap_err();
+        assert!(err.contains("父任务仍在回收站"));
+    }
+
+    /// 旧库迁移后 deleted_at 默认为空
+    #[test]
+    fn test_deleted_at_defaults_null_on_migration() {
+        let conn = setup_db();
+        let id = insert_task(&conn, "旧任务");
+        let deleted_at: Option<String> = conn
+            .query_row(
+                "SELECT deleted_at FROM tasks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(deleted_at.is_none());
+    }
+
     /// P3-12 completed 过滤准确
     #[test]
     fn test_completed_filter() {
@@ -502,7 +903,7 @@ mod tests {
             .unwrap();
 
         let completed: Vec<i64> = conn
-            .prepare("SELECT id FROM tasks WHERE completed = 1")
+            .prepare("SELECT id FROM tasks WHERE completed = 1 AND deleted_at IS NULL")
             .unwrap()
             .query_map([], |row| row.get(0))
             .unwrap()
@@ -511,12 +912,76 @@ mod tests {
         assert_eq!(completed, vec![t2]);
 
         let incomplete: Vec<i64> = conn
-            .prepare("SELECT id FROM tasks WHERE completed = 0")
+            .prepare("SELECT id FROM tasks WHERE completed = 0 AND deleted_at IS NULL")
             .unwrap()
             .query_map([], |row| row.get(0))
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
         assert_eq!(incomplete, vec![t1]);
+    }
+
+    /// 同次级联删除的子任务不作为独立回收站条目
+    #[test]
+    fn test_get_trashed_tasks_hides_same_timestamp_cascaded_children() {
+        use super::{do_delete_task, do_get_trashed_tasks};
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+
+        do_delete_task(&conn, parent).unwrap();
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        let ids: Vec<i64> = trashed.iter().map(|t| t.task.id).collect();
+        assert_eq!(ids, vec![parent], "同次级联子任务不应单独展示");
+        assert!(!ids.contains(&child));
+        assert!(trashed[0].has_cascaded_children);
+        assert!(!trashed[0].restore_blocked_by_deleted_ancestor);
+    }
+
+    /// 独立删除孙任务后再删除祖/父：孙任务仍独立展示且 blocked
+    #[test]
+    fn test_get_trashed_tasks_marks_blocked_grandchild_after_parent_delete() {
+        use super::{do_delete_task, do_get_trashed_tasks, do_restore_task};
+        let conn = setup_db();
+        let parent = insert_task(&conn, "父");
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["子", parent, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let child = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tasks (title, list_id, parent_id, created_at, updated_at) VALUES (?1, 1, ?2, ?3, ?4)",
+            params!["孙", child, "2026-01-01T00:00:00", "2026-01-01T00:00:00"],
+        )
+        .unwrap();
+        let grand = conn.last_insert_rowid();
+
+        // 先独立删除孙任务
+        do_delete_task(&conn, grand).unwrap();
+        // 再删除父任务（级联删除子任务）
+        do_delete_task(&conn, parent).unwrap();
+
+        let trashed = do_get_trashed_tasks(&conn).unwrap();
+        let by_id: std::collections::HashMap<i64, &super::TrashedTask> =
+            trashed.iter().map(|t| (t.task.id, t)).collect();
+
+        assert!(by_id.contains_key(&parent), "父任务应在回收站");
+        assert!(by_id.contains_key(&grand), "独立删除的孙任务应仍独立展示");
+        assert!(!by_id.contains_key(&child), "同次级联的子任务不独立展示");
+
+        let grand_item = by_id.get(&grand).unwrap();
+        assert!(
+            grand_item.restore_blocked_by_deleted_ancestor,
+            "祖先仍在回收站时应 blocked"
+        );
+
+        let err = do_restore_task(&conn, grand).unwrap_err();
+        assert!(err.contains("父任务仍在回收站"));
     }
 }

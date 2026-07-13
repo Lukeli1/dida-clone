@@ -120,7 +120,11 @@ const TaskItem = memo(function TaskItem({
   const ctx = useTaskActionContext()
   const { tags, lists, batchMode, isArchivedView } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    task: Task
+  } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [isHovered, setIsHovered] = useState(false)
@@ -173,11 +177,22 @@ const TaskItem = memo(function TaskItem({
     ctx.onDragEndGlobal()
   }, [ctx])
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      document.dispatchEvent(new CustomEvent('close-context-menus'))
+      setContextMenu({ x: e.clientX, y: e.clientY, task })
+    },
+    [task],
+  )
+
+  /** 子任务行右键：打开针对该子任务的菜单（不冒泡到父任务） */
+  const handleSubtaskContextMenu = useCallback((subtask: Task, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     document.dispatchEvent(new CustomEvent('close-context-menus'))
-    setContextMenu({ x: e.clientX, y: e.clientY })
+    setContextMenu({ x: e.clientX, y: e.clientY, task: subtask })
   }, [])
 
   const handleDoubleClick = useCallback(
@@ -202,9 +217,16 @@ const TaskItem = memo(function TaskItem({
   }, [task.title])
 
   const handleStartRename = useCallback(() => {
-    setEditTitle(task.title)
-    setIsEditing(true)
-  }, [task.title])
+    // 注意：菜单 onRename 可能在 onClose 清空 contextMenu 之后调用。
+    // 打开菜单时同步记下目标；父任务内联重命名，子任务打开详情。
+    const targetId = contextMenu?.task.id ?? task.id
+    if (targetId === task.id) {
+      setEditTitle(task.title)
+      setIsEditing(true)
+    } else {
+      ctx.onClick(targetId)
+    }
+  }, [contextMenu?.task?.id, task.id, task.title, ctx])
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), [])
   const handleMouseLeave = useCallback(() => setIsHovered(false), [])
@@ -282,11 +304,13 @@ const TaskItem = memo(function TaskItem({
               : 'none',
         }}
       >
-        {hasSubtasks ? (
+        {/* 顶层活跃任务始终可展开以添加子任务；其余仅有子任务时显示 */}
+        {(!task.parent_id && !isArchivedView) || hasSubtasks ? (
           <button
             onClick={handleToggleExpandClick}
             className="flex-shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-all active:scale-90"
             aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
+            data-testid={`task-expand-${task.id}`}
           >
             <svg
               className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
@@ -488,23 +512,26 @@ const TaskItem = memo(function TaskItem({
         </div>
       </div>
 
-      {/* 子任务列表 */}
-      {isExpanded && hasSubtasks && (
+      {/* 子任务列表：展开后始终可添加（含尚无子任务的顶层任务） */}
+      {isExpanded && !task.parent_id && !isArchivedView && (
         <div className="animate-float-up">
-          <TaskSubtaskList task={task} isSelected={isSelected} subtaskInput={subtaskInput} />
+          <TaskSubtaskList
+            task={task}
+            isSelected={isSelected}
+            subtaskInput={subtaskInput}
+            onSubtaskContextMenu={handleSubtaskContextMenu}
+          />
         </div>
       )}
 
-      {/* 右键菜单 */}
+      {/* 右键菜单：Portal 到 body（组件内部），target 可为父/子任务 */}
       {contextMenu && (
-        <div className="dropdown-menu">
-          <TaskContextMenu
-            task={task}
-            position={contextMenu}
-            onClose={handleCloseContextMenu}
-            onRename={handleStartRename}
-          />
-        </div>
+        <TaskContextMenu
+          task={contextMenu.task}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={handleCloseContextMenu}
+          onRename={handleStartRename}
+        />
       )}
     </div>
   )

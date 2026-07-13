@@ -554,6 +554,7 @@ pub(crate) fn do_apply_template(
         sort_order,
         created_at: now.clone(),
         updated_at: now,
+        deleted_at: None,
         tag_ids,
     })
 }
