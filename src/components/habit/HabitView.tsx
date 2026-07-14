@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import { format } from 'date-fns'
+import { format, subWeeks } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { habitApi } from '../../api'
+import { useCurrentTime } from '../../hooks/useCurrentTime'
 import { useUIStore } from '../../stores/uiStore'
-import { Habit, HabitViewProps, PRESET_EMOJIS, PRESET_COLORS, dateKey, getWeekDays } from './constants'
+import {
+  Habit,
+  HabitViewProps,
+  PRESET_EMOJIS,
+  PRESET_COLORS,
+  dateKey,
+  getWeekDays,
+  getWeekRangeLabel,
+  getWeekStart,
+  isCurrentWeek,
+} from './constants'
 import { HabitEditor } from './HabitEditor'
 import { CreateHabitForm } from './CreateHabitForm'
 import { HabitList } from './HabitList'
@@ -12,6 +23,9 @@ import { useToast } from '../Toast'
 
 /** 习惯视图：视图容器 + 状态管理 */
 export function HabitView(_props: HabitViewProps) {
+  // 每分钟刷新，确保跨本地零点后标题、当前周与未来日判断同步更新。
+  // 必须先于 viewedWeekStart 初始化，避免独立 new Date() 与 hook 时间跨周分叉。
+  const today = useCurrentTime()
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -28,14 +42,22 @@ export function HabitView(_props: HabitViewProps) {
   const [formColor, setFormColor] = useState(PRESET_COLORS[0])
   const [formGoal, setFormGoal] = useState(1)
   const [formUnit, setFormUnit] = useState('')
+  // 页面唯一浏览周状态：所有习惯卡共享同一周；初始锚点来自同一个 today
+  const [viewedWeekStart, setViewedWeekStart] = useState(() => getWeekStart(today))
 
   const confirm = useConfirm()
   const toast = useToast()
   // 次要数据（习惯/模板）是否已就绪：未就绪时显示局部 loading，避免渲染空状态
   const secondaryDataLoaded = useUIStore((s) => s.secondaryDataLoaded)
-  const today = new Date()
-  const weekDays = getWeekDays()
+  const currentWeekStart = getWeekStart(today)
+  const weekDays = getWeekDays(viewedWeekStart)
   const todayStr = dateKey(today)
+  const weekNavigation = {
+    weekRangeLabel: getWeekRangeLabel(viewedWeekStart, today),
+    canReturnToCurrentWeek: !isCurrentWeek(viewedWeekStart, today),
+    onPreviousWeek: () => setViewedWeekStart((previous) => subWeeks(previous, 1)),
+    onReturnToCurrentWeek: () => setViewedWeekStart(currentWeekStart),
+  }
 
   const loadHabits = useCallback(async () => {
     try {
@@ -231,6 +253,7 @@ export function HabitView(_props: HabitViewProps) {
             todayStr={todayStr}
             weekDays={weekDays}
             today={today}
+            weekNavigation={weekNavigation}
             showArchived={showArchived}
             archivedCount={archivedCount}
             onToggle={toggleExpand}

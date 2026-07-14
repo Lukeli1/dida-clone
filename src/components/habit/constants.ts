@@ -1,4 +1,4 @@
-import { format, subDays, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
+import { addDays, eachDayOfInterval, format, isAfter, parseISO, startOfDay, startOfWeek, subDays } from 'date-fns'
 import type { Habit as HabitDTO } from '../../types'
 
 /* ============ 类型定义 ============ */
@@ -17,6 +17,11 @@ export interface Habit extends HabitDTO {
 export interface HabitViewProps {
   // 无需 props，习惯数据通过 habitApi 异步加载
 }
+
+/** 历史/周格整日切换动作：未达标则补满目标，已达标则删除该日记录 */
+export type HabitDayAction =
+  | { type: 'upsert'; count: number }
+  | { type: 'delete' }
 
 /* ============ 预设数据 ============ */
 
@@ -84,18 +89,46 @@ export function getCount(habit: Habit, key: string): number {
   return habit.records[key] ?? 0
 }
 
-/** 本周（周一至周日）7 天 */
-export function getWeekDays(): Date[] {
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
-  // subDays(weekStart, -6) 即 weekStart + 6 天 = 本周日
-  return eachDayOfInterval({ start: weekStart, end: subDays(weekStart, -6) })
+/** 本地零点周一，作为自然周起点 */
+export function getWeekStart(date: Date): Date {
+  return startOfWeek(startOfDay(date), { weekStartsOn: 1 })
 }
 
-/** 判断是否为未来日期（eachDayOfInterval 产生的日期均为本地零点） */
-export function isFutureDay(day: Date): boolean {
-  const now = new Date()
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  return day.getTime() > todayMidnight.getTime()
+/** 周一至周日连续 7 天；未传 weekStart 时使用当前自然周 */
+export function getWeekDays(weekStart: Date = getWeekStart(new Date())): Date[] {
+  const start = getWeekStart(weekStart)
+  return eachDayOfInterval({ start, end: addDays(start, 6) })
+}
+
+/**
+ * 周范围标签。
+ * 同月：7月13日 - 7月19日；跨月：6月29日 - 7月5日；
+ * 跨年或整周不在 today 年份时两端都显示年份。
+ */
+export function getWeekRangeLabel(weekStart: Date, today: Date = new Date()): string {
+  const start = getWeekStart(weekStart)
+  const end = addDays(start, 6)
+  const includesDifferentYear = start.getFullYear() !== end.getFullYear()
+  const includeYear = includesDifferentYear || start.getFullYear() !== today.getFullYear()
+  const formatStart = includeYear ? 'yyyy年M月d日' : 'M月d日'
+  const formatEnd = includeYear ? 'yyyy年M月d日' : 'M月d日'
+  return `${format(start, formatStart)} - ${format(end, formatEnd)}`
+}
+
+/** 比较归一到周一后的本地时间戳，判断是否为当前自然周 */
+export function isCurrentWeek(weekStart: Date, today: Date = new Date()): boolean {
+  return getWeekStart(weekStart).getTime() === getWeekStart(today).getTime()
+}
+
+/** 本地零点比较：今天与过去为 false，明天及以后为 true */
+export function isFutureDay(day: Date, today: Date = new Date()): boolean {
+  return isAfter(startOfDay(day), startOfDay(today))
+}
+
+/** 历史整日切换：未达标补满 max(1, goal)，已达标则删除 */
+export function getHabitDayAction(currentCount: number, goal: number): HabitDayAction {
+  const targetCount = Math.max(1, goal)
+  return currentCount >= targetCount ? { type: 'delete' } : { type: 'upsert', count: targetCount }
 }
 
 /**

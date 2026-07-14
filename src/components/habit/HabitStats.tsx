@@ -12,6 +12,15 @@ import { TrendChart } from './TrendChart'
 
 export type HabitStatsPart = 'header' | 'expandedCalendar' | 'expandedSummary' | 'expandedCharts'
 
+export type HabitDayClickHandler = (dateKeyStr: string, isFuture: boolean) => void
+
+export interface HabitWeekNavigationProps {
+  weekRangeLabel: string
+  canReturnToCurrentWeek: boolean
+  onPreviousWeek: () => void
+  onReturnToCurrentWeek: () => void
+}
+
 export interface HabitStatsProps {
   habit: Habit
   todayStr: string
@@ -21,7 +30,11 @@ export interface HabitStatsProps {
   /** 渲染哪个位置的统计片段 */
   part: HabitStatsPart
   /** 某天格子点击：在 0 / 目标值 之间切换 */
-  onDayClick: (dateKeyStr: string, isFuture: boolean) => void
+  onDayClick: HabitDayClickHandler
+  /** 展开七日栏上方的周导航；未传时保持兼容，不渲染导航 */
+  weekNavigation?: HabitWeekNavigationProps
+  /** 同一习惯写入进行中时禁用日期格 */
+  isBusy?: boolean
 }
 
 /**
@@ -30,7 +43,17 @@ export interface HabitStatsProps {
  * - 'expandedCalendar': 展开详情中的 7 天日历网格（含星期标签与日期）
  * - 'expandedSummary' : 展开详情中连续天数 + 今日进度的文字摘要
  */
-export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDayClick }: HabitStatsProps) {
+export function HabitStats({
+  habit,
+  todayStr,
+  weekDays,
+  today,
+  color,
+  part,
+  onDayClick,
+  weekNavigation,
+  isBusy = false,
+}: HabitStatsProps) {
   const todayCount = getCount(habit, todayStr)
   const goal = habit.target_count
   const pct = goal > 0 ? Math.min((todayCount / goal) * 100, 100) : 0
@@ -70,16 +93,18 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
         <div className="grid grid-cols-7 gap-1 flex-shrink-0">
           {weekDays.map((day) => {
             const key = dateKey(day)
+            const future = isFutureDay(day, today)
             return (
               <DayCell
                 key={key}
                 count={getCount(habit, key)}
                 goal={goal}
                 color={color}
-                isFuture={isFutureDay(day)}
+                isFuture={future}
                 isToday={isSameDay(day, today)}
+                isBusy={isBusy}
                 size="w-7 h-7"
-                onClick={() => onDayClick(key, isFutureDay(day))}
+                onClick={() => onDayClick(key, future)}
               />
             )
           })}
@@ -91,33 +116,70 @@ export function HabitStats({ habit, todayStr, weekDays, today, color, part, onDa
   /* ---- 展开：7 天日历网格（星期标签 + 日期 + 格子） ---- */
   if (part === 'expandedCalendar') {
     return (
-      <div className="grid grid-cols-7 gap-2 mb-4">
-        {weekDays.map((day) => {
-          const key = dateKey(day)
-          const count = getCount(habit, key)
-          return (
-            <div key={key} className="flex flex-col items-center gap-1.5">
-              <span className="text-xs text-[var(--color-text-tertiary)]">
-                {format(day, 'EEEEE', { locale: zhCN })}
-              </span>
-              <DayCell
-                count={count}
-                goal={goal}
-                color={color}
-                isFuture={isFutureDay(day)}
-                isToday={isSameDay(day, today)}
-                size="w-9 h-9"
-                showCount
-                onClick={() => onDayClick(key, isFutureDay(day))}
-              />
-              <span
-                className={`text-xs ${isSameDay(day, today) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}
+      <div className="mb-4">
+        {weekNavigation && (
+          <div
+            className="mb-3 flex min-h-8 items-center justify-between gap-2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={weekNavigation.onPreviousWeek}
+              className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              aria-label="上一周"
+              title="上一周"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <span className="min-w-0 flex-1 text-center text-xs font-medium text-[var(--color-text-secondary)]">
+              {weekNavigation.weekRangeLabel}
+            </span>
+            {weekNavigation.canReturnToCurrentWeek ? (
+              <button
+                type="button"
+                onClick={weekNavigation.onReturnToCurrentWeek}
+                className="shrink-0 text-xs text-[var(--color-accent)] hover:underline"
               >
-                {format(day, 'd')}
-              </span>
-            </div>
-          )
-        })}
+                回到本周
+              </button>
+            ) : (
+              <span className="w-8" aria-hidden="true" />
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((day) => {
+            const key = dateKey(day)
+            const count = getCount(habit, key)
+            const future = isFutureDay(day, today)
+            return (
+              <div key={key} className="flex flex-col items-center gap-1.5">
+                <span className="text-xs text-[var(--color-text-tertiary)]">
+                  {format(day, 'EEEEE', { locale: zhCN })}
+                </span>
+                <DayCell
+                  count={count}
+                  goal={goal}
+                  color={color}
+                  isFuture={future}
+                  isToday={isSameDay(day, today)}
+                  isBusy={isBusy}
+                  size="w-9 h-9"
+                  showCount
+                  onClick={() => onDayClick(key, future)}
+                />
+                <span
+                  className={`text-xs ${isSameDay(day, today) ? 'text-[var(--color-accent)] font-bold' : 'text-[var(--color-text-tertiary)]'}`}
+                >
+                  {format(day, 'd')}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
     )
   }

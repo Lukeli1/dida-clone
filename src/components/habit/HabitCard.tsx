@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { hexWithAlpha } from '../../utils/priority'
 import { habitApi } from '../../api'
-import { Habit, getCount } from './constants'
-import { HabitStats } from './HabitStats'
+import { useToast } from '../Toast'
+import { Habit, getCount, getHabitDayAction } from './constants'
+import { HabitStats, type HabitWeekNavigationProps } from './HabitStats'
 import { HabitActions } from './HabitActions'
 import { HabitCalendar } from './HabitCalendar'
 
@@ -24,6 +25,8 @@ export interface HabitCardProps {
    * 父组件据此更新本地 records 映射。
    */
   onRecordChange?: (habitId: number, date: string, count: number | null) => void
+  /** 页面级周导航；未传时 expandedCalendar 不渲染导航 */
+  weekNavigation?: HabitWeekNavigationProps
 }
 
 /** 单个习惯卡片：展示 + 打卡 + 7 天日历，包含右键菜单与专注计时器 */
@@ -38,7 +41,9 @@ export function HabitCard({
   onEdit,
   onArchive,
   onRecordChange,
+  weekNavigation,
 }: HabitCardProps) {
+  const toast = useToast()
   const goal = habit.target_count
   // 兼容后端可选字段：color / icon 缺省时回退默认值，保持 UI 不变
   const color = habit.color ?? '#6B7280'
@@ -49,6 +54,8 @@ export function HabitCard({
 
   // 打卡操作进行中标志：避免并发点击导致计数错乱（等待 API 返回后再更新本地状态）
   const busyRef = useRef(false)
+  // 驱动 DayCell / HabitCalendar 禁用态的 UI 忙碌状态
+  const [isCheckingIn, setIsCheckingIn] = useState(false)
 
   // 历史日历：展开详情中可切换显示的月历组件
   const [showCalendar, setShowCalendar] = useState(false)
@@ -80,27 +87,31 @@ export function HabitCard({
 
   /* ---- 打卡操作：直接调用 habitApi，等待返回后通过 onRecordChange 更新本地状态 ---- */
 
-  // 今日 +1
+  // 今日 +1（逐次递增；与整日切换共享忙碌状态）
   async function handleIncrement(e: React.MouseEvent) {
     e.stopPropagation()
     if (busyRef.current) return
     busyRef.current = true
+    setIsCheckingIn(true)
     try {
       const cur = getCount(habit, todayStr)
       const rec = await habitApi.upsertRecord(habit.id, todayStr, cur + 1)
       onRecordChange?.(habit.id, todayStr, rec.count)
     } catch (err) {
       console.error('增加打卡失败:', err)
+      toast.error('操作失败，请重试')
     } finally {
       busyRef.current = false
+      setIsCheckingIn(false)
     }
   }
 
-  // 今日 -1
+  // 今日 -1（逐次递减；与整日切换共享忙碌状态）
   async function handleDecrement(e: React.MouseEvent) {
     e.stopPropagation()
     if (busyRef.current) return
     busyRef.current = true
+    setIsCheckingIn(true)
     try {
       const cur = getCount(habit, todayStr)
       if (cur <= 0) return
@@ -114,34 +125,33 @@ export function HabitCard({
       }
     } catch (err) {
       console.error('减少打卡失败:', err)
+      toast.error('操作失败，请重试')
     } finally {
       busyRef.current = false
+      setIsCheckingIn(false)
     }
   }
 
-  // 某天格子点击：在 0 / 目标值 之间切换（与原 toggleDay 逻辑一致）
+  // 某天格子/历史月历点击：未达标补满目标，已达标删除（与 +1/-1 共用 busy 锁）
   async function handleDayClick(dateKeyStr: string, isFuture: boolean) {
     if (isFuture || busyRef.current) return
     busyRef.current = true
+    setIsCheckingIn(true)
     try {
-      const cur = getCount(habit, dateKeyStr)
-      if (cur <= 0) {
-        // 未打卡 -> 打满
-        const rec = await habitApi.upsertRecord(habit.id, dateKeyStr, goal)
-        onRecordChange?.(habit.id, dateKeyStr, rec.count)
-      } else if (cur >= goal) {
-        // 已满 -> 取消打卡
+      const action = getHabitDayAction(getCount(habit, dateKeyStr), goal)
+      if (action.type === 'delete') {
         await habitApi.deleteRecord(habit.id, dateKeyStr)
         onRecordChange?.(habit.id, dateKeyStr, null)
       } else {
-        // 部分打卡 -> 补满
-        const rec = await habitApi.upsertRecord(habit.id, dateKeyStr, goal)
-        onRecordChange?.(habit.id, dateKeyStr, rec.count)
+        const record = await habitApi.upsertRecord(habit.id, dateKeyStr, action.count)
+        onRecordChange?.(habit.id, dateKeyStr, record.count)
       }
-    } catch (err) {
-      console.error('打卡操作失败:', err)
+    } catch (error) {
+      console.error('打卡操作失败:', error)
+      toast.error('操作失败，请重试')
     } finally {
       busyRef.current = false
+      setIsCheckingIn(false)
     }
   }
 
@@ -172,6 +182,8 @@ export function HabitCard({
             weekDays={weekDays}
             today={today}
             color={color}
+            isBusy={isCheckingIn}
+            weekNavigation={weekNavigation}
             onDayClick={handleDayClick}
           />
           {/* 今日 +1 / 删除 */}
@@ -189,6 +201,8 @@ export function HabitCard({
               weekDays={weekDays}
               today={today}
               color={color}
+              isBusy={isCheckingIn}
+              weekNavigation={weekNavigation}
               onDayClick={handleDayClick}
             />
 
@@ -201,6 +215,8 @@ export function HabitCard({
                 weekDays={weekDays}
                 today={today}
                 color={color}
+                isBusy={isCheckingIn}
+                weekNavigation={weekNavigation}
                 onDayClick={handleDayClick}
               />
               <HabitActions
@@ -220,6 +236,8 @@ export function HabitCard({
               weekDays={weekDays}
               today={today}
               color={color}
+              isBusy={isCheckingIn}
+              weekNavigation={weekNavigation}
               onDayClick={handleDayClick}
             />
 
@@ -236,6 +254,10 @@ export function HabitCard({
               <HabitCalendar
                 records={habit.records}
                 month={calendarMonth}
+                goal={goal}
+                color={color}
+                isBusy={isCheckingIn}
+                onDayClick={handleDayClick}
                 onMonthChange={(dir) => {
                   const newMonth = new Date(calendarMonth)
                   if (dir === 'prev') newMonth.setMonth(newMonth.getMonth() - 1)

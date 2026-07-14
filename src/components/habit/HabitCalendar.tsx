@@ -1,23 +1,43 @@
+import { parseISO } from 'date-fns'
 import { dateKey, isFutureDay } from './constants'
+import type { HabitDayClickHandler } from './HabitStats'
 
 /* ============ 历史日历 ============ */
+
+export interface HabitCalendarProps {
+  records: Record<string, number>
+  month: Date
+  /**
+   * 每日目标次数。
+   * 仅在与 onDayClick 同时提供时进入可编辑模式；不得默认成 1 以免伪造完成态。
+   */
+  goal?: number
+  /** 完成圆点颜色；仅用于已确认完成状态的视觉 */
+  color?: string
+  /** 写入忙碌锁；忙碌时优先展示“操作进行中”并禁用 */
+  isBusy?: boolean
+  /** 统一日期补打/撤销回调；未传时进入过渡只读模式 */
+  onDayClick?: HabitDayClickHandler
+  onMonthChange: (dir: 'prev' | 'next') => void
+}
 
 /**
  * 习惯历史打卡日历：按月展示该习惯的所有历史打卡记录。
  *
- * - records: 日期字符串(YYYY-MM-DD) -> 打卡次数
- * - month:   当前展示月份（每月 1 号 0 点的 Date）
- * - onMonthChange: 翻月回调（'prev' 上一月 / 'next' 下一月）
+ * 过渡只读模式（Task 4 接线前）：
+ * - 仅当同时提供有效 goal 与 onDayClick 时才可编辑
+ * - 旧 HabitCard 调用缺少 goal/onDayClick 时只读展示真实记录数
+ * - 不使用默认 goal=1 推断完成状态
  */
 export function HabitCalendar({
   records,
   month,
+  goal,
+  color,
+  isBusy = false,
+  onDayClick,
   onMonthChange,
-}: {
-  records: Record<string, number>
-  month: Date
-  onMonthChange: (dir: 'prev' | 'next') => void
-}) {
+}: HabitCalendarProps) {
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
   const firstDay = new Date(year, monthIdx, 1)
@@ -27,6 +47,9 @@ export function HabitCalendar({
 
   const today = new Date()
   const todayStr = dateKey(today)
+  const hasGoal = typeof goal === 'number' && goal > 0
+  const isInteractive = hasGoal && !!onDayClick
+  const resolvedColor = color ?? 'var(--color-accent)'
 
   // 构建日历格子（42 格 = 6 行 × 7 列）
   const cells: (Date | null)[] = []
@@ -36,9 +59,9 @@ export function HabitCalendar({
   }
   while (cells.length < 42) cells.push(null)
 
-  // 本月打卡天数 & 累计打卡天数
+  // 本月打卡天数 & 累计打卡天数（parseISO 避免 YYYY-MM-DD 的 UTC 偏移）
   const monthCheckedDays = Object.keys(records).filter((d) => {
-    const dt = new Date(d)
+    const dt = parseISO(d)
     return !Number.isNaN(dt.getTime()) && dt.getFullYear() === year && dt.getMonth() === monthIdx
   }).length
   const totalCheckedDays = Object.keys(records).length
@@ -84,24 +107,53 @@ export function HabitCalendar({
           const dateStr = dateKey(date)
           const count = records[dateStr] || 0
           const isToday = dateStr === todayStr
-          const isFuture = isFutureDay(date)
-          const isCompleted = count > 0
+          const isFuture = isFutureDay(date, today)
+          // 仅在有效目标下判定完成/部分；未来日即使有记录也不展示完成
+          const isCompleted = !isFuture && hasGoal && count >= (goal as number)
+          const isPartial = !isFuture && hasGoal && count > 0 && !isCompleted
+          const disabled = isFuture || isBusy || !isInteractive
+
+          const cellLabel = isFuture
+            ? `${dateStr}，未来日期`
+            : isBusy
+              ? `${dateStr}，打卡操作进行中`
+              : !isInteractive
+                ? count > 0
+                  ? `${dateStr}，已打卡 ${count} 次，只读`
+                  : `${dateStr}，未打卡，只读`
+                : isCompleted
+                  ? `${dateStr}，已完成 ${count}/${goal}，点击撤销`
+                  : isPartial
+                    ? `${dateStr}，进行中 ${count}/${goal}，点击打卡`
+                    : `${dateStr}，未打卡，点击打卡`
 
           return (
-            <div
+            <button
               key={i}
-              className={`text-xs text-center py-1.5 rounded relative ${
-                isFuture ? 'opacity-40' : ''
-              } ${isCompleted ? 'bg-[var(--color-accent-light)] text-[var(--color-accent-text)] font-medium' : 'text-[var(--color-text-secondary)]'} ${
-                isToday ? 'ring-2 ring-[var(--color-accent)]' : ''
-              }`}
-              title={isCompleted ? `${dateStr}: ${count}次` : dateStr}
+              type="button"
+              disabled={disabled}
+              onClick={(event) => {
+                event.stopPropagation()
+                onDayClick?.(dateStr, isFuture)
+              }}
+              className={`relative rounded py-1.5 text-xs text-center transition-colors disabled:cursor-not-allowed ${
+                isFuture ? 'opacity-40' : isInteractive ? 'hover:bg-[var(--color-bg-tertiary)]' : ''
+              } ${
+                isCompleted
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent-text)] font-medium'
+                  : 'text-[var(--color-text-secondary)]'
+              } ${isToday ? 'ring-2 ring-[var(--color-accent)]' : ''}`}
+              title={cellLabel}
+              aria-label={cellLabel}
             >
               {date.getDate()}
               {isCompleted && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--color-accent)]" />
+                <span
+                  className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                  style={{ backgroundColor: resolvedColor }}
+                />
               )}
-            </div>
+            </button>
           )
         })}
       </div>

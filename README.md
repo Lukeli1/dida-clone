@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.45.0-blue)
+![版本](https://img.shields.io/badge/version-1.45.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -912,6 +912,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.45.1（2026-07-14）- 习惯历史补打
+
+- 习惯页新增共享历史周导航：上一周、回到本周；所有习惯卡同步浏览同一周，无下一周入口。
+- 展开七日格可对历史周任意过去日期补打或撤销；未达每日目标时补满目标次数，已完成则删除该日记录。
+- 历史月历改为可访问的原生按钮补打入口，未来日期禁用；与七日格共用同一写入状态机和忙碌锁。
+- 今日 `+1/-1` 保持逐次增减语义，并与整日补打共享同一习惯的写入忙碌状态。
+- API 失败仅提示 toast，不更新本地 records；页面级 records 映射仍是唯一状态源。
+- 补充习惯日期工具、周导航、历史月历、卡片写入与页面级周状态单测；不涉及数据库 schema、同步协议、导入导出格式或主任务日历。
 
 ### v1.45.0（2026-07-13）- 完整主题系统
 

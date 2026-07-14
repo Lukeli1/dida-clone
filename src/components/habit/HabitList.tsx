@@ -1,5 +1,6 @@
 import { Habit } from './constants'
 import { HabitCard } from './HabitCard'
+import type { HabitWeekNavigationProps } from './HabitStats'
 
 /* ============ 空状态 ============ */
 
@@ -60,6 +61,8 @@ export interface HabitListProps {
   todayStr: string
   weekDays: Date[]
   today: Date
+  /** 页面级共享周导航；所有卡片同步同一周 */
+  weekNavigation: HabitWeekNavigationProps
   showArchived: boolean
   archivedCount: number
   onToggle: (id: number) => void
@@ -82,6 +85,7 @@ export function HabitList(props: HabitListProps) {
     todayStr,
     weekDays,
     today,
+    weekNavigation,
     showArchived,
     archivedCount,
     onToggle,
@@ -116,6 +120,7 @@ export function HabitList(props: HabitListProps) {
             todayStr={todayStr}
             weekDays={weekDays}
             today={today}
+            weekNavigation={weekNavigation}
             onToggle={onToggle}
             onDelete={onDelete}
             onEdit={onEdit}
