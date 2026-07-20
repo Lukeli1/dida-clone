@@ -6,7 +6,7 @@ on:
       release_notes:
         description: Release notes shown in GitHub Releases and the updater
         required: true
-        default: Fix subtask refresh and simplify task details
+        default: Validate the signed updater flow from v1.45.2 to v1.45.3
 
 permissions:
   contents: write
