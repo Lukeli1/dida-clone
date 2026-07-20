@@ -7,6 +7,8 @@
 > 发布方式：通过手动触发的 Windows GitHub Actions workflow 构建、签名和发布，完成后同步 `latest.json` 到 `main`。
 > 目标：实现"设置页检查更新 + 启动时自动检查（只提示一次）"，更新包托管在 GitHub Releases，基于 Tauri v2 updater 插件。
 
+> 签名迁移说明（2026-07-20）：旧私钥遗失后已轮换签名密钥。`v1.45.1` 无法验证新密钥签名的更新包，因此 `v1.45.2` 必须手动安装一次；安装后客户端内置新公钥，`v1.45.3+` 恢复自动更新。新私钥无密码保护，保存在仓库外并通过单一 `TAURI_SIGNING_PRIVATE_KEY` GitHub Secret 注入发布 workflow。
+
 ---
 
 ## 0. 方案概览

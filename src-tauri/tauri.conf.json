@@ -45,7 +45,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGRDdDODg0QkQzREEyM0EKUldRNm9qMjloTWpYSDhUTmcwV2RpR1ZnQTYwejBwYkwvd3NEOVFiYTJ0RXZDaTFoRVJGR2o3NkcK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDREQzBFNzgyN0RFQzEwRQpSV1FPd2Q0bmVBN2NCRWp5d1JpS0V6Qjk5Mmd6ZThobHBnU1Z6OXU4cjYwWlNYUkQwQUxHZER0WQo=",
       "endpoints": ["https://raw.githubusercontent.com/Lukeli1/dida-clone/main/latest.json"]
     }
   }
