@@ -97,7 +97,7 @@ vi.mock('../../../utils/priority', () => ({
 }))
 
 // Mock Notification API
-global.Notification = {
+globalThis.Notification = {
   permission: 'default',
   requestPermission: vi.fn(),
 } as unknown as typeof Notification

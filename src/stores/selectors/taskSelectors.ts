@@ -64,6 +64,18 @@ export function buildTaskTree(tasks: Task[]): Task[] {
   return topLevel.map((task) => ({ ...task, subtasks: subtaskMap.get(task.id) || [] }))
 }
 
+/** 获取单个任务，并从扁平任务集合实时组装其直接子任务。 */
+export function selectTaskWithSubtasks(tasks: Task[], taskId: number | null): Task | null {
+  if (taskId === null) return null
+  const task = tasks.find((item) => item.id === taskId)
+  if (!task) return null
+
+  return {
+    ...task,
+    subtasks: task.parent_id == null ? tasks.filter((item) => item.parent_id === task.id) : [],
+  }
+}
+
 /** 已完成任务树（从 taskTree 过滤 completed） */
 export function selectCompletedTaskTree(taskTree: Task[]): Task[] {
   return taskTree.filter((t) => t.completed)

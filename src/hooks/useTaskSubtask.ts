@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useTaskStore } from '../stores/taskStore'
 import { useListStore } from '../stores/listStore'
 import { useUIStore } from '../stores/uiStore'
@@ -13,26 +13,32 @@ import type { ToastApi } from '../components/Toast'
  * 避免跨 hook 的函数依赖。
  */
 export function useTaskSubtask(toast: ToastApi) {
+  const creatingParentIds = useRef(new Set<number>())
+
   // ===== 创建子任务 =====
-  async function handleCreateSubtask(parentId: number, title: string) {
-    if (!title.trim()) return
+  async function handleCreateSubtask(parentId: number, title: string): Promise<boolean> {
+    if (!title.trim() || creatingParentIds.current.has(parentId)) return false
+    creatingParentIds.current.add(parentId)
     const parentTask = useTaskStore.getState().tasks.find((t) => t.id === parentId)
     const listId =
       parentTask?.list_id ?? (useListStore.getState().lists.length > 0 ? useListStore.getState().lists[0].id : 1)
-    const newTask = await useTaskStore.getState().createTask({
-      title: title.trim(),
-      list_id: listId,
-      parent_id: parentId,
-    })
-    if (newTask) {
-      useTaskStore.setState((state) => ({
-        tasks: state.tasks.map((t) => (t.id === parentId ? { ...t, subtasks: [...(t.subtasks || []), newTask] } : t)),
-      }))
+    try {
+      const newTask = await useTaskStore.getState().createTask({
+        title: title.trim(),
+        list_id: listId,
+        parent_id: parentId,
+      })
+      if (!newTask) {
+        toast.error('创建子任务失败')
+        return false
+      }
+
       useUIStore.getState().setSubtaskInput(parentId, '')
       const uiState = useUIStore.getState()
       if (!uiState.expandedTasks.has(parentId)) uiState.toggleTaskExpand(parentId)
-    } else {
-      toast.error('创建子任务失败')
+      return true
+    } finally {
+      creatingParentIds.current.delete(parentId)
     }
   }
 

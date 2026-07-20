@@ -33,11 +33,9 @@ export function DetailPanel({ task, actions }: DetailPanelProps) {
   const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
   const { isNarrow } = useWindowSize()
 
-  // 动画状态：mounted 控制 DOM 是否存在，visible 控制 CSS 类切换
-  const [mounted, setMounted] = useState(false)
+  // task 非空时直接渲染最新数据；displayTask 只保留退出动画期间的最后一帧。
+  const [displayTask, setDisplayTask] = useState<Task | null>(task)
   const [visible, setVisible] = useState(false)
-  // 保留最后一次有值的 task，用于出场动画期间渲染
-  const displayTaskRef = useRef<Task | null>(null)
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -47,20 +45,16 @@ export function DetailPanel({ task, actions }: DetailPanelProps) {
     }
 
     if (task) {
-      // 入场：先更新显示数据并挂载，下一帧触发动画
-      displayTaskRef.current = task
-      setMounted(true)
+      setDisplayTask(task)
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setVisible(true)
         })
       })
-    } else if (mounted) {
-      // 出场：先触发动画，动画结束后卸载
+    } else {
       setVisible(false)
       exitTimerRef.current = setTimeout(() => {
-        setMounted(false)
-        displayTaskRef.current = null
+        setDisplayTask(null)
       }, 250)
     }
 
@@ -69,38 +63,15 @@ export function DetailPanel({ task, actions }: DetailPanelProps) {
         clearTimeout(exitTimerRef.current)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task])
 
-  // 组件首次挂载时，如果 task 已有值，立即触发入场
-  useEffect(() => {
-    if (task && !mounted) {
-      displayTaskRef.current = task
-      setMounted(true)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setVisible(true)
-        })
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // 当切换到不同任务时，更新 displayTaskRef
-  useEffect(() => {
-    if (task && mounted) {
-      displayTaskRef.current = task
-    }
-  }, [task, mounted])
-
-  if (!mounted || !displayTaskRef.current) return null
-
-  const displayTask = displayTaskRef.current
+  const renderedTask = task ?? displayTask
+  if (!renderedTask) return null
 
   // 任务详情节点（桌面与窄屏共用）
   const taskDetail = (
     <TaskDetail
-      task={displayTask}
+      task={renderedTask}
       tags={tags}
       lists={lists}
       onUpdate={actions.handleUpdateTask}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import type { Task } from '../../types'
 import { useToast } from '../Toast'
 import { getLLMConfig, breakdownTask, suggestPriority, type SubtaskSuggestion } from '../../utils/llm'
@@ -7,35 +7,32 @@ interface SubtaskListProps {
   task: Task
   onUpdate: (id: number, updates: Partial<Task>) => void
   onDelete: (id: number) => void
-  onCreateSubtask: (parentId: number, title: string) => void
-  visible: boolean
+  onCreateSubtask: (parentId: number, title: string) => Promise<boolean>
 }
 
 // 子任务列表：增删改查 + 双击编辑 + 进度统计
-export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible }: SubtaskListProps) {
+export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask }: SubtaskListProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [creating, setCreating] = useState(false)
   const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null)
   const [editSubtaskTitle, setEditSubtaskTitle] = useState('')
   const newSubtaskInputRef = useRef<HTMLInputElement>(null)
 
-  // 展开时自动聚焦到新建子任务输入框
-  useEffect(() => {
-    if (visible) {
-      requestAnimationFrame(() => {
-        newSubtaskInputRef.current?.focus()
-      })
-    }
-  }, [visible])
-
   // 添加检查事项（子任务）
-  function handleAddSubtask() {
+  async function handleAddSubtask() {
     const t = newSubtaskTitle.trim()
-    if (!t) return
-    onCreateSubtask(task.id, t)
-    setNewSubtaskTitle('')
+    if (!t || creating) return
+    setCreating(true)
+    try {
+      const success = await onCreateSubtask(task.id, t)
+      if (success) setNewSubtaskTitle('')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const subtasks = task.subtasks || []
+  const completedCount = subtasks.filter((subtask) => subtask.completed).length
 
   function getCompletionUpdates(completed: boolean): Partial<Task> {
     return {
@@ -46,113 +43,123 @@ export function SubtaskList({ task, onUpdate, onDelete, onCreateSubtask, visible
   }
 
   return (
-    <div
-      className={`grid transition-[grid-template-rows] duration-200 ease-out ${visible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-      aria-hidden={!visible}
-    >
-      <div className="overflow-hidden">
-        <div className="rounded-lg bg-[var(--color-bg-secondary)]/60 p-3 space-y-1">
-          {subtasks.length > 0 && (
-            <div className="space-y-0.5 mb-1">
-              {subtasks.map((subtask) => (
-                <div key={subtask.id} className="group flex items-center gap-2 py-1">
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onUpdate(subtask.id, getCompletionUpdates(!subtask.completed))}
-                    className={`w-4 h-4 shrink-0 rounded-sm border-2 flex items-center justify-center transition-colors ${
-                      subtask.completed
-                        ? 'bg-[var(--color-accent)] border-[var(--color-accent)]'
-                        : 'border-[var(--color-border)] hover:border-[var(--color-accent)]'
-                    }`}
-                  >
-                    {subtask.completed && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                  {editingSubtaskId === subtask.id ? (
-                    <input
-                      type="text"
-                      value={editSubtaskTitle}
-                      onChange={(e) => setEditSubtaskTitle(e.target.value)}
-                      onBlur={() => {
-                        if (editSubtaskTitle.trim()) {
-                          onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
-                        }
-                        setEditingSubtaskId(null)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          if (editSubtaskTitle.trim()) {
-                            onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
-                          }
-                          setEditingSubtaskId(null)
-                        }
-                        if (e.key === 'Escape') setEditingSubtaskId(null)
-                      }}
-                      className="flex-1 text-sm px-1 py-0.5 border border-[var(--color-accent)] rounded outline-none"
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      className={`flex-1 text-sm cursor-text ${subtask.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}
-                      onDoubleClick={() => {
-                        setEditingSubtaskId(subtask.id)
-                        setEditSubtaskTitle(subtask.title)
-                      }}
-                    >
-                      {subtask.title}
-                    </span>
-                  )}
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onDelete(subtask.id)}
-                    className="opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-opacity"
-                    title="删除子任务"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* 子任务进度统计 */}
-          {subtasks.length > 0 && (
-            <div className="text-xs text-[var(--color-text-tertiary)] px-1">
-              {subtasks.filter((s) => s.completed).length}/{subtasks.length} 已完成
-            </div>
-          )}
-          {/* 添加子任务输入框 */}
-          <div className="flex items-center gap-2 py-1 border-t border-[var(--color-border)]/60 pt-2">
-            <span className="w-4 h-4 shrink-0 rounded-sm border-2 border-[var(--color-border)]" />
-            <input
-              ref={newSubtaskInputRef}
-              type="text"
-              value={newSubtaskTitle}
-              onChange={(e) => setNewSubtaskTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleAddSubtask()
-                }
-              }}
-              placeholder="回车添加子任务"
-              className="flex-1 text-sm text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none bg-transparent border-b border-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-              tabIndex={visible ? 0 : -1}
-            />
-          </div>
-        </div>
+    <section className="relative" data-testid="detail-subtasks">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs text-[var(--color-text-tertiary)]">子任务</span>
+        {subtasks.length > 0 && (
+          <span className="text-xs tabular-nums text-[var(--color-text-tertiary)]">
+            {completedCount}/{subtasks.length}
+          </span>
+        )}
       </div>
-    </div>
+
+      {subtasks.length > 0 && (
+        <div className="mb-1 space-y-0.5">
+          {subtasks.map((subtask) => (
+            <div key={subtask.id} className="group flex min-h-8 items-center gap-2 py-1">
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onUpdate(subtask.id, getCompletionUpdates(!subtask.completed))}
+                className={`w-4 h-4 shrink-0 rounded-sm border-2 flex items-center justify-center transition-colors ${
+                  subtask.completed
+                    ? 'bg-[var(--color-accent)] border-[var(--color-accent)]'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-accent)]'
+                }`}
+              >
+                {subtask.completed && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              {editingSubtaskId === subtask.id ? (
+                <input
+                  type="text"
+                  value={editSubtaskTitle}
+                  onChange={(e) => setEditSubtaskTitle(e.target.value)}
+                  onBlur={() => {
+                    if (editSubtaskTitle.trim()) {
+                      onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
+                    }
+                    setEditingSubtaskId(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (editSubtaskTitle.trim()) {
+                        onUpdate(subtask.id, { title: editSubtaskTitle.trim() })
+                      }
+                      setEditingSubtaskId(null)
+                    }
+                    if (e.key === 'Escape') setEditingSubtaskId(null)
+                  }}
+                  className="flex-1 text-sm px-1 py-0.5 border border-[var(--color-accent)] rounded outline-none"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className={`flex-1 text-sm cursor-text ${subtask.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}
+                  onDoubleClick={() => {
+                    setEditingSubtaskId(subtask.id)
+                    setEditSubtaskTitle(subtask.title)
+                  }}
+                >
+                  {subtask.title}
+                </span>
+              )}
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onDelete(subtask.id)}
+                className="opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-opacity"
+                title="删除子任务"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex min-h-9 items-center gap-2 border-t border-[var(--color-border-light)] pt-1">
+        {creating ? (
+          <svg className="h-4 w-4 shrink-0 animate-spin text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : (
+          <svg
+            className="h-4 w-4 shrink-0 text-[var(--color-text-tertiary)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        )}
+        <input
+          ref={newSubtaskInputRef}
+          type="text"
+          value={newSubtaskTitle}
+          disabled={creating}
+          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void handleAddSubtask()
+            }
+          }}
+          placeholder={creating ? '添加中...' : '添加子任务'}
+          className="min-w-0 flex-1 border-none bg-transparent py-1 text-sm text-[var(--color-text-secondary)] outline-none placeholder:text-[var(--color-text-tertiary)] disabled:opacity-60"
+        />
+      </div>
+    </section>
   )
 }
 
 interface TaskAIPanelProps {
   task: Task
-  onCreateSubtask: (parentId: number, title: string) => void
+  onCreateSubtask: (parentId: number, title: string) => Promise<boolean>
   onUpdate: (id: number, updates: Partial<Task>) => void
   visible: boolean
 }
@@ -164,6 +171,8 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
   const [aiBreaking, setAiBreaking] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState<SubtaskSuggestion[]>([])
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set())
+  const [addingSuggestions, setAddingSuggestions] = useState<Set<number>>(new Set())
+  const [addingAll, setAddingAll] = useState(false)
   const [aiPriorityLoading, setAiPriorityLoading] = useState(false)
 
   // AI 智能拆解任务
@@ -186,19 +195,36 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
   }
 
   // 添加单个 AI 建议子任务
-  function handleAddSuggestion(idx: number, suggestion: SubtaskSuggestion) {
-    onCreateSubtask(task.id, suggestion.title)
-    setAddedSuggestions((prev) => new Set(prev).add(idx))
+  async function handleAddSuggestion(idx: number, suggestion: SubtaskSuggestion) {
+    if (addingSuggestions.has(idx)) return
+    setAddingSuggestions((prev) => new Set(prev).add(idx))
+    try {
+      const success = await onCreateSubtask(task.id, suggestion.title)
+      if (success) setAddedSuggestions((prev) => new Set(prev).add(idx))
+    } finally {
+      setAddingSuggestions((prev) => {
+        const next = new Set(prev)
+        next.delete(idx)
+        return next
+      })
+    }
   }
 
   // 一键添加所有 AI 建议子任务
-  function handleAddAllSuggestions() {
-    aiSuggestions.forEach((s, idx) => {
-      if (!addedSuggestions.has(idx)) {
-        onCreateSubtask(task.id, s.title)
+  async function handleAddAllSuggestions() {
+    if (addingAll) return
+    setAddingAll(true)
+    try {
+      for (const [idx, suggestion] of aiSuggestions.entries()) {
+        if (addedSuggestions.has(idx)) continue
+        const success = await onCreateSubtask(task.id, suggestion.title)
+        if (success) {
+          setAddedSuggestions((prev) => new Set(prev).add(idx))
+        }
       }
-    })
-    setAddedSuggestions(new Set(aiSuggestions.map((_, i) => i)))
+    } finally {
+      setAddingAll(false)
+    }
   }
 
   // AI 优先级建议
@@ -295,24 +321,25 @@ export function TaskAIPanel({ task, onCreateSubtask, onUpdate, visible }: TaskAI
                     </span>
                   )}
                   <button
-                    onClick={() => handleAddSuggestion(idx, s)}
-                    disabled={addedSuggestions.has(idx)}
+                    onClick={() => void handleAddSuggestion(idx, s)}
+                    disabled={addedSuggestions.has(idx) || addingSuggestions.has(idx) || addingAll}
                     className={`text-xs px-2 py-1 rounded transition-colors ${
                       addedSuggestions.has(idx)
                         ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                         : 'bg-purple-500 text-white hover:bg-purple-600'
                     }`}
                   >
-                    {addedSuggestions.has(idx) ? '已添加' : '+ 添加'}
+                    {addedSuggestions.has(idx) ? '已添加' : addingSuggestions.has(idx) ? '添加中...' : '+ 添加'}
                   </button>
                 </div>
               ))}
               {addedSuggestions.size < aiSuggestions.length && (
                 <button
-                  onClick={handleAddAllSuggestions}
-                  className="w-full text-xs text-purple-600 hover:text-purple-700 py-1 border border-dashed border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                  onClick={() => void handleAddAllSuggestions()}
+                  disabled={addingAll}
+                  className="w-full text-xs text-purple-600 hover:text-purple-700 py-1 border border-dashed border-purple-200 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50"
                 >
-                  一键添加全部 ({aiSuggestions.length - addedSuggestions.size} 个)
+                  {addingAll ? '添加中...' : `一键添加全部 (${aiSuggestions.length - addedSuggestions.size} 个)`}
                 </button>
               )}
             </div>

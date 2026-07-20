@@ -5,6 +5,7 @@ import {
   selectTaskCounts,
   selectOverdueTasks,
   buildTaskTree,
+  selectTaskWithSubtasks,
   selectCompletedTaskTree,
   selectIncompleteTaskTree,
 } from '../taskSelectors'
@@ -126,6 +127,28 @@ describe('buildTaskTree', () => {
     // parent_id 存在但父任务不在 filteredTasks 中，子任务无对应顶层父，不会出现在 topLevel
     // 但 buildTaskTree 只把无 parent_id 或父在列表的作为顶层；孤儿不会出现
     expect(tree).toHaveLength(0)
+  })
+})
+
+describe('selectTaskWithSubtasks', () => {
+  it('从扁平任务集合实时组装选中父任务的子任务', () => {
+    const tasks = [
+      makeTask({ id: 1, subtasks: [] }),
+      makeTask({ id: 2, parent_id: 1 }),
+      makeTask({ id: 3, parent_id: 1 }),
+      makeTask({ id: 4 }),
+    ]
+
+    const selected = selectTaskWithSubtasks(tasks, 1)
+
+    expect(selected?.subtasks?.map((task) => task.id)).toEqual([2, 3])
+  })
+
+  it('选中子任务时不继续组装孙任务，空选中返回 null', () => {
+    const tasks = [makeTask({ id: 1 }), makeTask({ id: 2, parent_id: 1 })]
+
+    expect(selectTaskWithSubtasks(tasks, 2)?.subtasks).toEqual([])
+    expect(selectTaskWithSubtasks(tasks, null)).toBeNull()
   })
 })
 

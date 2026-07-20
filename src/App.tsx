@@ -9,6 +9,7 @@ import { useUIStore } from './stores/uiStore'
 import { useAppInit } from './hooks/useAppInit'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useTaskFiltering } from './hooks/useTaskFiltering'
+import { selectTaskWithSubtasks } from './stores/selectors/taskSelectors'
 import { useTaskActions } from './hooks/useTaskActions'
 import { TaskListPanel } from './components/task-list/TaskListPanel'
 import { CalendarPanel } from './components/CalendarPanel'
@@ -113,7 +114,7 @@ function App() {
 
   // ===== 选中任务（单次计算，三处详情共用）=====
   const selectedTask = useMemo(() => {
-    return tasks.find((t) => t.id === selectedTaskId) || null
+    return selectTaskWithSubtasks(tasks, selectedTaskId)
   }, [tasks, selectedTaskId])
 
   // ===== 视图专用派生数据（useMemo 缓存，避免每次渲染创建新数组）=====

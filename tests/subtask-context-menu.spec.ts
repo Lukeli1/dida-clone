@@ -51,10 +51,12 @@ test.beforeEach(async ({ page }) => {
       invoke: async (cmd: string, args?: Record<string, unknown>) => {
         switch (cmd) {
           case 'get_tasks':
-            return tasks.filter((t) => !t.deleted_at && !t.parent_id).map((t) => ({
-              ...t,
-              subtasks: tasks.filter((s) => s.parent_id === t.id && !s.deleted_at),
-            }))
+            return tasks
+              .filter((t) => !t.deleted_at && !t.parent_id)
+              .map((t) => ({
+                ...t,
+                subtasks: tasks.filter((s) => s.parent_id === t.id && !s.deleted_at),
+              }))
           case 'get_lists':
             return [
               {
@@ -67,6 +69,11 @@ test.beforeEach(async ({ page }) => {
               },
             ]
           case 'get_tags':
+            return []
+          case 'get_attachments':
+          case 'get_time_entries':
+          case 'get_task_goals':
+          case 'get_goals':
             return []
           case 'create_task': {
             const req = (args?.req || args || {}) as {
@@ -138,4 +145,41 @@ test('右键添加子任务：输入框可见并聚焦，Enter 创建子任务',
   await subInput.fill(childTitle)
   await subInput.press('Enter')
   await expect(page.getByText(childTitle, { exact: true }).first()).toBeVisible({ timeout: 10000 })
+})
+
+test('详情新增子任务立即显示，低频属性默认折叠且窄屏可操作', async ({ page }, testInfo) => {
+  await page.goto('/')
+  await expect(page.getByTestId('task-input')).toBeVisible({ timeout: 15000 })
+
+  const parentTitle = `E2E详情父任务-${Date.now()}`
+  await page.getByTestId('task-input').fill(parentTitle)
+  await page.getByTestId('task-input').press('Enter')
+
+  const parentRow = page.getByText(parentTitle, { exact: true }).first()
+  await expect(parentRow).toBeVisible({ timeout: 10000 })
+  await parentRow.click()
+
+  const detailSubtasks = page.getByTestId('detail-subtasks')
+  await expect(detailSubtasks).toBeVisible()
+  const detailInput = detailSubtasks.getByPlaceholder('添加子任务')
+  const childTitle = `E2E详情子任务-${Date.now()}`
+  await detailInput.fill(childTitle)
+  await detailInput.press('Enter')
+
+  await expect(detailSubtasks.getByText(childTitle, { exact: true })).toBeVisible({ timeout: 10000 })
+
+  const moreDetails = page.getByRole('button', { name: /更多属性/ })
+  await expect(moreDetails).toHaveAttribute('aria-expanded', 'false')
+  // 轻量 invoke mock 不覆盖后台事件；隐藏无关 Toast，确保截图只验收详情布局。
+  await page.addStyleTag({ content: '[role="region"][aria-label="通知"] { display: none !important; }' })
+  await page.screenshot({ path: testInfo.outputPath('detail-desktop.png') })
+
+  await moreDetails.click()
+  await expect(moreDetails).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByText('附件', { exact: true })).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByText('任务详情', { exact: true })).toBeVisible()
+  await expect(detailInput).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('detail-narrow.png') })
 })

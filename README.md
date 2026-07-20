@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.45.1-blue)
+![版本](https://img.shields.io/badge/version-1.45.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -912,6 +912,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.45.2（2026-07-20）- 子任务即时刷新与详情精简
+
+- 修复任务详情保持打开时，新增子任务已写入但界面不立即刷新的问题；选中任务改为从扁平任务集合实时组装子任务。
+- 子任务输入区改为详情页常显入口，创建成功后才清空输入，失败时保留内容，并防止同一父任务重复提交。
+- AI 子任务逐项添加和一键添加改为等待真实创建结果，一键添加按顺序执行，避免忙碌锁导致漏建。
+- 详情页保留标题、日程、备注、子任务和标签为核心内容；附件、时间追踪、相关任务和目标收进“更多属性”。
+- 补充 selector、详情实时刷新、子任务成功/失败/重复提交，以及桌面与窄屏端到端回归测试。
+- 修复 Node 配置类型检查基线，新增手动触发的 Windows 签名发布 workflow；不涉及数据库 schema、同步协议或导入导出格式。
 
 ### v1.45.1（2026-07-14）- 习惯历史补打
 

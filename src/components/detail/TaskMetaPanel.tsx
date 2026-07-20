@@ -320,7 +320,9 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                 />
               </div>
               <div>
-                <span className="block text-xs text-[var(--color-text-secondary)] mb-1">结束日期（可选，留空为单天）</span>
+                <span className="block text-xs text-[var(--color-text-secondary)] mb-1">
+                  结束日期（可选，留空为单天）
+                </span>
                 <input
                   type="date"
                   value={allDayEndDate}
@@ -558,7 +560,8 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
 
   return (
     <div className="relative">
-      <div className="flex flex-wrap gap-1.5 items-center">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-xs text-[var(--color-text-tertiary)]">标签</span>
         {task.tag_ids && task.tag_ids.length > 0
           ? task.tag_ids.map((tagId) => {
               const tag = tags.find((t) => t.id === tagId)

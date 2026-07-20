@@ -21,7 +21,7 @@ interface TaskDetailProps {
   onClose: () => void
   onAddTag: (taskId: number, tagId: number) => void
   onRemoveTag: (taskId: number, tagId: number) => void
-  onCreateSubtask: (parentId: number, title: string) => void
+  onCreateSubtask: (parentId: number, title: string) => Promise<boolean>
 }
 
 // 容器：任务基本信息 + 子组件编排
@@ -40,7 +40,7 @@ export function TaskDetail({
   const [priority, setPriority] = useState(task.priority)
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
-  const [showSubtaskInput, setShowSubtaskInput] = useState(false)
+  const [showMoreDetails, setShowMoreDetails] = useState(false)
 
   // 全部任务（用于"相关任务"推荐：AI 分析同项目/同人/同地点的关联）
   const tasks = useTaskStore((s) => s.tasks)
@@ -135,8 +135,8 @@ export function TaskDetail({
         />
 
         <div className="flex-1 px-4 pt-4 pb-3 min-w-0">
-          {/* 标题行：标题 + 子任务按钮（右侧留出关闭按钮空间） */}
-          <div className="flex items-start gap-2 pr-8">
+          {/* 标题行（右侧留出关闭按钮空间） */}
+          <div className="flex items-start pr-8">
             <textarea
               ref={titleRef}
               value={title}
@@ -146,20 +146,6 @@ export function TaskDetail({
               placeholder="任务标题"
               className="flex-1 text-[17px] font-semibold text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-y-auto max-h-40 transition-colors"
             />
-            {/* 子任务按钮：列表图标，点击展开子任务区域 */}
-            <button
-              onClick={() => setShowSubtaskInput((v) => !v)}
-              className={`shrink-0 p-1 rounded transition-all mt-0.5 active:scale-90 ${
-                showSubtaskInput
-                  ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
-                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)]'
-              }`}
-              title="添加子任务"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
           </div>
 
           {/* 日程（截止时间 / 提醒 / 重复） */}
@@ -179,27 +165,52 @@ export function TaskDetail({
       </div>
 
       {/* ===== Middle zone (scrollable) ===== */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         <TaskNotes task={task} onUpdate={onUpdate} />
-        <TaskAttachments task={task} />
-        <TimeTrackingSection task={task} />
-        <SubtaskList
-          task={task}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onCreateSubtask={onCreateSubtask}
-          visible={showSubtaskInput}
-        />
+        {task.parent_id == null && (
+          <SubtaskList
+            key={task.id}
+            task={task}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onCreateSubtask={onCreateSubtask}
+          />
+        )}
         <TaskMetaPanel task={task} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
         <TaskAIPanel task={task} onCreateSubtask={onCreateSubtask} onUpdate={onUpdate} visible={showAIPanel} />
-        {/* 相关任务推荐：AI 检测同项目/同人/同地点关联，无结果或未配置时自动隐藏 */}
-        <RelatedTasksPanel
-          task={task}
-          allTasks={tasks}
-          onTaskClick={(id) => useUIStore.getState().setSelectedTaskId(id)}
-        />
-        {/* 关联目标/OKR：显示当前任务关联的目标，可增删关联 */}
-        <TaskGoalsPanel taskId={task.id} />
+
+        <div className="border-t border-[var(--color-border-light)] pt-2">
+          <button
+            type="button"
+            onClick={() => setShowMoreDetails((value) => !value)}
+            aria-expanded={showMoreDetails}
+            className="flex min-h-9 w-full items-center gap-2 text-left text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+          >
+            <svg
+              className={`h-4 w-4 shrink-0 text-[var(--color-text-tertiary)] transition-transform ${showMoreDetails ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="flex-1">更多属性</span>
+            <span className="text-xs text-[var(--color-text-tertiary)]">附件 · 时间追踪 · 目标</span>
+          </button>
+
+          {showMoreDetails && (
+            <div className="space-y-4 pb-1 pt-3">
+              <TaskAttachments task={task} />
+              <TimeTrackingSection task={task} />
+              <RelatedTasksPanel
+                task={task}
+                allTasks={tasks}
+                onTaskClick={(id) => useUIStore.getState().setSelectedTaskId(id)}
+              />
+              <TaskGoalsPanel taskId={task.id} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ===== Bottom zone (fixed toolbar) ===== */}
