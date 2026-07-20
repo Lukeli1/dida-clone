@@ -2,7 +2,7 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.45.2-blue)
+![版本](https://img.shields.io/badge/version-1.45.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -912,6 +912,11 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.45.3（2026-07-21）- 自动更新链路验证
+
+- 使用新签名密钥发布首个可供 `v1.45.2` 应用内升级的 Windows 版本，验证检查、下载、安装和自动重启完整链路。
+- 仅更新版本标识和发布文档，不改变业务功能、任务数据行为、数据库 schema、同步协议或导入导出格式。
 
 ### v1.45.2（2026-07-20）- 子任务即时刷新与详情精简
 
