@@ -1,11 +1,15 @@
 {
-  "version": "1.36.1",
-  "notes": "v1.36.1 e2e update test version",
-  "pub_date": "2026-07-08T14:06:05Z",
+  "version": "1.45.2",
+  "notes": "修复子任务创建后详情不即时刷新，精简任务详情布局，并增强子任务创建稳定性。",
+  "pub_date": "2026-07-20T15:59:36.036Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRNm9qMjloTWpYSHhkQjM4NWRyT2NCOW5LSkVTZlRFNVpZZ1VaVFR3ZkJRNEUwc1MxZmVNUkx5RkxOaDV2Y0pONTJrOVcwMk9RT2xsRCtJdXRXOFVrT2FDOGpKOGpzV3dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNTE4NDkxCWZpbGU65ru0562U5riF5Y2VXzEuMzYuMV94NjQtc2V0dXAuZXhlClpHWVg3RzdLalZUdzVFKzNzYnk3S1Urd2hMYzBwRXFOUklFdUw1L1p0TVR0cmpzTHF4cWVSOFlDOGJoTzVGV0N0L2tvK3E0U0F6RmUvSkVEQWRLZ0FBPT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.36.1/_1.36.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkgrZWVGQ252Q3BUSGFvck1jRUtJUEdidGIyaVhTNHlTbVpMcFBpbDAvNmFka0hmQlVNbmNtMS9rWTIrVEduMERiZjJwQ3BFVy9Obzl4OXJLa1Zocnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTYzMTczCWZpbGU65ru0562U5riF5Y2VXzEuNDUuMl94NjQtc2V0dXAuZXhlCnpMZ01nNThURGtxMWVjTUFYclpQV2k4aFJYdDNXdndDY3VsbnZHZXMxVXRUajhSZDR4SHFRc0NINU5OMkZrVlMxY3MzaXBaYjZDSDJwZUxad25DUEJnPT0K",
+      "url": "https://api.github.com/repos/Lukeli1/dida-clone/releases/assets/483634524"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkgrZWVGQ252Q3BUSGFvck1jRUtJUEdidGIyaVhTNHlTbVpMcFBpbDAvNmFka0hmQlVNbmNtMS9rWTIrVEduMERiZjJwQ3BFVy9Obzl4OXJLa1Zocnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTYzMTczCWZpbGU65ru0562U5riF5Y2VXzEuNDUuMl94NjQtc2V0dXAuZXhlCnpMZ01nNThURGtxMWVjTUFYclpQV2k4aFJYdDNXdndDY3VsbnZHZXMxVXRUajhSZDR4SHFRc0NINU5OMkZrVlMxY3MzaXBaYjZDSDJwZUxad25DUEJnPT0K",
+      "url": "https://api.github.com/repos/Lukeli1/dida-clone/releases/assets/483634524"
     }
   }
 }
