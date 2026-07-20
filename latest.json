@@ -5,11 +5,11 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk9vVE1iOWp0UHd2QURRN1JiZkg3ZXFLUjhyZzV6ZnR5aVFsOEszenlxVTJhSXJDVnNpZ1RRTjBmNFpBWFMrUlR5T3cxN0NKUUttdFBlV0tLU1NyVXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTY2MDAwCWZpbGU65ru0562U5riF5Y2VXzEuNDUuM194NjQtc2V0dXAuZXhlCkNNc0pMMEZpME1MQXpvVjkwZSt6bUcwMEliZHdva2I4WFJnVmZXNk9xT0hwMjJRTjhQVklPTGhKWXJkZlBFc1drS0ZNYzUvZEdIeE9oc0M2elE1SkR3PT0K",
-      "url": "https://api.github.com/repos/Lukeli1/dida-clone/releases/assets/483678065"
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.45.3/_1.45.3_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk9vVE1iOWp0UHd2QURRN1JiZkg3ZXFLUjhyZzV6ZnR5aVFsOEszenlxVTJhSXJDVnNpZ1RRTjBmNFpBWFMrUlR5T3cxN0NKUUttdFBlV0tLU1NyVXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTY2MDAwCWZpbGU65ru0562U5riF5Y2VXzEuNDUuM194NjQtc2V0dXAuZXhlCkNNc0pMMEZpME1MQXpvVjkwZSt6bUcwMEliZHdva2I4WFJnVmZXNk9xT0hwMjJRTjhQVklPTGhKWXJkZlBFc1drS0ZNYzUvZEdIeE9oc0M2elE1SkR3PT0K",
-      "url": "https://api.github.com/repos/Lukeli1/dida-clone/releases/assets/483678065"
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.45.3/_1.45.3_x64-setup.exe"
     }
   }
 }

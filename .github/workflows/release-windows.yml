@@ -1,6 +1,11 @@
 name: Release Windows
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
   workflow_dispatch:
     inputs:
       release_notes:
@@ -48,6 +53,11 @@ jobs:
       - name: Verify versions
         run: npm run check:version
 
+      - name: Read release version
+        id: version
+        shell: bash
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
       - name: Verify signing secrets
         shell: pwsh
         env:
@@ -67,7 +77,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: v__VERSION__
-          releaseBody: ${{ inputs.release_notes }}
+          releaseBody: ${{ inputs.release_notes || format('Release v{0}', steps.version.outputs.version) }}
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: true
@@ -82,6 +92,17 @@ jobs:
           version=$(node -p "require('./package.json').version")
           rm -f latest.json
           gh release download "v${version}" --pattern latest.json --dir .
+          asset_api_url=$(node -p "require('./latest.json').platforms['windows-x86_64-nsis'].url")
+          asset_id="${asset_api_url##*/}"
+          download_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" --jq '.browser_download_url')
+          DOWNLOAD_URL="$download_url" node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync("latest.json", "utf8"));
+            for (const platform of Object.values(manifest.platforms)) {
+              platform.url = process.env.DOWNLOAD_URL;
+            }
+            fs.writeFileSync("latest.json", `${JSON.stringify(manifest, null, 2)}\n`);
+          '
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add latest.json
