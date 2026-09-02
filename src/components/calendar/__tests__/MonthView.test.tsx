@@ -390,3 +390,19 @@ describe('MonthView 任务显示优化', () => {
     expect(onMoveTask).toHaveBeenCalledWith(7, new Date(2026, 6, 8).toISOString(), { allDay: true })
   })
 })
+
+describe('MonthView 不执行时间轴自动滚动', () => {
+  it('月视图不包含日/周视图的时间轴滚动容器，网格位置不被自动滚动改动', async () => {
+    renderMonthView([makeTask(1)])
+
+    expect(screen.queryByTestId('day-scroll-container')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('week-scroll-container')).not.toBeInTheDocument()
+
+    const grid = screen.getByTestId('month-calendar-grid')
+    expect(grid.scrollTop).toBe(0)
+
+    // 等待可能存在的延迟滚动尝试（日/周视图自动定位的重试窗口约 80ms）后仍保持不变
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(grid.scrollTop).toBe(0)
+  })
+})

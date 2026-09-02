@@ -3,6 +3,7 @@ import { startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, getHours, g
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
+import { useAutoScrollToNow } from '../../hooks/useAutoScrollToNow'
 import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
 import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
@@ -76,6 +77,9 @@ export function WeekView({
   }, [allDaySegments])
 
   const allDayAreaHeight = allDayRowCount * 24 + 8
+
+  // 进入周视图时自动定位到当前本地时间（仅挂载时执行一次，不影响后续手动滚动）
+  useAutoScrollToNow(weekScrollRef, allDayAreaHeight)
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>()

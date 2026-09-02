@@ -62,6 +62,8 @@ export const STORAGE_KEYS = {
   taskNoteMode: `${PREFIX}taskNoteMode`,
   /** 一周起始日 */
   weekStart: `${PREFIX}weekStart`,
+  /** 进入日历时默认显示的视图（日 / 周 / 月） */
+  calendarDefaultView: `${PREFIX}calendar_default_view`,
   /** 删除前是否确认 */
   confirmDelete: `${PREFIX}confirmDelete`,
   /** 搜索历史 */

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { Task, List } from '../types'
-import { type ViewMode, prevMonth, nextMonth, prevWeek, nextWeek, prevDay, nextDay } from '../utils/calendarUtils'
+import { type ViewMode, prevMonth, nextMonth, prevWeek, nextWeek, prevDay, nextDay, getCalendarDefaultView } from '../utils/calendarUtils'
 import { CalendarToolbar } from './calendar/CalendarToolbar'
 import { ViewRenderer } from './calendar/ViewRenderer'
 import { TaskSidebar } from './calendar/TaskSidebar'
@@ -32,7 +32,8 @@ export function CalendarView({
   onUpdateTask,
   actions,
 }: CalendarViewProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('month')
+  // 初始视图模式从设置偏好读取（day / week / month），未设置时 fallback 到 'month'
+  const [viewMode, setViewMode] = useState<ViewMode>(() => getCalendarDefaultView())
   const [currentDate, setCurrentDate] = useState(new Date())
   // 任务侧边栏：保持开启状态，拖拽时不关闭
   const [sidebarOpen, setSidebarOpen] = useState(false)

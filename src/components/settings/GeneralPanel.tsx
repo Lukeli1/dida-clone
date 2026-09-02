@@ -3,12 +3,20 @@ import { useState, useEffect } from 'react'
 import { Toggle } from './Toggle'
 import { useUIStore } from '../../stores/uiStore'
 import { TOGGLEABLE_SIDEBAR_ITEMS, isSidebarItemVisible } from '../../utils/sidebarVisibility'
+import {
+  DEFAULT_CALENDAR_VIEW_OPTIONS,
+  DEFAULT_CALENDAR_VIEW_LABELS,
+  getCalendarDefaultView,
+  type DefaultCalendarView,
+} from '../../utils/calendarUtils'
+import { STORAGE_KEYS } from '../../config/localStorageKeys'
 
 export function GeneralPanel() {
   const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() =>
     getItem('weekStart') === 'monday' ? 'monday' : 'sunday',
   )
   const [confirmDelete, setConfirmDelete] = useState(() => getItem('confirmDelete') !== 'false')
+  const [calendarDefaultView, setCalendarDefaultView] = useState<DefaultCalendarView>(() => getCalendarDefaultView())
 
   const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
   const setSidebarItemVisible = useUIStore((s) => s.setSidebarItemVisible)
@@ -19,6 +27,9 @@ export function GeneralPanel() {
   useEffect(() => {
     setItem('confirmDelete', String(confirmDelete))
   }, [confirmDelete])
+  useEffect(() => {
+    setItem(STORAGE_KEYS.calendarDefaultView, calendarDefaultView)
+  }, [calendarDefaultView])
 
   return (
     <div className="space-y-6">
@@ -41,6 +52,34 @@ export function GeneralPanel() {
                 }`}
               >
                 {d === 'sunday' ? '周日' : '周一'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 日历默认视图 */}
+        <div
+          className="flex items-center justify-between px-4 py-3.5 gap-3"
+          data-testid="calendar-default-view-setting"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">进入日历时默认显示</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">打开日历模块时优先展示的视图</p>
+          </div>
+          <div className="flex gap-1 bg-[var(--color-bg-tertiary)] rounded-lg p-1 shrink-0">
+            {DEFAULT_CALENDAR_VIEW_OPTIONS.map((v) => (
+              <button
+                key={v}
+                data-testid={`calendar-default-view-option-${v}`}
+                onClick={() => setCalendarDefaultView(v)}
+                aria-pressed={calendarDefaultView === v}
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                  calendarDefaultView === v
+                    ? 'bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                {DEFAULT_CALENDAR_VIEW_LABELS[v]}
               </button>
             ))}
           </div>
@@ -82,10 +121,7 @@ export function GeneralPanel() {
                   <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{item.label}</p>
                 </div>
                 <div className="shrink-0">
-                  <Toggle
-                    checked={checked}
-                    onChange={(v) => setSidebarItemVisible(item.id, v)}
-                  />
+                  <Toggle checked={checked} onChange={(v) => setSidebarItemVisible(item.id, v)} />
                 </div>
               </div>
             )

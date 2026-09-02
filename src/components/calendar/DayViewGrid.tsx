@@ -3,16 +3,12 @@
 // 以及作为时间列覆盖层的「创建任务弹窗」（快速添加 / 详细添加）。
 // 弹窗的状态与事件处理由主组件持有，本组件仅负责展示与事件转发。
 
+import { useRef } from 'react'
 import { format } from 'date-fns'
 import type { Task, List } from '../../types'
-import {
-  HOUR_HEIGHT,
-  HOURS,
-  formatMinute,
-  type Selection,
-  type CreatePopup,
-} from '../../utils/dayViewUtils'
+import { HOUR_HEIGHT, HOURS, formatMinute, type Selection, type CreatePopup } from '../../utils/dayViewUtils'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
+import { useAutoScrollToNow } from '../../hooks/useAutoScrollToNow'
 import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
 import { isTaskAllDayLike, isTaskMultiDay, type CalendarOccurrence } from '../../utils/calendarTaskOccurrences'
 import { DayViewTask } from './DayViewTask'
@@ -108,19 +104,24 @@ export function DayViewGrid({
   onPopupClose,
 }: DayViewGridProps) {
   const defaultListId = lists.length > 0 ? lists[0].id : 1
+  const dayScrollRef = useRef<HTMLDivElement>(null)
 
   // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
   const now = useCurrentTime()
   const currentMinutes = toDayMinutes(now)
   const allDayRowCount = Math.max(1, allDayOccurrences.length)
   const allDayAreaHeight = allDayRowCount * 24 + 8
+
+  // 进入日视图时自动定位到当前本地时间（仅挂载时执行一次，不影响后续手动滚动）
+  useAutoScrollToNow(dayScrollRef, allDayAreaHeight)
+
   const timedTaskLayouts = layoutTimedTasks(
     dayTasks.filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task)),
     { hourHeight: HOUR_HEIGHT },
   )
 
   return (
-    <div className="flex-1 overflow-y-auto select-none">
+    <div ref={dayScrollRef} data-testid="day-scroll-container" className="flex-1 overflow-y-auto select-none">
       <div className="flex">
         {/* 小时标签列 */}
         <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)] dark:border-[var(--color-border)]">

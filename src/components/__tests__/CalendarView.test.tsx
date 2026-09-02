@@ -89,6 +89,7 @@ vi.mock('../calendar/CalendarToolbar', () => ({
 }))
 
 import { CalendarView } from '../CalendarView'
+import { STORAGE_KEYS } from '../../config/localStorageKeys'
 
 const lists: List[] = [
   { id: 1, name: '工作', color: '#3b82f6', is_default: true, created_at: '', updated_at: '' },
@@ -139,6 +140,7 @@ function renderCalendarView(tasks: Task[], handlers?: Partial<React.ComponentPro
 describe('CalendarView 集成测试', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.removeItem(STORAGE_KEYS.calendarDefaultView)
     mockFilters = { listId: null, tagId: null, priority: null, showCompleted: true, allDayOnly: false }
     viewRendererTasks = []
     sidebarTasks = []
@@ -184,10 +186,7 @@ describe('CalendarView 集成测试', () => {
 
     it('allDayOnly=true 时只传递全天任务', () => {
       mockFilters = { listId: null, tagId: null, priority: null, showCompleted: true, allDayOnly: true }
-      const tasks = [
-        makeTask(1, { all_day: true }),
-        makeTask(2, { all_day: false, due_date: '2026-07-03T09:00:00' }),
-      ]
+      const tasks = [makeTask(1, { all_day: true }), makeTask(2, { all_day: false, due_date: '2026-07-03T09:00:00' })]
       renderCalendarView(tasks)
 
       expect(viewRendererTasks.map((t) => t.id)).toEqual([1])
@@ -195,11 +194,7 @@ describe('CalendarView 集成测试', () => {
 
     it('tagId 过滤后只传递包含该标签的任务', () => {
       mockFilters = { listId: null, tagId: 10, priority: null, showCompleted: true, allDayOnly: false }
-      const tasks = [
-        makeTask(1, { tag_ids: [10, 20] }),
-        makeTask(2, { tag_ids: [30] }),
-        makeTask(3, { tag_ids: [10] }),
-      ]
+      const tasks = [makeTask(1, { tag_ids: [10, 20] }), makeTask(2, { tag_ids: [30] }), makeTask(3, { tag_ids: [10] })]
       renderCalendarView(tasks)
 
       expect(viewRendererTasks.map((t) => t.id)).toEqual([1, 3])
@@ -300,6 +295,42 @@ describe('CalendarView 集成测试', () => {
       fireEvent.click(screen.getByTestId('toolbar-toggle-sidebar'))
       expect(sidebarOpen).toBe(true)
       expect(sidebarTasks.map((t) => t.id)).toEqual([1])
+    })
+  })
+
+  describe('默认视图偏好', () => {
+    it('未设置偏好时进入日历默认为月视图（兼容既有行为）', () => {
+      renderCalendarView([makeTask(1)])
+      expect(viewRendererViewMode).toBe('month')
+    })
+
+    it.each([
+      ['day', '日视图'],
+      ['week', '周视图'],
+      ['month', '月视图'],
+    ])('偏好为 %s（%s）时进入日历按偏好初始化', (mode) => {
+      localStorage.setItem(STORAGE_KEYS.calendarDefaultView, mode)
+      renderCalendarView([makeTask(1)])
+      expect(viewRendererViewMode).toBe(mode)
+    })
+
+    it('存储值非法时回退到月视图', () => {
+      localStorage.setItem(STORAGE_KEYS.calendarDefaultView, 'gantt')
+      renderCalendarView([makeTask(1)])
+      expect(viewRendererViewMode).toBe('month')
+    })
+
+    it('页面内临时视图切换不会覆盖设置中的默认偏好', () => {
+      localStorage.setItem(STORAGE_KEYS.calendarDefaultView, 'week')
+      renderCalendarView([makeTask(1)])
+      expect(viewRendererViewMode).toBe('week')
+
+      act(() => {
+        capturedOnChangeView('day')
+      })
+      expect(viewRendererViewMode).toBe('day')
+      // 临时切换只影响当前会话展示，不写回持久化偏好
+      expect(localStorage.getItem(STORAGE_KEYS.calendarDefaultView)).toBe('week')
     })
   })
 })

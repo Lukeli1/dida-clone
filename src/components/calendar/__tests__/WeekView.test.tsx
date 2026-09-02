@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../../types'
 import { WeekView } from '../WeekView'
+import { computeTimeAxisScrollTop } from '../../../hooks/useAutoScrollToNow'
 
 const lists: List[] = [
   {
@@ -40,7 +41,11 @@ function makeTask(id: number, overrides: Partial<Task> = {}): Task {
   }
 }
 
-function renderWeekView(tasks: Task[], handlers: Partial<React.ComponentProps<typeof WeekView>> = {}) {
+function renderWeekView(
+  tasks: Task[],
+  handlers: Partial<React.ComponentProps<typeof WeekView>> = {},
+  currentDate: Date = new Date(2026, 6, 3),
+) {
   const defaultHandlers = {
     onDateClick: vi.fn(),
     onTaskClick: vi.fn(),
@@ -57,7 +62,7 @@ function renderWeekView(tasks: Task[], handlers: Partial<React.ComponentProps<ty
   return {
     ...render(
       <WeekView
-        currentDate={new Date(2026, 6, 3)}
+        currentDate={currentDate}
         tasks={tasks}
         lists={lists}
         onDateClick={props.onDateClick}
@@ -73,6 +78,46 @@ function renderWeekView(tasks: Task[], handlers: Partial<React.ComponentProps<ty
     ),
     handlers: props,
   }
+}
+
+/**
+ * 为滚动容器注入可控的尺寸与 scrollTop 记录（jsdom 无布局引擎）。
+ * 返回读取 / 手动设置 scrollTop 的方法，用于验证自动定位与手动滚动。
+ */
+function mockScrollMetrics(el: HTMLElement, scrollHeight: number, clientHeight: number) {
+  let scrollTopValue = 0
+  Object.defineProperty(el, 'scrollHeight', { configurable: true, value: scrollHeight })
+  Object.defineProperty(el, 'clientHeight', { configurable: true, value: clientHeight })
+  Object.defineProperty(el, 'scrollTop', {
+    configurable: true,
+    get: () => scrollTopValue,
+    set: (v: number) => {
+      scrollTopValue = v
+    },
+  })
+  return {
+    getScrollTop: () => scrollTopValue,
+    setScrollTop: (v: number) => {
+      scrollTopValue = v
+    },
+  }
+}
+
+/** 按当前分钟（允许跨分钟边界抖动）计算期望滚动区间 */
+function expectedScrollRange(minutesBefore: number, minutesAfter: number) {
+  const low = computeTimeAxisScrollTop({
+    scrollHeight: 1600,
+    clientHeight: 600,
+    minutes: Math.min(minutesBefore, minutesAfter),
+    allDayAreaHeight: 32,
+  })
+  const high = computeTimeAxisScrollTop({
+    scrollHeight: 1600,
+    clientHeight: 600,
+    minutes: Math.max(minutesBefore, minutesAfter),
+    allDayAreaHeight: 32,
+  })
+  return { low, high }
 }
 
 function getTaskBlock(title: string): HTMLElement {
@@ -346,5 +391,87 @@ describe('WeekView cross-day range creation', () => {
     ])
 
     expect(screen.getByText(/跨日时间说明/)).toHaveTextContent('周四 22:00 → 周六 02:00')
+  })
+})
+
+describe('WeekView 自动定位当前时间', () => {
+  /** 本地时区的今天日期 key（与视图内 format(..., 'yyyy-MM-dd') 的本地约定一致） */
+  function localTodayKey(): string {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(
+      2,
+      '0',
+    )}`
+  }
+
+  it('进入当前周视图后时间轴自动定位到当前本地时间附近', async () => {
+    const minutesBefore = new Date().getHours() * 60 + new Date().getMinutes()
+    // currentDate 为今天：本周包含「今天」列；附带一个今天 09:00 的有时刻任务
+    const todayKey = localTodayKey()
+    renderWeekView(
+      [makeTask(1, { due_date: `${todayKey}T09:00:00`, end_date: `${todayKey}T10:00:00` })],
+      {},
+      new Date(),
+    )
+    const container = screen.getByTestId('week-scroll-container')
+    const metrics = mockScrollMetrics(container, 1600, 600)
+
+    await waitFor(() => {
+      const minutesAfter = new Date().getHours() * 60 + new Date().getMinutes()
+      const { low, high } = expectedScrollRange(minutesBefore, minutesAfter)
+      expect(metrics.getScrollTop()).toBeGreaterThanOrEqual(low)
+      expect(metrics.getScrollTop()).toBeLessThanOrEqual(high)
+    })
+  })
+
+  it('无任务且容器初始未完成布局（尺寸为 0）时仍能完成定位且不报错', async () => {
+    const minutesBefore = new Date().getHours() * 60 + new Date().getMinutes()
+    renderWeekView([], {}, new Date())
+    const metrics = mockScrollMetrics(screen.getByTestId('week-scroll-container'), 1600, 600)
+
+    await waitFor(() => {
+      const minutesAfter = new Date().getHours() * 60 + new Date().getMinutes()
+      const { low, high } = expectedScrollRange(minutesBefore, minutesAfter)
+      expect(metrics.getScrollTop()).toBeGreaterThanOrEqual(low)
+      expect(metrics.getScrollTop()).toBeLessThanOrEqual(high)
+    })
+  })
+
+  it('手动滚动后重渲染不会被重复 effect 拉回当前时间', async () => {
+    const minutesBefore = new Date().getHours() * 60 + new Date().getMinutes()
+    const { rerender, handlers } = renderWeekView([], {}, new Date())
+    const container = screen.getByTestId('week-scroll-container')
+    const metrics = mockScrollMetrics(container, 1600, 600)
+
+    // 等待首次自动定位完成
+    await waitFor(() => {
+      const minutesAfter = new Date().getHours() * 60 + new Date().getMinutes()
+      const { low, high } = expectedScrollRange(minutesBefore, minutesAfter)
+      expect(metrics.getScrollTop()).toBeGreaterThanOrEqual(low)
+      expect(metrics.getScrollTop()).toBeLessThanOrEqual(high)
+    })
+
+    // 模拟用户手动滚动到其他位置
+    metrics.setScrollTop(5)
+    expect(metrics.getScrollTop()).toBe(5)
+
+    // 数据变化引发重渲染，滚动位置不应被拉回
+    rerender(
+      <WeekView
+        currentDate={new Date()}
+        tasks={[makeTask(1)]}
+        lists={lists}
+        onDateClick={handlers.onDateClick}
+        onTaskClick={handlers.onTaskClick}
+        onToggleTask={handlers.onToggleTask}
+        onPrevWeek={handlers.onPrevWeek}
+        onNextWeek={handlers.onNextWeek}
+        onToday={handlers.onToday}
+        onMoveTask={handlers.onMoveTask}
+        onCreateTaskOnRange={handlers.onCreateTaskOnRange}
+        onUpdateTask={handlers.onUpdateTask}
+      />,
+    )
+    expect(metrics.getScrollTop()).toBe(5)
   })
 })
