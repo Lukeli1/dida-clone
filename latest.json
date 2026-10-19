@@ -1,15 +1,15 @@
 {
-  "version": "1.47.0",
-  "notes": "日历任务右键菜单、创建弹窗交互优化与菜单一致性修复。\n\n## 日历任务右键菜单（新）\n- 月 / 周 / 日视图任务块支持右键菜单：重命名、日期、优先级、重复、提醒、标签、归档、创建副本与删除。\n- 删除沿用二次确认与回收站软删除，误删可在回收站恢复。\n- 菜单阻止浏览器原生菜单，贴近视口边缘时自动回收定位；Esc / 点击外部 / 滚动均可关闭。\n- 日历场景不提供「置顶」与「添加子任务」；重复任务操作作用于整条重复规则（与任务列表语义一致）。\n\n## 日历创建弹窗交互优化\n- Enter 提交防重复提交，兼容中文输入法组合键。\n- 点击弹窗外部：已有标题自动创建任务，无标题直接关闭。\n- 周 / 月弹窗按视口边界翻转并适配窄屏宽度，日视图弹窗位置上限修正。\n\n## 菜单一致性修复\n- 修复看板、四象限右键「重命名」只关闭菜单不生效的问题，改为定位输入框直接改名。\n- 任务列表空白区菜单补充 Esc 关闭与视口边缘定位；侧栏清单 / 标签菜单补充 Esc 关闭。\n\n不改变任务数据语义、数据库 schema、同步协议或导入导出格式。",
-  "pub_date": "2026-10-19T05:13:52.792Z",
+  "version": "1.47.1",
+  "notes": "日历拖动预览与落点一致性修复。\n\n## 修复内容\n- 修复日历（周 / 日视图）拖动已有定时任务时「拖动预览与最终落点不一致」：此前任务块在放下瞬间会整体下移一个抓取偏移的距离，现在落点按「光标位置 − 抓取偏移」还原，任务停在拖动时被按住的位置；15 分钟吸附、持续时间保持与当天边界钳制均保持不变。\n- 修复全天任务条拖入时间轴时被误扣抓取偏移、开始时间早于光标的问题：全天任务条拖入定时区域恢复为「光标位置即开始时间」，拖入全天区仍按日期移动；全天任务的持续时长、跨天与 all-day 标记语义不变。\n\n## 实现方式\n- 新增共享纯计算模块 `src/utils/calendarDropTime.ts`（抓取偏移、落点分钟、ISO 与 DataTransfer 读写），周 / 日视图的拖动起点与落点共用同一套换算；仅日历定时任务块写入抓取偏移，其它拖拽来源保持原有语义。\n\n## 验收\n- 相关组件与单测 46 项、全量 Vitest 871 项、Playwright E2E 37 项全部通过。\n- 真实 Tauri 应用窗口原生验收 8 项全部通过：中部 / 靠下抓取落点、15 分钟吸附、相邻任务重叠辨认、全天任务拖入时间轴 06:00 落点、全天任务拖入全天区日期移动、Esc 取消与无效区域不误改。\n\n不改变任务数据语义、数据库 schema、同步协议或导入导出格式。",
+  "pub_date": "2026-10-19T13:48:06.545Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk1tQ1pnZy9nTWMxRmFrRGx0UG1LVzVDTXBQZTZ3RUdEUkN6RDNaV085bU1FVVlKbFRiTWQyQmsrMHRZbGd6SXlKdm9Nd0d0S2prR3kvU0h1b2ZEL3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMzg2ODI4CWZpbGU65ru0562U5riF5Y2VXzEuNDcuMF94NjQtc2V0dXAuZXhlCkpmNTBHWlBpWkwxOE1LL1pDQ0UxaFYzRHg4aFI2TnZMRmRwWG9vL2FueUFGdTJPd2xTR0hrU0grd2NzKzhkcmE2TkdyWVYxTHVSaXBzYVIxdzNqSEFnPT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.0/_1.47.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkdvTXdLb3VlMVpXSE9NNiszZ2N0SlY5V1BNdWF0cnREV0NCNTdtbWNiREt4WURtVXRwd0dnaHlGSG9BUDVwbThMMHltQjJ6cXpjNEJMZzlQYmdKbGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDE3NjgyCWZpbGU65ru0562U5riF5Y2VXzEuNDcuMV94NjQtc2V0dXAuZXhlCmh6S0lRNk55Tld3K1k5Z0crWWMwcVlJdzU4Z1pTT2E5ZktWZXE3WDg3anJVTmE1ckFSRHRGN3o1a3QrK1lYN0xrcUhUc1FkcE1LUGVMTkMyK2VmNkN3PT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.1/_1.47.1_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk1tQ1pnZy9nTWMxRmFrRGx0UG1LVzVDTXBQZTZ3RUdEUkN6RDNaV085bU1FVVlKbFRiTWQyQmsrMHRZbGd6SXlKdm9Nd0d0S2prR3kvU0h1b2ZEL3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMzg2ODI4CWZpbGU65ru0562U5riF5Y2VXzEuNDcuMF94NjQtc2V0dXAuZXhlCkpmNTBHWlBpWkwxOE1LL1pDQ0UxaFYzRHg4aFI2TnZMRmRwWG9vL2FueUFGdTJPd2xTR0hrU0grd2NzKzhkcmE2TkdyWVYxTHVSaXBzYVIxdzNqSEFnPT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.0/_1.47.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkdvTXdLb3VlMVpXSE9NNiszZ2N0SlY5V1BNdWF0cnREV0NCNTdtbWNiREt4WURtVXRwd0dnaHlGSG9BUDVwbThMMHltQjJ6cXpjNEJMZzlQYmdKbGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDE3NjgyCWZpbGU65ru0562U5riF5Y2VXzEuNDcuMV94NjQtc2V0dXAuZXhlCmh6S0lRNk55Tld3K1k5Z0crWWMwcVlJdzU4Z1pTT2E5ZktWZXE3WDg3anJVTmE1ckFSRHRGN3o1a3QrK1lYN0xrcUhUc1FkcE1LUGVMTkMyK2VmNkN3PT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.1/_1.47.1_x64-setup.exe"
     }
   }
 }
