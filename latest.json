@@ -1,15 +1,15 @@
 {
-  "version": "1.46.0",
-  "notes": "日历默认视图与自动定位当前时间\n\n- 新增「进入日历时默认显示」设置（日 / 周 / 月）：打开日历模块时按偏好展示，未设置或存储值非法时保持月视图；页面内临时切换视图不回写偏好。\n- 日视图、周视图进入时时间轴自动定位到当前本地时间附近（约视口上三分之一处），仅挂载时执行一次，不抢占用户手动滚动；月视图不受影响。\n- 不改变任务数据语义、数据库 schema、同步协议或导入导出格式。",
-  "pub_date": "2026-09-02T15:48:57.470Z",
+  "version": "1.47.0",
+  "notes": "日历任务右键菜单、创建弹窗交互优化与菜单一致性修复。\n\n## 日历任务右键菜单（新）\n- 月 / 周 / 日视图任务块支持右键菜单：重命名、日期、优先级、重复、提醒、标签、归档、创建副本与删除。\n- 删除沿用二次确认与回收站软删除，误删可在回收站恢复。\n- 菜单阻止浏览器原生菜单，贴近视口边缘时自动回收定位；Esc / 点击外部 / 滚动均可关闭。\n- 日历场景不提供「置顶」与「添加子任务」；重复任务操作作用于整条重复规则（与任务列表语义一致）。\n\n## 日历创建弹窗交互优化\n- Enter 提交防重复提交，兼容中文输入法组合键。\n- 点击弹窗外部：已有标题自动创建任务，无标题直接关闭。\n- 周 / 月弹窗按视口边界翻转并适配窄屏宽度，日视图弹窗位置上限修正。\n\n## 菜单一致性修复\n- 修复看板、四象限右键「重命名」只关闭菜单不生效的问题，改为定位输入框直接改名。\n- 任务列表空白区菜单补充 Esc 关闭与视口边缘定位；侧栏清单 / 标签菜单补充 Esc 关闭。\n\n不改变任务数据语义、数据库 schema、同步协议或导入导出格式。",
+  "pub_date": "2026-10-19T05:13:52.792Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkE5Qjl1ekkzMWZUNlFBa01lNjhEUGdUT3g3Tmo4MzcrVlcxeHQwbmpYYnFXbk1FMTNTS0xyUzdPaThSK05VdkplS04ySVZKaUMwSTZFam5HUWM0dkFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MzY0MTM0CWZpbGU65ru0562U5riF5Y2VXzEuNDYuMF94NjQtc2V0dXAuZXhlCkNEbjJIa3NicGozWm1PNGRxeTVrTVhSOVgyQ0EvTWZKbkI0d2s1aTJmS2Q1azJzcS9NRHRTN25iQkZCMkVDREwyaHRGblhwQTZaSHRSSGQwelNSc0N3PT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.46.0/_1.46.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk1tQ1pnZy9nTWMxRmFrRGx0UG1LVzVDTXBQZTZ3RUdEUkN6RDNaV085bU1FVVlKbFRiTWQyQmsrMHRZbGd6SXlKdm9Nd0d0S2prR3kvU0h1b2ZEL3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMzg2ODI4CWZpbGU65ru0562U5riF5Y2VXzEuNDcuMF94NjQtc2V0dXAuZXhlCkpmNTBHWlBpWkwxOE1LL1pDQ0UxaFYzRHg4aFI2TnZMRmRwWG9vL2FueUFGdTJPd2xTR0hrU0grd2NzKzhkcmE2TkdyWVYxTHVSaXBzYVIxdzNqSEFnPT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.0/_1.47.0_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkE5Qjl1ekkzMWZUNlFBa01lNjhEUGdUT3g3Tmo4MzcrVlcxeHQwbmpYYnFXbk1FMTNTS0xyUzdPaThSK05VdkplS04ySVZKaUMwSTZFam5HUWM0dkFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MzY0MTM0CWZpbGU65ru0562U5riF5Y2VXzEuNDYuMF94NjQtc2V0dXAuZXhlCkNEbjJIa3NicGozWm1PNGRxeTVrTVhSOVgyQ0EvTWZKbkI0d2s1aTJmS2Q1azJzcS9NRHRTN25iQkZCMkVDREwyaHRGblhwQTZaSHRSSGQwelNSc0N3PT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.46.0/_1.46.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQk1tQ1pnZy9nTWMxRmFrRGx0UG1LVzVDTXBQZTZ3RUdEUkN6RDNaV085bU1FVVlKbFRiTWQyQmsrMHRZbGd6SXlKdm9Nd0d0S2prR3kvU0h1b2ZEL3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMzg2ODI4CWZpbGU65ru0562U5riF5Y2VXzEuNDcuMF94NjQtc2V0dXAuZXhlCkpmNTBHWlBpWkwxOE1LL1pDQ0UxaFYzRHg4aFI2TnZMRmRwWG9vL2FueUFGdTJPd2xTR0hrU0grd2NzKzhkcmE2TkdyWVYxTHVSaXBzYVIxdzNqSEFnPT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.0/_1.47.0_x64-setup.exe"
     }
   }
 }
