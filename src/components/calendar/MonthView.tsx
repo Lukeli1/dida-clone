@@ -91,6 +91,7 @@ export function MonthView({
   const [morePopover, setMorePopover] = useState<{ dateKey: string; position: MonthMorePopoverPosition } | null>(null)
   const [visibleTaskCount, setVisibleTaskCount] = useState(MIN_MONTH_VISIBLE_TASKS)
   const inputRef = useRef<HTMLInputElement>(null)
+  const quickAddSubmittedRef = useRef(false)
   const calendarGridRef = useRef<HTMLDivElement>(null)
   const monthPointerIdRef = useRef<number | null>(null)
   const monthAnchorIndexRef = useRef<number | null>(null)
@@ -313,6 +314,7 @@ export function MonthView({
   }
 
   function handleQuickAdd(dateKey: string) {
+    quickAddSubmittedRef.current = false
     setCreatingDate(dateKey)
     setNewTitle('')
     setMorePopover(null)
@@ -326,6 +328,8 @@ export function MonthView({
   }
 
   function handleQuickAddSubmit(dateKey: string) {
+    if (quickAddSubmittedRef.current) return
+    quickAddSubmittedRef.current = true
     const title = newTitle.trim()
     if (title) onCreateTask(dateKey, title)
     setCreatingDate(null)
@@ -571,7 +575,10 @@ export function MonthView({
                           value={newTitle}
                           onChange={(e) => setNewTitle(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleQuickAddSubmit(key)
+                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                              e.preventDefault()
+                              handleQuickAddSubmit(key)
+                            }
                             if (e.key === 'Escape') {
                               setCreatingDate(null)
                               setNewTitle('')

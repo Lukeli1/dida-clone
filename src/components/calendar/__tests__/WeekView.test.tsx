@@ -285,6 +285,33 @@ describe('WeekView cross-day range creation', () => {
     })
   })
 
+  it('标题输入框按回车提交快速创建', async () => {
+    const onCreateTaskOnRange = vi.fn(() => true)
+    renderWeekView([], { onCreateTaskOnRange })
+    const grid = mockGrid()
+    drag(grid, { x: 250, y: 540 }, { x: 250, y: 540 })
+    const input = screen.getByPlaceholderText('任务标题，回车保存')
+    fireEvent.change(input, { target: { value: '周视图快速任务' } })
+    fireEvent.keyDown(input, { key: 'Enter', nativeEvent: { isComposing: false } })
+
+    await waitFor(() =>
+      expect(onCreateTaskOnRange).toHaveBeenCalledWith(expect.objectContaining({ title: '周视图快速任务' })),
+    )
+  })
+
+  it('点击弹窗外部时自动提交已填写标题', async () => {
+    const onCreateTaskOnRange = vi.fn(() => true)
+    renderWeekView([], { onCreateTaskOnRange })
+    const grid = mockGrid()
+    drag(grid, { x: 250, y: 540 }, { x: 250, y: 540 })
+    fireEvent.change(screen.getByPlaceholderText('任务标题，回车保存'), { target: { value: '周视图外部提交' } })
+    fireEvent.pointerDown(document.body, { button: 0 })
+
+    await waitFor(() =>
+      expect(onCreateTaskOnRange).toHaveBeenCalledWith(expect.objectContaining({ title: '周视图外部提交' })),
+    )
+  })
+
   it('创建弹窗允许编辑日期时间，并阻止结束时间早于开始时间', () => {
     const onCreateTaskOnRange = vi.fn(() => true)
     renderWeekView([], { onCreateTaskOnRange })

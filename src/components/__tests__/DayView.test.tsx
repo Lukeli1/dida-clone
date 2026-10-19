@@ -119,6 +119,36 @@ function getTaskBlock(title: string): HTMLElement {
 }
 
 describe('DayView calendar task layout', () => {
+  it('填写标题后点击时间区外部会创建任务', async () => {
+    const onCreateTaskOnRange = vi.fn(() => true)
+    renderDayView([], { onCreateTaskOnRange })
+    const grid = screen.getByTestId('day-time-grid')
+    fireEvent.mouseDown(grid, { button: 0, clientY: 540 })
+    fireEvent.mouseUp(grid, { button: 0, clientY: 540 })
+    const input = screen.getByPlaceholderText('任务标题，回车保存')
+    fireEvent.change(input, { target: { value: '日视图外部提交' } })
+    fireEvent.mouseDown(document.body, { button: 0 })
+
+    await waitFor(() =>
+      expect(onCreateTaskOnRange).toHaveBeenCalledWith(expect.objectContaining({ title: '日视图外部提交' })),
+    )
+  })
+
+  it('标题输入框按回车创建任务', async () => {
+    const onCreateTaskOnRange = vi.fn(() => true)
+    renderDayView([], { onCreateTaskOnRange })
+    const grid = screen.getByTestId('day-time-grid')
+    fireEvent.mouseDown(grid, { button: 0, clientY: 540 })
+    fireEvent.mouseUp(grid, { button: 0, clientY: 540 })
+    const input = screen.getByPlaceholderText('任务标题，回车保存')
+    fireEvent.change(input, { target: { value: '日视图回车创建' } })
+    fireEvent.keyDown(input, { key: 'Enter', nativeEvent: { isComposing: false } })
+
+    await waitFor(() =>
+      expect(onCreateTaskOnRange).toHaveBeenCalledWith(expect.objectContaining({ title: '日视图回车创建' })),
+    )
+  })
+
   it('lays out overlapping timed tasks side by side', () => {
     renderDayView([
       makeTask(1, { title: '日重叠 A', due_date: '2026-07-03T09:00:00', end_date: '2026-07-03T10:00:00' }),

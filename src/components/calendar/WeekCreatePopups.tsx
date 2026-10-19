@@ -25,9 +25,18 @@ interface WeekCreatePopupsProps {
 function getPopupPosition(top: number, left: number, width: number, height: number) {
   const viewportWidth = typeof window === 'undefined' ? 1200 : window.innerWidth
   const viewportHeight = typeof window === 'undefined' ? 800 : window.innerHeight
+  const availableWidth = Math.max(0, viewportWidth - 24)
+  const availableHeight = Math.max(0, viewportHeight - 24)
+  const popupWidth = Math.min(width, availableWidth)
+  const popupHeight = Math.min(height, availableHeight)
+  const preferredTop = top + popupHeight <= viewportHeight - 12 ? top : top - popupHeight - 16
+  const preferredLeft = left + popupWidth <= viewportWidth - 12 ? left : left - popupWidth - 16
   return {
-    top: Math.max(12, Math.min(top, viewportHeight - height - 12)),
-    left: Math.max(12, Math.min(left, viewportWidth - width - 12)),
+    top: Math.max(12, Math.min(preferredTop, viewportHeight - popupHeight - 12)),
+    left: Math.max(12, Math.min(preferredLeft, viewportWidth - popupWidth - 12)),
+    width: popupWidth,
+    maxHeight: popupHeight,
+    overflowY: 'auto' as const,
   }
 }
 
@@ -74,7 +83,7 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
       <div
         data-calendar-popup
         data-testid="week-create-popup"
-        className="fixed z-50 w-64 rounded-lg border border-[var(--color-accent-light)] bg-[var(--color-surface)] p-3 shadow-xl"
+        className="fixed z-50 max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--color-accent-light)] bg-[var(--color-surface)] p-3 shadow-xl"
         style={position}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
@@ -119,7 +128,7 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
     <div
       data-calendar-popup
       data-testid="week-create-popup"
-      className="fixed z-50 w-[21rem] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl"
+      className="fixed z-50 max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl"
       style={position}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}

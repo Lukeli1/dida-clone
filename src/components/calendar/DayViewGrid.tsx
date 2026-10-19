@@ -119,6 +119,10 @@ export function DayViewGrid({
     dayTasks.filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task)),
     { hourHeight: HOUR_HEIGHT },
   )
+  const popupHeight = createPopup?.isQuickAdd ? 116 : 430
+  const popupTop = createPopup
+    ? Math.max(8, Math.min(createPopup.top - (createPopup.isQuickAdd ? 10 : 40), 24 * HOUR_HEIGHT - popupHeight - 8))
+    : 8
 
   return (
     <div ref={dayScrollRef} data-testid="day-scroll-container" className="flex-1 overflow-y-auto select-none">
@@ -193,6 +197,7 @@ export function DayViewGrid({
 
           <div
             ref={columnRef}
+            data-testid="day-time-grid"
             className="relative group"
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
@@ -265,8 +270,9 @@ export function DayViewGrid({
             {/* 快速添加弹窗（轻量） */}
             {createPopup?.isQuickAdd && (
               <div
-                className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-lg shadow-xl border border-[var(--color-accent-light)] dark:border-[var(--color-accent)] p-3 w-64"
-                style={{ top: `${Math.max(0, createPopup.top - 10)}px`, left: '20px' }}
+                data-calendar-popup
+                className="absolute left-2 z-20 w-[min(16rem,calc(100%-1rem))] rounded-xl border border-[var(--color-accent-light)] bg-[var(--color-surface)] p-3 shadow-xl dark:border-[var(--color-accent)] dark:bg-[var(--color-bg-tertiary)]"
+                style={{ top: `${popupTop}px` }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -295,7 +301,10 @@ export function DayViewGrid({
                   value={popupTitle}
                   onChange={(e) => onPopupTitleChange(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') onPopupSubmit()
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                      e.preventDefault()
+                      onPopupSubmit()
+                    }
                     if (e.key === 'Escape') onPopupClose()
                   }}
                   placeholder="任务标题，回车保存"
@@ -307,8 +316,9 @@ export function DayViewGrid({
             {/* 详细创建弹窗（拖选后） */}
             {createPopup && !createPopup.isQuickAdd && (
               <div
-                className="absolute z-20 bg-[var(--color-surface)] dark:bg-[var(--color-bg-tertiary)] rounded-xl shadow-xl border border-[var(--color-border)] dark:border-[var(--color-border)] p-4 w-72"
-                style={{ top: `${Math.max(0, createPopup.top - 40)}px`, left: '20px' }}
+                data-calendar-popup
+                className="absolute left-2 z-20 w-[min(18rem,calc(100%-1rem))] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl dark:bg-[var(--color-bg-tertiary)]"
+                style={{ top: `${popupTop}px` }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -337,7 +347,10 @@ export function DayViewGrid({
                   value={popupTitle}
                   onChange={(e) => onPopupTitleChange(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') onPopupSubmit()
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                      e.preventDefault()
+                      onPopupSubmit()
+                    }
                     if (e.key === 'Escape') onPopupClose()
                   }}
                   placeholder="任务标题"

@@ -318,7 +318,13 @@ export function useTimeSelection({
     }
   }, [selection])
 
-  async function handlePopupSubmit() {
+  const closeCreatePopup = useCallback(() => {
+    setCreatePopup(null)
+    setPopupError(null)
+    setIsSubmitting(false)
+  }, [])
+
+  const handlePopupSubmit = useCallback(async () => {
     if (!createPopup || isSubmitting) return
     const title = popupTitle.trim()
     const startMinute = parseTimeInput(popupStartTime)
@@ -363,17 +369,43 @@ export function useTimeSelection({
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [
+    closeCreatePopup,
+    createPopup,
+    defaultListId,
+    isSubmitting,
+    onCreateTaskOnRange,
+    popupEndDateKey,
+    popupEndTime,
+    popupListId,
+    popupNotes,
+    popupPriority,
+    popupStartDateKey,
+    popupStartTime,
+    popupTitle,
+  ])
 
   function cyclePriority() {
     setPopupPriority((priority) => (priority + 1) % 4)
   }
 
-  function closeCreatePopup() {
-    setCreatePopup(null)
-    setPopupError(null)
-    setIsSubmitting(false)
-  }
+  useEffect(() => {
+    if (!createPopup) return
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-calendar-popup]')) return
+      event.stopPropagation()
+      if (popupTitle.trim()) {
+        void handlePopupSubmit()
+      } else {
+        closeCreatePopup()
+      }
+    }
+
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true)
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown, true)
+  }, [closeCreatePopup, createPopup, handlePopupSubmit, popupTitle])
 
   return {
     selection,

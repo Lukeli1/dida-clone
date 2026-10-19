@@ -96,12 +96,20 @@ export function MonthDetailPopup({
     if (e.key === 'Escape') onClose()
   }
 
+  function handleBackdropClick() {
+    if (title.trim()) {
+      void handleSubmit()
+    } else {
+      onClose()
+    }
+  }
+
   return (
     <div
       data-calendar-popup
       data-testid="month-range-create-popup"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-mask)] p-4"
-      onClick={onClose}
+      onClick={handleBackdropClick}
     >
       <div
         className="w-[22rem] max-w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl"

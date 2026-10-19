@@ -145,7 +145,7 @@ export function DayView({
   }, [handleGlobalMouseUp])
 
   // 弹窗提交 → 创建任务
-  async function handlePopupSubmit() {
+  const handlePopupSubmit = useCallback(async () => {
     if (!createPopup) return
     const title = popupTitle.trim()
     if (!title) return
@@ -160,7 +160,25 @@ export function DayView({
       listId: popupListId || defaultListId,
     })
     if (result !== false) setCreatePopup(null)
-  }
+  }, [createPopup, dateKey, defaultListId, onCreateTaskOnRange, popupListId, popupNotes, popupPriority, popupTitle])
+
+  useEffect(() => {
+    if (!createPopup) return
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-calendar-popup]')) return
+      event.stopPropagation()
+      if (popupTitle.trim()) {
+        void handlePopupSubmit()
+      } else {
+        setCreatePopup(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideMouseDown, true)
+    return () => document.removeEventListener('mousedown', handleOutsideMouseDown, true)
+  }, [createPopup, handlePopupSubmit, popupTitle])
 
   function cyclePriority() {
     setPopupPriority((p) => (p + 1) % 4)

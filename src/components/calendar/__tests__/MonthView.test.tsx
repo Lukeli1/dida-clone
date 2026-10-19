@@ -310,6 +310,51 @@ describe('MonthView 任务显示优化', () => {
     }
   })
 
+  it('单格快速输入按回车创建任务', () => {
+    const onCreateTask = vi.fn()
+    renderMonthView([], { onCreateTask })
+    fireEvent.click(screen.getByTestId('month-quick-add-2026-07-03'))
+    const input = screen.getByPlaceholderText('标题...')
+    fireEvent.change(input, { target: { value: '月视图快速任务' } })
+    fireEvent.keyDown(input, { key: 'Enter', nativeEvent: { isComposing: false } })
+
+    expect(onCreateTask).toHaveBeenCalledWith('2026-07-03', '月视图快速任务')
+  })
+
+  it('点击月视图详细弹层遮罩时提交已有标题', async () => {
+    const restoreRect = mockCalendarGridHeight(500)
+    const onCreateTaskOnRange = vi.fn(() => true)
+    try {
+      renderMonthView([], { onCreateTaskOnRange })
+      const grid = screen.getByTestId('month-calendar-grid')
+      fireEvent.pointerDown(grid, {
+        pointerId: 31,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 250,
+        clientY: 50,
+      })
+      fireEvent.pointerMove(grid, { pointerId: 31, pointerType: 'mouse', isPrimary: true, clientX: 450, clientY: 50 })
+      fireEvent.pointerUp(grid, {
+        pointerId: 31,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: 450,
+        clientY: 50,
+      })
+      fireEvent.change(screen.getByPlaceholderText('任务标题'), { target: { value: '月视图外部提交' } })
+      fireEvent.click(screen.getByTestId('month-range-create-popup'))
+
+      await waitFor(() =>
+        expect(onCreateTaskOnRange).toHaveBeenCalledWith(expect.objectContaining({ title: '月视图外部提交' })),
+      )
+    } finally {
+      restoreRect()
+    }
+  })
+
   it('从月视图已有任务块按下不会启动日期范围选择', () => {
     const restoreRect = mockCalendarGridHeight(500)
     try {
