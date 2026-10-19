@@ -69,13 +69,10 @@ function makeTask(id: number, overrides: Partial<Task> = {}): Task {
   }
 }
 
-function makeActions() {
-  return new Proxy(
-    {},
-    {
-      get: () => vi.fn(),
-    },
-  ) as any
+function makeActions(overrides: Record<string, unknown> = {}) {
+  return new Proxy(overrides, {
+    get: (target, prop: string) => (prop in target ? (target as Record<string, unknown>)[prop] : vi.fn()),
+  }) as any
 }
 
 function renderKanbanView(
@@ -85,6 +82,7 @@ function renderKanbanView(
     onToggleTask?: ReturnType<typeof vi.fn>
     onTaskClick?: ReturnType<typeof vi.fn>
   } = {},
+  actionOverrides: Record<string, unknown> = {},
 ) {
   const onToggleTask = handlers.onToggleTask ?? vi.fn()
   const onUpdateTask = handlers.onUpdateTask ?? vi.fn()
@@ -98,7 +96,7 @@ function renderKanbanView(
       onToggleTask={onToggleTask}
       onMoveTask={vi.fn() as any}
       onUpdateTask={onUpdateTask}
-      actions={makeActions()}
+      actions={makeActions(actionOverrides)}
     />,
   )
 
@@ -209,5 +207,43 @@ describe('KanbanView status 驱动看板', () => {
       completed: false,
       completed_at: null,
     })
+  })
+
+  it('右键重命名：打开定位输入框，Enter 保存到 handleInlineEdit', () => {
+    const handleInlineEdit = vi.fn()
+    const task = makeTask(1, { title: '看板原名' })
+    renderKanbanView([task], {}, { handleInlineEdit })
+
+    const card = screen.getByText('看板原名').closest('[draggable]') as HTMLElement
+    fireEvent.contextMenu(card, { clientX: 120, clientY: 140 })
+    expect(screen.getByTestId('task-context-menu')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('ctx-rename'))
+    // 菜单关闭后输入框仍指向正确任务
+    expect(screen.queryByTestId('task-context-menu')).not.toBeInTheDocument()
+    const input = screen.getByTestId('task-rename-input') as HTMLInputElement
+    expect(input.value).toBe('看板原名')
+
+    fireEvent.change(input, { target: { value: '看板新名' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(handleInlineEdit).toHaveBeenCalledWith(1, '看板新名')
+    expect(screen.queryByTestId('task-rename-input')).not.toBeInTheDocument()
+  })
+
+  it('右键重命名：Escape 取消不触发更新', () => {
+    const handleInlineEdit = vi.fn()
+    const task = makeTask(1, { title: '取消重命名' })
+    renderKanbanView([task], {}, { handleInlineEdit })
+
+    const card = screen.getByText('取消重命名').closest('[draggable]') as HTMLElement
+    fireEvent.contextMenu(card, { clientX: 120, clientY: 140 })
+    fireEvent.click(screen.getByTestId('ctx-rename'))
+    const input = screen.getByTestId('task-rename-input')
+    fireEvent.change(input, { target: { value: '不保存' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(handleInlineEdit).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('task-rename-input')).not.toBeInTheDocument()
   })
 })

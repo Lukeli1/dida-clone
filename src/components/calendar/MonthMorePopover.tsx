@@ -23,6 +23,7 @@ interface MonthMorePopoverProps {
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
   onTaskDragStart: (e: React.DragEvent, taskId: number) => void
+  onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
 }
 
 export function MonthMorePopover({
@@ -37,6 +38,7 @@ export function MonthMorePopover({
   onTaskClick,
   onToggleTask,
   onTaskDragStart,
+  onTaskContextMenu,
 }: MonthMorePopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -79,6 +81,7 @@ export function MonthMorePopover({
           e.stopPropagation()
           onToggleTask(task.id)
         }}
+        onContextMenu={onTaskContextMenu ? (e) => onTaskContextMenu(e, task) : undefined}
       />
     )
   }

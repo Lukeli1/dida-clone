@@ -21,6 +21,7 @@ export interface CalendarTaskBlockProps {
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
   onTaskClick?: (e: MouseEvent<HTMLDivElement>) => void
   onToggle?: (e: SyntheticEvent) => void
+  onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void
 }
 
 interface TaskBadge {
@@ -135,6 +136,7 @@ export function CalendarTaskBlock({
   onDragStart,
   onTaskClick,
   onToggle,
+  onContextMenu,
 }: CalendarTaskBlockProps) {
   if (variant === 'timed') {
     const color = getTaskColor(task, lists)
@@ -147,6 +149,7 @@ export function CalendarTaskBlock({
         draggable={draggable}
         onDragStart={onDragStart}
         onClick={onTaskClick}
+        onContextMenu={onContextMenu}
         className={`absolute rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group border-l-2 ${
           task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through' : ''
         } ${dragged ? 'opacity-40' : ''}`}
@@ -190,6 +193,7 @@ export function CalendarTaskBlock({
         draggable={draggable}
       onDragStart={onDragStart}
       onClick={onTaskClick}
+      onContextMenu={onContextMenu}
       className={`flex h-6 min-w-0 items-center gap-1 rounded px-1.5 text-[11px] cursor-grab active:cursor-grabbing select-none transition-opacity hover:opacity-80 ${
         task.completed ? 'opacity-50' : ''
       } ${dragged ? 'opacity-40' : ''}`}

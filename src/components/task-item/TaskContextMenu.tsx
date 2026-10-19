@@ -37,6 +37,13 @@ interface TaskContextMenuProps {
   position: { x: number; y: number }
   onClose: () => void
   onRename: () => void
+  /**
+   * list（默认）：任务列表中的完整菜单。
+   * calendar：日历月/周/日视图使用，隐藏依赖任务列表呈现的操作
+   * （添加子任务需展开列表中的父任务、置顶在日历中无可见反馈），
+   * 其余操作（重命名 / 日期 / 优先级 / 重复 / 提醒 / 标签 / 归档 / 副本 / 删除）语义不变。
+   */
+  variant?: 'list' | 'calendar'
 }
 
 export function TaskContextMenu(props: TaskContextMenuProps) {
@@ -48,9 +55,10 @@ export function TaskContextMenu(props: TaskContextMenuProps) {
   )
 }
 
-function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContextMenuProps) {
+function TaskContextMenuInner({ task, position, onClose, onRename, variant = 'list' }: TaskContextMenuProps) {
   const ctx = useTaskActionContext()
   const { isArchivedView } = ctx
+  const isCalendar = variant === 'calendar'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -89,7 +97,7 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
   }
 
   const canAddSubtask =
-    task.parent_id == null && !isArchivedView && !showDeleteConfirm
+    task.parent_id == null && !isArchivedView && !showDeleteConfirm && !isCalendar
 
   // 构建可导航菜单项：删除确认面板展开时切换为「确认/取消」两项
   const items: MenuItemInfo[] = useMemo(() => {
@@ -135,13 +143,17 @@ function TaskContextMenuInner({ task, position, onClose, onRename }: TaskContext
           onClose()
         },
       },
-      { id: 'pin', label: task.pinned ? '取消置顶' : '置顶', onClick: handlePin },
+    )
+    if (!isCalendar) {
+      list.push({ id: 'pin', label: task.pinned ? '取消置顶' : '置顶', onClick: handlePin })
+    }
+    list.push(
       { id: 'duplicate', label: '创建副本', onClick: handleDuplicate },
       { id: 'delete', label: '删除', onClick: handleDeleteClick },
     )
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDeleteConfirm, isArchivedView, canAddSubtask, task.pinned, task.id, task.parent_id, onClose, onRename])
+  }, [showDeleteConfirm, isArchivedView, canAddSubtask, isCalendar, task.pinned, task.id, task.parent_id, onClose, onRename])
 
   const { selectedIndex } = useMenuKeyboard(items, onClose, {
     active: mainActive,
@@ -366,7 +378,7 @@ const menu = (
             {!isArchivedView && <RepeatMenu task={task} onClose={onClose} />}
             {!isArchivedView && <ReminderMenu task={task} onClose={onClose} />}
 
-            {!isArchivedView && (
+            {!isCalendar && !isArchivedView && (
               <>
                 <div className="border-t border-[var(--color-border-light)] my-1" />
                 <button

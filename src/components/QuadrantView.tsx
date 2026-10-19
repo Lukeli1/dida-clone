@@ -3,6 +3,7 @@ import { differenceInCalendarDays } from 'date-fns'
 import type { Task } from '../types'
 import { hexWithAlpha } from '../utils/priority'
 import { TaskContextMenu } from './task-item/TaskContextMenu'
+import { TaskRenameInput } from './task-item/TaskRenameInput'
 import { TaskActionProvider, type TaskActionContextValue } from '../contexts/TaskActionContext'
 import { useTagStore } from '../stores/tagStore'
 import { useListStore } from '../stores/listStore'
@@ -75,6 +76,8 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverQuadrant, setDragOverQuadrant] = useState<QuadrantKey | null>(null)
   const [contextMenu, setContextMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
+  // 卡片无行内编辑器：重命名改用定位输入框，保存走 actions.handleInlineEdit
+  const [renamingTask, setRenamingTask] = useState<{ task: Task; x: number; y: number } | null>(null)
   const toast = useToast()
 
   const tags = useTagStore((s) => s.tags)
@@ -319,7 +322,26 @@ export function QuadrantView({ tasks, onTaskClick, onToggleTask, onUpdateTaskPri
             task={contextMenu.task}
             position={{ x: contextMenu.x, y: contextMenu.y }}
             onClose={() => setContextMenu(null)}
-            onRename={() => setContextMenu(null)}
+            onRename={() => {
+              // 先记下目标任务再关菜单，避免 contextMenu 清空后丢失重命名对象
+              setRenamingTask((current) => current ?? contextMenu)
+              setContextMenu(null)
+            }}
+          />
+        )}
+
+        {/* 定位式重命名输入框（卡片没有行内编辑） */}
+        {renamingTask && (
+          <TaskRenameInput
+            key={renamingTask.task.id}
+            task={renamingTask.task}
+            position={{ x: renamingTask.x, y: renamingTask.y }}
+            onSave={(title) => {
+              const trimmed = title.trim()
+              if (trimmed) void actions.handleInlineEdit(renamingTask.task.id, trimmed)
+              setRenamingTask(null)
+            }}
+            onCancel={() => setRenamingTask(null)}
           />
         )}
       </div>

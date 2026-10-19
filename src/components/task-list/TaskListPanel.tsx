@@ -104,6 +104,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
   // ===== 右键上下文菜单 =====
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const [adjustedContextMenuPos, setAdjustedContextMenuPos] = useState<{ x: number; y: number } | null>(null)
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -112,14 +114,35 @@ export function TaskListPanel(props: TaskListPanelProps) {
     setContextMenu({ x: e.clientX, y: e.clientY })
   }, [])
 
+  // 菜单边界检测：贴近视口右/下边缘时向内收，避免溢出不可见
+  useLayoutEffect(() => {
+    if (!contextMenu || !contextMenuRef.current) {
+      setAdjustedContextMenuPos(null)
+      return
+    }
+    const rect = contextMenuRef.current.getBoundingClientRect()
+    let { x, y } = contextMenu
+    const margin = 8
+    if (x + rect.width > window.innerWidth - margin) x = window.innerWidth - rect.width - margin
+    if (y + rect.height > window.innerHeight - margin) y = window.innerHeight - rect.height - margin
+    if (x < margin) x = margin
+    if (y < margin) y = margin
+    setAdjustedContextMenuPos({ x, y })
+  }, [contextMenu])
+
   useEffect(() => {
     if (!contextMenu) return
     const close = () => setContextMenu(null)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
     window.addEventListener('click', close)
     window.addEventListener('contextmenu', close)
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('click', close)
       window.removeEventListener('contextmenu', close)
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [contextMenu])
 
@@ -782,8 +805,13 @@ export function TaskListPanel(props: TaskListPanelProps) {
         {/* 右键上下文菜单 */}
         {contextMenu && (
           <div
-            className="fixed z-50 min-w-[160px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 text-sm"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            ref={contextMenuRef}
+            className="fixed z-50 min-w-[160px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 text-sm animate-scale-in origin-top-left"
+            style={{
+              left: adjustedContextMenuPos?.x ?? contextMenu.x,
+              top: adjustedContextMenuPos?.y ?? contextMenu.y,
+              boxShadow: 'var(--shadow-dropdown)',
+            }}
           >
             <button
               onClick={() => {

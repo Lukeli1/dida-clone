@@ -14,6 +14,7 @@ interface CalendarAllDayTaskBarProps {
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
   onTaskClick?: (e: MouseEvent<HTMLDivElement>) => void
   onToggle?: (e: SyntheticEvent) => void
+  onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void
 }
 
 function getSegmentRadius(segment: CalendarAllDayTaskBarProps['segment']) {
@@ -35,6 +36,7 @@ export function CalendarAllDayTaskBar({
   onDragStart,
   onTaskClick,
   onToggle,
+  onContextMenu,
 }: CalendarAllDayTaskBarProps) {
   const barColor = getTaskBarColor(task, lists)
   const light = isLightColor(barColor)
@@ -45,6 +47,7 @@ export function CalendarAllDayTaskBar({
       draggable={draggable}
       onDragStart={onDragStart}
       onClick={onTaskClick}
+      onContextMenu={onContextMenu}
       className={`flex h-5 min-w-0 items-center gap-1 px-1.5 text-[10px] cursor-grab active:cursor-grabbing select-none ${getSegmentRadius(
         segment,
       )} ${task.completed ? 'opacity-50' : ''} ${dragged ? 'opacity-40' : ''} ${className}`}

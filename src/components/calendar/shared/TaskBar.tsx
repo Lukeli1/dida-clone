@@ -28,6 +28,8 @@ export interface TaskBarProps {
   onTaskClick?: (e: React.MouseEvent) => void
   /** month 作用于复选框按钮；week 作用于 checkbox input 的 change */
   onToggle?: (e: React.SyntheticEvent) => void
+  /** 日历视图的任务右键菜单入口 */
+  onContextMenu?: (e: React.MouseEvent) => void
 }
 
 export function TaskBar({ variant, ...props }: TaskBarProps) {

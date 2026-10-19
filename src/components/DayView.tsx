@@ -13,8 +13,10 @@ import {
 } from '../utils/dayViewUtils'
 import { DayViewGrid } from './calendar/DayViewGrid'
 import { useTaskResize } from './calendar/useTaskResize'
+import { useCalendarTaskContextMenu } from './calendar/shared/useCalendarTaskContextMenu'
 import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
 import type { CreateTaskOnRange, MoveTask } from './calendar/shared/types'
+import type { TaskActions } from '../hooks/useTaskActions'
 
 interface DayViewProps {
   currentDate: Date
@@ -29,6 +31,8 @@ interface DayViewProps {
   onMoveTask: MoveTask
   onCreateTaskOnRange: CreateTaskOnRange
   onUpdateTask: (taskId: number, updates: Partial<Task>) => void
+  /** 提供后启用任务右键菜单；测试等无 actions 场景可省略 */
+  actions?: TaskActions
 }
 
 export function DayView({
@@ -44,6 +48,7 @@ export function DayView({
   onMoveTask,
   onCreateTaskOnRange,
   onUpdateTask,
+  actions,
 }: DayViewProps) {
   // 拖拽与选区状态
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
@@ -62,6 +67,7 @@ export function DayView({
 
   const defaultListId = lists.length > 0 ? lists[0].id : 1
   const dateKey = format(currentDate, 'yyyy-MM-dd')
+  const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
 
   const dayTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -285,6 +291,7 @@ export function DayView({
         onTaskDragStart={handleDragStart}
         onTaskClick={onTaskClick}
         onToggleTask={onToggleTask}
+        onTaskContextMenu={handleTaskContextMenu}
         resize={resize}
         dateKey={dateKey}
         createPopup={createPopup}
@@ -301,6 +308,7 @@ export function DayView({
         onCyclePriority={cyclePriority}
         onPopupClose={() => setCreatePopup(null)}
       />
+      {menuElement}
     </div>
   )
 }

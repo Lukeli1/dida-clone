@@ -49,16 +49,23 @@ export function TagSection({
     setAdjustedTagMenuPos({ x, y })
   }, [tagContextMenu])
 
-  // 点击外部关闭标签右键菜单
+  // 点击外部 / Escape 关闭标签右键菜单
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (tagContextMenuRef.current && !tagContextMenuRef.current.contains(e.target as Node)) {
         setTagContextMenu(null)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setTagContextMenu(null)
+    }
     if (tagContextMenu) {
       document.addEventListener('mousedown', handleClick)
-      return () => document.removeEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleKeyDown)
+      }
     }
   }, [tagContextMenu])
 

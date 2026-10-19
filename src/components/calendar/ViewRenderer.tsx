@@ -109,6 +109,7 @@ export function ViewRenderer(props: ViewRendererProps) {
         onMoveTask={onMoveTask}
         onCreateTaskOnRange={onCreateTaskOnRange}
         onUpdateTask={onUpdateTask}
+        actions={actions}
       />
     )
   }
@@ -129,6 +130,7 @@ export function ViewRenderer(props: ViewRendererProps) {
         onMoveTask={onMoveTask}
         onCreateTaskOnRange={onCreateTaskOnRange}
         onUpdateTask={onUpdateTask}
+        actions={actions}
       />
     )
   }
@@ -148,6 +150,7 @@ export function ViewRenderer(props: ViewRendererProps) {
       onMoveTask={onMoveTask}
       onCreateTask={onCreateTask}
       onCreateTaskOnRange={onCreateTaskOnRange}
+      actions={actions}
     />
   )
 }

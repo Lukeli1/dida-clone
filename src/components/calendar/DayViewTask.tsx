@@ -19,6 +19,7 @@ interface DayViewTaskProps {
   onDragStart: (e: React.DragEvent, taskId: number) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
+  onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
   onResizeStart: (e: React.MouseEvent, mode: 'top' | 'bottom') => void
 }
 
@@ -36,6 +37,7 @@ export function DayViewTask({
   onDragStart,
   onTaskClick,
   onToggleTask,
+  onTaskContextMenu,
   onResizeStart,
 }: DayViewTaskProps) {
   return (
@@ -57,6 +59,7 @@ export function DayViewTask({
         e.stopPropagation()
         onToggleTask(task.id)
       }}
+      onContextMenu={onTaskContextMenu ? (e) => onTaskContextMenu(e, task) : undefined}
     >
       {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
       {task.end_date && (

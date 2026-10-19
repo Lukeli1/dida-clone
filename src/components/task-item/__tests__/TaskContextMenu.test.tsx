@@ -218,3 +218,37 @@ describe('TaskContextMenu v1.43.0 信息架构', () => {
     expect(screen.getByTestId('ctx-danger-zone').contains(screen.getByTestId('ctx-delete'))).toBe(true)
   })
 })
+
+describe('TaskContextMenu calendar 变体', () => {
+  function renderCalendarMenu(task: Task, ctxOverrides: Partial<TaskActionContextValue> = {}) {
+    const ctx = makeCtx(ctxOverrides)
+    render(
+      <TaskActionProvider value={ctx}>
+        <TaskContextMenu task={task} position={{ x: 20, y: 20 }} variant="calendar" onClose={vi.fn()} onRename={vi.fn()} />
+      </TaskActionProvider>,
+    )
+    return ctx
+  }
+
+  it('隐藏「置顶」与「添加子任务」（日历中无可见反馈 / 依赖列表展开）', () => {
+    renderCalendarMenu(makeTask({ id: 61, parent_id: null }))
+    expect(screen.queryByTestId('ctx-pin')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ctx-add-subtask')).not.toBeInTheDocument()
+  })
+
+  it('保留重命名 / 归档 / 创建副本 / 删除，删除仍在危险区二次确认', () => {
+    renderCalendarMenu(makeTask({ id: 62 }))
+    expect(screen.getByTestId('ctx-rename')).toBeInTheDocument()
+    expect(screen.getByTestId('ctx-archive')).toBeInTheDocument()
+    expect(screen.getByTestId('ctx-duplicate')).toBeInTheDocument()
+    expect(screen.getByTestId('ctx-danger-zone').contains(screen.getByTestId('ctx-delete'))).toBe(true)
+    fireEvent.click(screen.getByTestId('ctx-delete'))
+    expect(screen.getByText(/删除后将移入回收站，可在回收站恢复/)).toBeInTheDocument()
+  })
+
+  it('默认 list 变体不受影响，仍显示置顶与添加子任务', () => {
+    renderMenu(makeTask({ id: 63, parent_id: null }))
+    expect(screen.getByTestId('ctx-pin')).toBeInTheDocument()
+    expect(screen.getByTestId('ctx-add-subtask')).toBeInTheDocument()
+  })
+})

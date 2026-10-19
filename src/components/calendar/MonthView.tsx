@@ -20,7 +20,9 @@ import { MonthMorePopover, type MonthMorePopoverPosition } from './MonthMorePopo
 import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
+import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
 import { normalizeDateKeyRange, type NormalizedDateKeyRange } from '../../utils/calendarRangeSelection'
+import type { TaskActions } from '../../hooks/useTaskActions'
 
 const MIN_MONTH_VISIBLE_TASKS = 2
 const MAX_MONTH_VISIBLE_TASKS = 5
@@ -66,6 +68,8 @@ interface MonthViewProps {
   onMoveTask: MoveTask
   onCreateTask: (date: string, title: string) => void
   onCreateTaskOnRange: CreateTaskOnRange
+  /** 提供后启用任务右键菜单；测试等无 actions 场景可省略 */
+  actions?: TaskActions
 }
 
 export function MonthView({
@@ -81,6 +85,7 @@ export function MonthView({
   onMoveTask,
   onCreateTask,
   onCreateTaskOnRange,
+  actions,
 }: MonthViewProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
@@ -100,6 +105,7 @@ export function MonthView({
   const rangeSelectionRef = useRef<NormalizedDateKeyRange | null>(null)
   const suppressCellClickRef = useRef(false)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
+  const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
@@ -468,6 +474,7 @@ export function MonthView({
                     e.stopPropagation()
                     onToggleTask(segment.task.id)
                   }}
+                  onContextMenu={(e) => handleTaskContextMenu(e, segment.task)}
                 />
               ))}
               {week.map((day, dayIndex) => {
@@ -609,6 +616,7 @@ export function MonthView({
                             e.stopPropagation()
                             onToggleTask(task.id)
                           }}
+                          onContextMenu={(e) => handleTaskContextMenu(e, task)}
                         />
                       ))}
 
@@ -660,6 +668,10 @@ export function MonthView({
           onTaskClick={onTaskClick}
           onToggleTask={onToggleTask}
           onTaskDragStart={handleDragStart}
+          onTaskContextMenu={(e, task) => {
+            setMorePopover(null)
+            handleTaskContextMenu(e, task)
+          }}
         />
       )}
 
@@ -674,6 +686,8 @@ export function MonthView({
           onClose={() => setDetailPopup(null)}
         />
       )}
+
+      {menuElement}
     </div>
   )
 }

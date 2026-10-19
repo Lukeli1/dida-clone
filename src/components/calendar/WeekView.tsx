@@ -12,7 +12,9 @@ import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
+import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
+import type { TaskActions } from '../../hooks/useTaskActions'
 
 const HOUR_HEIGHT = 60
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -30,6 +32,8 @@ interface WeekViewProps {
   onMoveTask: MoveTask
   onCreateTaskOnRange: CreateTaskOnRange
   onUpdateTask: UpdateTask
+  /** 提供后启用任务右键菜单；测试等无 actions 场景可省略 */
+  actions?: TaskActions
 }
 
 export function WeekView({
@@ -45,6 +49,7 @@ export function WeekView({
   onMoveTask,
   onCreateTaskOnRange,
   onUpdateTask,
+  actions,
 }: WeekViewProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
@@ -52,6 +57,7 @@ export function WeekView({
   const timeGridRef = useRef<HTMLDivElement>(null)
   const weekScrollRef = useRef<HTMLDivElement>(null)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
+  const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
 
   // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
   const now = useCurrentTime()
@@ -334,6 +340,7 @@ export function WeekView({
                     e.stopPropagation()
                     onToggleTask(segment.task.id)
                   }}
+                  onContextMenu={(e) => handleTaskContextMenu(e, segment.task)}
                 />
               ))}
             </div>
@@ -451,6 +458,7 @@ export function WeekView({
                               e.stopPropagation()
                               onToggleTask(task.id)
                             }}
+                            onContextMenu={(e) => handleTaskContextMenu(e, task)}
                           >
                             {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
                             {task.end_date && (
@@ -489,6 +497,7 @@ export function WeekView({
           </div>
         </div>
       </div>
+      {menuElement}
     </div>
   )
 }

@@ -53,7 +53,7 @@ export function ListSection({
     setAdjustedMenuPos({ x, y })
   }, [contextMenu])
 
-  // 点击外部关闭右键菜单
+  // 点击外部 / Escape 关闭右键菜单
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
@@ -61,9 +61,19 @@ export function ListSection({
         setShowColorPicker(null)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setContextMenu(null)
+        setShowColorPicker(null)
+      }
+    }
     if (contextMenu) {
       document.addEventListener('mousedown', handleClick)
-      return () => document.removeEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleKeyDown)
+      }
     }
   }, [contextMenu])
 

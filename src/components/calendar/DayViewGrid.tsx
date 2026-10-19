@@ -49,6 +49,7 @@ interface DayViewGridProps {
   onTaskDragStart: (e: React.DragEvent, taskId: number) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
+  onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
   // resize（拖拽边缘调整时间）
   resize: ReturnType<typeof useTaskResize>
   dateKey: string
@@ -87,6 +88,7 @@ export function DayViewGrid({
   onTaskDragStart,
   onTaskClick,
   onToggleTask,
+  onTaskContextMenu,
   resize,
   dateKey,
   createPopup,
@@ -191,6 +193,7 @@ export function DayViewGrid({
                   e.stopPropagation()
                   onToggleTask(occurrence.task.id)
                 }}
+                onContextMenu={onTaskContextMenu ? (e) => onTaskContextMenu(e, occurrence.task) : undefined}
               />
             ))}
           </div>
@@ -262,6 +265,7 @@ export function DayViewGrid({
                   onDragStart={onTaskDragStart}
                   onTaskClick={onTaskClick}
                   onToggleTask={onToggleTask}
+                  onTaskContextMenu={onTaskContextMenu}
                   onResizeStart={(e, mode) => resize.handleResizeStart(e, task, mode, dateKey)}
                 />
               )
