@@ -11,6 +11,7 @@ import {
   type Selection,
   type CreatePopup,
 } from '../utils/dayViewUtils'
+import { computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../utils/calendarDropTime'
 import { DayViewGrid } from './calendar/DayViewGrid'
 import { useTaskResize } from './calendar/useTaskResize'
 import { useCalendarTaskContextMenu } from './calendar/shared/useCalendarTaskContextMenu'
@@ -195,6 +196,19 @@ export function DayView({
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(taskId))
+    // 记录块内抓取偏移：拖动图像按该偏移跟随光标，drop 时据此还原落点
+    const blockRect = e.currentTarget.getBoundingClientRect()
+    writeGrabOffsetY(e.dataTransfer, computeGrabOffsetY(e.clientY, blockRect.top, blockRect.height))
+  }
+
+  /**
+   * 全天任务条拖拽：条上没有时间跨度预览（日期级语义），不写入抓取偏移。
+   * 拖入时间轴时保持「光标位置即开始时间」的原有行为。
+   */
+  function handleAllDayBarDragStart(e: React.DragEvent, taskId: number) {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(taskId))
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -211,7 +225,7 @@ export function DayView({
       setDraggedTaskId(null)
       return
     }
-    const iso = makeDropISODate(dateKey, e.clientY, columnRef.current)
+    const iso = makeDropISODate(dateKey, e.clientY, columnRef.current, readGrabOffsetY(e.dataTransfer))
     if (iso) onMoveTask(taskId, iso, { allDay: false })
     setDraggedTaskId(null)
   }
@@ -289,6 +303,7 @@ export function DayView({
         lists={lists}
         draggedTaskId={draggedTaskId}
         onTaskDragStart={handleDragStart}
+        onAllDayBarDragStart={handleAllDayBarDragStart}
         onTaskClick={onTaskClick}
         onToggleTask={onToggleTask}
         onTaskContextMenu={handleTaskContextMenu}

@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../../types'
 import { WeekView } from '../WeekView'
 import { computeTimeAxisScrollTop } from '../../../hooks/useAutoScrollToNow'
+import { CALENDAR_DRAG_GRAB_OFFSET_MIME } from '../../../utils/calendarDropTime'
 
 const lists: List[] = [
   {
@@ -170,7 +171,7 @@ describe('WeekView calendar task layout', () => {
 
     fireEvent.drop(screen.getByTestId('week-time-column-2026-07-03'), {
       clientY: 0,
-      dataTransfer: { getData: () => '3', dropEffect: 'move' },
+      dataTransfer: { getData: (type: string) => (type === 'text/plain' ? '3' : ''), dropEffect: 'move' },
     })
     expect(onMoveTask).toHaveBeenCalledWith(expect.any(Number), expect.any(String), { allDay: false })
   })
@@ -500,5 +501,266 @@ describe('WeekView 自动定位当前时间', () => {
       />,
     )
     expect(metrics.getScrollTop()).toBe(5)
+  })
+})
+
+describe('WeekView 任务拖动落点与抓取偏移', () => {
+  /** 类型感知的 DataTransfer mock：按真实语义存储/读取各 MIME 类型 */
+  function makeDataTransfer(textPlainTaskId?: string) {
+    const store = new Map<string, string>()
+    if (textPlainTaskId) store.set('text/plain', textPlainTaskId)
+    return {
+      store,
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: (type: string, value: string) => store.set(type, value),
+      getData: (type: string) => store.get(type) ?? '',
+    }
+  }
+
+  function mockRect(el: HTMLElement, top: number, height: number) {
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top,
+        left: 0,
+        height,
+        width: 200,
+        bottom: top + height,
+        right: 200,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      }),
+    })
+  }
+
+  /** drop 使用列内层元素（columnRefs）的 rect，这里按父级 testid 定位并注入 */
+  function mockColumnBodyRects() {
+    const original = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const testId = this.parentElement?.getAttribute?.('data-testid')
+      if (testId?.startsWith('week-time-column-')) {
+        return {
+          top: 0,
+          left: 0,
+          height: 1440,
+          width: 100,
+          bottom: 1440,
+          right: 100,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
+      return original.call(this)
+    }
+    return () => {
+      HTMLElement.prototype.getBoundingClientRect = original
+    }
+  }
+
+  /**
+   * jsdom 的 DragEvent 不携带鼠标坐标，这里用原生事件 + Object.assign 注入 clientY，
+   * React 合成事件可正常读取；真实浏览器的坐标链路由 Playwright E2E 覆盖。
+   */
+  function dispatchDrag(
+    type: 'dragstart' | 'drop',
+    el: HTMLElement,
+    init: { clientY?: number; clientX?: number; dataTransfer: unknown },
+  ) {
+    act(() => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, init)
+      el.dispatchEvent(event)
+    })
+  }
+
+  it('抓取块内偏移后拖放：落点 = 光标时间 − 抓取偏移，吸附 15 分钟', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(9, {
+      title: '拖动中的任务',
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const block = Array.from(container.querySelectorAll('[data-task]')).find((el) =>
+      el.textContent?.includes('拖动中的任务'),
+    ) as HTMLElement
+    expect(block).toBeTruthy()
+
+    // 块顶 540px、高 60px，抓取点 582px → 抓取偏移 42px
+    mockRect(block, 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', block, { clientY: 582, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('42')
+    expect(dt.getData('text/plain')).toBe('9')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      // 光标落在 14:00（840 分钟），期望开始时间 840 - 42 = 798 → 吸附 795（13:15）
+      dispatchDrag('drop', column, { clientY: 840, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(9)
+    const dropped = new Date(iso as string)
+    expect(dropped.getHours()).toBe(13)
+    expect(dropped.getMinutes()).toBe(15)
+    expect(options).toEqual({ allDay: false })
+  })
+
+  it('无抓取偏移的来源（任务侧边栏等）保持「光标位置即开始时间」', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(10, { title: '侧边栏拖入', due_date: '2026-07-03T09:00:00' })
+    renderWeekView([task], { onMoveTask })
+
+    // 侧边栏只写入 text/plain，不写抓取偏移
+    const dt = makeDataTransfer('10')
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      dispatchDrag('drop', column, { clientY: 840, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect(dropped.getHours()).toBe(14)
+    expect(dropped.getMinutes()).toBe(0)
+  })
+
+  it('从块顶部抓取：落点与旧行为一致（光标位置即开始时间）', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(11, {
+      title: '顶部抓取',
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const block = Array.from(container.querySelectorAll('[data-task]')).find((el) =>
+      el.textContent?.includes('顶部抓取'),
+    ) as HTMLElement
+    mockRect(block, 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', block, { clientY: 540, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('0')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      dispatchDrag('drop', column, { clientY: 840, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect(dropped.getHours()).toBe(14)
+    expect(dropped.getMinutes()).toBe(0)
+  })
+
+  it('从块中部抓取：落点前移半个块高（30 分钟）', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(12, {
+      title: '中部抓取',
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const block = Array.from(container.querySelectorAll('[data-task]')).find((el) =>
+      el.textContent?.includes('中部抓取'),
+    ) as HTMLElement
+    mockRect(block, 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', block, { clientY: 570, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('30')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      dispatchDrag('drop', column, { clientY: 840, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    // 840 - 30 = 810 → 13:30
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect(dropped.getHours()).toBe(13)
+    expect(dropped.getMinutes()).toBe(30)
+  })
+
+  it('全天任务条拖入定时区域：不携带抓取偏移，落点 = 光标时间（原有语义）', () => {
+    const onMoveTask = vi.fn()
+    const allDayTask = makeTask(13, {
+      title: '全天条任务',
+      due_date: '2026-07-03T00:00:00',
+      end_date: null,
+      all_day: true,
+    })
+    renderWeekView([allDayTask], { onMoveTask })
+
+    const bar = screen.getByTestId('calendar-all-day-task-13')
+    // 条高 20px，从条内 12px 处抓取：若误写偏移，落点会前移 12 分钟
+    mockRect(bar, 100, 20)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', bar, { clientY: 112, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('')
+    expect(dt.getData('text/plain')).toBe('13')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      dispatchDrag('drop', column, { clientY: 840, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(13)
+    const dropped = new Date(iso as string)
+    expect(dropped.getHours()).toBe(14)
+    expect(dropped.getMinutes()).toBe(0)
+    expect(options).toEqual({ allDay: false })
+  })
+
+  it('全天任务条拖入全天区：日期级落点与全天标记保持不变（本地零点）', () => {
+    const onMoveTask = vi.fn()
+    const allDayTask = makeTask(14, {
+      title: '跨天全天任务',
+      due_date: '2026-07-03T00:00:00',
+      end_date: null,
+      all_day: true,
+    })
+    renderWeekView([allDayTask], { onMoveTask })
+
+    const area = screen.getByTestId('week-all-day-area')
+    // 全天区 700px 宽覆盖周一至周日，clientX = 0 落在周一（本周起始日 2026-06-29）
+    Object.defineProperty(area, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 0, left: 0, width: 700, height: 32, bottom: 32, right: 700, x: 0, y: 0, toJSON: () => ({}) }),
+    })
+
+    const dt = makeDataTransfer('14')
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('')
+    dispatchDrag('drop', area, { clientX: 0, dataTransfer: dt })
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(14)
+    const dropped = new Date(iso as string)
+    expect(dropped.getMonth()).toBe(5)
+    expect(dropped.getDate()).toBe(29)
+    expect(dropped.getHours()).toBe(0)
+    expect(dropped.getMinutes()).toBe(0)
+    expect(options).toEqual({ allDay: true })
   })
 })

@@ -5,6 +5,7 @@
 
 import { getHours, getMinutes } from 'date-fns'
 import type { Task } from '../types'
+import { computeDropISO } from './calendarDropTime'
 
 /** 每小时占用的像素高度 */
 export const HOUR_HEIGHT = 60
@@ -98,16 +99,24 @@ export function makeCreatePopup(startMinute: number, endMinute: number): CreateP
 /**
  * 根据拖放落点的 clientY 与时间列元素，构建目标日期时间的 ISO 字符串。
  * 落点吸附到 15 分钟刻度，并限制在当天 00:00~23:45 之间。
+ * grabOffsetY 为拖拽抓取偏移（指针相对任务块顶部的像素偏移），传入后落点按
+ * 「光标位置 − 抓取偏移」计算，与拖动图像的跟随位置保持一致；默认 0 等价于
+ * "光标位置即开始时间"的旧行为（任务侧边栏等无块预览的拖拽来源）。
  * 返回 null 表示无法计算（例如列元素不存在）。
  */
-export function makeDropISODate(dateKey: string, clientY: number, columnEl: HTMLElement | null): string | null {
+export function makeDropISODate(
+  dateKey: string,
+  clientY: number,
+  columnEl: HTMLElement | null,
+  grabOffsetY = 0,
+): string | null {
   if (!columnEl) return null
   const rect = columnEl.getBoundingClientRect()
-  const y = clientY - rect.top
-  const rawMinute = (y / HOUR_HEIGHT) * 60
-  const clampedMinute = Math.max(0, Math.min(24 * 60 - 15, Math.round(rawMinute / 15) * 15))
-  const hour = Math.floor(clampedMinute / 60)
-  const minute = clampedMinute % 60
-  const [year, month, day] = dateKey.split('-').map(Number)
-  return new Date(year, month - 1, day, hour, minute).toISOString()
+  return computeDropISO({
+    dateKey,
+    pointerClientY: clientY,
+    columnTop: rect.top,
+    grabOffsetY,
+    hourHeight: HOUR_HEIGHT,
+  })
 }

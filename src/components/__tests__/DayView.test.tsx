@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../types'
 import { DayView } from '../DayView'
 import { computeTimeAxisScrollTop } from '../../hooks/useAutoScrollToNow'
+import { CALENDAR_DRAG_GRAB_OFFSET_MIME } from '../../utils/calendarDropTime'
 
 const lists: List[] = [
   {
@@ -245,5 +246,130 @@ describe('DayView 自动定位当前时间', () => {
       />,
     )
     expect(metrics.getScrollTop()).toBe(7)
+  })
+})
+
+describe('DayView 任务拖动落点与抓取偏移', () => {
+  /** 类型感知的 DataTransfer mock：按真实语义存储/读取各 MIME 类型 */
+  function makeDataTransfer(textPlainTaskId?: string) {
+    const store = new Map<string, string>()
+    if (textPlainTaskId) store.set('text/plain', textPlainTaskId)
+    return {
+      store,
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: (type: string, value: string) => store.set(type, value),
+      getData: (type: string) => store.get(type) ?? '',
+    }
+  }
+
+  function mockRect(el: HTMLElement, top: number, height: number) {
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top,
+        left: 0,
+        height,
+        width: 200,
+        bottom: top + height,
+        right: 200,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      }),
+    })
+  }
+
+  /** jsdom 的 DragEvent 不携带鼠标坐标，用原生事件 + Object.assign 注入 clientY */
+  function dispatchDrag(
+    type: 'dragstart' | 'drop',
+    el: HTMLElement,
+    init: { clientY?: number; clientX?: number; dataTransfer: unknown },
+  ) {
+    act(() => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, init)
+      el.dispatchEvent(event)
+    })
+  }
+
+  it('抓取块内偏移后拖放：落点 = 光标时间 − 抓取偏移，吸附 15 分钟', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(9, {
+      title: '日视图拖动任务',
+      due_date: '2026-07-03T09:00:00',
+      end_date: '2026-07-03T10:00:00',
+    })
+    const { container } = renderDayView([task], { onMoveTask })
+
+    const block = Array.from(container.querySelectorAll('[data-task]')).find((el) =>
+      el.textContent?.includes('日视图拖动任务'),
+    ) as HTMLElement
+    expect(block).toBeTruthy()
+
+    // 块顶 540px、高 60px，抓取点 582px → 抓取偏移 42px
+    mockRect(block, 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', block, { clientY: 582, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('42')
+
+    const grid = screen.getByTestId('day-time-grid')
+    mockRect(grid, 0, 1440)
+    // 光标落在 14:00（840 分钟），期望开始时间 840 - 42 = 798 → 吸附 795（13:15）
+    dispatchDrag('drop', grid, { clientY: 840, dataTransfer: dt })
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(9)
+    const dropped = new Date(iso as string)
+    expect(dropped.getHours()).toBe(13)
+    expect(dropped.getMinutes()).toBe(15)
+    expect(options).toEqual({ allDay: false })
+  })
+
+  it('无抓取偏移的来源保持「光标位置即开始时间」', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(10, { title: '无偏移来源', due_date: '2026-07-03T09:00:00' })
+    renderDayView([task], { onMoveTask })
+
+    const grid = screen.getByTestId('day-time-grid')
+    mockRect(grid, 0, 1440)
+    dispatchDrag('drop', grid, { clientY: 840, dataTransfer: makeDataTransfer('10') })
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect(dropped.getHours()).toBe(14)
+    expect(dropped.getMinutes()).toBe(0)
+  })
+
+  it('全天任务条拖入定时区域：不携带抓取偏移，落点 = 光标时间（原有语义）', () => {
+    const onMoveTask = vi.fn()
+    const allDayTask = makeTask(13, {
+      title: '日视图全天条',
+      due_date: '2026-07-03T00:00:00',
+      end_date: null,
+      all_day: true,
+    })
+    renderDayView([allDayTask], { onMoveTask })
+
+    const bar = screen.getByTestId('calendar-all-day-task-13')
+    // 条高 20px，从条内 12px 处抓取：若误写偏移，落点会前移 12 分钟
+    mockRect(bar, 100, 20)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', bar, { clientY: 112, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('')
+    expect(dt.getData('text/plain')).toBe('13')
+
+    const grid = screen.getByTestId('day-time-grid')
+    mockRect(grid, 0, 1440)
+    dispatchDrag('drop', grid, { clientY: 840, dataTransfer: dt })
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(13)
+    const dropped = new Date(iso as string)
+    expect(dropped.getHours()).toBe(14)
+    expect(dropped.getMinutes()).toBe(0)
+    expect(options).toEqual({ allDay: false })
   })
 })

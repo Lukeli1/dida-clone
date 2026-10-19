@@ -13,6 +13,7 @@ import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
+import { computeDropStartMinute, computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../../utils/calendarDropTime'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
 import type { TaskActions } from '../../hooks/useTaskActions'
 
@@ -139,6 +140,20 @@ export function WeekView({
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(taskId))
+    // 记录块内抓取偏移：拖动图像按该偏移跟随光标，drop 时据此还原落点
+    const blockRect = e.currentTarget.getBoundingClientRect()
+    writeGrabOffsetY(e.dataTransfer, computeGrabOffsetY(e.clientY, blockRect.top, blockRect.height))
+  }
+
+  /**
+   * 全天任务条拖拽：条上没有时间跨度预览（日期级语义），不写入抓取偏移。
+   * 拖入时间轴时保持「光标位置即开始时间」的原有行为；
+   * 拖入全天区仍是日期级落点，与抓取位置无关。
+   */
+  function handleAllDayBarDragStart(e: React.DragEvent, taskId: number) {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(taskId))
   }
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
@@ -189,11 +204,15 @@ export function WeekView({
       minute = 0
     if (colEl && Number.isFinite(e.clientY)) {
       const rect = colEl.getBoundingClientRect()
-      const y = e.clientY - rect.top
-      const rawMinute = (y / HOUR_HEIGHT) * 60
-      const clampedMinute = Math.max(0, Math.min(24 * 60 - 15, Math.round(rawMinute / 15) * 15))
-      hour = Math.floor(clampedMinute / 60)
-      minute = clampedMinute % 60
+      // 与拖动图像的跟随位置一致：光标位置 − 抓取偏移 才是任务新的顶部
+      const startMinute = computeDropStartMinute({
+        pointerClientY: e.clientY,
+        columnTop: rect.top,
+        grabOffsetY: readGrabOffsetY(e.dataTransfer),
+        hourHeight: HOUR_HEIGHT,
+      })
+      hour = Math.floor(startMinute / 60)
+      minute = startMinute % 60
     }
 
     const newDate = new Date(year, month - 1, day, hour, minute)
@@ -331,7 +350,7 @@ export function WeekView({
                     left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
                     width: `calc(${(segment.span / 7) * 100}% - 8px)`,
                   }}
-                  onDragStart={(e) => handleDragStart(e, segment.task.id)}
+                  onDragStart={(e) => handleAllDayBarDragStart(e, segment.task.id)}
                   onTaskClick={(e) => {
                     e.stopPropagation()
                     onTaskClick(segment.task.id)

@@ -47,6 +47,8 @@ interface DayViewGridProps {
   lists: List[]
   draggedTaskId: number | null
   onTaskDragStart: (e: React.DragEvent, taskId: number) => void
+  /** 全天任务条拖拽（日期级语义，不写抓取偏移）；与定时任务块分开，避免全天任务拖入定时区域时落点被偏移影响 */
+  onAllDayBarDragStart: (e: React.DragEvent, taskId: number) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
@@ -86,6 +88,7 @@ export function DayViewGrid({
   lists,
   draggedTaskId,
   onTaskDragStart,
+  onAllDayBarDragStart,
   onTaskClick,
   onToggleTask,
   onTaskContextMenu,
@@ -184,7 +187,7 @@ export function DayViewGrid({
                 lists={lists}
                 segment={occurrence.segment}
                 dragged={draggedTaskId === occurrence.task.id}
-                onDragStart={(e) => onTaskDragStart(e, occurrence.task.id)}
+                onDragStart={(e) => onAllDayBarDragStart(e, occurrence.task.id)}
                 onTaskClick={(e) => {
                   e.stopPropagation()
                   onTaskClick(occurrence.task.id)
