@@ -199,17 +199,35 @@ export default function SyncPanel() {
     setError(null)
     setSuccess(null)
     if (useRemote) setConflictDismissed(false)
+    // WebDAV 的“使用远程版本”是强制下载覆盖，与 Git 冲突解决契约无关
+    const isWebdavRemoteOverwrite = syncType === 'webdav' && useRemote
     try {
       if (syncType === 'webdav') {
-        const result = await syncApi.webdavSync()
-        const st = await syncApi.getStatus()
-        setStatus(st)
-        if (result === 'upload') {
-          setSuccess('已上传本地数据到 WebDAV')
-        } else if (result === 'download') {
-          setSuccess('已从 WebDAV 下载远程数据')
+        if (useRemote) {
+          // 强制用远程数据库覆盖本地，不经过按时间比较的自动同步
+          await syncApi.webdavDownload()
+          setSuccess('已使用远程数据覆盖本地')
+          // 覆盖已生效：先本地收敛冲突态，避免状态刷新失败时仍展示冲突面板
+          setStatus((prev) => (prev ? { ...prev, has_conflict: false, conflict_message: null } : prev))
+          try {
+            const st = await syncApi.getStatus()
+            setStatus(st)
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            // 下载已成功，不能提示“同步失败”；单独说明状态刷新未完成
+            setError(`同步状态刷新失败：${msg}（远程数据覆盖已生效）`)
+          }
         } else {
-          setSuccess('数据已是最新，无需同步')
+          const result = await syncApi.webdavSync()
+          const st = await syncApi.getStatus()
+          setStatus(st)
+          if (result === 'upload') {
+            setSuccess('已上传本地数据到 WebDAV')
+          } else if (result === 'download') {
+            setSuccess('已从 WebDAV 下载远程数据')
+          } else {
+            setSuccess('数据已是最新，无需同步')
+          }
         }
         setConflictDismissed(false)
       } else {
@@ -228,7 +246,7 @@ export default function SyncPanel() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       // 检查是否为冲突错误（包含 conflict 或 冲突 关键词）
-      if (msg.includes('conflict') || msg.includes('冲突')) {
+      if (!isWebdavRemoteOverwrite && (msg.includes('conflict') || msg.includes('冲突'))) {
         setSyncConflict({ message: msg })
       } else {
         setError(`同步失败：${msg}`)
@@ -293,15 +311,21 @@ export default function SyncPanel() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" data-testid="sync-panel">
       {/* 全局提示 */}
       {error && (
-        <div className="flex items-start gap-2 px-3 py-2.5 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/30 rounded-lg">
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="sync-error"
+          className="flex items-start gap-2 rounded-lg border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-3 py-2.5"
+        >
           <svg
-            className="w-4 h-4 text-[var(--color-danger)] flex-shrink-0 mt-0.5"
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-danger)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -310,21 +334,34 @@ export default function SyncPanel() {
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-xs text-[var(--color-danger)] flex-1">{error}</p>
-          <button onClick={() => setError(null)} className="text-[var(--color-danger)] hover:opacity-70">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-[var(--color-danger)] [overflow-wrap:anywhere]">
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="关闭错误提示"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-danger)] transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-danger)]/40"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       )}
       {success && (
-        <div className="flex items-start gap-2 px-3 py-2.5 bg-[var(--color-success)]/10 border border-[var(--color-success)]/30 rounded-lg">
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="sync-success"
+          className="flex items-start gap-2 rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-3 py-2.5"
+        >
           <svg
-            className="w-4 h-4 text-[var(--color-success)] flex-shrink-0 mt-0.5"
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-success)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -333,9 +370,16 @@ export default function SyncPanel() {
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-xs text-[var(--color-success)] flex-1">{success}</p>
-          <button onClick={() => setSuccess(null)} className="text-[var(--color-success)] hover:opacity-70">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-[var(--color-success)] [overflow-wrap:anywhere]">
+            {success}
+          </p>
+          <button
+            type="button"
+            onClick={() => setSuccess(null)}
+            aria-label="关闭成功提示"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-success)] transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-success)]/40"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -343,8 +387,18 @@ export default function SyncPanel() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <svg className="animate-spin h-6 w-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24">
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="sync-loading"
+          className="flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-12"
+        >
+          <svg
+            className="h-6 w-6 animate-spin text-[var(--color-accent)]"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
@@ -353,23 +407,31 @@ export default function SyncPanel() {
       ) : (
         <>
           {/* 同步方式选择 */}
-          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-            <div className="px-4 py-3.5 border-b border-[var(--color-border-light)]">
-              <p className="text-sm font-medium text-[var(--color-text-primary)]">同步方式</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+          <section
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            aria-labelledby="sync-method-heading"
+          >
+            <div className="border-b border-[var(--color-border-light)] px-4 py-3.5">
+              <h4 id="sync-method-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+                同步方式
+              </h4>
+              <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                 选择数据同步方式，Git 适合开发者，WebDAV 适合普通用户
               </p>
             </div>
-            <div className="p-3 flex gap-2">
+            <div className="flex flex-wrap gap-2 p-3" role="group" aria-labelledby="sync-method-heading">
               <button
+                type="button"
+                data-testid="sync-type-git"
+                aria-pressed={syncType === 'git'}
                 onClick={() => handleSyncTypeChange('git')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg border transition-colors ${
+                className={`flex min-w-[10rem] flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 ${
                   syncType === 'git'
-                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] font-medium text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -380,14 +442,17 @@ export default function SyncPanel() {
                 Git 同步
               </button>
               <button
+                type="button"
+                data-testid="sync-type-webdav"
+                aria-pressed={syncType === 'webdav'}
                 onClick={() => handleSyncTypeChange('webdav')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg border transition-colors ${
+                className={`flex min-w-[10rem] flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 ${
                   syncType === 'webdav'
-                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] font-medium text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -398,57 +463,86 @@ export default function SyncPanel() {
                 WebDAV 同步
               </button>
             </div>
-          </div>
+          </section>
 
           {/* Git 配置区域 */}
           {syncType === 'git' && (
-            <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-              <div className="px-4 py-3.5 border-b border-[var(--color-border-light)] flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-text-primary)]">Git 仓库配置</p>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">配置 Git 远程仓库以启用数据同步</p>
+            <section
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+              aria-labelledby="sync-git-heading"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border-light)] px-4 py-3.5">
+                <div className="min-w-0">
+                  <h4 id="sync-git-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+                    Git 仓库配置
+                  </h4>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">配置 Git 远程仓库以启用数据同步</p>
                 </div>
                 {connected && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)] text-xs font-medium">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-success)]/10 px-2 py-1 text-xs font-medium text-[var(--color-success)]">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                     已连接
                   </span>
                 )}
               </div>
-              <div className="p-4 space-y-4">
+              <div className="space-y-4 p-4">
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+                  <label
+                    htmlFor="sync-repo-url"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
                     仓库 URL
                   </label>
                   <input
+                    id="sync-repo-url"
+                    data-testid="sync-repo-url"
                     type="text"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
                     placeholder={DEFAULT_REPO_URL}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">分支名</label>
+                  <label
+                    htmlFor="sync-branch"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
+                    分支名
+                  </label>
                   <input
+                    id="sync-branch"
+                    data-testid="sync-branch"
                     type="text"
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
                     placeholder={DEFAULT_BRANCH}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
                 </div>
-                <div className="flex items-center gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button
+                    type="button"
+                    data-testid="sync-init"
                     onClick={handleInit}
                     disabled={initializing}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-busy={initializing}
+                    className="inline-flex h-9 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {initializing ? (
                       <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <svg
+                          className="h-4 w-4 shrink-0 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path
                             className="opacity-75"
@@ -460,7 +554,13 @@ export default function SyncPanel() {
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="h-4 w-4 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -473,8 +573,14 @@ export default function SyncPanel() {
                     )}
                   </button>
                   {connected && (
-                    <span className="text-xs text-[var(--color-success)] flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex min-w-0 items-center gap-1 text-xs text-[var(--color-success)] [overflow-wrap:anywhere]">
+                      <svg
+                        className="h-3.5 w-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                       已连接到远程仓库
@@ -482,94 +588,147 @@ export default function SyncPanel() {
                   )}
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
           {/* WebDAV 配置区域 */}
           {syncType === 'webdav' && (
-            <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-              <div className="px-4 py-3.5 border-b border-[var(--color-border-light)] flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-text-primary)]">WebDAV 配置</p>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+            <section
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+              aria-labelledby="sync-webdav-heading"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border-light)] px-4 py-3.5">
+                <div className="min-w-0">
+                  <h4 id="sync-webdav-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+                    WebDAV 配置
+                  </h4>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                     支持坚果云、Nextcloud、群晖等 WebDAV 服务
                   </p>
                 </div>
                 {connected && webdavUrl && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)] text-xs font-medium">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-success)]/10 px-2 py-1 text-xs font-medium text-[var(--color-success)]">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                     已配置
                   </span>
                 )}
               </div>
-              <div className="p-4 space-y-4">
+              <div className="space-y-4 p-4">
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+                  <label
+                    htmlFor="sync-webdav-url"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
                     WebDAV 服务地址
                   </label>
                   <input
+                    id="sync-webdav-url"
+                    data-testid="sync-webdav-url"
                     type="text"
                     value={webdavUrl}
                     onChange={(e) => setWebdavUrl(e.target.value)}
                     placeholder={DEFAULT_WEBDAV_URL}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    spellCheck={false}
+                    autoComplete="off"
+                    aria-describedby="sync-webdav-url-help"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
-                  <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                  <p
+                    id="sync-webdav-url-help"
+                    className="mt-1 text-xs leading-relaxed text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]"
+                  >
                     坚果云: https://dav.jianguoyun.com/dav/ ｜ Nextcloud:
                     https://your-server/remote.php/dav/files/username/
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">用户名</label>
+                  <label
+                    htmlFor="sync-webdav-username"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
+                    用户名
+                  </label>
                   <input
+                    id="sync-webdav-username"
+                    data-testid="sync-webdav-username"
                     type="text"
                     value={webdavUsername}
                     onChange={(e) => setWebdavUsername(e.target.value)}
                     placeholder="WebDAV 用户名"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    autoComplete="off"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+                  <label
+                    htmlFor="sync-webdav-password"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
                     密码（坚果云为应用密码）
                   </label>
                   <input
+                    id="sync-webdav-password"
+                    data-testid="sync-webdav-password"
                     type="password"
                     value={webdavPassword}
                     onChange={(e) => setWebdavPassword(e.target.value)}
                     placeholder="WebDAV 密码或应用密码"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    autoComplete="off"
+                    aria-describedby="sync-webdav-password-help"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
-                  <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                  <p
+                    id="sync-webdav-password-help"
+                    className="mt-1 text-xs leading-relaxed text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]"
+                  >
                     坚果云请在「账户信息 - 安全选项」中生成应用密码，不要使用登录密码
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+                  <label
+                    htmlFor="sync-webdav-path"
+                    className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
+                  >
                     远程文件路径
                   </label>
                   <input
+                    id="sync-webdav-path"
+                    data-testid="sync-webdav-path"
                     type="text"
                     value={webdavRemotePath}
                     onChange={(e) => setWebdavRemotePath(e.target.value)}
                     placeholder={DEFAULT_WEBDAV_REMOTE_PATH}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] transition-colors"
+                    spellCheck={false}
+                    autoComplete="off"
+                    aria-describedby="sync-webdav-path-help"
+                    className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] transition-colors focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
                   />
-                  <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                  <p
+                    id="sync-webdav-path-help"
+                    className="mt-1 text-xs leading-relaxed text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]"
+                  >
                     数据库文件在 WebDAV 上的存储路径，目录不存在时会自动创建
                   </p>
                 </div>
-                <div className="flex items-center gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
+                    type="button"
+                    data-testid="sync-webdav-test"
                     onClick={handleTestConnection}
                     disabled={testing}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--color-accent)] border border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-busy={testing}
+                    className="inline-flex h-9 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--color-accent)] px-4 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {testing ? (
                       <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <svg
+                          className="h-4 w-4 shrink-0 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path
                             className="opacity-75"
@@ -581,7 +740,13 @@ export default function SyncPanel() {
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="h-4 w-4 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -594,40 +759,56 @@ export default function SyncPanel() {
                     )}
                   </button>
                   <button
+                    type="button"
+                    data-testid="sync-webdav-save"
                     onClick={handleSaveWebdavConfig}
                     disabled={testing}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex h-9 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     保存配置
                   </button>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
           {/* 自动同步设置区域 */}
-          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border-light)]">
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <div>
+          <section
+            className="divide-y divide-[var(--color-border-light)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            aria-label="自动同步设置"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--color-text-primary)]">自动同步</p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">定期自动同步本地数据到远程</p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">定期自动同步本地数据到远程</p>
               </div>
-              <Toggle checked={autoSync} onChange={setAutoSync} />
+              <div className="shrink-0">
+                <Toggle checked={autoSync} onChange={setAutoSync} ariaLabel="自动同步" />
+              </div>
             </div>
             {autoSync && (
-              <div className="px-4 py-3.5">
-                <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">同步间隔</p>
-                <div className="flex flex-wrap gap-2">
+              <div className="px-4 py-3">
+                <p id="sync-interval-label" className="mb-2 text-xs font-medium text-[var(--color-text-secondary)]">
+                  同步间隔
+                </p>
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-labelledby="sync-interval-label"
+                  data-testid="sync-interval-options"
+                >
                   {INTERVAL_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
+                      type="button"
+                      aria-pressed={autoSyncInterval === opt.value}
                       onClick={() => setAutoSyncInterval(opt.value)}
-                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                      className={`h-8 shrink-0 rounded-lg border px-3 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 ${
                         autoSyncInterval === opt.value
-                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium'
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] font-medium text-[var(--color-accent)]'
                           : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)]'
                       }`}
                     >
@@ -637,7 +818,7 @@ export default function SyncPanel() {
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
           {/* 同步状态 + 冲突处理（委托给 SyncStatusPanel） */}
           <SyncStatusPanel

@@ -33,20 +33,28 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
   return (
     <>
       {/* 手动同步区域 */}
-      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-        <div className="px-4 py-3.5 border-b border-[var(--color-border-light)]">
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">手动同步</p>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">立即执行一次同步操作</p>
+      <section
+        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+        aria-labelledby="sync-manual-heading"
+      >
+        <div className="border-b border-[var(--color-border-light)] px-4 py-3.5">
+          <h4 id="sync-manual-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+            手动同步
+          </h4>
+          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">立即执行一次同步操作</p>
         </div>
-        <div className="p-4 space-y-4">
+        <div className="space-y-4 p-4">
           <button
+            type="button"
+            data-testid="sync-now"
             onClick={() => onSyncNow(false)}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-busy={syncing}
+            className="inline-flex h-9 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {syncing ? (
               <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
@@ -54,7 +62,13 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -68,18 +82,23 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
           </button>
 
           {/* 同步状态 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
+          <div
+            className="space-y-2.5"
+            role="status"
+            aria-live="polite"
+            data-testid="sync-status-summary"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-[var(--color-text-secondary)]">上次同步</span>
-              <span className="text-[var(--color-text-primary)] font-medium">
+              <span className="font-medium text-[var(--color-text-primary)]">
                 {status.last_sync ? formatRelativeTime(status.last_sync) : '从未同步'}
               </span>
             </div>
             {(status.ahead > 0 || status.behind > 0) && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {status.ahead > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-accent-light)] text-[var(--color-accent-text)] text-xs font-medium">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex items-center gap-1 rounded-md bg-[var(--color-accent-light)] px-2 py-1 text-xs font-medium text-[var(--color-accent-text)]">
+                    <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -91,8 +110,8 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
                   </span>
                 )}
                 {status.behind > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-warning)]/10 text-[var(--color-warning)] text-xs font-medium">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex items-center gap-1 rounded-md bg-[var(--color-warning)]/10 px-2 py-1 text-xs font-medium text-[var(--color-warning)]">
+                    <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -106,8 +125,14 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
               </div>
             )}
             {status.ahead === 0 && status.behind === 0 && !status.has_conflict && status.last_sync && (
-              <div className="flex items-center gap-1.5 text-xs text-[var(--color-success)]">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start gap-1.5 text-xs leading-relaxed text-[var(--color-success)]">
+                <svg
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -120,13 +145,25 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 冲突处理区域 */}
       {status.has_conflict && (
-        <div className="bg-[var(--color-danger)]/5 rounded-xl border border-[var(--color-danger)]/40">
-          <div className="px-4 py-3.5 border-b border-[var(--color-danger)]/20 flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--color-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <section
+          className="rounded-xl border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/5"
+          role="alert"
+          aria-live="assertive"
+          aria-labelledby="sync-conflict-heading"
+          data-testid="sync-conflict"
+        >
+          <div className="flex items-center gap-2 border-b border-[var(--color-danger)]/20 px-4 py-3.5">
+            <svg
+              className="h-5 w-5 shrink-0 text-[var(--color-danger)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -134,35 +171,42 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <p className="text-sm font-medium text-[var(--color-danger)]">同步冲突</p>
+            <h4 id="sync-conflict-heading" className="text-sm font-medium text-[var(--color-danger)]">
+              同步冲突
+            </h4>
           </div>
-          <div className="p-4 space-y-3">
-            <div className="px-3 py-2.5 bg-[var(--color-danger)]/10 rounded-lg">
-              <p className="text-xs text-[var(--color-danger)] leading-relaxed">
+          <div className="space-y-3 p-4">
+            <div className="rounded-lg bg-[var(--color-danger)]/10 px-3 py-2.5">
+              <p className="text-xs leading-relaxed text-[var(--color-danger)] [overflow-wrap:anywhere]">
                 {status.conflict_message || '检测到本地与远程数据存在冲突，请选择处理方式。'}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
+                data-testid="sync-use-remote"
                 onClick={() => onSyncNow(true)}
                 disabled={syncing}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-busy={syncing}
+                className="inline-flex h-9 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {syncing ? (
                   <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                     处理中...
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="h-4 w-4 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -175,15 +219,17 @@ export function SyncStatusPanel({ status, syncing, onSyncNow, onDismissConflict 
                 )}
               </button>
               <button
+                type="button"
+                data-testid="sync-dismiss-conflict"
                 onClick={onDismissConflict}
                 disabled={syncing}
-                className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg px-4 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:opacity-50"
               >
                 稍后处理
               </button>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </>
   )
