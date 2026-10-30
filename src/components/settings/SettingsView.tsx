@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './settings.css'
 import { AppearancePanel } from './AppearancePanel'
 import { GeneralPanel } from './GeneralPanel'
 import { NotificationPanel } from './NotificationPanel'
@@ -187,14 +188,18 @@ export function SettingsView({ onClose }: SettingsViewProps) {
   const activeLabel = categories.find((c) => c.key === activeCategory)?.label || ''
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-bg-secondary)]">
+    <div
+      data-testid="settings-view"
+      className="settings-view flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg-secondary)]"
+    >
       {/* 顶部标题栏 */}
-      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4 flex items-center justify-between shrink-0">
-        <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">设置</h2>
+      <header className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 md:px-6">
+        <h2 className="text-[18px] font-semibold leading-6 text-[var(--color-text-primary)]">设置</h2>
         <button
           onClick={onClose}
-          className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
           aria-label="关闭设置"
+          title="关闭设置"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -202,30 +207,40 @@ export function SettingsView({ onClose }: SettingsViewProps) {
         </button>
       </header>
 
-      {/* 主体：左侧导航 + 右侧内容 */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 左侧导航栏 */}
-        <nav className="w-52 shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-border)] overflow-y-auto py-4">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
-                activeCategory === cat.key
-                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium border-r-2 border-[var(--color-accent)]'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
-            >
-              <span>{cat.icon}</span>
-              {cat.label}
-            </button>
-          ))}
+      {/* 主体：宽屏左导航，窄屏顶部分类 */}
+      <div className="settings-body">
+        <nav className="settings-nav" aria-label="设置分类">
+          <div className="settings-nav-list">
+            {categories.map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setActiveCategory(cat.key)}
+                data-testid={`settings-category-${cat.key}`}
+                aria-current={activeCategory === cat.key ? 'page' : undefined}
+                className={`settings-nav-item flex w-full items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium transition-colors ${
+                  activeCategory === cat.key
+                    ? 'border-r-2 border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                <span className={activeCategory === cat.key ? 'opacity-100' : 'opacity-70'}>{cat.icon}</span>
+                <span className="truncate">{cat.label}</span>
+              </button>
+            ))}
+          </div>
         </nav>
 
-        {/* 右侧内容区 */}
-        <div className="flex-1 overflow-y-auto">
-          <div key={activeCategory} className="max-w-2xl mx-auto px-8 py-6 animate-fade-in">
-            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-5">{activeLabel}</h3>
+        {/* 内容区独立滚动，宽度跟随设置区域 */}
+        <div className="settings-content-scroll" data-testid="settings-content-scroll">
+          <div key={activeCategory} className="settings-content-inner animate-fade-in" data-testid="settings-content">
+            <h3
+              id="settings-content-title"
+              data-testid="settings-content-title"
+              className="mb-4 text-[15px] font-semibold text-[var(--color-text-primary)]"
+            >
+              {activeLabel}
+            </h3>
             {renderContent()}
           </div>
         </div>

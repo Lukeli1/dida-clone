@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../../../types'
+import { useUIStore } from '../../../../stores/uiStore'
 import { CalendarTaskBlock } from '../CalendarTaskBlock'
 
 const lists: List[] = [
@@ -39,6 +40,10 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 describe('CalendarTaskBlock', () => {
+  afterEach(() => {
+    act(() => useUIStore.setState({ selectedTaskId: null }))
+  })
+
   it('renders month variant with title, time label, checkbox button, and badges', () => {
     const task = makeTask({
       title: '月视图任务',
@@ -163,5 +168,52 @@ describe('CalendarTaskBlock', () => {
 
     expect(screen.getByTestId('task-badge-priority-medium')).toHaveClass('h-3')
     expect(screen.getByTestId('task-badge-reminder')).toBeInTheDocument()
+  })
+
+  it('月任务条提供优先级语义标记与选中状态，不依赖颜色单独表达', () => {
+    act(() => useUIStore.setState({ selectedTaskId: 1 }))
+    const { container } = render(
+      <CalendarTaskBlock task={makeTask({ priority: 1 })} lists={lists} variant="month" dragged={false} />,
+    )
+
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveAttribute('data-selected', 'true')
+    expect(root).toHaveAttribute('aria-current', 'true')
+    expect(root).toHaveClass('ring-2', 'ring-inset')
+    expect(screen.getByRole('img', { name: '优先级：高' })).toBeInTheDocument()
+    expect(root).toHaveAttribute('title', '测试任务')
+  })
+
+  it('定时任务完成后保留清单色左边线，并使用删除线和弱化文字', () => {
+    const task = makeTask({ completed: true, priority: 2 })
+    const { container } = render(
+      <CalendarTaskBlock task={task} lists={lists} variant="timed" dragged={false} timeLabel="09:30" />,
+    )
+
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveStyle({ borderLeftColor: '#3b82f6' })
+    expect(root).toHaveClass('bg-[var(--color-bg-tertiary)]', 'text-[var(--color-text-tertiary)]')
+    expect(screen.queryByRole('img', { name: '优先级：中' })).not.toBeInTheDocument()
+    expect(screen.getByText('测试任务')).toHaveClass('line-through')
+    expect(screen.getByRole('checkbox')).toBeChecked()
+  })
+
+  it('定时任务支持选中环、优先级标记与窄宽折叠类名钩子', () => {
+    act(() => useUIStore.setState({ selectedTaskId: 1 }))
+    const { container } = render(
+      <CalendarTaskBlock
+        task={makeTask({ priority: 3 })}
+        lists={lists}
+        variant="timed"
+        dragged={false}
+        timeLabel="09:30"
+      />,
+    )
+
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveClass('calendar-timed-task')
+    expect(root).toHaveAttribute('data-selected', 'true')
+    expect(screen.getByRole('img', { name: '优先级：低' })).toHaveClass('calendar-timed-priority')
+    expect(screen.getByText('09:30')).toHaveClass('calendar-timed-time')
   })
 })

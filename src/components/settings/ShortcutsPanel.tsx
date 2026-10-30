@@ -103,14 +103,15 @@ export function ShortcutsPanel() {
   const hasCustomBindings = Object.keys(customShortcuts).length > 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" data-testid="shortcuts-panel">
       {/* 提示信息 */}
-      <div className="flex items-start gap-3 px-4 py-3 bg-[var(--color-accent-light)] rounded-lg border border-[var(--color-accent)]/20">
+      <div className="flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent-light)] px-4 py-3">
         <svg
-          className="w-5 h-5 text-[var(--color-accent)] shrink-0 mt-0.5"
+          className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-accent)]"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -119,67 +120,101 @@ export function ShortcutsPanel() {
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
-        <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+        <p className="min-w-0 text-xs leading-relaxed text-[var(--color-text-secondary)]">
           点击右侧按键进入录制模式，然后按下你想要的快捷键组合。按 Esc 可取消录制。
         </p>
       </div>
 
       {Object.entries(grouped).map(([category, bindings]) => (
-        <div key={category}>
-          <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">{category}</h4>
-          <div className="space-y-2">
+        <section key={category} aria-labelledby={`shortcut-group-${category}`} data-testid={`shortcut-group-${category}`}>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+            <h4 id={`shortcut-group-${category}`} className="text-sm font-semibold text-[var(--color-text-secondary)]">
+              {category}
+            </h4>
+            <span className="text-xs text-[var(--color-text-tertiary)]">{bindings.length} 项</span>
+          </div>
+          <div
+            className="divide-y divide-[var(--color-border-light)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            data-testid={`shortcut-card-${category}`}
+          >
             {bindings.map((binding) => {
               const currentKeys = resolveKeys(binding)
               const isRecording = recordingId === binding.id
               const hasConflict = conflictId === binding.id
               const isCustomized = !!customShortcuts[binding.id]
+              const descriptionId = `shortcut-description-${binding.id}`
+              const conflictTextId = `shortcut-conflict-${binding.id}`
 
               return (
                 <div
                   key={binding.id}
-                  className="flex items-center justify-between px-4 py-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]"
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  data-testid={`shortcut-row-${binding.id}`}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-[var(--color-text-primary)]">{binding.label}</p>
                       {isCustomized && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-light)] text-[var(--color-accent)]">
+                        <span className="rounded bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent)]">
                           已自定义
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{binding.description}</p>
+                    <p
+                      id={descriptionId}
+                      className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]"
+                    >
+                      {binding.description}
+                    </p>
                     {hasConflict && (
-                      <p className="text-xs text-red-500 mt-1">冲突：该快捷键已被「{conflictLabel}」使用</p>
+                      <p
+                        id={conflictTextId}
+                        role="alert"
+                        className="mt-1 text-xs leading-relaxed text-[var(--color-danger)] [overflow-wrap:anywhere]"
+                      >
+                        冲突：该快捷键已被「{conflictLabel}」使用
+                      </p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <div className="flex shrink-0 items-center gap-2">
                     {/* 恢复默认按钮（仅自定义时显示） */}
                     {isCustomized && !isRecording && (
                       <button
+                        type="button"
                         onClick={() => {
                           setCustomShortcut(binding.id, binding.defaultKeys)
                           // 恢复默认即将其从 customShortcuts 中移除（值与默认相同）
                           // 但 store 仍会保留条目，这里保持简单：直接覆盖为默认值
                         }}
-                        className="px-2 py-1.5 text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+                        aria-label={`恢复「${binding.label}」默认快捷键`}
                         title="恢复默认"
+                        className="inline-flex h-8 items-center rounded-lg px-2.5 text-xs text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                       >
                         恢复
                       </button>
                     )}
                     <button
+                      type="button"
+                      data-testid={`shortcut-key-${binding.id}`}
+                      aria-pressed={isRecording}
+                      aria-label={
+                        isRecording
+                          ? `${binding.label}：正在录制，按 Esc 取消`
+                          : `${binding.label} 快捷键：${currentKeys}，点击录制新快捷键`
+                      }
+                      aria-describedby={hasConflict ? `${descriptionId} ${conflictTextId}` : descriptionId}
+                      title={isRecording ? '按下快捷键，Esc 取消' : `当前快捷键：${currentKeys}`}
                       onClick={() => {
                         setRecordingId(isRecording ? null : binding.id)
                         setConflictId(null)
                         setConflictLabel('')
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors min-w-[88px] text-center ${
+                      className={`inline-flex min-h-8 min-w-[7.5rem] max-w-[14rem] shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-center text-xs font-mono transition-colors [overflow-wrap:anywhere] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 ${
                         isRecording
-                          ? 'bg-[var(--color-accent)] text-white animate-pulse'
+                          ? 'bg-[var(--color-accent)] text-white'
                           : hasConflict
-                            ? 'bg-red-50 text-red-600 border border-red-200'
+                            ? 'border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 text-[var(--color-danger)]'
                             : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                       }`}
                     >
@@ -190,22 +225,24 @@ export function ShortcutsPanel() {
               )
             })}
           </div>
-        </div>
+        </section>
       ))}
 
       {/* 重置按钮 */}
-      <div className="pt-2">
+      <div className="flex flex-wrap items-center gap-3 px-1 pt-1">
         <button
+          type="button"
           onClick={resetShortcuts}
           disabled={!hasCustomBindings}
-          className={`px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg transition-colors ${
+          className={`inline-flex h-9 shrink-0 items-center rounded-lg border border-[var(--color-border)] px-4 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 ${
             hasCustomBindings
-              ? 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]'
-              : 'text-[var(--color-text-tertiary)] cursor-not-allowed opacity-60'
+              ? 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+              : 'cursor-not-allowed text-[var(--color-text-tertiary)] opacity-60'
           }`}
         >
           重置为默认
         </button>
+        <span className="text-xs text-[var(--color-text-tertiary)]">仅清除自定义绑定，恢复所有默认快捷键</span>
       </div>
     </div>
   )

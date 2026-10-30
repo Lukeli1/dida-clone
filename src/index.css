@@ -9,8 +9,8 @@
   --app-font-family:
     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --sidebar-py: 8px;
-  --task-item-py: 14px;
-  --task-item-gap: 12px;
+  --task-item-py: 5px;
+  --task-item-gap: 10px;
   --settings-row-py: 14px;
 
   /* 精致阴影层级 */
@@ -39,10 +39,46 @@
   padding-bottom: var(--sidebar-py, 8px);
 }
 
+/* 侧边栏分组标题：导航 / 清单 / 标签共用同一字号、字重、颜色与基线 */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* 与 24px 的分组操作按钮同高，保证三处标题基线一致 */
+  min-height: 24px;
+  margin-bottom: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.sidebar-section-title {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* 导航 / 清单 / 标签共用的选中主表达；清单色点等业务标识仍由内容层保留 */
+.sidebar-nav-item-active {
+  background-color: var(--color-accent-light);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.sidebar-nav-item-ai-active {
+  background-color: var(--color-ai-light);
+  color: var(--color-ai);
+  font-weight: 500;
+}
+
 .task-item-surface {
-  gap: var(--task-item-gap, 12px);
-  padding-top: var(--task-item-py, 14px);
-  padding-bottom: var(--task-item-py, 14px);
+  gap: var(--task-item-gap, 10px);
+  padding-top: var(--task-item-py, 5px);
+  padding-bottom: var(--task-item-py, 5px);
 }
 
 .settings-density-row {
@@ -417,6 +453,20 @@ button {
   user-select: none;
 }
 
+/* 键盘焦点统一可见；鼠标点击不显示轮廓，保持界面安静 */
+button:focus-visible,
+a:focus-visible,
+[tabindex='0']:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 button:active:not(:disabled) {
   transform: scale(0.97);
 }
@@ -459,6 +509,57 @@ input[type='checkbox']:hover {
   transform: scale(1.05);
 }
 
+/* 任务行复选框：显式绘制，避免原生控件在深色主题下出现高亮/异色底 */
+.task-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-border-focus);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.task-checkbox:hover {
+  border-color: var(--color-accent);
+}
+
+.task-checkbox:checked {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+}
+
+.task-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--color-accent-contrast);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.task-checkbox--sm {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+.task-checkbox--sm:checked::after {
+  left: 4.5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+}
+
 /* ============ 下拉菜单动画 ============ */
 @keyframes dropdown-enter {
   from {
@@ -491,6 +592,57 @@ input[type='checkbox']:hover {
 .tag-pill:hover {
   transform: translateY(-1px);
   filter: brightness(0.95);
+}
+
+/* ============ 日历任务块窄宽折叠 ============ */
+/* 任务块作为 inline-size 容器，在月格/重叠列变窄时优先保留标题与完成操作 */
+.calendar-month-task,
+.calendar-timed-task,
+.calendar-all-day-task {
+  container-type: inline-size;
+}
+
+@container (max-width: 200px) {
+  .calendar-month-badges {
+    display: none;
+  }
+}
+
+@container (max-width: 110px) {
+  .calendar-month-time {
+    display: none;
+  }
+}
+
+@container (max-width: 70px) {
+  .calendar-month-priority {
+    display: none;
+  }
+}
+
+@container (max-width: 110px) {
+  .calendar-timed-time,
+  .calendar-timed-badges {
+    display: none;
+  }
+}
+
+@container (max-width: 58px) {
+  .calendar-timed-priority {
+    display: none;
+  }
+}
+
+@container (max-width: 140px) {
+  .calendar-all-day-range {
+    display: none;
+  }
+}
+
+@container (max-width: 64px) {
+  .calendar-all-day-priority {
+    display: none;
+  }
 }
 
 /* ============ 深色模式全局覆盖 ============ */

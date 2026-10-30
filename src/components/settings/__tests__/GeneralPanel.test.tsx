@@ -14,6 +14,8 @@ import { DEFAULT_CALENDAR_VIEW_OPTIONS } from '../../../utils/calendarUtils'
 describe('GeneralPanel 侧边栏显示设置', () => {
   beforeEach(() => {
     localStorage.removeItem(SIDEBAR_VISIBLE_ITEMS_KEY)
+    localStorage.removeItem('weekStart')
+    localStorage.removeItem('confirmDelete')
     useUIStore.setState({
       visibleSidebarItems: createDefaultSidebarVisibility(),
       currentView: 'tasks',
@@ -51,8 +53,21 @@ describe('GeneralPanel 侧边栏显示设置', () => {
   it('删除前确认区域说明归档与回收站差异', () => {
     render(<GeneralPanel />)
     const block = screen.getByTestId('delete-confirm-setting')
-    expect(block).toHaveTextContent(/归档用于收纳任务，不会进入回收站/)
-    expect(block).toHaveTextContent(/删除后将移入回收站，可在回收站恢复/)
+    expect(block).toHaveTextContent(/归档只是收纳任务/)
+    expect(block).toHaveTextContent(/删除会移入回收站，可从回收站恢复/)
+  })
+
+  it('一周开始与删除确认具备稳定的可访问名称和状态', () => {
+    render(<GeneralPanel />)
+    const weekStart = screen.getByRole('group', { name: '一周开始于' })
+    expect(weekStart).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '周日' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '周一' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: '周一' }))
+    expect(screen.getByRole('button', { name: '周一' })).toHaveAttribute('aria-pressed', 'true')
+
+    expect(screen.getByRole('switch', { name: '删除前确认' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: '在侧边栏显示习惯打卡' })).toHaveAttribute('aria-checked', 'true')
   })
 })
 

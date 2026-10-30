@@ -17,6 +17,7 @@ import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { MonthDetailPopup } from './MonthDetailPopup'
 import { MonthMorePopover, type MonthMorePopoverPosition } from './MonthMorePopover'
+import { CalendarDateNav } from './CalendarDateNav'
 import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
@@ -368,54 +369,17 @@ export function MonthView({
   const popoverTasks = morePopover ? tasksByDate.get(morePopover.dateKey) || { active: [], completed: [] } : null
 
   return (
-    <div className="flex h-full flex-col bg-[var(--color-bg-secondary)]">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onPrevMonth}
-            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
-            aria-label={'\u4e0a\u4e2a\u6708'}
-          >
-            <svg
-              className="h-5 w-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 className="min-w-[100px] text-center text-lg font-semibold text-[var(--color-text-primary)]">
-            {format(currentDate, 'M\u6708', { locale: zhCN })}
-            <span className="ml-1 text-sm font-normal text-[var(--color-text-tertiary)]">
-              {format(currentDate, 'yyyy')}
-            </span>
-          </h3>
-          <button
-            type="button"
-            onClick={onNextMonth}
-            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-bg-tertiary)]"
-            aria-label={'\u4e0b\u4e2a\u6708'}
-          >
-            <svg
-              className="h-5 w-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={onToday}
-          className="rounded-lg px-3 py-1 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-light)]"
-        >
-          {'\u4eca\u5929'}
-        </button>
-      </div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-[var(--color-bg-secondary)]">
+      <CalendarDateNav
+        prevLabel="上个月"
+        nextLabel="下个月"
+        onPrev={onPrevMonth}
+        onNext={onNextMonth}
+        onToday={onToday}
+        testId="month-date-nav"
+      >
+        {format(currentDate, 'yyyy年M月', { locale: zhCN })}
+      </CalendarDateNav>
 
       <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         {weekDays.map((day) => (
@@ -428,7 +392,7 @@ export function MonthView({
       <div
         ref={calendarGridRef}
         data-testid="month-calendar-grid"
-        className="flex flex-1 select-none flex-col overflow-y-auto"
+        className="flex min-h-0 flex-1 select-none flex-col overflow-y-auto"
         onPointerDown={handleMonthPointerDown}
         onPointerMove={handleMonthPointerMove}
         onPointerUp={handleMonthPointerUp}
@@ -537,6 +501,7 @@ export function MonthView({
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex flex-col items-start leading-tight">
                         <span
+                          data-testid={`month-day-number-${key}`}
                           className={`flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors ${
                             today
                               ? 'bg-[var(--color-accent)] text-white'

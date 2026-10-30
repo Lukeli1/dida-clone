@@ -104,12 +104,13 @@ export function TagSection({
 
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between mb-2 px-3">
-        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">标签</p>
+      <div className="sidebar-section-header">
+        <p className="sidebar-section-title">标签</p>
         <button
           onClick={() => setIsCreatingTag(true)}
-          className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors active:scale-90"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-secondary)] active:scale-90"
           title="新建标签"
+          aria-label="新建标签"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -208,20 +209,15 @@ export function TagSection({
                     onSelectList(null)
                   }}
                   onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
-                  className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
+                  aria-current={selectedTagId === tag.id ? 'page' : undefined}
+                  className={`w-full flex items-center gap-2 sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
                     selectedTagId === tag.id
-                      ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
+                      ? 'sidebar-nav-item-active'
                       : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
                   }`}
                 >
-                  {selectedTagId === tag.id && (
-                    <span
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
-                      style={{ backgroundColor: tag.color || '#9aa0a6' }}
-                    />
-                  )}
                   <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-white/50"
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-[var(--color-border)]"
                     style={{ backgroundColor: tag.color || '#9aa0a6' }}
                   />
                   <span className="truncate">{tag.name}</span>
@@ -238,20 +234,15 @@ export function TagSection({
                             onSelectList(null)
                           }}
                           onContextMenu={(e) => handleTagContextMenu(e, child.id)}
-                          className={`relative w-full flex items-center gap-2 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
+                          aria-current={selectedTagId === child.id ? 'page' : undefined}
+                          className={`w-full flex items-center gap-2 sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
                             selectedTagId === child.id
-                              ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
+                              ? 'sidebar-nav-item-active'
                               : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
                           }`}
                         >
-                          {selectedTagId === child.id && (
-                            <span
-                              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
-                              style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
-                            />
-                          )}
                           <span
-                            className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-white/50"
+                            className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-[var(--color-border)]"
                             style={{ backgroundColor: child.color || tag.color || '#9aa0a6' }}
                           />
                           <span className="truncate text-[13px]">{child.name}</span>

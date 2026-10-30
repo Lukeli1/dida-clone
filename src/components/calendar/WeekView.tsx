@@ -12,6 +12,7 @@ import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
+import { CalendarDateNav } from './CalendarDateNav'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
 import { computeDropStartMinute, computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../../utils/calendarDropTime'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
@@ -221,48 +222,19 @@ export function WeekView({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg-secondary)]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onPrevWeek}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
-          >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] min-w-[200px] text-center">
-            {format(days[0], 'M月d日', { locale: zhCN })} - {format(days[6], 'M月d日', { locale: zhCN })}
-          </h3>
-          <button
-            onClick={onNextWeek}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors"
-          >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        <button
-          onClick={onToday}
-          className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] rounded-lg transition-colors"
-        >
-          今天
-        </button>
-      </div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-[var(--color-bg-secondary)]">
+      <CalendarDateNav
+        prevLabel="上一周"
+        nextLabel="下一周"
+        onPrev={onPrevWeek}
+        onNext={onNextWeek}
+        onToday={onToday}
+        testId="week-date-nav"
+      >
+        {format(days[0], 'M月d日', { locale: zhCN })} - {format(days[6], 'M月d日', { locale: zhCN })}
+      </CalendarDateNav>
 
-      <div ref={weekScrollRef} data-testid="week-scroll-container" className="flex-1 overflow-auto select-none">
+      <div ref={weekScrollRef} data-testid="week-scroll-container" className="min-h-0 flex-1 overflow-auto select-none">
         <div className="flex min-w-[760px]">
           <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)]">
             <div className="h-12 border-b border-[var(--color-border)]" />

@@ -255,14 +255,24 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
+  // 估算高度跟随当前密度变量，避免继续假设固定 72px 造成首屏滚动条与可见项偏移。
+  // 普通单行任务内容区约 30px（28px 操作按钮 + 2px 边框）；长标题与换行标签由
+  // measureElement 动态测量。这里只影响未测量项。
+  const estimatedTaskRowHeight = useMemo(() => {
+    if (typeof window === 'undefined') return 40
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--task-item-py')
+    const py = Number.parseFloat(raw)
+    return 30 + (Number.isFinite(py) ? py * 2 : 10)
+  }, [])
+
   const getItemKey = useCallback((index: number) => incompleteTaskTree[index]?.id ?? index, [incompleteTaskTree])
 
   const virtualizer = useVirtualizer({
     count: incompleteTaskTree.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 72, // TaskItem 默认高度，实际由 measureElement 动态测量
+    estimateSize: () => estimatedTaskRowHeight,
     overscan: 8,
-    gap: 4, // 对应原 space-y-1 的项间距
+    gap: 2, // 对应 space-y-0.5 的项间距
     scrollMargin,
     getItemKey,
   })
@@ -342,20 +352,23 @@ export function TaskListPanel(props: TaskListPanelProps) {
   )
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden">
-      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h2 className="text-lg md:text-xl font-semibold text-[var(--color-text-primary)]">
+    <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-hidden" data-testid="task-list-panel">
+      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 md:px-6 py-3">
+        <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <h2
+              className="truncate text-[17px] md:text-lg font-semibold text-[var(--color-text-primary)]"
+              title={currentView === 'archived' ? '归档' : searchQuery.trim() ? '搜索结果' : currentListName}
+            >
               {currentView === 'archived' ? '归档' : searchQuery.trim() ? '搜索结果' : currentListName}
             </h2>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
+            <p className="mt-0.5 text-[13px] text-[var(--color-text-secondary)]">
               {currentView === 'archived'
                 ? `${taskTree.length} 个已归档`
                 : `${incompleteTaskTree.length + overdueTaskTree.length} 个未完成 / ${taskTree.length + (currentView === 'today' ? overdueTaskTree.length : 0)} 个总计`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {/* 批量模式切换按钮 */}
             {currentView !== 'archived' && (
               <button
@@ -366,6 +379,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                     : 'text-[var(--color-text-secondary)] border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]/60'
                 }`}
                 title={batchMode ? '退出批量模式' : '进入批量模式'}
+                aria-pressed={batchMode}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -387,6 +401,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
                   : 'text-[var(--color-text-secondary)] border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
               }`}
               title="组合筛选"
+              aria-expanded={showFilters}
+              aria-pressed={hasActiveFilters}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -423,7 +439,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 onFocus={handleSearchFocus}
                 onBlur={handleSearchBlur}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="搜索标题、备注、子任务... (Ctrl+F)"
+                placeholder="搜索任务... (Ctrl+F)"
+                aria-label="搜索任务"
                 className="pl-9 pr-4 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)] w-36 sm:w-44 md:w-64"
               />
               {/* 搜索历史下拉列表 */}
@@ -540,7 +557,12 @@ export function TaskListPanel(props: TaskListPanelProps) {
       )}
 
       <TaskActionProvider value={taskActionValue}>
-        <div ref={parentRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-2" onContextMenu={handleContextMenu}>
+        <div
+          ref={parentRef}
+          data-testid="task-list-scroll"
+          className="flex-1 overflow-y-auto px-4 pb-2 pt-1"
+          onContextMenu={handleContextMenu}
+        >
           {/* 归档视图：直接显示所有归档任务 */}
           {currentView === 'archived' ? (
             taskTree.length === 0 ? (
@@ -559,7 +581,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 subtitle="完成的任务超过 7 天后会自动归档"
               />
             ) : (
-              <div role="list" className="space-y-1">
+              <div role="list" className="space-y-0.5">
                 {taskTree.map((task) => (
                   <TaskItem
                     key={task.id}
@@ -593,7 +615,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 <div className="mt-2">
                   <button
                     onClick={() => setShowTodaySection(!showTodaySection)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-1.5 hover:text-[var(--color-accent)] transition-colors"
                   >
                     <svg
                       className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showTodaySection ? 'rotate-90' : ''}`}
@@ -611,6 +633,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                         <div
                           ref={listRef}
                           role="list"
+                          data-testid="task-virtual-list"
                           style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}
                         >
                           {virtualizer.getVirtualItems().map((virtualItem) => {
@@ -625,7 +648,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
                                   top: 0,
                                   left: 0,
                                   width: '100%',
-                                  transform: `translateY(${virtualItem.start}px)`,
+                                  // virtualItem.start 已包含 scrollMargin；容器本身位于该偏移之后，须扣除避免重复计入
+                                  transform: `translateY(${virtualItem.start - scrollMargin}px)`,
                                 }}
                               >
                                 <TaskItem
@@ -641,7 +665,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                           })}
                         </div>
                       ) : (
-                        <div ref={listRef} role="list" className="space-y-1">
+                        <div ref={listRef} role="list" data-testid="task-static-list" className="space-y-0.5">
                           {incompleteTaskTree.map((task) => (
                             <TaskItem
                               key={task.id}
@@ -662,7 +686,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
               {/* ===== 第2组：已过期 ===== */}
               {overdueTaskTree.length > 0 && (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <button
                       onClick={() => setShowOverdue(!showOverdue)}
                       className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-danger)] hover:opacity-80 transition-opacity"
@@ -686,7 +710,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                     </button>
                   </div>
                   {showOverdue && (
-                    <div role="list" className="space-y-1 animate-slide-down">
+                    <div role="list" className="space-y-0.5 animate-slide-down">
                       {overdueTaskTree.map((task) => (
                         <TaskItem
                           key={task.id}
@@ -708,7 +732,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 <div className="mt-4">
                   <button
                     onClick={() => setShowHabitSection(!showHabitSection)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2 hover:text-[var(--color-accent)] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-1.5 hover:text-[var(--color-accent)] transition-colors"
                   >
                     <svg
                       className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showHabitSection ? 'rotate-90' : ''}`}
@@ -769,7 +793,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                 <div className="mt-4">
                   <button
                     onClick={() => setShowCompleted(!showCompleted)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-2 hover:text-[var(--color-text-primary)] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-1.5 hover:text-[var(--color-text-primary)] transition-colors"
                   >
                     <svg
                       className={`w-3 h-3 transition-transform text-[var(--color-text-tertiary)] ${showCompleted ? 'rotate-90' : ''}`}
@@ -782,7 +806,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
                     已完成 ({completedTaskTree.length})
                   </button>
                   {showCompleted && (
-                    <div role="list" className="space-y-1 animate-slide-down">
+                    <div role="list" className="space-y-0.5 animate-slide-down">
                       {completedTaskTree.map((task) => (
                         <TaskItem
                           key={task.id}

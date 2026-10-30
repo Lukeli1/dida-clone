@@ -130,7 +130,7 @@ export function DayViewGrid({
     : 8
 
   return (
-    <div ref={dayScrollRef} data-testid="day-scroll-container" className="flex-1 overflow-y-auto select-none">
+    <div ref={dayScrollRef} data-testid="day-scroll-container" className="min-h-0 flex-1 overflow-y-auto select-none">
       <div className="flex">
         {/* 小时标签列 */}
         <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)] dark:border-[var(--color-border)]">

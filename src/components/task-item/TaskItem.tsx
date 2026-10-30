@@ -127,7 +127,6 @@ const TaskItem = memo(function TaskItem({
   } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
-  const [isHovered, setIsHovered] = useState(false)
 
   // ===== 派生数据 useMemo 缓存 =====
   const hasSubtasks = useMemo(() => task.subtasks && task.subtasks.length > 0, [task.subtasks])
@@ -165,12 +164,15 @@ const TaskItem = memo(function TaskItem({
     (e: React.DragEvent) => {
       e.preventDefault()
       const draggedId = Number(e.dataTransfer.getData('text/plain'))
-      if (draggedId && draggedId !== task.id && onReorder) {
-        onReorder(draggedId, task.id)
+      // 今日列表未传 onReorder prop，回退到 Context 中的统一重排处理；
+      // 归档/过期/已完成列表显式传入 NOOP，仍然禁用重排。
+      const reorder = onReorder ?? ctx.onReorder
+      if (draggedId && draggedId !== task.id) {
+        reorder(draggedId, task.id)
       }
       setDragOverPos(null)
     },
-    [task.id, onReorder],
+    [task.id, onReorder, ctx],
   )
 
   const handleDragEnd = useCallback(() => {
@@ -228,9 +230,6 @@ const TaskItem = memo(function TaskItem({
     }
   }, [contextMenu?.task?.id, task.id, task.title, ctx])
 
-  const handleMouseEnter = useCallback(() => setIsHovered(true), [])
-  const handleMouseLeave = useCallback(() => setIsHovered(false), [])
-
   const handleMainClick = useCallback(
     (e: React.MouseEvent) => {
       if (batchMode) {
@@ -241,6 +240,16 @@ const TaskItem = memo(function TaskItem({
       }
     },
     [batchMode, isEditing, ctx, task.id],
+  )
+
+  const handleActionsClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation()
+      const rect = e.currentTarget.getBoundingClientRect()
+      document.dispatchEvent(new CustomEvent('close-context-menus'))
+      setContextMenu({ x: rect.right - 8, y: rect.bottom + 4, task })
+    },
+    [task],
   )
 
   const handleToggleExpandClick = useCallback(
@@ -270,47 +279,53 @@ const TaskItem = memo(function TaskItem({
   // 优先级指示器颜色（使用模块级常量）
   const priorityInfo = task.priority ? PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] : null
 
+  // 标签只展示前 3 个，其余以 +N 收口，避免多标签把行撑坏或挤压操作区
+  const tagIds = task.tag_ids ?? []
+  const visibleTagIds = tagIds.slice(0, 3)
+  const hiddenTagNames = tagIds
+    .slice(3)
+    .map((tagId) => tags.find((t) => t.id === tagId)?.name)
+    .filter((name): name is string => Boolean(name))
+
+  const taskOpenLabel = batchMode
+    ? `选择任务：${task.title}`
+    : `打开任务：${task.title}${task.completed ? '（已完成）' : ''}`
+
   return (
     <div
       role="listitem"
       data-task-item
-      draggable={!batchMode && !isEditing}
-      onDragStart={handleDragStart}
+      data-testid={`task-item-${task.id}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       className={`${animateOnMount ? 'task-enter' : ''} ${dragOverPos === 'before' ? 'border-t-2 border-[var(--color-accent)]' : dragOverPos === 'after' ? 'border-b-2 border-[var(--color-accent)]' : ''}`}
     >
       <div
-        onClick={handleMainClick}
-        onDoubleClick={handleDoubleClick}
-        className={`group task-item-surface flex items-center px-4 rounded-xl cursor-pointer transition-all duration-200 border border-[var(--color-border-light)] ${
+        data-testid={`task-row-${task.id}`}
+        draggable={!batchMode && !isEditing}
+        onDragStart={handleDragStart}
+        className={`group task-item-surface flex items-center px-4 rounded-xl transition-colors duration-200 border border-[var(--color-border-light)] ${
           isSelected
-            ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/30 shadow-[0_0_0_1px_var(--color-accent-light)]'
+            ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40'
             : task.pinned
-              ? 'bg-orange-50/40 hover:border-[var(--color-border)] hover:bg-orange-50/60 hover:shadow-sm'
-              : 'hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:shadow-sm'
-        } ${batchMode && isSelectedForBatch ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/30' : ''} ${task.completed ? 'opacity-55' : ''}`}
+              ? 'bg-[var(--color-warning-light)]/40 hover:border-[var(--color-border)] hover:bg-[var(--color-warning-light)]/60'
+              : 'hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
+        } ${batchMode && isSelectedForBatch ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40' : ''} ${task.completed ? 'opacity-60' : ''}`}
         style={{
           borderLeftColor: taskColor,
           borderLeftWidth: '4px',
-          boxShadow: isSelected
-            ? 'var(--shadow-card), 0 0 0 1px var(--color-accent-light)'
-            : isHovered && !task.completed
-              ? 'var(--shadow-card)'
-              : 'none',
         }}
       >
         {/* 顶层活跃任务始终可展开以添加子任务；其余仅有子任务时显示 */}
         {(!task.parent_id && !isArchivedView) || hasSubtasks ? (
           <button
             onClick={handleToggleExpandClick}
-            className="flex-shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-all active:scale-90"
-            aria-label={isExpanded ? '折叠子任务' : '展开子任务'}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)] active:scale-90"
+            aria-label={`${isExpanded ? '折叠子任务' : '展开子任务'}：${task.title}`}
+            aria-expanded={isExpanded}
             data-testid={`task-expand-${task.id}`}
           >
             <svg
@@ -323,7 +338,7 @@ const TaskItem = memo(function TaskItem({
             </svg>
           </button>
         ) : (
-          <span className="w-[26px] flex-shrink-0" />
+          <span className="w-6 flex-shrink-0" />
         )}
 
         {batchMode ? (
@@ -332,7 +347,8 @@ const TaskItem = memo(function TaskItem({
             checked={isSelectedForBatch || false}
             onChange={handleBatchCheckboxChange}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
+            aria-label={`选择任务：${task.title}`}
+            className="task-checkbox checkbox-bounce active:scale-90"
           />
         ) : (
           <input
@@ -340,38 +356,62 @@ const TaskItem = memo(function TaskItem({
             checked={task.completed}
             onChange={handleToggleCheckboxChange}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-5 h-5 rounded-md border-2 border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)] focus:ring-offset-0 cursor-pointer transition-all active:scale-90"
+            aria-label={`${task.completed ? '标记为未完成' : '标记为已完成'}：${task.title}`}
+            className="task-checkbox checkbox-bounce active:scale-90"
           />
         )}
 
-        <div className="flex-1 min-w-0">
-          {isEditing ? (
+        {isEditing ? (
+          <div className="min-w-0 flex-1">
             <TaskInlineEditor
               value={editTitle}
               onChange={(v) => setEditTitle(v)}
               onSave={handleEditSave}
               onCancel={handleEditCancel}
             />
-          ) : (
-            <p
-              className={`text-[15px] font-medium leading-snug ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'} flex items-center gap-1.5 flex-wrap`}
-            >
-              {task.pinned && (
-                <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14 4l6 6-2 2-3-1-4 4 1 3-2 2-3-4-4 4-2-2 4-4-4-3 1-2 2 6 6z" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-testid={`task-open-${task.id}`}
+            onClick={handleMainClick}
+            onDoubleClick={handleDoubleClick}
+            aria-label={taskOpenLabel}
+            aria-describedby={`task-meta-${task.id}`}
+            className="min-w-0 flex-1 cursor-pointer rounded-md border-0 bg-transparent p-0 text-left"
+          >
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5">
+              <span className="flex min-w-[10rem] flex-1 items-start gap-1.5">
+                {task.pinned && (
+                <svg
+                  className="mt-0.5 w-3.5 h-3.5 shrink-0 text-[var(--color-warning)]"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-label="已置顶"
+                >
+                  <title>已置顶</title>
+                  <path d="M9 3h6l-1 6 3 3v1H7v-1l3-3-1-6zM11 13h2v8h-2z" />
                 </svg>
               )}
               {priorityInfo && !task.completed && (
                 <span
-                  className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  className="mt-[5px] inline-block h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: priorityInfo.color }}
                   title={`优先级：${priorityInfo.label}`}
+                  role="img"
+                  aria-label={`优先级：${priorityInfo.label}`}
                 />
               )}
-              <span className="truncate">{highlightMatch(task.title, searchQuery)}</span>
+              <span
+                className={`min-w-0 flex-1 line-clamp-2 text-[14px] font-medium leading-[18px] ${
+                  task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'
+                }`}
+              >
+                {highlightMatch(task.title, searchQuery)}
+              </span>
               {task.repeat_rule && (
                 <svg
-                  className="w-3.5 h-3.5 text-[var(--color-text-tertiary)] flex-shrink-0"
+                  className="mt-0.5 w-3.5 h-3.5 shrink-0 text-[var(--color-text-tertiary)]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -388,7 +428,7 @@ const TaskItem = memo(function TaskItem({
               )}
               {task.reminder && (
                 <svg
-                  className="w-3.5 h-3.5 text-[var(--color-warning)] flex-shrink-0"
+                  className="mt-0.5 w-3.5 h-3.5 shrink-0 text-[var(--color-warning)]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -403,106 +443,144 @@ const TaskItem = memo(function TaskItem({
                   />
                 </svg>
               )}
-              {isArchivedView && (
-                <span className="ml-1 text-[11px] text-[var(--color-text-muted)] font-normal px-1.5 py-0.5 rounded-md bg-[var(--color-bg-tertiary)]">
-                  已归档
-                </span>
-              )}
-              {/* 搜索匹配来源标签 */}
-              {!isArchivedView && matchSource === 'notes' && (
-                <span className="px-2 py-0.5 text-[11px] rounded-full bg-amber-50 text-amber-600 border border-amber-100 font-medium">
-                  备注命中
-                </span>
-              )}
-              {!isArchivedView && matchSource === 'subtask' && (
-                <span className="px-2 py-0.5 text-[11px] rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-medium">
-                  子任务命中
-                </span>
-              )}
-            </p>
-          )}
-          <div className="flex items-center gap-3 mt-1">
-            {task.due_date &&
-              (() => {
-                const dueDate = new Date(task.due_date)
-                const now = new Date()
-                const isOverdue = !task.completed && dueDate < now
-                const overdueDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-                return (
-                  <span
-                    className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-text-tertiary)]'}`}
-                  >
-                    <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    {dueDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                    {isOverdue && overdueDays > 0 && (
-                      <span className="text-[var(--color-danger)] font-medium">延期{overdueDays}天</span>
-                    )}
-                  </span>
-                )
-              })()}
-            {task.notes && (
-              <span className="text-xs text-[var(--color-text-tertiary)] flex items-center gap-1">
-                <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
               </span>
-            )}
-            {hasSubtasks && (
+
               <span
-                className={`text-xs flex items-center gap-1 ${completedSubtasks === totalSubtasks ? 'text-[var(--color-success)]' : 'text-[var(--color-text-tertiary)]'}`}
+                id={`task-meta-${task.id}`}
+                className="flex max-w-full shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] leading-[14px]"
               >
-                <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                  />
-                </svg>
-                {completedSubtasks}/{totalSubtasks}
-              </span>
-            )}
-            {task.tag_ids && task.tag_ids.length > 0 && (
-              <div className="flex items-center gap-1">
-                {task.tag_ids.map((tagId) => {
-                  const tag = tags.find((t) => t.id === tagId)
-                  if (!tag) return null
+              {task.due_date &&
+                (() => {
+                  const dueDate = new Date(task.due_date)
+                  const now = new Date()
+                  const isOverdue = !task.completed && dueDate < now
+                  const overdueDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+                  const dateLabel = dueDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
                   return (
                     <span
-                      key={tagId}
-                      className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] rounded-full font-medium transition-all hover:-translate-y-0.5"
-                      style={{
-                        backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.1),
-                        color: tag.color || '#6B7280',
-                        border: `1px solid ${hexWithAlpha(tag.color || '#6B7280', 0.2)}`,
-                      }}
+                      className={`flex items-center gap-1 whitespace-nowrap leading-[14px] ${
+                        isOverdue ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-text-tertiary)]'
+                      }`}
+                      aria-label={`截止日期 ${dateLabel}${isOverdue && overdueDays > 0 ? `，已逾期 ${overdueDays} 天` : ''}`}
                     >
-                      {tag.name}
+                      <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      {dateLabel}
+                      {isOverdue && overdueDays > 0 && (
+                        <span className="font-medium text-[var(--color-danger)]">延期{overdueDays}天</span>
+                      )}
                     </span>
                   )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+                })()}
+              {task.notes && (
+                <span className="flex items-center gap-1 leading-[14px] text-[var(--color-text-tertiary)]" title="含备注">
+                  <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </span>
+              )}
+              {hasSubtasks && (
+                <span
+                  className={`flex items-center gap-1 whitespace-nowrap leading-[14px] ${
+                    completedSubtasks === totalSubtasks
+                      ? 'text-[var(--color-success)]'
+                      : 'text-[var(--color-text-tertiary)]'
+                  }`}
+                  aria-label={`子任务 ${completedSubtasks}/${totalSubtasks}`}
+                >
+                  <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                    />
+                  </svg>
+                  {completedSubtasks}/{totalSubtasks}
+                </span>
+              )}
+              {visibleTagIds.length > 0 && (
+                <span className="flex min-w-0 flex-wrap items-center gap-1">
+                  {visibleTagIds.map((tagId) => {
+                    const tag = tags.find((t) => t.id === tagId)
+                    if (!tag) return null
+                    const tagColor = tag.color || '#6B7280'
+                    return (
+                      <span
+                        key={tagId}
+                        className="inline-flex max-w-[8rem] items-center gap-0.5 truncate whitespace-nowrap rounded-full border px-2 py-0 text-[11px] font-medium leading-[14px]"
+                        style={{
+                          backgroundColor: hexWithAlpha(tagColor, 0.12),
+                          color: `color-mix(in srgb, ${tagColor} 72%, var(--color-text-primary))`,
+                          border: `1px solid ${hexWithAlpha(tagColor, 0.24)}`,
+                        }}
+                        title={tag.name}
+                      >
+                        {tag.name}
+                      </span>
+                    )
+                  })}
+                  {hiddenTagNames.length > 0 && (
+                    <span
+                      className="rounded-full bg-[var(--color-bg-tertiary)] px-2 py-0 text-[11px] font-medium leading-[14px] text-[var(--color-text-tertiary)]"
+                      title={`另有标签：${hiddenTagNames.join('、')}`}
+                    >
+                      +{hiddenTagNames.length}
+                    </span>
+                  )}
+                </span>
+              )}
+              </span>
 
-        {/* 悬停时显示的操作提示 */}
-        <div
-          className={`flex items-center gap-1 transition-opacity duration-200 ${isHovered && !batchMode && !isEditing ? 'opacity-100' : 'opacity-0'}`}
+              {(isArchivedView || matchSource === 'notes' || matchSource === 'subtask') && (
+                <span className="mt-0.5 flex w-full flex-wrap items-center gap-1">
+                  {isArchivedView && (
+                    <span className="rounded-md bg-[var(--color-bg-tertiary)] px-1.5 py-0 text-[11px] font-normal leading-[14px] text-[var(--color-text-muted)]">
+                      已归档
+                    </span>
+                  )}
+                  {!isArchivedView && matchSource === 'notes' && (
+                    <span className="rounded-full border border-[var(--color-warning)]/30 bg-[var(--color-warning-light)] px-2 py-0 text-[11px] font-medium leading-[14px] text-[var(--color-warning)]">
+                      备注命中
+                    </span>
+                  )}
+                  {!isArchivedView && matchSource === 'subtask' && (
+                    <span className="rounded-full border border-[var(--color-info)]/30 bg-[var(--color-info-light)] px-2 py-0 text-[11px] font-medium leading-[14px] text-[var(--color-info)]">
+                      子任务命中
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+          </button>
+        )}
+
+        {/* 任务操作：默认透明但保留占位，hover / 键盘焦点时显示；点击打开现有右键菜单 */}
+        <button
+          type="button"
+          data-testid={`task-actions-${task.id}`}
+          aria-label={`任务操作：${task.title}`}
+          aria-haspopup="menu"
+          tabIndex={batchMode || isEditing ? -1 : 0}
+          onClick={handleActionsClick}
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-opacity duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)] ${
+            batchMode || isEditing
+              ? 'invisible'
+              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
+          }`}
         >
-          <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -510,7 +588,7 @@ const TaskItem = memo(function TaskItem({
               d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
             />
           </svg>
-        </div>
+        </button>
       </div>
 
       {/* 子任务列表：展开后始终可添加（含尚无子任务的顶层任务） */}

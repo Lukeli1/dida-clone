@@ -55,9 +55,9 @@ describe('appearance 外观设置', () => {
 
   describe('applySidebarDensity', () => {
     it.each([
-      ['compact', '4px', '9px'],
-      ['comfortable', '8px', '14px'],
-      ['spacious', '12px', '18px'],
+      ['compact', '4px', '3px'],
+      ['comfortable', '8px', '5px'],
+      ['spacious', '12px', '9px'],
     ] as const)('%s 同时设置侧边栏和任务行密度', (density, sidebarPy, taskItemPy) => {
       applySidebarDensity(density)
       expect(document.documentElement.style.getPropertyValue('--sidebar-py')).toBe(sidebarPy)

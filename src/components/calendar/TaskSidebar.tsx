@@ -73,7 +73,7 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
         }`}
       >
         {open && (
-          <div className="w-72 flex flex-col h-full">
+          <div data-testid="calendar-task-sidebar" className="w-72 flex flex-col h-full">
             {/* 标题栏 */}
             <div className="px-3 py-2.5 border-b border-[var(--color-border-light)] flex items-center justify-between">
               <span className="text-sm font-medium text-[var(--color-text-secondary)]">任务列表</span>

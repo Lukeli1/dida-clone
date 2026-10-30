@@ -20,9 +20,12 @@ const DENSITY_CONFIG: Record<
   SidebarDensity,
   { sidebarPy: string; taskItemPy: string; taskItemGap: string; settingsRowPy: string }
 > = {
-  compact: { sidebarPy: '4px', taskItemPy: '9px', taskItemGap: '8px', settingsRowPy: '10px' },
-  comfortable: { sidebarPy: '8px', taskItemPy: '14px', taskItemGap: '12px', settingsRowPy: '14px' },
-  spacious: { sidebarPy: '12px', taskItemPy: '18px', taskItemGap: '14px', settingsRowPy: '18px' },
+  // 普通单行任务：标题与日期/标签同行，操作按钮 28px 为内容区最高元素。
+  // 内容约 30px（28px 操作按钮 + 2px 边框）+ 上下内边距：
+  // 紧凑档约 36px、舒适档约 40px、宽松档约 48px；长标题两行时分别约 44 / 48 / 56px。
+  compact: { sidebarPy: '4px', taskItemPy: '3px', taskItemGap: '8px', settingsRowPy: '10px' },
+  comfortable: { sidebarPy: '8px', taskItemPy: '5px', taskItemGap: '10px', settingsRowPy: '14px' },
+  spacious: { sidebarPy: '12px', taskItemPy: '9px', taskItemGap: '12px', settingsRowPy: '18px' },
 }
 
 export const DEFAULT_APPEARANCE: AppearanceSetting = {

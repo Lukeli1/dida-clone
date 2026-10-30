@@ -244,7 +244,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
       {/* 日程行：折叠的日期/时间 */}
       <button
         onClick={() => setShowScheduleEdit((v) => !v)}
-        className="mt-2 flex items-center gap-1.5 text-sm hover:text-[var(--color-accent)] transition-colors"
+        className="mt-2 flex flex-wrap items-center gap-1.5 text-left text-sm transition-colors hover:text-[var(--color-accent)]"
       >
         <svg
           className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`}
@@ -566,13 +566,14 @@ export function TaskMetaPanel({ task, tags, onAddTag, onRemoveTag }: TaskMetaPan
           ? task.tag_ids.map((tagId) => {
               const tag = tags.find((t) => t.id === tagId)
               if (!tag) return null
+              const tagColor = tag.color || '#6B7280'
               return (
                 <span
                   key={tagId}
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
                   style={{
-                    backgroundColor: hexWithAlpha(tag.color || '#6B7280', 0.12),
-                    color: tag.color || '#6B7280',
+                    backgroundColor: hexWithAlpha(tagColor, 0.12),
+                    color: `color-mix(in srgb, ${tagColor} 72%, var(--color-text-primary))`,
                   }}
                 >
                   {tag.name}

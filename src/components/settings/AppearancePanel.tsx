@@ -101,8 +101,8 @@ export function AppearancePanel() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border-light)]">
+    <div className="space-y-5">
+      <div className="divide-y divide-[var(--color-border-light)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <FontPanel
           fontSetting={fontSetting}
           fontSize={appearance.fontSize}

@@ -61,7 +61,7 @@ export function DensityPanel({
           </p>
           <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">每套主题均有独立的浅色和深色配色</p>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="settings-choice-grid">
           {MODE_OPTIONS.map((option) => {
             const selected = theme === option.id
             return (
@@ -86,8 +86,8 @@ export function DensityPanel({
       </section>
 
       <section className="settings-density-row px-4" aria-labelledby="theme-preset-heading">
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <p id="theme-preset-heading" className="text-sm font-semibold text-[var(--color-text-primary)]">
               完整主题
             </p>
@@ -100,7 +100,7 @@ export function DensityPanel({
           </span>
         </div>
 
-        <div data-testid="theme-preset-grid" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div data-testid="theme-preset-grid" className="settings-theme-grid">
           {THEME_PRESETS.map((preset) => {
             const palette = preset.modes[resolvedMode]
             const selected = preset.id === presetId
@@ -114,7 +114,7 @@ export function DensityPanel({
                 className={`group overflow-hidden rounded-xl border-2 text-left transition-all ${
                   selected
                     ? 'border-[var(--color-accent)] shadow-[var(--shadow-card-hover)]'
-                    : 'border-[var(--color-border)] hover:-translate-y-0.5 hover:border-[var(--color-border-focus)] hover:shadow-[var(--shadow-card)]'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] hover:shadow-[var(--shadow-card)]'
                 }`}
               >
                 <span
@@ -207,13 +207,19 @@ export function DensityPanel({
           <div className="flex flex-wrap gap-1.5" aria-label="主题强调色快捷选择">
             {THEME_PRESETS.map((preset) => {
               const color = preset.modes[resolvedMode]['--color-accent']
+              const selected = color.toLowerCase() === activeAccent.toLowerCase()
               return (
                 <button
                   type="button"
                   key={preset.id}
                   aria-label={`使用${preset.name}强调色`}
+                  aria-pressed={selected}
                   onClick={() => onAccentColorChange(color)}
-                  className="h-7 w-7 rounded-full border-2 border-[var(--color-surface)] shadow-[0_0_0_1px_var(--color-border)] transition-transform hover:scale-110"
+                  className={`h-7 w-7 rounded-full border-2 border-[var(--color-surface)] transition-transform hover:scale-110 ${
+                    selected
+                      ? 'ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-surface)]'
+                      : 'shadow-[0_0_0_1px_var(--color-border)]'
+                  }`}
                   style={{ backgroundColor: color }}
                 />
               )
@@ -239,7 +245,7 @@ export function DensityPanel({
           </p>
           <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">统一调整卡片、按钮、输入框和弹窗的圆角</p>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="settings-choice-grid">
           {CORNER_STYLES.map((style) => {
             const selected = cornerStyle === style.id
             return (
@@ -273,8 +279,8 @@ export function DensityPanel({
       </section>
 
       <section className="settings-density-row px-4" aria-labelledby="density-heading">
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <p id="density-heading" className="text-sm font-semibold text-[var(--color-text-primary)]">
               界面密度
             </p>
@@ -288,7 +294,7 @@ export function DensityPanel({
             恢复主题默认值
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="settings-choice-grid">
           {DENSITY_OPTIONS.map((option) => {
             const selected = sidebarDensity === option.id
             return (

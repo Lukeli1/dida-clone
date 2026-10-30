@@ -67,7 +67,7 @@ export function TaskSubtaskList({
               ctx.onToggleSubtask(subtask.id, !subtask.completed)
             }}
             onClick={(e) => e.stopPropagation()}
-            className="checkbox-bounce w-4 h-4 text-[var(--color-accent)] rounded border-[var(--color-border)] focus:ring-[var(--color-accent)] cursor-pointer"
+            className="task-checkbox task-checkbox--sm checkbox-bounce"
           />
           <span
             className={`text-sm ${subtask.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)]'}`}

@@ -1,7 +1,8 @@
 import type { CSSProperties, DragEvent, MouseEvent, ReactNode, SyntheticEvent } from 'react'
 import type { Task, List } from '../../../types'
-import { getTaskColor, hexToRgba } from '../../../utils/priority'
+import { getTaskColor, hexToRgba, PRIORITY_STYLES } from '../../../utils/priority'
 import { getTaskBarColor, isLightColor } from './taskBarColor'
+import { useUIStore } from '../../../stores/uiStore'
 
 export type CalendarTaskBlockVariant = 'month' | 'timed'
 export type TaskBadgeDensity = 'normal' | 'compact'
@@ -138,6 +139,10 @@ export function CalendarTaskBlock({
   onToggle,
   onContextMenu,
 }: CalendarTaskBlockProps) {
+  const selectedTaskId = useUIStore((s) => s.selectedTaskId)
+  const selected = selectedTaskId === task.id
+  const priorityStyle = task.priority ? PRIORITY_STYLES[task.priority] : null
+
   if (variant === 'timed') {
     const color = getTaskColor(task, lists)
     const hasHorizontalPosition = style && ('left' in style || 'right' in style || 'width' in style)
@@ -146,21 +151,28 @@ export function CalendarTaskBlock({
     return (
       <div
         data-task={dataTask || undefined}
+        data-selected={selected ? 'true' : undefined}
+        aria-current={selected ? 'true' : undefined}
+        title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
         draggable={draggable}
         onDragStart={onDragStart}
         onClick={onTaskClick}
         onContextMenu={onContextMenu}
-        className={`absolute rounded px-1 py-0.5 text-xs cursor-grab active:cursor-grabbing overflow-hidden select-none group border-l-2 ${
-          task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] line-through' : ''
-        } ${dragged ? 'opacity-40' : ''}`}
+        className={`calendar-timed-task absolute flex items-start gap-1 overflow-hidden rounded border-l-2 px-1 py-0.5 text-xs cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
+          task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]' : ''
+        } ${dragged ? 'opacity-40' : ''} ${
+          selected
+            ? 'ring-2 ring-inset ring-[var(--color-accent)]'
+            : 'group hover:shadow-sm hover:brightness-[1.03]'
+        }`}
         style={{
           ...timedStyle,
+          borderLeftColor: color,
           ...(task.completed
             ? {}
             : {
-                backgroundColor: hexToRgba(color, 0.15),
-                color,
-                borderLeftColor: color,
+                backgroundColor: hexToRgba(color, 0.16),
+                color: `color-mix(in srgb, ${color} 72%, var(--color-text-primary))`,
               }),
         }}
       >
@@ -173,12 +185,30 @@ export function CalendarTaskBlock({
             onToggle?.(e)
           }}
           onClick={(e) => e.stopPropagation()}
-          className="w-3 h-3 mr-1 rounded-sm cursor-pointer align-middle"
+          aria-label={task.completed ? '标记为未完成' : '标记为已完成'}
+          className="calendar-timed-checkbox mt-0.5 h-3 w-3 shrink-0 cursor-pointer rounded-sm"
+          style={{ accentColor: color }}
         />
-        <span>
-          {timeLabel && <span className="font-medium">{timeLabel}</span>} {task.title}
+        {priorityStyle && !task.completed && (
+          <span
+            data-testid="task-priority-indicator"
+            role="img"
+            aria-label={`优先级：${priorityStyle.label}`}
+            title={`优先级：${priorityStyle.label}`}
+            className={`calendar-timed-priority mt-1 h-1.5 w-1.5 shrink-0 rounded-full ring-1 ring-white/40 ${priorityStyle.dot}`}
+          />
+        )}
+        <span className="flex min-w-0 flex-1 items-baseline gap-1 overflow-hidden">
+          {timeLabel && (
+            <span className="calendar-timed-time shrink-0 text-[10px] font-medium opacity-80">{timeLabel}</span>
+          )}
+          <span className={`min-w-0 truncate ${task.completed ? 'line-through' : ''}`}>{task.title}</span>
         </span>
-        {showBadges && <TaskBadges task={task} density={badgeDensity} />}
+        {showBadges && (
+          <span className="calendar-timed-badges shrink-0">
+            <TaskBadges task={task} density={badgeDensity} />
+          </span>
+        )}
       </div>
     )
   }
@@ -188,15 +218,23 @@ export function CalendarTaskBlock({
   const shouldShowBadges = showBadges ?? true
 
   return (
-      <div
-        data-testid={`calendar-task-block-${task.id}`}
-        draggable={draggable}
+    <div
+      data-task={dataTask || undefined}
+      data-testid={`calendar-task-block-${task.id}`}
+      data-selected={selected ? 'true' : undefined}
+      aria-current={selected ? 'true' : undefined}
+      title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
+      draggable={draggable}
       onDragStart={onDragStart}
       onClick={onTaskClick}
       onContextMenu={onContextMenu}
-      className={`flex h-6 min-w-0 items-center gap-1 rounded px-1.5 text-[11px] cursor-grab active:cursor-grabbing select-none transition-opacity hover:opacity-80 ${
-        task.completed ? 'opacity-50' : ''
-      } ${dragged ? 'opacity-40' : ''}`}
+      className={`calendar-month-task flex h-6 min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 text-[11px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
+        task.completed ? 'opacity-60' : ''
+      } ${dragged ? 'opacity-40' : ''} ${
+        selected
+          ? 'ring-2 ring-inset ring-[var(--color-accent)]'
+          : 'hover:brightness-95'
+      }`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}
     >
       <button
@@ -206,23 +244,38 @@ export function CalendarTaskBlock({
           onToggle?.(e)
         }}
         aria-label={task.completed ? '标记为未完成' : '标记为已完成'}
-        className={`flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${
+        className={`calendar-month-checkbox flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-sm border transition-colors ${
           task.completed
-            ? 'bg-white/30 border-white/50'
+            ? 'border-white/50 bg-white/30'
             : light
               ? 'border-[var(--color-text-tertiary)]'
               : 'border-white/60'
         }`}
       >
         {task.completed && (
-          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-2 w-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         )}
       </button>
-      <span className={`min-w-0 flex-1 truncate ${task.completed ? 'line-through' : ''}`}>{task.title}</span>
-      {timeLabel && <span className="flex-shrink-0 text-[10px] opacity-80">{timeLabel}</span>}
-      {shouldShowBadges && <TaskBadges task={task} density={badgeDensity} />}
+      {priorityStyle && !task.completed && (
+        <span
+          data-testid="task-priority-indicator"
+          role="img"
+          aria-label={`优先级：${priorityStyle.label}`}
+          title={`优先级：${priorityStyle.label}`}
+          className={`calendar-month-priority h-1.5 w-1.5 shrink-0 rounded-full ring-1 ring-white/40 ${priorityStyle.dot}`}
+        />
+      )}
+      <span className={`calendar-month-title min-w-0 flex-1 truncate font-medium ${task.completed ? 'line-through' : ''}`}>
+        {task.title}
+      </span>
+      {timeLabel && <span className="calendar-month-time flex-shrink-0 text-[10px] opacity-80">{timeLabel}</span>}
+      {shouldShowBadges && (
+        <span className="calendar-month-badges shrink-0">
+          <TaskBadges task={task} density={badgeDensity} />
+        </span>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ViewMode } from '../../../utils/calendarUtils'
 
@@ -222,6 +222,64 @@ describe('CalendarToolbar 日历工具栏', () => {
       fireEvent.click(screen.getByText('开始排程'))
       expect(mockSetAiPresetMessage).toHaveBeenCalledOnce()
       expect(mockSetCurrentView).toHaveBeenCalledWith('ai')
+    })
+  })
+
+  describe('展开状态与键盘行为', () => {
+    it('过滤按钮分别表达激活态与菜单展开态', () => {
+      mockFilters = { listId: 1, tagId: null, priority: null, showCompleted: true, allDayOnly: false }
+      renderToolbar()
+      const filterBtn = screen.getByLabelText('日历过滤')
+      expect(filterBtn).toHaveAttribute('aria-expanded', 'false')
+      expect(filterBtn).toHaveAccessibleDescription('已启用筛选条件')
+
+      fireEvent.click(filterBtn)
+      expect(filterBtn).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByTestId('calendar-filter-menu')).toBeInTheDocument()
+
+      fireEvent.click(filterBtn)
+      expect(filterBtn).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByTestId('calendar-filter-menu')).not.toBeInTheDocument()
+    })
+
+    it('AI 排程按钮暴露展开状态', () => {
+      renderToolbar()
+      const aiBtn = screen.getByLabelText('AI 自动安排日程')
+      expect(aiBtn).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(aiBtn)
+      expect(aiBtn).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByTestId('calendar-ai-menu')).toBeInTheDocument()
+    })
+
+    it('更多菜单打开后聚焦首项，方向键移动，Escape 关闭并恢复焦点', async () => {
+      renderToolbar()
+      const moreBtn = screen.getByLabelText('更多视图')
+      expect(moreBtn).toHaveAttribute('aria-haspopup', 'menu')
+      expect(moreBtn).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(moreBtn)
+      expect(moreBtn).toHaveAttribute('aria-expanded', 'true')
+
+      const agenda = screen.getByRole('menuitemradio', { name: '日程列表' })
+      const gantt = screen.getByRole('menuitemradio', { name: '甘特图' })
+      await waitFor(() => expect(agenda).toHaveFocus())
+
+      fireEvent.keyDown(agenda, { key: 'ArrowDown' })
+      expect(gantt).toHaveFocus()
+
+      fireEvent.keyDown(document, { key: 'Escape' })
+      await waitFor(() => expect(moreBtn).toHaveFocus())
+      expect(screen.queryByRole('menu', { name: '更多视图' })).not.toBeInTheDocument()
+    })
+
+    it('选择更多视图后调用回调、关闭菜单并把焦点还给触发按钮', async () => {
+      const onChangeView = vi.fn()
+      renderToolbar({ onChangeView })
+      const moreBtn = screen.getByLabelText('更多视图')
+      fireEvent.click(moreBtn)
+      fireEvent.click(screen.getByRole('menuitemradio', { name: '甘特图' }))
+      expect(onChangeView).toHaveBeenCalledWith('gantt')
+      await waitFor(() => expect(moreBtn).toHaveFocus())
+      expect(screen.queryByRole('menu', { name: '更多视图' })).not.toBeInTheDocument()
     })
   })
 })

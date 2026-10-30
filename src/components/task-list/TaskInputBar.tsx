@@ -73,9 +73,9 @@ export function TaskInputBar({
   }
 
   return (
-    <div className="task-input-bar px-4 pb-2 pt-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="task-input-bar px-4 pb-3 pt-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex gap-2.5">
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
           <input
             ref={newTaskInputRef}
             type="text"
@@ -84,10 +84,11 @@ export function TaskInputBar({
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !aiParsing && handleCreateTask()}
             disabled={aiParsing}
-            placeholder={aiMode ? '试试输入：明天下午3点开会，优先级高' : '添加新任务... (试试：明天下午3点开会)'}
-            className={`w-full pl-4 pr-28 py-2.5 text-[14px] border rounded-xl transition-all duration-200 focus:outline-none focus:ring-[3px] disabled:opacity-50 ${
+            placeholder={aiMode ? '描述任务，AI 自动识别时间与优先级' : '添加新任务...'}
+            aria-label="新任务标题"
+            className={`w-full pl-4 pr-28 py-[7px] text-[14px] border rounded-xl transition-all duration-200 focus:outline-none focus:ring-[3px] disabled:opacity-50 ${
               aiMode
-                ? 'border-purple-300 bg-purple-50/30 focus:border-purple-400 focus:ring-purple-100'
+                ? 'border-[var(--color-ai)]/40 bg-[var(--color-ai-light)] focus:border-[var(--color-ai)] focus:ring-[var(--color-ai-light)]'
                 : 'border-[var(--color-border)] bg-[var(--color-bg)] focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-light)]'
             }`}
           />
@@ -98,10 +99,12 @@ export function TaskInputBar({
             }}
             className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 active:scale-95 ${
               aiMode
-                ? 'bg-purple-500 text-white shadow-sm hover:bg-purple-600'
-                : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                ? 'bg-[var(--color-ai)] text-white shadow-sm hover:bg-[var(--color-ai-hover)]'
+                : 'bg-[var(--color-ai-light)] text-[var(--color-ai)] hover:brightness-95'
             }`}
             title={aiMode ? '关闭 AI 模式' : '开启 AI 自然语言输入'}
+            aria-label={aiMode ? '关闭 AI 模式' : '开启 AI 自然语言输入'}
+            aria-pressed={aiMode}
           >
             {aiMode ? (
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -165,8 +168,9 @@ export function TaskInputBar({
           <button
             onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
             disabled={aiParsing}
-            className="px-3 py-2.5 text-[14px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl transition-all duration-200 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50 flex items-center justify-center"
+            className="flex h-9 w-9 items-center justify-center text-[14px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl transition-all duration-200 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
             title="从模板创建任务"
+            aria-label="从模板创建任务"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
               <path
@@ -215,10 +219,10 @@ export function TaskInputBar({
         <button
           onClick={handleCreateTask}
           disabled={aiParsing}
-          className={`px-6 py-2.5 text-white text-[14px] font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm active:scale-[0.97] ${
+          className={`flex h-9 min-w-[76px] items-center justify-center gap-2 px-5 text-white text-[14px] font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm active:scale-[0.97] ${
             aiMode
-              ? 'bg-purple-500 hover:bg-purple-600 hover:shadow-md'
-              : 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] hover:shadow-md'
+              ? 'bg-[var(--color-ai)] hover:bg-[var(--color-ai-hover)]'
+              : 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)]'
           }`}
         >
           {aiParsing && (
@@ -231,7 +235,7 @@ export function TaskInputBar({
         </button>
       </div>
       {aiMode && (
-        <p className="mt-2 text-xs text-purple-500 flex items-center gap-1.5 font-medium">
+        <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[var(--color-ai)]">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path
               strokeLinecap="round"

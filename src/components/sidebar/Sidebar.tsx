@@ -258,11 +258,12 @@ function CollapsedNav(props: SidebarProps) {
             title={item.label}
             aria-label={item.label}
             data-testid={`collapsed-nav-${item.id}`}
+            aria-current={item.active ? 'page' : undefined}
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
               item.active
                 ? item.id === 'ai'
-                  ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
-                  : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                  ? 'sidebar-nav-item-ai-active'
+                  : 'sidebar-nav-item-active'
                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
             }`}
           >
@@ -277,9 +278,10 @@ function CollapsedNav(props: SidebarProps) {
           onClick={() => props.onViewChange('settings')}
           title="设置"
           aria-label="设置"
+          aria-current={props.currentView === 'settings' ? 'page' : undefined}
           className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
             props.currentView === 'settings'
-              ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+              ? 'sidebar-nav-item-active'
               : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
           }`}
         >
@@ -326,6 +328,7 @@ export function Sidebar(props: SidebarProps) {
       <>
         {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setSidebarOpen(false)} />}
         <aside
+          data-testid="app-sidebar-drawer"
           className={`fixed left-0 top-0 bottom-0 z-50 w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col transform transition-transform duration-200 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
@@ -336,12 +339,12 @@ export function Sidebar(props: SidebarProps) {
     )
   }
 
-  // 平板始终折叠为图标条；桌面当 sidebarCollapsed(Ctrl+B) 时折叠
+  // 中窄宽度（<1100）折叠为图标条；桌面当 sidebarCollapsed(Ctrl+B) 时折叠
   const collapsed = isCompact || sidebarCollapsed
 
   if (collapsed) {
     return (
-      <div className="relative shrink-0 group">
+      <div className="relative shrink-0 group" data-testid="app-sidebar-collapsed">
         {/* 折叠图标条 */}
         <aside className="w-16 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-full">
           <CollapsedNav {...props} />
@@ -358,7 +361,10 @@ export function Sidebar(props: SidebarProps) {
 
   // 桌面完整模式
   return (
-    <aside className="w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-full shrink-0">
+    <aside
+      data-testid="app-sidebar"
+      className="w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-full shrink-0"
+    >
       <SidebarInner {...props} />
     </aside>
   )

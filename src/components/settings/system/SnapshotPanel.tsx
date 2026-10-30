@@ -109,23 +109,32 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
   }
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+    <section
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+      aria-labelledby="snapshot-heading"
+      data-testid="snapshot-panel"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--color-border-light)]">
-        <div>
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">数据快照</p>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border-light)] px-4 py-3.5">
+        <div className="min-w-0">
+          <h4 id="snapshot-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+            数据快照
+          </h4>
+          <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
             自动快照在导入、同步覆盖前创建；也可手动创建（最多保留 20 个）
           </p>
         </div>
         <button
+          type="button"
+          data-testid="snapshot-create"
           onClick={handleCreate}
           disabled={creating}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-busy={creating}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 text-xs font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {creating ? (
             <>
-              <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+              <svg className="h-3.5 w-3.5 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -133,7 +142,13 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
             </>
           ) : (
             <>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               创建快照
@@ -145,19 +160,26 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
       {/* Body */}
       <div className="px-4 py-3.5">
         {loading ? (
-          <div className="flex items-center justify-center py-6">
-            <svg className="animate-spin h-5 w-5 text-[var(--color-text-tertiary)]" fill="none" viewBox="0 0 24 24">
+          <div role="status" aria-live="polite" className="flex items-center justify-center py-6">
+            <svg
+              className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
+            <span className="sr-only">加载快照列表...</span>
           </div>
         ) : snapshots.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <svg
-              className="w-10 h-10 mb-2 text-[var(--color-text-tertiary)] opacity-40"
+              className="mb-2 h-10 w-10 text-[var(--color-text-tertiary)] opacity-40"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -169,18 +191,19 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
             <p className="text-sm text-[var(--color-text-tertiary)]">暂无快照</p>
           </div>
         ) : (
-          <ul className="space-y-2 max-h-80 overflow-y-auto">
+          <ul className="max-h-80 space-y-2 overflow-y-auto" data-testid="snapshot-list">
             {snapshots.map((snap) => (
               <li
                 key={snap.file_name}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-border)] px-3 py-2.5 transition-colors hover:bg-[var(--color-bg-secondary)]"
               >
                 {/* 图标 */}
                 <svg
-                  className="w-4 h-4 text-[var(--color-accent)] flex-shrink-0"
+                  className="h-4 w-4 shrink-0 text-[var(--color-accent)]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -191,26 +214,30 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
                 </svg>
 
                 {/* 信息 */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[var(--color-text-primary)] truncate">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-relaxed text-[var(--color-text-primary)] [overflow-wrap:anywhere]">
                     {snap.reason || '（无原因）'}
                   </p>
-                  <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
+                  <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]">
                     {formatTime(snap.created_at)} · {formatSize(snap.file_size)}
                   </p>
                 </div>
 
                 {/* 操作按钮 */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="ml-auto flex shrink-0 items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={() => handleRestore(snap)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors text-[var(--color-text-secondary)]"
+                    aria-label={`恢复快照「${snap.reason || snap.file_name}」`}
+                    className="inline-flex h-8 items-center rounded-md border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                   >
                     恢复
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(snap)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--color-border)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] transition-colors text-[var(--color-text-secondary)]"
+                    aria-label={`删除快照「${snap.reason || snap.file_name}」`}
+                    className="inline-flex h-8 items-center rounded-md border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-danger)]/40"
                   >
                     删除
                   </button>
@@ -220,6 +247,6 @@ export function SnapshotPanel({ toast }: SnapshotPanelProps) {
           </ul>
         )}
       </div>
-    </div>
+    </section>
   )
 }

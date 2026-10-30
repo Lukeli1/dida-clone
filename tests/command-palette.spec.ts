@@ -51,5 +51,5 @@ test('聚焦搜索命令执行后搜索输入框聚焦', async ({ page }) => {
   await expect(page.getByTestId('command-item-action-focus-search')).toBeVisible()
   await page.getByTestId('command-item-action-focus-search').click()
   await expect(page.getByTestId('command-palette')).toHaveCount(0)
-  await expect(page.getByPlaceholder('搜索标题、备注、子任务... (Ctrl+F)')).toBeFocused({ timeout: 5000 })
+  await expect(page.getByLabel('搜索任务')).toBeFocused({ timeout: 5000 })
 })

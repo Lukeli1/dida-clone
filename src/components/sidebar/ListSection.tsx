@@ -129,13 +129,14 @@ export function ListSection({
   }
 
   return (
-    <div className="sidebar-lists" data-testid="sidebar-lists">
-      <div className="flex items-center justify-between mb-2 px-3">
-        <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">清单</p>
+    <div className="sidebar-lists mt-4" data-testid="sidebar-lists">
+      <div className="sidebar-section-header">
+        <p className="sidebar-section-title">清单</p>
         <button
           onClick={() => setIsCreating(true)}
-          className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors active:scale-90"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-secondary)] active:scale-90"
           title="新建清单"
+          aria-label="新建清单"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -202,7 +203,7 @@ export function ListSection({
 
       <ul className="space-y-0.5">
         {lists.map((list) => (
-          <li key={list.id}>
+          <li key={list.id} className="group relative">
             {editingListId === list.id ? (
               <div className="px-2 py-1">
                 <input
@@ -222,63 +223,62 @@ export function ListSection({
                 />
               </div>
             ) : (
-              <button
-                onClick={() => {
-                  onViewChange('tasks')
-                  onSelectList(list.id)
-                }}
-                onContextMenu={(e) => handleContextMenu(e, list.id)}
-                className={`relative w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] transition-colors group active:scale-[0.97] ${
-                  currentView === 'tasks' && selectedListId === list.id
-                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium shadow-sm'
-                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
-                }`}
-              >
-                {currentView === 'tasks' && selectedListId === list.id && (
-                  <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full"
-                    style={{ backgroundColor: list.color || (list.is_default ? '#4f86f7' : '#9aa0a6') }}
-                  />
-                )}
-                <span className="flex items-center gap-2 truncate">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-white/50"
-                    style={{ backgroundColor: list.color || (list.is_default ? '#4f86f7' : '#9aa0a6') }}
-                  />
-                  <span className="truncate">{list.name}</span>
-                </span>
-                <div className="flex items-center gap-1">
+              <>
+                <button
+                  onClick={() => {
+                    onViewChange('tasks')
+                    onSelectList(list.id)
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, list.id)}
+                  aria-current={currentView === 'tasks' && selectedListId === list.id ? 'page' : undefined}
+                  className={`w-full flex items-center justify-between sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors active:scale-[0.97] ${
+                    !list.is_default ? 'pr-10' : ''
+                  } ${
+                    currentView === 'tasks' && selectedListId === list.id
+                      ? 'sidebar-nav-item-active'
+                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-[var(--color-border)]"
+                      style={{ backgroundColor: list.color || (list.is_default ? '#4f86f7' : '#9aa0a6') }}
+                    />
+                    <span className="truncate">{list.name}</span>
+                  </span>
                   {taskCounts[list.id] > 0 && (
                     <span
-                      className={`text-[11px] px-2 py-0.5 rounded-full min-w-[20px] text-center ${
+                      className={`ml-2 shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
                         currentView === 'tasks' && selectedListId === list.id
-                          ? 'bg-[var(--color-accent)] text-white'
+                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                           : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
                       }`}
                     >
                       {taskCounts[list.id]}
                     </span>
                   )}
-                  {!list.is_default && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleContextMenu(e as any, list.id)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] rounded transition-all active:scale-90"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 5v.01M12 12v.01M12 19v.01"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </button>
+                </button>
+                {!list.is_default && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleContextMenu(e, list.id)
+                    }}
+                    className="pointer-events-none absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-text-tertiary)] opacity-0 transition-all hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)] group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 active:scale-90"
+                    aria-label={`清单操作：${list.name}`}
+                    title="清单操作"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 5v.01M12 12v.01M12 19v.01"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </>
             )}
           </li>
         ))}

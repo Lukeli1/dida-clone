@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type RefObject } from 'react'
 import { format, addDays } from 'date-fns'
 import { useUIStore } from '../../stores/uiStore'
 
@@ -10,9 +10,11 @@ import { useUIStore } from '../../stores/uiStore'
  */
 interface AIScheduleMenuProps {
   onClose: () => void
+  /** 工具栏触发按钮；点击它由按钮自身 toggle，不应当作外部点击 */
+  anchorRef?: RefObject<HTMLElement>
 }
 
-export function AIScheduleMenu({ onClose }: AIScheduleMenuProps) {
+export function AIScheduleMenu({ onClose, anchorRef }: AIScheduleMenuProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const setAiPresetMessage = useUIStore((s) => s.setAiPresetMessage)
   const setCurrentView = useUIStore((s) => s.setCurrentView)
@@ -28,13 +30,14 @@ export function AIScheduleMenu({ onClose }: AIScheduleMenuProps) {
   // 点击外部关闭
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose()
-      }
+      const target = e.target as Node
+      if (panelRef.current?.contains(target)) return
+      if (anchorRef?.current?.contains(target)) return
+      onClose()
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [onClose])
+  }, [onClose, anchorRef])
 
   /**
    * 解析排程日期，无效或为空时 fallback 到明天。
@@ -84,7 +87,8 @@ export function AIScheduleMenu({ onClose }: AIScheduleMenuProps) {
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] w-64 py-2"
+      data-testid="calendar-ai-menu"
+      className="w-full py-2"
     >
       <div className="px-3 py-1">
         <span className="text-sm font-medium text-[var(--color-text-primary)]">AI 排程</span>

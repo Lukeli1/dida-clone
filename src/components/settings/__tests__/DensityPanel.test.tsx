@@ -53,4 +53,11 @@ describe('DensityPanel 完整主题设置', () => {
     expect(props.onPresetChange).toHaveBeenCalledWith('default')
     expect(props.onResetTheme).toHaveBeenCalledTimes(1)
   })
+
+  it('主题预览使用内容宽度网格，强调色快捷选择暴露选中态', () => {
+    renderPanel({ accentColor: '#3f7cf6' })
+    expect(screen.getByTestId('theme-preset-grid')).toHaveClass('settings-theme-grid')
+    expect(screen.getByRole('button', { name: '使用经典蓝强调色' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '使用森林绿强调色' })).toHaveAttribute('aria-pressed', 'false')
+  })
 })

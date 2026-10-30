@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, type RefObject } from 'react'
 import { useCalendarStore } from '../../stores/calendarStore'
 import { useListStore } from '../../stores/listStore'
 import { useTagStore } from '../../stores/tagStore'
@@ -11,9 +11,11 @@ import { useTagStore } from '../../stores/tagStore'
  */
 interface CalendarFilterMenuProps {
   onClose: () => void
+  /** 工具栏触发按钮；点击它由按钮自身 toggle，不应当作外部点击 */
+  anchorRef?: RefObject<HTMLElement>
 }
 
-export function CalendarFilterMenu({ onClose }: CalendarFilterMenuProps) {
+export function CalendarFilterMenu({ onClose, anchorRef }: CalendarFilterMenuProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   const filters = useCalendarStore((s) => s.filters)
@@ -30,13 +32,14 @@ export function CalendarFilterMenu({ onClose }: CalendarFilterMenuProps) {
   // 点击外部关闭
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose()
-      }
+      const target = e.target as Node
+      if (panelRef.current?.contains(target)) return
+      if (anchorRef?.current?.contains(target)) return
+      onClose()
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [onClose])
+  }, [onClose, anchorRef])
 
   const isFilterActive =
     filters.listId !== null ||
@@ -56,7 +59,8 @@ export function CalendarFilterMenu({ onClose }: CalendarFilterMenuProps) {
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full mt-1 z-50 bg-[var(--color-surface)] rounded-lg shadow-md border border-[var(--color-border-light)] w-64 py-2"
+      data-testid="calendar-filter-menu"
+      className="w-full py-2"
     >
       <div className="flex items-center justify-between px-3 py-1">
         <span className="text-sm font-medium text-[var(--color-text-primary)]">日历过滤</span>

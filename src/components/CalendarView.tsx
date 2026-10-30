@@ -53,9 +53,11 @@ export function CalendarView({
   // 渲染主内容区 + 侧边栏
   function renderContent(mainView: React.ReactNode) {
     return (
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="calendar-content-row">
         {/* 主视图 */}
-        <div className="flex-1 overflow-hidden">{mainView}</div>
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="calendar-main">
+          {mainView}
+        </div>
         {/* 任务侧边栏 */}
         <TaskSidebar
           open={sidebarOpen}
@@ -69,7 +71,7 @@ export function CalendarView({
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div data-testid="calendar-view" className="flex h-full min-h-0 min-w-0 flex-col">
       <CalendarToolbar
         viewMode={viewMode}
         onChangeView={setViewMode}

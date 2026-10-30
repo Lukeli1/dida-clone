@@ -77,27 +77,36 @@ export function SyncLogPanel({ toast }: SyncLogPanelProps) {
   }
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+    <section
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+      aria-labelledby="sync-log-heading"
+      data-testid="sync-log-panel"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--color-border-light)]">
-        <div>
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">同步日志</p>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border-light)] px-4 py-3.5">
+        <div className="min-w-0">
+          <h4 id="sync-log-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+            同步日志
+          </h4>
+          <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
             记录 Git/WebDAV 同步、上传、下载、冲突解决结果（最近 {DISPLAY_COUNT} 条）
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <button
+            type="button"
             onClick={refresh}
             disabled={loading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] transition-colors text-[var(--color-text-secondary)] disabled:opacity-50"
+            aria-busy={loading}
+            className="inline-flex h-8 items-center rounded-lg border border-[var(--color-border)] px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 disabled:opacity-50"
           >
             刷新
           </button>
           <button
+            type="button"
             onClick={handleClear}
             disabled={logs.length === 0}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] transition-colors text-[var(--color-text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex h-8 items-center rounded-lg border border-[var(--color-border)] px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-danger)]/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
             清除
           </button>
@@ -107,19 +116,26 @@ export function SyncLogPanel({ toast }: SyncLogPanelProps) {
       {/* Body */}
       <div className="px-4 py-3.5">
         {loading ? (
-          <div className="flex items-center justify-center py-6">
-            <svg className="animate-spin h-5 w-5 text-[var(--color-text-tertiary)]" fill="none" viewBox="0 0 24 24">
+          <div role="status" aria-live="polite" className="flex items-center justify-center py-6">
+            <svg
+              className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
+            <span className="sr-only">加载同步日志...</span>
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <svg
-              className="w-10 h-10 mb-2 text-[var(--color-text-tertiary)] opacity-40"
+              className="mb-2 h-10 w-10 text-[var(--color-text-tertiary)] opacity-40"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -131,38 +147,37 @@ export function SyncLogPanel({ toast }: SyncLogPanelProps) {
             <p className="text-sm text-[var(--color-text-tertiary)]">暂无同步日志</p>
           </div>
         ) : (
-          <ul className="space-y-2 max-h-80 overflow-y-auto">
+          <ul className="max-h-80 space-y-2 overflow-y-auto" data-testid="sync-log-list">
             {logs.map((log, idx) => {
               const { label, color } = actionLabel(log.action)
               const isError = log.status === 'error'
               return (
                 <li
                   key={`${log.timestamp}-${idx}`}
-                  className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                  className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] px-3 py-2.5 transition-colors hover:bg-[var(--color-bg-secondary)]"
                 >
                   {/* 状态指示器 */}
                   <div
-                    className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
                       isError ? 'bg-[var(--color-danger)]' : 'bg-[var(--color-success)]'
                     }`}
+                    aria-hidden="true"
                   />
 
                   {/* 内容 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className={`text-xs font-medium ${color}`}>{label}</span>
                       <span className="text-xs text-[var(--color-text-tertiary)]">
                         {log.sync_type.toUpperCase()}
                       </span>
-                      <span className="text-xs text-[var(--color-text-tertiary)] ml-auto">
+                      <span className="ml-auto whitespace-nowrap text-xs text-[var(--color-text-tertiary)]">
                         {formatTime(log.timestamp)}
                       </span>
                     </div>
                     <p
-                      className={`text-xs mt-1 truncate ${
-                        isError
-                          ? 'text-[var(--color-danger)]'
-                          : 'text-[var(--color-text-secondary)]'
+                      className={`mt-1 text-xs leading-relaxed [overflow-wrap:anywhere] ${
+                        isError ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'
                       }`}
                     >
                       {log.message}
@@ -174,6 +189,6 @@ export function SyncLogPanel({ toast }: SyncLogPanelProps) {
           </ul>
         )}
       </div>
-    </div>
+    </section>
   )
 }

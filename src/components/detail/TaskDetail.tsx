@@ -123,13 +123,14 @@ export function TaskDetail({
   }
 
   return (
-    <aside className="w-96 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full">
+    <aside className="w-full min-w-0 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full">
       {/* ===== Top zone (fixed) ===== */}
       <div className="flex items-start relative shrink-0">
         {/* 优先级色条，点击循环切换 */}
         <button
           onClick={cyclePriority}
           title="点击切换优先级"
+          aria-label={`优先级：${PRIORITY_STYLES[priority]?.label || '无'}，点击切换`}
           style={{ backgroundColor: PRIORITY_STYLES[priority]?.hex || PRIORITY_STYLES[0].hex }}
           className="w-1.5 self-stretch shrink-0 hover:opacity-80 transition-opacity cursor-pointer active:scale-x-125"
         />
@@ -144,8 +145,48 @@ export function TaskDetail({
               onBlur={handleSave}
               rows={1}
               placeholder="任务标题"
-              className="flex-1 text-[17px] font-semibold text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-y-auto max-h-40 transition-colors"
+              aria-label="任务标题"
+              className="flex-1 text-[17px] font-semibold leading-snug text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b-2 border-transparent focus:border-[var(--color-accent)] overflow-y-auto max-h-40 transition-colors"
             />
+          </div>
+
+          {/* 首屏状态：完成状态与优先级文字化，避免只靠色条辨认 */}
+          <div
+            className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+            data-testid="detail-status"
+          >
+            <span
+              className={`inline-flex items-center gap-1 ${
+                task.completed ? 'text-[var(--color-success)]' : 'text-[var(--color-text-tertiary)]'
+              }`}
+              aria-label={task.completed ? '任务已完成' : '任务未完成'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                {task.completed ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                )}
+              </svg>
+              {task.completed ? '已完成' : '待完成'}
+            </span>
+            <button
+              type="button"
+              onClick={cyclePriority}
+              className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+              aria-label={`优先级：${PRIORITY_STYLES[priority]?.label || '无'}，点击切换`}
+              title="点击切换优先级"
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: PRIORITY_STYLES[priority]?.hex || PRIORITY_STYLES[0].hex }}
+              />
+              优先级：{PRIORITY_STYLES[priority]?.label || '无'}
+            </button>
           </div>
 
           {/* 日程（截止时间 / 提醒 / 重复） */}
@@ -157,6 +198,7 @@ export function TaskDetail({
           onClick={onClose}
           className="absolute top-3 right-3 p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] rounded transition-all active:scale-90"
           title="关闭"
+          aria-label="关闭任务详情"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -216,26 +258,28 @@ export function TaskDetail({
       {/* ===== Bottom zone (fixed toolbar) ===== */}
       <div className="h-12 border-t border-[var(--color-border-light)] flex items-center justify-between px-4 relative shrink-0">
         {/* 左侧：清单标识（带颜色圆点） */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           {(() => {
             const list = lists?.find((l) => l.id === task.list_id)
             const color = getTaskColor(task, lists)
             return (
               <>
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-sm text-[var(--color-text-secondary)]">{list?.name || '清单'}</span>
+                <span className="truncate text-sm text-[var(--color-text-secondary)]">{list?.name || '清单'}</span>
               </>
             )
           })()}
         </div>
 
         {/* 右侧按钮组 */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* AI 魔法棒按钮，切换 AI 面板 */}
           <button
             onClick={() => setShowAIPanel((v) => !v)}
             className={`p-1.5 rounded-lg transition-all active:scale-90 ${showAIPanel ? 'text-[var(--color-ai)] bg-[var(--color-ai-light)]' : 'text-[var(--color-ai)] hover:bg-[var(--color-ai-light)]'}`}
             title="AI 助手"
+            aria-label="AI 助手"
+            aria-pressed={showAIPanel}
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
@@ -248,6 +292,8 @@ export function TaskDetail({
             onClick={() => setShowMoreMenu((v) => !v)}
             className="p-1.5 rounded-lg text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-all active:scale-90"
             title="更多"
+            aria-label="更多操作"
+            aria-expanded={showMoreMenu}
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="5" r="1.5" />

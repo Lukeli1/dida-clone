@@ -13,6 +13,7 @@ import {
 } from '../utils/dayViewUtils'
 import { computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../utils/calendarDropTime'
 import { DayViewGrid } from './calendar/DayViewGrid'
+import { CalendarDateNav } from './calendar/CalendarDateNav'
 import { useTaskResize } from './calendar/useTaskResize'
 import { useCalendarTaskContextMenu } from './calendar/shared/useCalendarTaskContextMenu'
 import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
@@ -245,46 +246,17 @@ export function DayView({
   const today = isToday(currentDate)
 
   return (
-    <div className="flex flex-col h-full dark:bg-[var(--color-bg-secondary)]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] dark:border-[var(--color-border)] bg-[var(--color-surface)] dark:bg-[var(--color-bg-secondary)]">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onPrevDay}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
-          >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)] min-w-[140px] text-center">
-            {format(currentDate, 'M月d日 EEEE', { locale: zhCN })}
-          </h3>
-          <button
-            onClick={onNextDay}
-            className="p-1.5 hover:bg-[var(--color-bg-tertiary)] dark:hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
-          >
-            <svg
-              className="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        <button
-          onClick={onToday}
-          className="px-3 py-1 text-sm text-[var(--color-accent)] hover:bg-[var(--color-accent-light)] dark:hover:bg-[var(--color-accent-light)] rounded-lg transition-colors"
-        >
-          今天
-        </button>
-      </div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col dark:bg-[var(--color-bg-secondary)]">
+      <CalendarDateNav
+        prevLabel="上一天"
+        nextLabel="下一天"
+        onPrev={onPrevDay}
+        onNext={onNextDay}
+        onToday={onToday}
+        testId="day-date-nav"
+      >
+        {format(currentDate, 'M月d日 EEEE', { locale: zhCN })}
+      </CalendarDateNav>
 
       <DayViewGrid
         currentDate={currentDate}

@@ -68,22 +68,25 @@ export function AvatarSection() {
   return (
     <>
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-      <div className="p-3 border-b border-[var(--color-border)]">
+      <div className="px-3 py-2.5 border-b border-[var(--color-border)]">
         <div className="relative" ref={avatarMenuRef}>
           <button
             onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
-            className="flex items-center gap-3 w-full group active:scale-[0.98] transition-transform"
+            className="flex items-center gap-2.5 w-full group rounded-lg py-0.5 text-left"
+            aria-expanded={avatarMenuOpen}
+            aria-haspopup="menu"
+            data-testid="sidebar-avatar"
           >
             {avatar ? (
               <img
                 src={avatar}
                 alt="头像"
-                className="w-11 h-11 rounded-full object-cover ring-2 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all duration-200"
+                className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all duration-200"
               />
             ) : (
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-hover)] flex items-center justify-center ring-2 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all duration-200 shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-hover)] flex items-center justify-center ring-1 ring-[var(--color-border)] group-hover:ring-[var(--color-accent)] transition-all duration-200">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -98,8 +101,8 @@ export function AvatarSection() {
               </div>
             )}
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">滴答清单</p>
-              <p className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">点击上传头像</p>
+              <p className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">滴答清单</p>
+              <p className="mt-0.5 text-[11px] text-[var(--color-text-tertiary)]">点击上传头像</p>
             </div>
             <svg
               className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-200 ${avatarMenuOpen ? 'rotate-180' : ''}`}
@@ -168,7 +171,7 @@ export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps)
     <div className="border-t border-[var(--color-border)] p-3">
       <button
         onClick={handleRestartTour}
-        className="w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+        className="w-full flex items-center gap-2.5 sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors duration-200 active:scale-[0.97] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
         title="重新查看新手引导教程"
       >
         <svg
@@ -189,9 +192,10 @@ export function SidebarFooter({ currentView, onViewChange }: SidebarFooterProps)
       <button
         onClick={() => onViewChange('settings')}
         data-testid="nav-settings"
-        className={`settings-btn w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
+        aria-current={currentView === 'settings' ? 'page' : undefined}
+        className={`settings-btn w-full flex items-center gap-2.5 sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors duration-200 active:scale-[0.97] ${
           currentView === 'settings'
-            ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+            ? 'sidebar-nav-item-active'
             : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
         }`}
       >

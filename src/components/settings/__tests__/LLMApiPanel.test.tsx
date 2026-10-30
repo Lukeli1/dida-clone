@@ -276,6 +276,52 @@ describe('LLMApiPanel - 保存厂商失败提示', () => {
   })
 })
 
+describe('LLMApiPanel - 可访问名称与长状态信息', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+    vi.mocked(invoke).mockImplementation(defaultInvoke)
+  })
+
+  it('表单控件和思考模式具有可访问名称，密钥保持密码类型', async () => {
+    localStorage.setItem('llm_base_url', BASE_URL)
+    localStorage.setItem('llm_model', 'step-1')
+    localStorage.setItem('llm_reasoning', 'true')
+
+    await renderPanel()
+
+    expect(screen.getByLabelText('API 地址（OpenAI 兼容协议）')).toHaveValue(BASE_URL)
+    expect(screen.getByLabelText('API 密钥')).toHaveAttribute('type', 'password')
+    expect(screen.getByLabelText('选择模型')).toHaveValue('step-1')
+    expect(screen.getByRole('switch', { name: '思考模式' })).toBeChecked()
+    expect(screen.getByRole('group', { name: '思考强度' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '中（平衡）' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('测试连接失败的长错误在状态区完整展示', async () => {
+    const longError =
+      '连接失败：无法访问 https://api.an-extremely-long-provider-name-for-layout-validation.example.com/openai-compatible/v1，请检查网络、证书、代理和密钥是否正确。'
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve(null)
+      if (cmd === 'test_llm_connection') return Promise.reject(new Error(longError))
+      return Promise.resolve(undefined)
+    })
+
+    await renderPanel()
+    fireEvent.change(screen.getByPlaceholderText('https://api.openai.com'), {
+      target: { value: BASE_URL },
+    })
+    fireEvent.change(screen.getByPlaceholderText('sk-...'), { target: { value: API_KEY } })
+    fireEvent.click(screen.getByRole('button', { name: /测试连接/ }))
+
+    await waitFor(() => {
+      const result = screen.getByTestId('llm-test-result')
+      expect(result).toHaveAttribute('role', 'alert')
+      expect(result).toHaveTextContent(longError)
+    })
+  })
+})
+
 describe('LLMApiPanel - 异步配置顺序', () => {
   beforeEach(() => {
     localStorage.clear()

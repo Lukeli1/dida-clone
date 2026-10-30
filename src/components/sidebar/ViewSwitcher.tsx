@@ -210,32 +210,35 @@ export function ViewSwitcher({
     <>
       {visibleNavItems.length > 0 && (
         <div className="mb-3">
-          <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
-            智能清单
-          </p>
+          <div className="sidebar-section-header">
+            <p className="sidebar-section-title">智能清单</p>
+          </div>
           <nav className="space-y-0.5">
             {visibleNavItems.map((item) => (
               <button
                 key={item.id}
                 onClick={item.action}
                 data-testid={`nav-${item.id}`}
-                className={`w-full flex items-center justify-between sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
+                aria-current={item.match ? 'page' : undefined}
+                className={`w-full flex items-center justify-between sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors duration-200 active:scale-[0.97] ${item.id === 'calendar' ? 'calendar-nav' : ''} ${item.id === 'ai' ? 'ai-assistant-btn' : ''} ${
                   item.match
                     ? item.id === 'ai'
-                      ? 'bg-[var(--color-ai-light)] text-[var(--color-ai)] shadow-sm'
-                      : 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                      ? 'sidebar-nav-item-ai-active'
+                      : 'sidebar-nav-item-active'
                     : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
-                <span className="flex items-center gap-2.5">
-                  <span className={item.match ? 'opacity-100' : 'opacity-60'}>{item.icon}</span>
-                  {item.label}
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className={`shrink-0 ${item.match ? 'opacity-100' : 'opacity-60'}`}>{item.icon}</span>
+                  <span className="truncate">{item.label}</span>
                 </span>
                 {typeof item.count === 'number' && item.count > 0 && (
                   <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center ${
+                    className={`ml-2 shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
                       item.match
-                        ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                        ? item.id === 'ai'
+                          ? 'bg-[var(--color-ai)]/10 text-[var(--color-ai)]'
+                          : 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                         : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
                     }`}
                   >
@@ -250,23 +253,24 @@ export function ViewSwitcher({
 
       {visibleAdvancedItems.length > 0 && (
         <div className="mb-3">
-          <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2 px-3">
-            高级视图
-          </p>
+          <div className="sidebar-section-header">
+            <p className="sidebar-section-title">高级视图</p>
+          </div>
           <nav className="space-y-0.5">
             {visibleAdvancedItems.map((item) => (
               <button
                 key={item.id}
                 onClick={item.action}
                 data-testid={`nav-${item.id}`}
-                className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
+                aria-current={item.match ? 'page' : undefined}
+                className={`w-full flex items-center gap-2.5 sidebar-nav-item px-3 rounded-xl text-[13px] transition-colors duration-200 active:scale-[0.97] ${
                   item.match
-                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm'
+                    ? 'sidebar-nav-item-active'
                     : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
-                <span className={item.match ? 'opacity-100' : 'opacity-60'}>{item.icon}</span>
-                {item.label}
+                <span className={`shrink-0 ${item.match ? 'opacity-100' : 'opacity-60'}`}>{item.icon}</span>
+                <span className="truncate">{item.label}</span>
               </button>
             ))}
           </nav>

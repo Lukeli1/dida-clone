@@ -164,17 +164,24 @@ export function SystemPanel() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" data-testid="system-panel">
       {/* ===== 开机自启 ===== */}
-      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <div>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">开机自启</p>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">系统启动时自动打开应用</p>
+      <section
+        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+        aria-labelledby="autostart-heading"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <h4 id="autostart-heading" className="text-sm font-medium text-[var(--color-text-primary)]">
+              开机自启
+            </h4>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">系统启动时自动打开应用</p>
           </div>
-          <Toggle checked={autoStart} onChange={handleAutoStartChange} />
+          <div className="shrink-0">
+            <Toggle checked={autoStart} onChange={handleAutoStartChange} ariaLabel="开机自启" />
+          </div>
         </div>
-      </div>
+      </section>
 
       <DataPanel exporting={exporting} onExport={handleExport} onSelectFile={handleSelectFile} />
 

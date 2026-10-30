@@ -33,8 +33,8 @@ export function CalendarPanel({ selectedTask, actions }: CalendarPanelProps) {
   const setSelectedTaskId = useUIStore((s) => s.setSelectedTaskId)
 
   return (
-    <main className="flex-1 flex overflow-hidden">
-      <div className="flex-1 overflow-hidden">
+    <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <CalendarView
           tasks={tasks}
           lists={lists}
