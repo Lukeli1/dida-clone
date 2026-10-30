@@ -1,15 +1,15 @@
 {
-  "version": "1.47.1",
-  "notes": "日历拖动预览与落点一致性修复。\n\n## 修复内容\n- 修复日历（周 / 日视图）拖动已有定时任务时「拖动预览与最终落点不一致」：此前任务块在放下瞬间会整体下移一个抓取偏移的距离，现在落点按「光标位置 − 抓取偏移」还原，任务停在拖动时被按住的位置；15 分钟吸附、持续时间保持与当天边界钳制均保持不变。\n- 修复全天任务条拖入时间轴时被误扣抓取偏移、开始时间早于光标的问题：全天任务条拖入定时区域恢复为「光标位置即开始时间」，拖入全天区仍按日期移动；全天任务的持续时长、跨天与 all-day 标记语义不变。\n\n## 实现方式\n- 新增共享纯计算模块 `src/utils/calendarDropTime.ts`（抓取偏移、落点分钟、ISO 与 DataTransfer 读写），周 / 日视图的拖动起点与落点共用同一套换算；仅日历定时任务块写入抓取偏移，其它拖拽来源保持原有语义。\n\n## 验收\n- 相关组件与单测 46 项、全量 Vitest 871 项、Playwright E2E 37 项全部通过。\n- 真实 Tauri 应用窗口原生验收 8 项全部通过：中部 / 靠下抓取落点、15 分钟吸附、相邻任务重叠辨认、全天任务拖入时间轴 06:00 落点、全天任务拖入全天区日期移动、Esc 取消与无效区域不误改。\n\n不改变任务数据语义、数据库 schema、同步协议或导入导出格式。",
-  "pub_date": "2026-10-19T13:48:06.545Z",
+  "version": "1.48.0",
+  "notes": "Release v1.48.0",
+  "pub_date": "2026-10-30T08:51:16.751Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkdvTXdLb3VlMVpXSE9NNiszZ2N0SlY5V1BNdWF0cnREV0NCNTdtbWNiREt4WURtVXRwd0dnaHlGSG9BUDVwbThMMHltQjJ6cXpjNEJMZzlQYmdKbGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDE3NjgyCWZpbGU65ru0562U5riF5Y2VXzEuNDcuMV94NjQtc2V0dXAuZXhlCmh6S0lRNk55Tld3K1k5Z0crWWMwcVlJdzU4Z1pTT2E5ZktWZXE3WDg3anJVTmE1ckFSRHRGN3o1a3QrK1lYN0xrcUhUc1FkcE1LUGVMTkMyK2VmNkN3PT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.1/_1.47.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkNka2J6aDdMZ2ZLL050WTR1RGJZazNqcW41KzlkQzVJQmhGZVUxNzlVUXBNNzYycjVaUisrbHBOMzd2WGFWeEk1L3NpTzl3WkhUaDlXK3ZDRHVHNUE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzUwMjczCWZpbGU65ru0562U5riF5Y2VXzEuNDguMF94NjQtc2V0dXAuZXhlCmpXZkt4SWRWNmxPQXpJOVVWNmtzbk1ZcHFNNUVWd0lVcDNyNHVYOERDaFlzQ2JYbVBjazM1Z1M5ZlFjNE5vaXlZcmVUSXFRYkN3aUtkV3NaMHp6NUNRPT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.48.0/_1.48.0_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkdvTXdLb3VlMVpXSE9NNiszZ2N0SlY5V1BNdWF0cnREV0NCNTdtbWNiREt4WURtVXRwd0dnaHlGSG9BUDVwbThMMHltQjJ6cXpjNEJMZzlQYmdKbGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDE3NjgyCWZpbGU65ru0562U5riF5Y2VXzEuNDcuMV94NjQtc2V0dXAuZXhlCmh6S0lRNk55Tld3K1k5Z0crWWMwcVlJdzU4Z1pTT2E5ZktWZXE3WDg3anJVTmE1ckFSRHRGN3o1a3QrK1lYN0xrcUhUc1FkcE1LUGVMTkMyK2VmNkN3PT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.47.1/_1.47.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkNka2J6aDdMZ2ZLL050WTR1RGJZazNqcW41KzlkQzVJQmhGZVUxNzlVUXBNNzYycjVaUisrbHBOMzd2WGFWeEk1L3NpTzl3WkhUaDlXK3ZDRHVHNUE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzUwMjczCWZpbGU65ru0562U5riF5Y2VXzEuNDguMF94NjQtc2V0dXAuZXhlCmpXZkt4SWRWNmxPQXpJOVVWNmtzbk1ZcHFNNUVWd0lVcDNyNHVYOERDaFlzQ2JYbVBjazM1Z1M5ZlFjNE5vaXlZcmVUSXFRYkN3aUtkV3NaMHp6NUNRPT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.48.0/_1.48.0_x64-setup.exe"
     }
   }
 }
