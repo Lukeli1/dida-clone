@@ -44,6 +44,18 @@ export const CALENDAR_TASK_DRAG_ACTION_OPTIONS: ReadonlyArray<{
   { value: 'clear-date', label: '清除日期' },
 ]
 
+/** 动作图标（任务列表左右预览与日历提示共用，避免第二套映射） */
+export const CALENDAR_TASK_DRAG_ACTION_ICONS: Readonly<Record<CalendarTaskDragAction, string>> = {
+  none: '—',
+  pin: '↑',
+  unpin: '↓',
+  delete: '×',
+  complete: '✓',
+  uncomplete: '↺',
+  'move-overdue-to-now': '⏱',
+  'clear-date': '⌫',
+}
+
 const VALID_ACTIONS = new Set<CalendarTaskDragAction>(CALENDAR_TASK_DRAG_ACTION_OPTIONS.map((option) => option.value))
 
 export function isCalendarTaskDragAction(value: unknown): value is CalendarTaskDragAction {
@@ -52,6 +64,10 @@ export function isCalendarTaskDragAction(value: unknown): value is CalendarTaskD
 
 export function getCalendarTaskDragActionLabel(action: CalendarTaskDragAction): string {
   return CALENDAR_TASK_DRAG_ACTION_OPTIONS.find((option) => option.value === action)?.label ?? '无操作'
+}
+
+export function getCalendarTaskDragActionIcon(action: CalendarTaskDragAction): string {
+  return CALENDAR_TASK_DRAG_ACTION_ICONS[action] ?? CALENDAR_TASK_DRAG_ACTION_ICONS.none
 }
 
 /**

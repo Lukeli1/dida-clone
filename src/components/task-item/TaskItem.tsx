@@ -118,7 +118,7 @@ const TaskItem = memo(function TaskItem({
   animateOnMount = true,
 }: TaskItemProps) {
   const ctx = useTaskActionContext()
-  const { tags, lists, batchMode, isArchivedView } = ctx
+  const { tags, lists, batchMode, isArchivedView, dragActions } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -142,19 +142,35 @@ const TaskItem = memo(function TaskItem({
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
+      dragActions?.beginDrag(e, task)
       e.dataTransfer.effectAllowed = 'move'
       e.dataTransfer.setData('text/plain', String(task.id))
       ctx.onDragStartGlobal()
     },
-    [task.id, ctx],
+    [task, ctx, dragActions],
   )
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    const rect = e.currentTarget.getBoundingClientRect()
-    setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
-  }, [])
+  const handleDrag = useCallback(
+    (e: React.DragEvent) => {
+      dragActions?.updateDrag(e)
+    },
+    [dragActions],
+  )
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      dragActions?.updateDrag(e)
+      if (dragActions?.isHorizontalIntent()) {
+        setDragOverPos(null)
+        return
+      }
+      const rect = e.currentTarget.getBoundingClientRect()
+      setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
+    },
+    [dragActions],
+  )
 
   const handleDragLeave = useCallback(() => {
     setDragOverPos(null)
@@ -164,6 +180,17 @@ const TaskItem = memo(function TaskItem({
     (e: React.DragEvent) => {
       e.preventDefault()
       const draggedId = Number(e.dataTransfer.getData('text/plain'))
+      // 水平动作优先消费：同一手势不再执行排序
+      if (dragActions?.consumeDrop(draggedId)) {
+        setDragOverPos(null)
+        return
+      }
+      // 今日列表启用了水平手势时，只有明确的垂直意图才允许排序；
+      // 小幅移动（idle）不得触发排序。其他列表没有 dragActions，保持原行为。
+      if (dragActions && !dragActions.isVerticalIntent()) {
+        setDragOverPos(null)
+        return
+      }
       // 今日列表未传 onReorder prop，回退到 Context 中的统一重排处理；
       // 归档/过期/已完成列表显式传入 NOOP，仍然禁用重排。
       const reorder = onReorder ?? ctx.onReorder
@@ -172,12 +199,13 @@ const TaskItem = memo(function TaskItem({
       }
       setDragOverPos(null)
     },
-    [task.id, onReorder, ctx],
+    [task.id, onReorder, ctx, dragActions],
   )
 
   const handleDragEnd = useCallback(() => {
+    dragActions?.endDrag()
     ctx.onDragEndGlobal()
-  }, [ctx])
+  }, [ctx, dragActions])
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -307,6 +335,7 @@ const TaskItem = memo(function TaskItem({
         data-testid={`task-row-${task.id}`}
         draggable={!batchMode && !isEditing}
         onDragStart={handleDragStart}
+        onDrag={handleDrag}
         className={`group task-item-surface flex items-center px-4 rounded-xl transition-colors duration-200 border border-[var(--color-border-light)] ${
           isSelected
             ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40'

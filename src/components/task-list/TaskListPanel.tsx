@@ -8,6 +8,7 @@ import { useTagStore } from '../../stores/tagStore'
 import { useListStore } from '../../stores/listStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskStore } from '../../stores/taskStore'
+import { useTaskDragActions } from '../../hooks/useTaskDragActions'
 import { useTaskListState } from '../../hooks/useTaskListState'
 import { useSearchHistory } from '../../hooks/useSearchHistory'
 import { habitApi } from '../../api'
@@ -18,6 +19,7 @@ import { TaskInputBar } from './TaskInputBar'
 import { TaskFilterBar } from './TaskFilterBar'
 import { BatchToolbar } from './BatchToolbar'
 import { MiniCalendarDropzone } from './MiniCalendarDropzone'
+import { TaskDragActionPreview } from './TaskDragActionPreview'
 
 /**
  * 稳定的空操作函数（模块级常量，引用永不变）。
@@ -97,6 +99,11 @@ export function TaskListPanel(props: TaskListPanelProps) {
     selectAllTasks,
   } = listState
 
+  // 今日任务视图启用水平拖拽动作；其他列表保持原有垂直排序行为。
+  const taskDrag = useTaskDragActions(currentView === 'today' ? actions : undefined, {
+    previewBeforeIntent: true,
+  })
+
   // ===== 分组折叠状态（今天/已过期/今日习惯 默认展开，已完成默认隐藏）=====
   const [showTodaySection, setShowTodaySection] = useState(true)
   const [showHabitSection, setShowHabitSection] = useState(true)
@@ -113,6 +120,21 @@ export function TaskListPanel(props: TaskListPanelProps) {
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY })
   }, [])
+
+  const handleListDragLeave = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      const related = e.relatedTarget as Node | null
+      if (!related || !e.currentTarget.contains(related)) taskDrag.controller.suppressPreview()
+    },
+    [taskDrag.controller],
+  )
+
+  const handleListDragEnter = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      taskDrag.controller.resumePreview(e)
+    },
+    [taskDrag.controller],
+  )
 
   // 菜单边界检测：贴近视口右/下边缘时向内收，避免溢出不可见
   useLayoutEffect(() => {
@@ -347,8 +369,20 @@ export function TaskListPanel(props: TaskListPanelProps) {
       onToggleExpand: (taskId: number) => toggleTaskExpand(taskId),
       onToggleSelect: (taskId: number) => toggleTaskSelection(taskId),
       onSubtaskInputChange: (taskId: number, val: string) => setSubtaskInput(taskId, val),
+      dragActions: currentView === 'today' ? taskDrag.controller : undefined,
     }),
-    [actions, tags, lists, batchMode, currentView, setSelectedTaskId, toggleTaskExpand, setSubtaskInput],
+    [
+      actions,
+      tags,
+      lists,
+      batchMode,
+      currentView,
+      setSelectedTaskId,
+      toggleTaskExpand,
+      toggleTaskSelection,
+      setSubtaskInput,
+      taskDrag.controller,
+    ],
   )
 
   return (
@@ -528,7 +562,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       </header>
 
       {/* 拖拽任务时显示的浮动迷你日历 */}
-      {isDraggingTask && (
+      {isDraggingTask && !taskDrag.state?.side && (
         <MiniCalendarDropzone
           currentDate={miniCalendarDate}
           onPrevMonth={() =>
@@ -562,6 +596,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
           data-testid="task-list-scroll"
           className="flex-1 overflow-y-auto px-4 pb-2 pt-1"
           onContextMenu={handleContextMenu}
+          onDragLeave={handleListDragLeave}
+          onDragEnter={handleListDragEnter}
         >
           {/* 归档视图：直接显示所有归档任务 */}
           {currentView === 'archived' ? (
@@ -825,6 +861,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
             </>
           )}
         </div>
+
+        {currentView === 'today' && <TaskDragActionPreview state={taskDrag.state} container={parentRef.current} />}
 
         {/* 右键上下文菜单 */}
         {contextMenu && (

@@ -9,7 +9,8 @@
  *   - 水平位移 ≥ 48px 且 ≥ 垂直位移的 1.5 倍，才进入水平动作；
  *   - 未达到水平阈值、但总位移 ≥ 6px，则视为垂直意图，交给既有日期拖放；
  *   - 位移不足 6px 仍是点击，不产生任何拖拽语义；
- *   - 一旦进入水平动作，本次拖拽内保持锁定，避免途中改判。
+ *   - 一旦进入水平类别，不会改回垂直；左 / 右方向可在水平类别内换向；
+ *   - 垂直类别一旦确定，也不会改判为水平。
  */
 
 export type CalendarTaskDragIntent = 'idle' | 'left' | 'right' | 'vertical'
@@ -64,9 +65,11 @@ export function resolveCalendarTaskDragIntent(
 }
 
 /**
- * 带锁定的下一意图：
- * 本次拖拽一旦判定为水平动作，后续坐标变化不会改回垂直 / 空闲，
- * 保证一次手势只落在一个动作上。
+ * 带类别锁定的下一意图：
+ * - 垂直意图一旦确定，后续不会改判为水平，避免排序途中误触动作；
+ * - 水平意图一旦确定，后续不会改回垂直 / 空闲，但允许在左 / 右之间换向，
+ *   让预览与最终动作跟随鼠标当前方向；
+ * - 一次手势最终只会落在一个方向上。
  */
 export function nextCalendarTaskDragIntent(
   previous: CalendarTaskDragIntent,
@@ -74,6 +77,10 @@ export function nextCalendarTaskDragIntent(
   current: CalendarTaskDragPoint,
   options: CalendarTaskDragGestureOptions = {},
 ): CalendarTaskDragIntent {
-  if (previous === 'left' || previous === 'right') return previous
-  return resolveCalendarTaskDragIntent(start, current, options)
+  if (previous === 'vertical') return 'vertical'
+  const raw = resolveCalendarTaskDragIntent(start, current, options)
+  if (previous === 'left' || previous === 'right') {
+    return raw === 'left' || raw === 'right' ? raw : previous
+  }
+  return raw
 }

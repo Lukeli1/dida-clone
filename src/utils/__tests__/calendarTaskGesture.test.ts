@@ -39,20 +39,24 @@ describe('resolveCalendarTaskDragIntent', () => {
 })
 
 describe('nextCalendarTaskDragIntent', () => {
-  it('进入水平动作后本次拖拽保持锁定', () => {
+  it('进入水平动作后不会改判为垂直，但允许左右换向', () => {
     const right = resolveCalendarTaskDragIntent(start, { x: 260, y: 200 })
     expect(right).toBe('right')
     // 后续坐标回到垂直方向，仍保持 right，避免一次手势改判成日期移动
     expect(nextCalendarTaskDragIntent(right, start, { x: 205, y: 400 })).toBe('right')
     expect(nextCalendarTaskDragIntent('left', start, { x: 500, y: 500 })).toBe('left')
+    // 水平动作内部允许换向，让预览与最终动作跟随鼠标
+    expect(nextCalendarTaskDragIntent('left', start, { x: 400, y: 200 })).toBe('right')
+    expect(nextCalendarTaskDragIntent('right', start, { x: 50, y: 200 })).toBe('left')
   })
 
-  it('水平意图锁定后不会重复计算为相反方向', () => {
-    expect(nextCalendarTaskDragIntent('left', start, { x: 400, y: 200 })).toBe('left')
+  it('垂直意图一旦确定不会改判为水平', () => {
+    expect(nextCalendarTaskDragIntent('vertical', start, { x: 300, y: 200 })).toBe('vertical')
+    expect(nextCalendarTaskDragIntent('vertical', start, { x: 205, y: 205 })).toBe('vertical')
   })
 
   it('未进入水平动作时继续按坐标实时判定', () => {
-    expect(nextCalendarTaskDragIntent('vertical', start, { x: 300, y: 200 })).toBe('right')
+    expect(nextCalendarTaskDragIntent('idle', start, { x: 400, y: 200 })).toBe('right')
     expect(nextCalendarTaskDragIntent('idle', start, { x: 205, y: 205 })).toBe('idle')
   })
 })

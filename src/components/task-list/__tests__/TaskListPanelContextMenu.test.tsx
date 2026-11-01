@@ -14,6 +14,7 @@ vi.mock('../../../api', () => ({
 
 vi.mock('../../Toast', () => ({
   useToast: () => ({ info: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn() }),
+  useOptionalToast: () => null,
 }))
 
 import { TaskListPanel } from '../TaskListPanel'
