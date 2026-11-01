@@ -1,15 +1,15 @@
 {
-  "version": "1.49.0",
-  "notes": "Release v1.49.0",
-  "pub_date": "2026-11-01T04:26:42.675Z",
+  "version": "1.49.1",
+  "notes": "Release v1.49.1",
+  "pub_date": "2026-11-01T08:11:52.062Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQlA3TTgyckpMOEFlUVpHWmw2VDhjOUc2WGxZVkJabGJiaTZzTlhUdnEzbzFpc0pIYlVCWkFTaTBSbm5iSUthMUl5RmpwNmlSdWRFMitEMHNkQnNzSXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTA3MTk4CWZpbGU65ru0562U5riF5Y2VXzEuNDkuMF94NjQtc2V0dXAuZXhlClk2dmJyREdGb1ZuWGVWRDhqSDBPWWNURURBV2t2RHhIcWhGL0VUTzV5Zmk5UXFpYXR3SG1wSjdYN3orTmQ0RGdHNmpheGF4ODVoNXZNMEJESjlyRkJBPT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.49.0/_1.49.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkxrRlY0Nlh4UWd6UWorUkV2Y2NCdzU1TDcvQUJTWCtHZ3VLeVQ3RW43b1J2aFpoUi96OXIzaVlRc0hwNDZTenpNcERuckVZbm9kbGo2OGFmY3IyMlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTIwNzA5CWZpbGU65ru0562U5riF5Y2VXzEuNDkuMV94NjQtc2V0dXAuZXhlCm1pTmkrcVJwSDJma2VHM2MveWE4Q0ExSDhkUXdTTDNJdG5saHNTc3g1TE81VVVadjBneWttZmNpSWt3UlVFMmE3WklQVmo2Ujh5bU9lSWQ3M2FhSUJ3PT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.49.1/_1.49.1_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQlA3TTgyckpMOEFlUVpHWmw2VDhjOUc2WGxZVkJabGJiaTZzTlhUdnEzbzFpc0pIYlVCWkFTaTBSbm5iSUthMUl5RmpwNmlSdWRFMitEMHNkQnNzSXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTA3MTk4CWZpbGU65ru0562U5riF5Y2VXzEuNDkuMF94NjQtc2V0dXAuZXhlClk2dmJyREdGb1ZuWGVWRDhqSDBPWWNURURBV2t2RHhIcWhGL0VUTzV5Zmk5UXFpYXR3SG1wSjdYN3orTmQ0RGdHNmpheGF4ODVoNXZNMEJESjlyRkJBPT0K",
-      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.49.0/_1.49.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRT3dkNG5lQTdjQkxrRlY0Nlh4UWd6UWorUkV2Y2NCdzU1TDcvQUJTWCtHZ3VLeVQ3RW43b1J2aFpoUi96OXIzaVlRc0hwNDZTenpNcERuckVZbm9kbGo2OGFmY3IyMlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTIwNzA5CWZpbGU65ru0562U5riF5Y2VXzEuNDkuMV94NjQtc2V0dXAuZXhlCm1pTmkrcVJwSDJma2VHM2MveWE4Q0ExSDhkUXdTTDNJdG5saHNTc3g1TE81VVVadjBneWttZmNpSWt3UlVFMmE3WklQVmo2Ujh5bU9lSWQ3M2FhSUJ3PT0K",
+      "url": "https://github.com/Lukeli1/dida-clone/releases/download/v1.49.1/_1.49.1_x64-setup.exe"
     }
   }
 }
