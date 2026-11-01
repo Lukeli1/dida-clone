@@ -2,13 +2,13 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.49.0-blue)
+![版本](https://img.shields.io/badge/version-1.49.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.49.0`（tag `fbd6089`，GitHub Release 含签名安装包与 `latest.json` 1.49.0）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.49.0`；`v1.49.1` 为今日任务水平拖拽与左右预览修复，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -41,6 +41,7 @@
 - **拖拽到日历**（v1.2.0）：拖任务至浮动迷你日历即可设置截止日期
 - **任务搜索增强**（v1.2.0）：组合筛选（优先级/日期范围/标签/清单）
 - **任务图片附件**（v1.49.0）：任务详情限定区域支持粘贴或选择 PNG / JPEG / GIF / WebP / BMP 图片，单文件 ≤10MB；提供缩略图、打开、删除、上传中与失败降级。附件文件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+- **今日任务水平拖拽**（v1.49.1）：今日任务行支持左右水平拖拽，复用日历水平拖拽配置（默认左拖置顶、右拖删除）；拖动时同时显示左右动作预览并按方向高亮，离开列表隐藏、重新进入恢复；水平动作与垂直排序互斥。
 
 ### 日历视图
 
@@ -916,6 +917,14 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.49.1（2026-11-01）- 今日任务水平拖拽与左右预览
+
+- 今日任务行支持水平左 / 右拖，复用 `dida:calendar_task_drag_actions` 配置和默认左置顶 / 右删除动作；删除继续走确认、软删除与回收站路径。
+- 拖动时同时显示左右动作预览并高亮当前方向；离开任务列表后预览保持隐藏，源任务继续 `drag` 不会让预览重新出现，重新进入列表后才恢复当前方向与坐标。
+- 水平动作与垂直排序互斥：水平拖拽不调用 `onReorder`，垂直拖拽保持原排序，小幅移动不动作也不排序。
+- 未新增任务数据结构、数据库 schema、同步或导入导出格式；图片附件仍仅本机持久化。
+- 状态（2026-11-01）：全量 Vitest 94 文件 / 1027 项通过，typecheck、生产构建、cargo check --locked、附件 Rust 单测 4 项通过；版本提升至 1.49.1，签名安装包与 GitHub Release 由 CI 发布。
 
 ### v1.49.0（2026-11-01）- 日历任务水平拖拽与任务图片附件
 
