@@ -16,6 +16,7 @@ import { DayViewGrid } from './calendar/DayViewGrid'
 import { CalendarDateNav } from './calendar/CalendarDateNav'
 import { useTaskResize } from './calendar/useTaskResize'
 import { useCalendarTaskContextMenu } from './calendar/shared/useCalendarTaskContextMenu'
+import { useCalendarTaskDragActions } from './calendar/shared/useCalendarTaskDragActions'
 import { getOccurrencesForRange } from '../utils/calendarTaskOccurrences'
 import type { CreateTaskOnRange, MoveTask } from './calendar/shared/types'
 import type { TaskActions } from '../hooks/useTaskActions'
@@ -70,6 +71,7 @@ export function DayView({
   const defaultListId = lists.length > 0 ? lists[0].id : 1
   const dateKey = format(currentDate, 'yyyy-MM-dd')
   const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
+  const taskDrag = useCalendarTaskDragActions(actions)
 
   const dayTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -206,14 +208,21 @@ export function DayView({
    * 全天任务条拖拽：条上没有时间跨度预览（日期级语义），不写入抓取偏移。
    * 拖入时间轴时保持「光标位置即开始时间」的原有行为。
    */
-  function handleAllDayBarDragStart(e: React.DragEvent, taskId: number) {
-    setDraggedTaskId(taskId)
+  function handleAllDayBarDragStart(e: React.DragEvent, task: Task) {
+    taskDrag.beginDrag(e, task)
+    setDraggedTaskId(task.id)
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(taskId))
+    e.dataTransfer.setData('text/plain', String(task.id))
+  }
+
+  function handleBlockDragStart(e: React.DragEvent, task: Task) {
+    taskDrag.beginDrag(e, task)
+    handleDragStart(e, task.id)
   }
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
+    taskDrag.updateDrag(e)
     // 统一设为 'move'，避免与源的 'move' effectAllowed 不匹配导致禁止图标
     e.dataTransfer.dropEffect = 'move'
   }
@@ -226,6 +235,10 @@ export function DayView({
       setDraggedTaskId(null)
       return
     }
+    if (taskDrag.consumeHorizontalDrop(taskId)) {
+      setDraggedTaskId(null)
+      return
+    }
     const iso = makeDropISODate(dateKey, e.clientY, columnRef.current, readGrabOffsetY(e.dataTransfer))
     if (iso) onMoveTask(taskId, iso, { allDay: false })
     setDraggedTaskId(null)
@@ -235,6 +248,10 @@ export function DayView({
     e.preventDefault()
     const taskId = Number(e.dataTransfer.getData('text/plain'))
     if (!taskId) {
+      setDraggedTaskId(null)
+      return
+    }
+    if (taskDrag.consumeHorizontalDrop(taskId)) {
       setDraggedTaskId(null)
       return
     }
@@ -274,7 +291,9 @@ export function DayView({
         dayTasks={dayTasks}
         lists={lists}
         draggedTaskId={draggedTaskId}
-        onTaskDragStart={handleDragStart}
+        onTaskDragStart={handleBlockDragStart}
+        onTaskDrag={(e) => taskDrag.updateDrag(e)}
+        onTaskDragEnd={() => taskDrag.handleDragEnd()}
         onAllDayBarDragStart={handleAllDayBarDragStart}
         onTaskClick={onTaskClick}
         onToggleTask={onToggleTask}
@@ -295,6 +314,7 @@ export function DayView({
         onCyclePriority={cyclePriority}
         onPopupClose={() => setCreatePopup(null)}
       />
+      {taskDrag.dragHint}
       {menuElement}
     </div>
   )

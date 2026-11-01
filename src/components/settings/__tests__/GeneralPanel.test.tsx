@@ -10,6 +10,7 @@ import {
 } from '../../../utils/sidebarVisibility'
 import { STORAGE_KEYS } from '../../../config/localStorageKeys'
 import { DEFAULT_CALENDAR_VIEW_OPTIONS } from '../../../utils/calendarUtils'
+import { DEFAULT_CALENDAR_TASK_DRAG_ACTIONS, getCalendarTaskDragActions } from '../../../utils/calendarTaskDragActions'
 
 describe('GeneralPanel 侧边栏显示设置', () => {
   beforeEach(() => {
@@ -107,5 +108,78 @@ describe('GeneralPanel 日历默认视图设置', () => {
     render(<GeneralPanel />)
     expect(screen.getByTestId('calendar-default-view-option-week')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('calendar-default-view-option-month')).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('GeneralPanel 日历任务拖拽动作设置', () => {
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActions)
+  })
+
+  it('默认左侧置顶、右侧删除，并显示当前值与全部动作选项', () => {
+    render(<GeneralPanel />)
+    expect(screen.getByTestId('calendar-task-drag-actions-setting')).toHaveTextContent('日历任务拖拽动作')
+
+    const left = screen.getByRole('combobox', { name: '向左拖拽动作' })
+    const right = screen.getByRole('combobox', { name: '向右拖拽动作' })
+    expect(left).toHaveValue('pin')
+    expect(right).toHaveValue('delete')
+    expect(screen.getByTestId('calendar-task-drag-actions-current')).toHaveTextContent('向左「置顶」，向右「删除」')
+
+    for (const label of [
+      '无操作',
+      '置顶',
+      '取消置顶',
+      '删除',
+      '标记完成',
+      '取消完成',
+      '将过期任务移动到当前时间',
+      '清除日期',
+    ]) {
+      expect(screen.getAllByRole('option', { name: label }).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('修改左右动作后立即持久化，并可重新挂载恢复', () => {
+    const first = render(<GeneralPanel />)
+    fireEvent.change(screen.getByRole('combobox', { name: '向左拖拽动作' }), {
+      target: { value: 'complete' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: '向右拖拽动作' }), {
+      target: { value: 'move-overdue-to-now' },
+    })
+
+    expect(getCalendarTaskDragActions()).toEqual({ left: 'complete', right: 'move-overdue-to-now' })
+    expect(screen.getByTestId('calendar-task-drag-actions-current')).toHaveTextContent(
+      '向左「标记完成」，向右「将过期任务移动到当前时间」',
+    )
+    first.unmount()
+
+    render(<GeneralPanel />)
+    expect(screen.getByRole('combobox', { name: '向左拖拽动作' })).toHaveValue('complete')
+    expect(screen.getByRole('combobox', { name: '向右拖拽动作' })).toHaveValue('move-overdue-to-now')
+  })
+
+  it('恢复默认按钮将左右动作重置为置顶 / 删除', () => {
+    render(<GeneralPanel />)
+    fireEvent.change(screen.getByRole('combobox', { name: '向左拖拽动作' }), {
+      target: { value: 'none' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: '向右拖拽动作' }), {
+      target: { value: 'unpin' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '恢复默认拖拽动作' }))
+
+    expect(screen.getByRole('combobox', { name: '向左拖拽动作' })).toHaveValue(DEFAULT_CALENDAR_TASK_DRAG_ACTIONS.left)
+    expect(screen.getByRole('combobox', { name: '向右拖拽动作' })).toHaveValue(DEFAULT_CALENDAR_TASK_DRAG_ACTIONS.right)
+    expect(getCalendarTaskDragActions()).toEqual({ left: 'pin', right: 'delete' })
+  })
+
+  it('损坏的持久化配置显示默认值并安全修复', () => {
+    localStorage.setItem(STORAGE_KEYS.calendarTaskDragActions, '{broken')
+    render(<GeneralPanel />)
+    expect(screen.getByRole('combobox', { name: '向左拖拽动作' })).toHaveValue('pin')
+    expect(screen.getByRole('combobox', { name: '向右拖拽动作' })).toHaveValue('delete')
+    expect(getCalendarTaskDragActions()).toEqual({ left: 'pin', right: 'delete' })
   })
 })

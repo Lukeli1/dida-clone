@@ -22,6 +22,7 @@ import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import type { CreateTaskOnRange, MoveTask } from './shared/types'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
+import { useCalendarTaskDragActions } from './shared/useCalendarTaskDragActions'
 import { normalizeDateKeyRange, type NormalizedDateKeyRange } from '../../utils/calendarRangeSelection'
 import type { TaskActions } from '../../hooks/useTaskActions'
 
@@ -107,6 +108,7 @@ export function MonthView({
   const suppressCellClickRef = useRef(false)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
   const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
+  const taskDrag = useCalendarTaskDragActions(actions)
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
@@ -279,9 +281,20 @@ export function MonthView({
     e.dataTransfer.setData('text/plain', String(taskId))
   }
 
+  /** 任务块拖拽：先记录水平手势起点，再沿用原有日期拖拽数据 */
+  function handleBlockDragStart(e: React.DragEvent, task: Task) {
+    taskDrag.beginDrag(e, task)
+    handleDragStart(e, task.id)
+  }
+
   function handleDragOver(e: React.DragEvent, dateKey: string) {
     e.preventDefault()
+    taskDrag.updateDrag(e)
     e.dataTransfer.dropEffect = 'move'
+    if (taskDrag.isHorizontalIntent()) {
+      if (dragOverDate !== null) setDragOverDate(null)
+      return
+    }
     if (dragOverDate !== dateKey) setDragOverDate(dateKey)
   }
 
@@ -298,6 +311,11 @@ export function MonthView({
     e.preventDefault()
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
+    // 水平手势在同一 drop 中消费：执行自定义动作后不再移动日期，避免双触发
+    if (taskDrag.consumeHorizontalDrop(taskId)) {
+      setDraggedTaskId(null)
+      return
+    }
     if (taskId) {
       const task = tasks.find((t) => t.id === taskId)
       const [year, month, day] = dateKey.split('-').map(Number)
@@ -429,7 +447,9 @@ export function MonthView({
                     left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
                     width: `calc(${(segment.span / 7) * 100}% - 8px)`,
                   }}
-                  onDragStart={(e) => handleDragStart(e, segment.task.id)}
+                  onDragStart={(e) => handleBlockDragStart(e, segment.task)}
+                  onDrag={(e) => taskDrag.updateDrag(e)}
+                  onDragEnd={() => taskDrag.handleDragEnd()}
                   onTaskClick={(e) => {
                     e.stopPropagation()
                     onTaskClick(segment.task.id)
@@ -572,7 +592,9 @@ export function MonthView({
                           dataTask
                           dragged={draggedTaskId === task.id}
                           timeLabel={task.due_date ? formatTaskTime(task.due_date) : undefined}
-                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onDragStart={(e) => handleBlockDragStart(e, task)}
+                          onDrag={(e) => taskDrag.updateDrag(e)}
+                          onDragEnd={() => taskDrag.handleDragEnd()}
                           onTaskClick={(e) => {
                             e.stopPropagation()
                             onTaskClick(task.id)
@@ -652,6 +674,7 @@ export function MonthView({
         />
       )}
 
+      {taskDrag.dragHint}
       {menuElement}
     </div>
   )

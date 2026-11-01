@@ -46,9 +46,11 @@ interface DayViewGridProps {
   dayTasks: Task[]
   lists: List[]
   draggedTaskId: number | null
-  onTaskDragStart: (e: React.DragEvent, taskId: number) => void
+  onTaskDragStart: (e: React.DragEvent, task: Task) => void
+  onTaskDrag?: (e: React.DragEvent) => void
+  onTaskDragEnd?: (e: React.DragEvent) => void
   /** 全天任务条拖拽（日期级语义，不写抓取偏移）；与定时任务块分开，避免全天任务拖入定时区域时落点被偏移影响 */
-  onAllDayBarDragStart: (e: React.DragEvent, taskId: number) => void
+  onAllDayBarDragStart: (e: React.DragEvent, task: Task) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
@@ -88,6 +90,8 @@ export function DayViewGrid({
   lists,
   draggedTaskId,
   onTaskDragStart,
+  onTaskDrag,
+  onTaskDragEnd,
   onAllDayBarDragStart,
   onTaskClick,
   onToggleTask,
@@ -187,7 +191,9 @@ export function DayViewGrid({
                 lists={lists}
                 segment={occurrence.segment}
                 dragged={draggedTaskId === occurrence.task.id}
-                onDragStart={(e) => onAllDayBarDragStart(e, occurrence.task.id)}
+                onDragStart={(e) => onAllDayBarDragStart(e, occurrence.task)}
+                onDrag={onTaskDrag}
+                onDragEnd={onTaskDragEnd}
                 onTaskClick={(e) => {
                   e.stopPropagation()
                   onTaskClick(occurrence.task.id)
@@ -265,7 +271,9 @@ export function DayViewGrid({
                   widthPercent={widthPercent}
                   isResizing={isResizing}
                   resizePreview={resize.resizePreview}
-                  onDragStart={onTaskDragStart}
+                  onDragStart={(e) => onTaskDragStart(e, task)}
+                  onTaskDrag={onTaskDrag}
+                  onTaskDragEnd={onTaskDragEnd}
                   onTaskClick={onTaskClick}
                   onToggleTask={onToggleTask}
                   onTaskContextMenu={onTaskContextMenu}

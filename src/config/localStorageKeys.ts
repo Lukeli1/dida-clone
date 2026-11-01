@@ -64,6 +64,8 @@ export const STORAGE_KEYS = {
   weekStart: `${PREFIX}weekStart`,
   /** 进入日历时默认显示的视图（日 / 周 / 月） */
   calendarDefaultView: `${PREFIX}calendar_default_view`,
+  /** 日历任务水平拖拽动作（左 / 右），JSON：{ left, right } */
+  calendarTaskDragActions: `${PREFIX}calendar_task_drag_actions`,
   /** 删除前是否确认 */
   confirmDelete: `${PREFIX}confirmDelete`,
   /** 搜索历史 */

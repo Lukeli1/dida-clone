@@ -289,6 +289,7 @@ pub fn run() {
             commands::apply_template,
             commands::get_attachments,
             commands::add_attachment,
+            commands::add_image_attachment,
             commands::delete_attachment,
             commands::open_attachment,
             commands::start_time_tracking,

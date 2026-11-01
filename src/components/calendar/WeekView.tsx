@@ -14,6 +14,7 @@ import { useTaskResize } from './useTaskResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
 import { CalendarDateNav } from './CalendarDateNav'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
+import { useCalendarTaskDragActions } from './shared/useCalendarTaskDragActions'
 import { computeDropStartMinute, computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../../utils/calendarDropTime'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
 import type { TaskActions } from '../../hooks/useTaskActions'
@@ -60,6 +61,7 @@ export function WeekView({
   const weekScrollRef = useRef<HTMLDivElement>(null)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
   const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
+  const taskDrag = useCalendarTaskDragActions(actions)
 
   // 当前时间，用于绘制「当前时间红线」（每分钟刷新一次）
   const now = useCurrentTime()
@@ -151,15 +153,26 @@ export function WeekView({
    * 拖入时间轴时保持「光标位置即开始时间」的原有行为；
    * 拖入全天区仍是日期级落点，与抓取位置无关。
    */
-  function handleAllDayBarDragStart(e: React.DragEvent, taskId: number) {
-    setDraggedTaskId(taskId)
+  function handleAllDayBarDragStart(e: React.DragEvent, task: Task) {
+    taskDrag.beginDrag(e, task)
+    setDraggedTaskId(task.id)
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(taskId))
+    e.dataTransfer.setData('text/plain', String(task.id))
+  }
+
+  function handleBlockDragStart(e: React.DragEvent, task: Task) {
+    taskDrag.beginDrag(e, task)
+    handleDragStart(e, task.id)
   }
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
     e.preventDefault()
+    taskDrag.updateDrag(e)
     e.dataTransfer.dropEffect = 'move'
+    if (taskDrag.isHorizontalIntent()) {
+      if (dragOverDate !== null) setDragOverDate(null)
+      return
+    }
     setDragOverDate(dateKey)
   }
 
@@ -188,6 +201,12 @@ export function WeekView({
     setDragOverDate(null)
     const taskId = Number(e.dataTransfer.getData('text/plain'))
     if (!taskId) {
+      setDraggedTaskId(null)
+      return
+    }
+
+    // 水平手势在同一次 drop 中消费，不再执行日期 / 时间移动
+    if (taskDrag.consumeHorizontalDrop(taskId)) {
       setDraggedTaskId(null)
       return
     }
@@ -322,7 +341,9 @@ export function WeekView({
                     left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
                     width: `calc(${(segment.span / 7) * 100}% - 8px)`,
                   }}
-                  onDragStart={(e) => handleAllDayBarDragStart(e, segment.task.id)}
+                  onDragStart={(e) => handleAllDayBarDragStart(e, segment.task)}
+                  onDrag={(e) => taskDrag.updateDrag(e)}
+                  onDragEnd={() => taskDrag.handleDragEnd()}
                   onTaskClick={(e) => {
                     e.stopPropagation()
                     onTaskClick(segment.task.id)
@@ -440,7 +461,9 @@ export function WeekView({
                               left: `${leftPercent}%`,
                               width: `${widthPercent}%`,
                             }}
-                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            onDragStart={(e) => handleBlockDragStart(e, task)}
+                            onDrag={(e) => taskDrag.updateDrag(e)}
+                            onDragEnd={() => taskDrag.handleDragEnd()}
                             onTaskClick={(e) => {
                               e.stopPropagation()
                               onTaskClick(task.id)
@@ -488,6 +511,7 @@ export function WeekView({
           </div>
         </div>
       </div>
+      {taskDrag.dragHint}
       {menuElement}
     </div>
   )

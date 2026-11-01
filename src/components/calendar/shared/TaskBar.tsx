@@ -24,6 +24,10 @@ export interface TaskBarProps {
   /** 轻量标识密度 */
   badgeDensity?: TaskBadgeDensity
   onDragStart?: (e: React.DragEvent) => void
+  /** 水平拖拽手势跟踪（根元素 onDrag） */
+  onDrag?: (e: React.DragEvent) => void
+  /** 拖拽结束：水平动作兜底执行（根元素 onDragEnd） */
+  onDragEnd?: (e: React.DragEvent) => void
   /** month / week 均作用于根元素 */
   onTaskClick?: (e: React.MouseEvent) => void
   /** month 作用于复选框按钮；week 作用于 checkbox input 的 change */

@@ -11,6 +11,7 @@ import { TaskGoalsPanel } from './TaskGoalsPanel'
 import { useConfirm } from '../common/ConfirmDialog'
 import { useTaskStore } from '../../stores/taskStore'
 import { useUIStore } from '../../stores/uiStore'
+import { useTaskAttachments } from '../../hooks/useTaskAttachments'
 
 interface TaskDetailProps {
   task: Task
@@ -46,6 +47,8 @@ export function TaskDetail({
   const tasks = useTaskStore((s) => s.tasks)
 
   const confirm = useConfirm()
+  // 附件状态提升到详情容器：折叠“更多属性”时粘贴图片仍能上传并即时反馈
+  const attachmentController = useTaskAttachments(task.id)
 
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -123,7 +126,12 @@ export function TaskDetail({
   }
 
   return (
-    <aside className="w-full min-w-0 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full">
+    <aside
+      data-testid="task-detail"
+      // 粘贴监听只覆盖任务详情区域：不在 document / window 上注册全局监听
+      onPaste={attachmentController.handlePaste}
+      className="w-full min-w-0 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full"
+    >
       {/* ===== Top zone (fixed) ===== */}
       <div className="flex items-start relative shrink-0">
         {/* 优先级色条，点击循环切换 */}
@@ -151,10 +159,7 @@ export function TaskDetail({
           </div>
 
           {/* 首屏状态：完成状态与优先级文字化，避免只靠色条辨认 */}
-          <div
-            className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
-            data-testid="detail-status"
-          >
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" data-testid="detail-status">
             <span
               className={`inline-flex items-center gap-1 ${
                 task.completed ? 'text-[var(--color-success)]' : 'text-[var(--color-text-tertiary)]'
@@ -242,7 +247,7 @@ export function TaskDetail({
 
           {showMoreDetails && (
             <div className="space-y-4 pb-1 pt-3">
-              <TaskAttachments task={task} />
+              <TaskAttachments task={task} controller={attachmentController} />
               <TimeTrackingSection task={task} />
               <RelatedTasksPanel
                 task={task}

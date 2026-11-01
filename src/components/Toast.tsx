@@ -199,3 +199,11 @@ export function useToast() {
   if (!ctx) throw new Error('useToast must be used within ToastProvider')
   return ctx.toast
 }
+
+/**
+ * 可选 Toast：供可能在测试 / 独立挂载场景下运行的共享 hook 使用。
+ * 无 Provider 时返回 null，调用方自行降级为静默处理。
+ */
+export function useOptionalToast(): ToastApi | null {
+  return useContext(ToastContext)?.toast ?? null
+}

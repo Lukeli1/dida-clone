@@ -10,6 +10,15 @@ import {
   type DefaultCalendarView,
 } from '../../utils/calendarUtils'
 import { STORAGE_KEYS } from '../../config/localStorageKeys'
+import {
+  CALENDAR_TASK_DRAG_ACTION_OPTIONS,
+  DEFAULT_CALENDAR_TASK_DRAG_ACTIONS,
+  getCalendarTaskDragActions,
+  getCalendarTaskDragActionLabel,
+  saveCalendarTaskDragActions,
+  type CalendarTaskDragAction,
+  type CalendarTaskDragActionConfig,
+} from '../../utils/calendarTaskDragActions'
 
 export function GeneralPanel() {
   const [weekStart, setWeekStart] = useState<'sunday' | 'monday'>(() =>
@@ -17,6 +26,9 @@ export function GeneralPanel() {
   )
   const [confirmDelete, setConfirmDelete] = useState(() => getItem('confirmDelete') !== 'false')
   const [calendarDefaultView, setCalendarDefaultView] = useState<DefaultCalendarView>(() => getCalendarDefaultView())
+  const [calendarDragActions, setCalendarDragActions] = useState<CalendarTaskDragActionConfig>(() =>
+    getCalendarTaskDragActions(),
+  )
 
   const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
   const setSidebarItemVisible = useUIStore((s) => s.setSidebarItemVisible)
@@ -30,6 +42,13 @@ export function GeneralPanel() {
   useEffect(() => {
     setItem(STORAGE_KEYS.calendarDefaultView, calendarDefaultView)
   }, [calendarDefaultView])
+  useEffect(() => {
+    saveCalendarTaskDragActions(calendarDragActions)
+  }, [calendarDragActions])
+
+  function updateDragAction(side: 'left' | 'right', action: CalendarTaskDragAction) {
+    setCalendarDragActions((current) => ({ ...current, [side]: action }))
+  }
 
   return (
     <div className="space-y-5">
@@ -96,8 +115,74 @@ export function GeneralPanel() {
           </div>
         </div>
 
+        {/* 日历任务拖拽动作 */}
+        <div className="space-y-3 px-4 py-3" data-testid="calendar-task-drag-actions-setting">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--color-text-primary)]">日历任务拖拽动作</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                在月、周、日视图中水平拖动任务块时执行的动作；上下拖动仍用于调整日期和时间。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCalendarDragActions({ ...DEFAULT_CALENDAR_TASK_DRAG_ACTIONS })}
+              className="flex h-8 shrink-0 items-center rounded-lg px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
+              aria-label="恢复默认拖拽动作"
+              data-testid="calendar-task-drag-actions-reset"
+            >
+              恢复默认
+            </button>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] px-3 py-2">
+              <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">向左拖拽</span>
+              <select
+                value={calendarDragActions.left}
+                onChange={(e) => updateDragAction('left', e.target.value as CalendarTaskDragAction)}
+                aria-label="向左拖拽动作"
+                data-testid="calendar-task-drag-action-left"
+                className="h-8 min-w-0 max-w-[11rem] flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              >
+                {CALENDAR_TASK_DRAG_ACTION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] px-3 py-2">
+              <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">向右拖拽</span>
+              <select
+                value={calendarDragActions.right}
+                onChange={(e) => updateDragAction('right', e.target.value as CalendarTaskDragAction)}
+                aria-label="向右拖拽动作"
+                data-testid="calendar-task-drag-action-right"
+                className="h-8 min-w-0 max-w-[11rem] flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              >
+                {CALENDAR_TASK_DRAG_ACTION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <p className="text-xs text-[var(--color-text-tertiary)]" data-testid="calendar-task-drag-actions-current">
+            当前：向左「{getCalendarTaskDragActionLabel(calendarDragActions.left)}」，向右「
+            {getCalendarTaskDragActionLabel(calendarDragActions.right)}」；水平拖动至少 48px
+            且明显大于垂直位移才会触发。
+          </p>
+        </div>
+
         {/* 删除确认 */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3" data-testid="delete-confirm-setting">
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+          data-testid="delete-confirm-setting"
+        >
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--color-text-primary)]">删除前确认</p>
             <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">

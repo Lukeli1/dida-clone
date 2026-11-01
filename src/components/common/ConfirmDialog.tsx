@@ -41,6 +41,14 @@ export function useConfirm() {
   return ctx.confirm
 }
 
+/**
+ * 可选确认框：供可能在测试 / 独立挂载场景下运行的共享 hook 使用。
+ * 无 Provider 时返回 null；业务调用方需自行决定降级策略。
+ */
+export function useOptionalConfirm() {
+  return useContext(ConfirmDialogContext)?.confirm ?? null
+}
+
 interface ConfirmState extends ConfirmOptions {
   resolve: (value: boolean) => void
 }

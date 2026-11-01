@@ -17,6 +17,8 @@ interface DayViewTaskProps {
   isResizing: boolean
   resizePreview: { top: number; height: number } | null
   onDragStart: (e: React.DragEvent, taskId: number) => void
+  onTaskDrag?: (e: React.DragEvent) => void
+  onTaskDragEnd?: (e: React.DragEvent) => void
   onTaskClick: (taskId: number) => void
   onToggleTask: (taskId: number) => void
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void
@@ -35,6 +37,8 @@ export function DayViewTask({
   isResizing,
   resizePreview,
   onDragStart,
+  onTaskDrag,
+  onTaskDragEnd,
   onTaskClick,
   onToggleTask,
   onTaskContextMenu,
@@ -51,6 +55,8 @@ export function DayViewTask({
       timeLabel={task.due_date ? format(new Date(task.due_date), 'HH:mm') : undefined}
       style={{ top: `${top}px`, height: `${height}px`, left: `${leftPercent}%`, width: `${widthPercent}%` }}
       onDragStart={(e) => onDragStart(e, task.id)}
+      onDrag={onTaskDrag}
+      onDragEnd={onTaskDragEnd}
       onTaskClick={(e) => {
         e.stopPropagation()
         onTaskClick(task.id)

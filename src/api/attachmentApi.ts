@@ -13,6 +13,19 @@ export const attachmentApi = {
   addAttachment: (taskId: number, filePath: string, appDataDir: string): Promise<Attachment> =>
     invoke<Attachment>('add_attachment', { taskId, filePath, appDataDir }),
 
+  /**
+   * 从字节数据添加图片附件（剪贴板 / HTML file input）。
+   * bytes 为 base64 字符串；后端会再次校验图片格式、大小并写入既有 attachments 目录与表。
+   */
+  addImageAttachment: (
+    taskId: number,
+    fileName: string,
+    mimeType: string,
+    bytes: string,
+    appDataDir: string,
+  ): Promise<Attachment> =>
+    invoke<Attachment>('add_image_attachment', { taskId, fileName, mimeType, bytes, appDataDir }),
+
   /** 删除附件（删除数据库记录并清理文件） */
   deleteAttachment: (attachmentId: number): Promise<void> => invoke<void>('delete_attachment', { attachmentId }),
 

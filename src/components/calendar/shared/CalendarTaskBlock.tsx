@@ -20,6 +20,8 @@ export interface CalendarTaskBlockProps {
   showBadges?: boolean
   badgeDensity?: TaskBadgeDensity
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
+  onDrag?: (e: DragEvent<HTMLDivElement>) => void
+  onDragEnd?: (e: DragEvent<HTMLDivElement>) => void
   onTaskClick?: (e: MouseEvent<HTMLDivElement>) => void
   onToggle?: (e: SyntheticEvent) => void
   onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void
@@ -135,6 +137,8 @@ export function CalendarTaskBlock({
   showBadges,
   badgeDensity = 'normal',
   onDragStart,
+  onDrag,
+  onDragEnd,
   onTaskClick,
   onToggle,
   onContextMenu,
@@ -151,11 +155,14 @@ export function CalendarTaskBlock({
     return (
       <div
         data-task={dataTask || undefined}
+        data-task-id={task.id}
         data-selected={selected ? 'true' : undefined}
         aria-current={selected ? 'true' : undefined}
         title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
         draggable={draggable}
         onDragStart={onDragStart}
+        onDrag={onDrag}
+        onDragEnd={onDragEnd}
         onClick={onTaskClick}
         onContextMenu={onContextMenu}
         className={`calendar-timed-task absolute flex items-start gap-1 overflow-hidden rounded border-l-2 px-1 py-0.5 text-xs cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
@@ -220,12 +227,15 @@ export function CalendarTaskBlock({
   return (
     <div
       data-task={dataTask || undefined}
+      data-task-id={task.id}
       data-testid={`calendar-task-block-${task.id}`}
       data-selected={selected ? 'true' : undefined}
       aria-current={selected ? 'true' : undefined}
       title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
       draggable={draggable}
       onDragStart={onDragStart}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
       onClick={onTaskClick}
       onContextMenu={onContextMenu}
       className={`calendar-month-task flex h-6 min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 text-[11px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${

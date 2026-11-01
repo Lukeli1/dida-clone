@@ -14,6 +14,8 @@ interface CalendarAllDayTaskBarProps {
   className?: string
   timeRangeLabel?: string
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
+  onDrag?: (e: DragEvent<HTMLDivElement>) => void
+  onDragEnd?: (e: DragEvent<HTMLDivElement>) => void
   onTaskClick?: (e: MouseEvent<HTMLDivElement>) => void
   onToggle?: (e: SyntheticEvent) => void
   onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void
@@ -36,6 +38,8 @@ export function CalendarAllDayTaskBar({
   className = '',
   timeRangeLabel,
   onDragStart,
+  onDrag,
+  onDragEnd,
   onTaskClick,
   onToggle,
   onContextMenu,
@@ -49,11 +53,14 @@ export function CalendarAllDayTaskBar({
   return (
     <div
       data-testid={`calendar-all-day-task-${task.id}`}
+      data-task-id={task.id}
       data-selected={selected ? 'true' : undefined}
       aria-current={selected ? 'true' : undefined}
       title={timeRangeLabel ? `${task.title} · ${timeRangeLabel}` : task.title}
       draggable={draggable}
       onDragStart={onDragStart}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
       onClick={onTaskClick}
       onContextMenu={onContextMenu}
       className={`calendar-all-day-task flex h-5 min-w-0 items-center gap-1 overflow-hidden px-1.5 text-[10px] shadow-sm cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${getSegmentRadius(
