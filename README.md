@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.49.0`；`v1.49.1` 为今日任务水平拖拽与左右预览修复，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.49.1`（tag `0892d90`，GitHub Release 含签名安装包与 `latest.json` 1.49.1）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -924,7 +924,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 拖动时同时显示左右动作预览并高亮当前方向；离开任务列表后预览保持隐藏，源任务继续 `drag` 不会让预览重新出现，重新进入列表后才恢复当前方向与坐标。
 - 水平动作与垂直排序互斥：水平拖拽不调用 `onReorder`，垂直拖拽保持原排序，小幅移动不动作也不排序。
 - 未新增任务数据结构、数据库 schema、同步或导入导出格式；图片附件仍仅本机持久化。
-- 状态（2026-11-01）：全量 Vitest 94 文件 / 1027 项通过，typecheck、生产构建、cargo check --locked、附件 Rust 单测 4 项通过；版本提升至 1.49.1，签名安装包与 GitHub Release 由 CI 发布。
+- 状态（2026-11-01）：全量 Vitest 94 文件 / 1027 项通过，typecheck、生产构建、cargo check --locked、附件 Rust 单测 4 项通过；已通过 GitHub Release 发布签名安装包、tag `v1.49.1` 与 `latest.json` 1.49.1。
 
 ### v1.49.0（2026-11-01）- 日历任务水平拖拽与任务图片附件
 
