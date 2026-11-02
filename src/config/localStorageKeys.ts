@@ -66,6 +66,8 @@ export const STORAGE_KEYS = {
   calendarDefaultView: `${PREFIX}calendar_default_view`,
   /** 日历任务水平拖拽动作（左 / 右），JSON：{ left, right } */
   calendarTaskDragActions: `${PREFIX}calendar_task_drag_actions`,
+  /** 是否启用日历任务水平拖拽动作（月 / 周 / 日视图） */
+  calendarTaskDragActionsEnabled: `${PREFIX}calendar_task_drag_actions_enabled`,
   /** 是否启用任务快速处理模式（任务列表 ← / → 执行左右动作） */
   taskQuickProcessEnabled: `${PREFIX}task_quick_process_enabled`,
   /** 删除前是否确认 */

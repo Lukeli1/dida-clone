@@ -1,6 +1,7 @@
 import type { DragEvent, ReactNode } from 'react'
 import type { Task } from '../../../types'
 import type { TaskActions } from '../../../hooks/useTaskActions'
+import { useCalendarTaskDragActionsEnabled } from '../../../hooks/useCalendarTaskDragActionsEnabled'
 import { useTaskDragActions } from '../../../hooks/useTaskDragActions'
 import {
   getCalendarTaskDragActionForSide,
@@ -34,7 +35,8 @@ export interface CalendarTaskDragActionsController {
  * 本包装只负责日历特有的动作提示浮层与调用方 API 命名。
  */
 export function useCalendarTaskDragActions(actions?: TaskActions): CalendarTaskDragActionsController {
-  const { controller, state } = useTaskDragActions(actions)
+  const { enabled } = useCalendarTaskDragActionsEnabled()
+  const { controller, state } = useTaskDragActions(actions, enabled)
   const side = state?.side ?? null
   const action = side ? getCalendarTaskDragActionForSide(state!.config, side) : null
 

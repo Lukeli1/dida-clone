@@ -11,6 +11,7 @@ import {
 } from '../../utils/calendarUtils'
 import { STORAGE_KEYS } from '../../config/localStorageKeys'
 import { useTaskQuickProcessEnabled } from '../../hooks/useTaskQuickProcessEnabled'
+import { useCalendarTaskDragActionsEnabled } from '../../hooks/useCalendarTaskDragActionsEnabled'
 import {
   CALENDAR_TASK_DRAG_ACTION_OPTIONS,
   DEFAULT_CALENDAR_TASK_DRAG_ACTIONS,
@@ -31,6 +32,8 @@ export function GeneralPanel() {
     getCalendarTaskDragActions(),
   )
   const { enabled: quickProcessEnabled, setEnabled: setQuickProcessEnabled } = useTaskQuickProcessEnabled()
+  const { enabled: calendarDragActionsEnabled, setEnabled: setCalendarDragActionsEnabled } =
+    useCalendarTaskDragActionsEnabled()
 
   const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
   const setSidebarItemVisible = useUIStore((s) => s.setSidebarItemVisible)
@@ -122,8 +125,19 @@ export function GeneralPanel() {
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--color-text-primary)]">日历任务拖拽动作</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                在月、周、日视图中水平拖动任务块时执行的动作；上下拖动仍用于调整日期和时间。
+              <div
+                className="mt-1.5 inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] px-2.5 py-1"
+                data-testid="calendar-task-drag-actions-enabled"
+              >
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">启用日历任务水平拖拽动作</span>
+                <Toggle
+                  checked={calendarDragActionsEnabled}
+                  onChange={setCalendarDragActionsEnabled}
+                  ariaLabel="启用日历任务水平拖拽动作"
+                />
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                在月、周、日视图中水平拖动任务块时执行的动作；关闭开关只停用水平动作，上下拖动仍用于调整日期和时间。
               </p>
             </div>
             <button

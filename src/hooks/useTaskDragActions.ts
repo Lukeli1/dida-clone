@@ -42,7 +42,7 @@ export interface TaskDragActionsResult {
  *
  * 任务列表的快速处理模式复用 useTaskDragActionExecutor，不再使用鼠标水平拖拽。
  */
-export function useTaskDragActions(actions?: TaskActions): TaskDragActionsResult {
+export function useTaskDragActions(actions?: TaskActions, enabled = true): TaskDragActionsResult {
   const executeTaskDragAction = useTaskDragActionExecutor(actions)
   const pendingTaskRef = useRef<Task | null>(null)
   const startPointRef = useRef<{ x: number; y: number } | null>(null)
@@ -90,9 +90,15 @@ export function useTaskDragActions(actions?: TaskActions): TaskDragActionsResult
     return () => removeKeydownListener()
   }, [handleEscape, removeKeydownListener])
 
+  // 关闭水平动作时立即清理进行中的手势与提示；调用方 drop 会继续走原有日期 / 时间移动
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 外部设置变化必须清理已开始的手势
+    if (!enabled) reset()
+  }, [enabled, reset])
+
   const beginDrag = useCallback(
     (e: { clientX: number; clientY: number }, task: Task) => {
-      if (!actions) return
+      if (!actions || !enabled) return
       pendingTaskRef.current = task
       startPointRef.current = { x: e.clientX, y: e.clientY }
       intentRef.current = 'idle'
@@ -104,36 +110,41 @@ export function useTaskDragActions(actions?: TaskActions): TaskDragActionsResult
         document.addEventListener('keydown', escapeHandlerRef.current)
       }
     },
-    [actions],
+    [actions, enabled],
   )
 
-  const updateDrag = useCallback((e: { clientX: number; clientY: number }) => {
-    const start = startPointRef.current
-    const task = pendingTaskRef.current
-    if (!start || !task || executedRef.current || cancelledRef.current) return
-    // 部分浏览器 drag 事件坐标为 0，忽略以免误判；drop handler 仍会提供坐标
-    if (e.clientX === 0 && e.clientY === 0) return
+  const updateDrag = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      if (!enabled) return
+      const start = startPointRef.current
+      const task = pendingTaskRef.current
+      if (!start || !task || executedRef.current || cancelledRef.current) return
+      // 部分浏览器 drag 事件坐标为 0，忽略以免误判；drop handler 仍会提供坐标
+      if (e.clientX === 0 && e.clientY === 0) return
 
-    const nextIntent: CalendarTaskDragIntent = nextCalendarTaskDragIntent(intentRef.current, start, {
-      x: e.clientX,
-      y: e.clientY,
-    })
-    intentRef.current = nextIntent
-    if (nextIntent !== 'left' && nextIntent !== 'right') {
-      setState(null)
-      return
-    }
-    setState({
-      task,
-      side: nextIntent,
-      config: configRef.current,
-      x: e.clientX,
-      y: e.clientY,
-    })
-  }, [])
+      const nextIntent: CalendarTaskDragIntent = nextCalendarTaskDragIntent(intentRef.current, start, {
+        x: e.clientX,
+        y: e.clientY,
+      })
+      intentRef.current = nextIntent
+      if (nextIntent !== 'left' && nextIntent !== 'right') {
+        setState(null)
+        return
+      }
+      setState({
+        task,
+        side: nextIntent,
+        config: configRef.current,
+        x: e.clientX,
+        y: e.clientY,
+      })
+    },
+    [enabled],
+  )
 
   const consumeDrop = useCallback(
     (taskId?: number) => {
+      if (!enabled) return false
       const task = pendingTaskRef.current
       if (!task || executedRef.current || cancelledRef.current) return false
       if (intentRef.current !== 'left' && intentRef.current !== 'right') return false
@@ -145,10 +156,14 @@ export function useTaskDragActions(actions?: TaskActions): TaskDragActionsResult
       void executeTaskDragAction(task, action)
       return true
     },
-    [executeTaskDragAction],
+    [enabled, executeTaskDragAction],
   )
 
   const endDrag = useCallback(() => {
+    if (!enabled) {
+      reset()
+      return
+    }
     const task = pendingTaskRef.current
     if (task && !executedRef.current && !cancelledRef.current) {
       if (intentRef.current === 'left' || intentRef.current === 'right') {
@@ -158,9 +173,12 @@ export function useTaskDragActions(actions?: TaskActions): TaskDragActionsResult
       }
     }
     reset()
-  }, [executeTaskDragAction, reset])
+  }, [enabled, executeTaskDragAction, reset])
 
-  const isHorizontalIntent = useCallback(() => intentRef.current === 'left' || intentRef.current === 'right', [])
+  const isHorizontalIntent = useCallback(
+    () => enabled && (intentRef.current === 'left' || intentRef.current === 'right'),
+    [enabled],
+  )
 
   const controller = useMemo<TaskDragActionsController>(
     () => ({

@@ -114,6 +114,8 @@ describe('GeneralPanel 日历默认视图设置', () => {
 describe('GeneralPanel 日历任务拖拽动作设置', () => {
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActions)
+    localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActionsEnabled)
+    localStorage.removeItem(STORAGE_KEYS.taskQuickProcessEnabled)
   })
 
   it('默认左侧置顶、右侧删除，并显示当前值与全部动作选项', () => {
@@ -181,6 +183,34 @@ describe('GeneralPanel 日历任务拖拽动作设置', () => {
     expect(screen.getByRole('combobox', { name: '向左拖拽动作' })).toHaveValue('pin')
     expect(screen.getByRole('combobox', { name: '向右拖拽动作' })).toHaveValue('delete')
     expect(getCalendarTaskDragActions()).toEqual({ left: 'pin', right: 'delete' })
+  })
+
+  it('日历水平拖拽开关默认开启，关闭后持久化且不影响快速处理设置', () => {
+    render(<GeneralPanel />)
+    const setting = screen.getByTestId('calendar-task-drag-actions-enabled')
+    expect(setting).toHaveTextContent('启用日历任务水平拖拽动作')
+    const toggle = screen.getByRole('switch', { name: '启用日历任务水平拖拽动作' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(localStorage.getItem(STORAGE_KEYS.taskQuickProcessEnabled)).toBeNull()
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(localStorage.getItem(STORAGE_KEYS.calendarTaskDragActionsEnabled)).toBe('false')
+    expect(localStorage.getItem(STORAGE_KEYS.taskQuickProcessEnabled)).toBeNull()
+  })
+
+  it('日历水平拖拽开关关闭后重新挂载仍保持关闭，非法值回退开启', () => {
+    const first = render(<GeneralPanel />)
+    fireEvent.click(screen.getByRole('switch', { name: '启用日历任务水平拖拽动作' }))
+    first.unmount()
+
+    const second = render(<GeneralPanel />)
+    expect(screen.getByRole('switch', { name: '启用日历任务水平拖拽动作' })).toHaveAttribute('aria-checked', 'false')
+    second.unmount()
+
+    localStorage.setItem(STORAGE_KEYS.calendarTaskDragActionsEnabled, 'invalid')
+    render(<GeneralPanel />)
+    expect(screen.getByRole('switch', { name: '启用日历任务水平拖拽动作' })).toHaveAttribute('aria-checked', 'true')
   })
 })
 

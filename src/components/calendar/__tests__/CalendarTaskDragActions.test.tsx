@@ -10,8 +10,10 @@ import { ToastProvider } from '../../Toast'
 import { STORAGE_KEYS } from '../../../config/localStorageKeys'
 import {
   saveCalendarTaskDragActions,
+  getCalendarTaskDragActions,
   CALENDAR_TASK_DRAG_ACTIONS_CHANGED_EVENT,
 } from '../../../utils/calendarTaskDragActions'
+import { saveCalendarTaskDragActionsEnabled } from '../../../utils/calendarTaskDragActionsSettings'
 
 const lists: List[] = [
   {
@@ -148,6 +150,7 @@ function renderDay(tasks: Task[], actions: TaskActions) {
 
 beforeEach(() => {
   localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActions)
+  localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActionsEnabled)
   localStorage.removeItem('confirmDelete')
 })
 
@@ -399,6 +402,7 @@ describe('周视图水平拖拽动作', () => {
 
     dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
     dispatchDrag('drag', block, { clientX: 180, clientY: 205 })
+    expect(screen.getByTestId('calendar-drag-action-hint')).toHaveTextContent('向左：置顶')
     dispatchDrag('drop', screen.getByTestId('week-time-column-2026-07-03'), {
       clientX: 180,
       clientY: 205,
@@ -464,6 +468,7 @@ describe('日视图水平拖拽动作', () => {
 
     dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
     dispatchDrag('drag', block, { clientX: 170, clientY: 200 })
+    expect(screen.getByTestId('calendar-drag-action-hint')).toHaveTextContent('向左：置顶')
     dispatchDrag('drop', screen.getByTestId('day-time-grid'), {
       clientX: 170,
       clientY: 200,
@@ -517,6 +522,182 @@ describe('日视图水平拖拽动作', () => {
 
     expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
     expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+  })
+})
+
+describe('日历水平拖拽启用开关', () => {
+  it('关闭后月视图水平拖拽不执行动作、不显示提示，落下仍按日期移动', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { handlers } = renderMonth([makeTask(51)], actions)
+    const block = screen.getByTestId('calendar-task-block-51')
+    const dataTransfer = makeDataTransfer(51)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 180, clientY: 200 })
+    expect(screen.queryByTestId('calendar-drag-action-hint')).not.toBeInTheDocument()
+
+    dispatchDrag('drop', screen.getByTestId('month-day-cell-2026-07-08'), {
+      clientX: 180,
+      clientY: 200,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+    expect(actions.handleDeleteTask).not.toHaveBeenCalled()
+    expect(actions.handleToggleTask).not.toHaveBeenCalled()
+  })
+
+  it('关闭后月视图垂直拖拽仍按日期移动', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { handlers } = renderMonth([makeTask(52)], actions)
+    const block = screen.getByTestId('calendar-task-block-52')
+    const dataTransfer = makeDataTransfer(52)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 306, clientY: 280 })
+    dispatchDrag('drop', screen.getByTestId('month-day-cell-2026-07-08'), {
+      clientX: 306,
+      clientY: 280,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+    expect(actions.handleDeleteTask).not.toHaveBeenCalled()
+  })
+
+  it('关闭后周视图水平拖拽不执行动作、不显示提示，落下仍移动时间', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { container, handlers } = renderWeek([makeTask(53)], actions)
+    const block = container.querySelector('[data-task-id="53"]') as HTMLElement
+    const dataTransfer = makeDataTransfer(53)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 180, clientY: 205 })
+    expect(screen.queryByTestId('calendar-drag-action-hint')).not.toBeInTheDocument()
+
+    dispatchDrag('drop', screen.getByTestId('week-time-column-2026-07-03'), {
+      clientX: 180,
+      clientY: 205,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+    expect(actions.handleDeleteTask).not.toHaveBeenCalled()
+  })
+
+  it('关闭后周视图垂直拖拽仍移动日期与时间', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { container, handlers } = renderWeek([makeTask(54)], actions)
+    const block = container.querySelector('[data-task-id="54"]') as HTMLElement
+    const dataTransfer = makeDataTransfer(54)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 302, clientY: 280 })
+    dispatchDrag('drop', screen.getByTestId('week-time-column-2026-07-03'), {
+      clientX: 302,
+      clientY: 280,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+  })
+
+  it('关闭后日视图水平拖拽不执行动作、不显示提示，落下仍移动时间', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { container, handlers } = renderDay([makeTask(55)], actions)
+    const block = container.querySelector('[data-task-id="55"]') as HTMLElement
+    const dataTransfer = makeDataTransfer(55)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 170, clientY: 200 })
+    expect(screen.queryByTestId('calendar-drag-action-hint')).not.toBeInTheDocument()
+
+    dispatchDrag('drop', screen.getByTestId('day-time-grid'), {
+      clientX: 170,
+      clientY: 200,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+    expect(actions.handleDeleteTask).not.toHaveBeenCalled()
+  })
+
+  it('关闭后日视图垂直拖拽仍移动时间', () => {
+    saveCalendarTaskDragActionsEnabled(false)
+    const actions = makeActions()
+    const { container, handlers } = renderDay([makeTask(56)], actions)
+    const block = container.querySelector('[data-task-id="56"]') as HTMLElement
+    const dataTransfer = makeDataTransfer(56)
+
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 303, clientY: 280 })
+    dispatchDrag('drop', screen.getByTestId('day-time-grid'), {
+      clientX: 303,
+      clientY: 280,
+      dataTransfer,
+    })
+
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleUpdateTask).not.toHaveBeenCalled()
+  })
+
+  it('运行时关闭即时停用，重新开启恢复原左右动作配置', async () => {
+    saveCalendarTaskDragActions({ left: 'complete', right: 'clear-date' })
+    const actions = makeActions()
+    const { handlers } = renderMonth([makeTask(57)], actions)
+    const block = screen.getByTestId('calendar-task-block-57')
+
+    let dataTransfer = makeDataTransfer(57)
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 160, clientY: 200 })
+    expect(screen.getByTestId('calendar-drag-action-hint')).toHaveTextContent('向左：标记完成')
+    dispatchDrag('drop', screen.getByTestId('month-day-cell-2026-07-08'), {
+      clientX: 160,
+      clientY: 200,
+      dataTransfer,
+    })
+    await waitFor(() => expect(actions.handleToggleTask).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      saveCalendarTaskDragActionsEnabled(false)
+    })
+    dataTransfer = makeDataTransfer(57)
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 160, clientY: 200 })
+    expect(screen.queryByTestId('calendar-drag-action-hint')).not.toBeInTheDocument()
+    dispatchDrag('drop', screen.getByTestId('month-day-cell-2026-07-08'), {
+      clientX: 160,
+      clientY: 200,
+      dataTransfer,
+    })
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
+    expect(actions.handleToggleTask).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      saveCalendarTaskDragActionsEnabled(true)
+    })
+    expect(getCalendarTaskDragActions()).toEqual({ left: 'complete', right: 'clear-date' })
+    dataTransfer = makeDataTransfer(57)
+    dispatchDrag('dragstart', block, { clientX: 300, clientY: 200, dataTransfer })
+    dispatchDrag('drag', block, { clientX: 160, clientY: 200 })
+    expect(screen.getByTestId('calendar-drag-action-hint')).toHaveTextContent('向左：标记完成')
+    dispatchDrag('drop', screen.getByTestId('month-day-cell-2026-07-08'), {
+      clientX: 160,
+      clientY: 200,
+      dataTransfer,
+    })
+    await waitFor(() => expect(actions.handleToggleTask).toHaveBeenCalledTimes(2))
+    expect(handlers.onMoveTask).toHaveBeenCalledTimes(1)
   })
 })
 
