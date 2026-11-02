@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.50.0`；`v1.51.0` 为日历任务水平拖拽独立开关，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.51.0`（tag `a329ce5`，GitHub Release 含签名安装包与 `latest.json` 1.51.0）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -926,7 +926,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 左右动作配置 `dida:calendar_task_drag_actions` 保持不变；关闭再开启恢复原配置，不写入 `none`。
 - 新开关 `dida:calendar_task_drag_actions_enabled` 与任务快速处理开关 `dida:task_quick_process_enabled` 独立存储、独立生效；设置页切换后已打开日历即时更新。
 - 未修改任务数据结构、排序、数据库、同步协议或导入导出格式。
-- 状态（2026-11-02）：全量 Vitest 101 文件 / 1086 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；版本提升至 1.51.0，签名安装包与 GitHub Release 由 CI 发布。
+- 状态（2026-11-02）：全量 Vitest 101 文件 / 1086 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；已通过 GitHub Release 发布签名安装包、tag `v1.51.0` 与 `latest.json` 1.51.0（workflow run `41450290772`，机器人回写 `283b05e`）。
 
 ### v1.50.0（2026-11-02）- 任务快速处理模式与设置开关
 
