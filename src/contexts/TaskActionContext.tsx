@@ -1,6 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import type { Task, Tag, List } from '../types'
-import type { TaskDragActionsController } from '../hooks/useTaskDragActions'
 
 /**
  * TaskItem 通过 Context 获取的回调函数
@@ -36,8 +35,8 @@ export interface TaskActionContextValue {
   onToggleExpand: (taskId: number) => void
   onToggleSelect: (taskId: number) => void
   onSubtaskInputChange: (taskId: number, val: string) => void
-  /** 今日任务列表的水平拖拽动作（日历视图不设置） */
-  dragActions?: TaskDragActionsController
+  /** 快速处理模式当前选中的任务 id；未激活时为 null / 省略 */
+  quickProcessTaskId?: number | null
 }
 
 const TaskActionContext = createContext<TaskActionContextValue | null>(null)

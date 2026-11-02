@@ -10,6 +10,7 @@ import {
   type DefaultCalendarView,
 } from '../../utils/calendarUtils'
 import { STORAGE_KEYS } from '../../config/localStorageKeys'
+import { useTaskQuickProcessEnabled } from '../../hooks/useTaskQuickProcessEnabled'
 import {
   CALENDAR_TASK_DRAG_ACTION_OPTIONS,
   DEFAULT_CALENDAR_TASK_DRAG_ACTIONS,
@@ -29,6 +30,7 @@ export function GeneralPanel() {
   const [calendarDragActions, setCalendarDragActions] = useState<CalendarTaskDragActionConfig>(() =>
     getCalendarTaskDragActions(),
   )
+  const { enabled: quickProcessEnabled, setEnabled: setQuickProcessEnabled } = useTaskQuickProcessEnabled()
 
   const visibleSidebarItems = useUIStore((s) => s.visibleSidebarItems)
   const setSidebarItemVisible = useUIStore((s) => s.setSidebarItemVisible)
@@ -176,6 +178,22 @@ export function GeneralPanel() {
             {getCalendarTaskDragActionLabel(calendarDragActions.right)}」；水平拖动至少 48px
             且明显大于垂直位移才会触发。
           </p>
+        </div>
+
+        {/* 任务快速处理功能开关（与任务列表 header 的模式入口是两个独立状态） */}
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+          data-testid="task-quick-process-setting"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">启用任务快速处理</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+              启用后，可在任务列表进入快速处理模式，通过 ← / → 执行左右配置动作。
+            </p>
+          </div>
+          <div className="shrink-0">
+            <Toggle checked={quickProcessEnabled} onChange={setQuickProcessEnabled} ariaLabel="启用任务快速处理" />
+          </div>
         </div>
 
         {/* 删除确认 */}

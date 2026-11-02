@@ -118,7 +118,7 @@ const TaskItem = memo(function TaskItem({
   animateOnMount = true,
 }: TaskItemProps) {
   const ctx = useTaskActionContext()
-  const { tags, lists, batchMode, isArchivedView, dragActions } = ctx
+  const { tags, lists, batchMode, isArchivedView, quickProcessTaskId } = ctx
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -127,6 +127,7 @@ const TaskItem = memo(function TaskItem({
   } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
+  const isQuickProcessActive = quickProcessTaskId === task.id
 
   // ===== 派生数据 useMemo 缓存 =====
   const hasSubtasks = useMemo(() => task.subtasks && task.subtasks.length > 0, [task.subtasks])
@@ -142,35 +143,19 @@ const TaskItem = memo(function TaskItem({
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
-      dragActions?.beginDrag(e, task)
       e.dataTransfer.effectAllowed = 'move'
       e.dataTransfer.setData('text/plain', String(task.id))
       ctx.onDragStartGlobal()
     },
-    [task, ctx, dragActions],
+    [task, ctx],
   )
 
-  const handleDrag = useCallback(
-    (e: React.DragEvent) => {
-      dragActions?.updateDrag(e)
-    },
-    [dragActions],
-  )
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-      dragActions?.updateDrag(e)
-      if (dragActions?.isHorizontalIntent()) {
-        setDragOverPos(null)
-        return
-      }
-      const rect = e.currentTarget.getBoundingClientRect()
-      setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
-    },
-    [dragActions],
-  )
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    setDragOverPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
+  }, [])
 
   const handleDragLeave = useCallback(() => {
     setDragOverPos(null)
@@ -180,17 +165,6 @@ const TaskItem = memo(function TaskItem({
     (e: React.DragEvent) => {
       e.preventDefault()
       const draggedId = Number(e.dataTransfer.getData('text/plain'))
-      // 水平动作优先消费：同一手势不再执行排序
-      if (dragActions?.consumeDrop(draggedId)) {
-        setDragOverPos(null)
-        return
-      }
-      // 今日列表启用了水平手势时，只有明确的垂直意图才允许排序；
-      // 小幅移动（idle）不得触发排序。其他列表没有 dragActions，保持原行为。
-      if (dragActions && !dragActions.isVerticalIntent()) {
-        setDragOverPos(null)
-        return
-      }
       // 今日列表未传 onReorder prop，回退到 Context 中的统一重排处理；
       // 归档/过期/已完成列表显式传入 NOOP，仍然禁用重排。
       const reorder = onReorder ?? ctx.onReorder
@@ -199,13 +173,12 @@ const TaskItem = memo(function TaskItem({
       }
       setDragOverPos(null)
     },
-    [task.id, onReorder, ctx, dragActions],
+    [task.id, onReorder, ctx],
   )
 
   const handleDragEnd = useCallback(() => {
-    dragActions?.endDrag()
     ctx.onDragEndGlobal()
-  }, [ctx, dragActions])
+  }, [ctx])
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -324,6 +297,7 @@ const TaskItem = memo(function TaskItem({
       role="listitem"
       data-task-item
       data-testid={`task-item-${task.id}`}
+      data-quick-process-active={isQuickProcessActive ? 'true' : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -335,14 +309,16 @@ const TaskItem = memo(function TaskItem({
         data-testid={`task-row-${task.id}`}
         draggable={!batchMode && !isEditing}
         onDragStart={handleDragStart}
-        onDrag={handleDrag}
+        aria-current={isQuickProcessActive ? 'true' : undefined}
         className={`group task-item-surface flex items-center px-4 rounded-xl transition-colors duration-200 border border-[var(--color-border-light)] ${
           isSelected
             ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40'
             : task.pinned
               ? 'bg-[var(--color-warning-light)]/40 hover:border-[var(--color-border)] hover:bg-[var(--color-warning-light)]/60'
               : 'hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
-        } ${batchMode && isSelectedForBatch ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40' : ''} ${task.completed ? 'opacity-60' : ''}`}
+        } ${batchMode && isSelectedForBatch ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40' : ''} ${
+          isQuickProcessActive ? 'ring-2 ring-inset ring-[var(--color-accent)] border-[var(--color-accent)]/60' : ''
+        } ${task.completed ? 'opacity-60' : ''}`}
         style={{
           borderLeftColor: taskColor,
           borderLeftWidth: '4px',

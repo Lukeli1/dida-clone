@@ -8,7 +8,7 @@ import { Joyride, type Step, type EventData } from 'react-joyride'
  * - 首次启动应用时自动弹出，分 5 步介绍核心功能
  * - 通过 localStorage('onboarding_seen') 记录是否已看过
  * - 通过 CSS 变量适配深色模式
- * - 可在 SidebarFooter 中点击"引导教程"重新触发
+ * - 首次启动后自动展示；侧边栏不再提供常驻的重新触发入口
  *
  * 注意：react-joyride v3 API 与 v2 不同：
  *  - 无默认导出，使用具名导入 { Joyride }

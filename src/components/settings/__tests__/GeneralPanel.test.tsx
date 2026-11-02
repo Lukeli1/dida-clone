@@ -183,3 +183,44 @@ describe('GeneralPanel 日历任务拖拽动作设置', () => {
     expect(getCalendarTaskDragActions()).toEqual({ left: 'pin', right: 'delete' })
   })
 })
+
+describe('GeneralPanel 任务快速处理设置', () => {
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.taskQuickProcessEnabled)
+    localStorage.removeItem(STORAGE_KEYS.calendarTaskDragActions)
+  })
+
+  it('默认开启，说明左右方向键用途', () => {
+    render(<GeneralPanel />)
+    const setting = screen.getByTestId('task-quick-process-setting')
+    expect(setting).toHaveTextContent('启用任务快速处理')
+    expect(setting).toHaveTextContent(/可在任务列表进入快速处理模式/)
+    expect(setting).toHaveTextContent(/← \/ → 执行左右配置动作/)
+    expect(screen.getByRole('switch', { name: '启用任务快速处理' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('切换后立即持久化，并与页面模式入口使用不同名称', () => {
+    render(<GeneralPanel />)
+    const toggle = screen.getByRole('switch', { name: '启用任务快速处理' })
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(localStorage.getItem(STORAGE_KEYS.taskQuickProcessEnabled)).toBe('false')
+    expect(getCalendarTaskDragActions()).toEqual({ left: 'pin', right: 'delete' })
+  })
+
+  it('重新挂载后恢复关闭状态', () => {
+    const first = render(<GeneralPanel />)
+    fireEvent.click(screen.getByRole('switch', { name: '启用任务快速处理' }))
+    first.unmount()
+
+    render(<GeneralPanel />)
+    expect(screen.getByRole('switch', { name: '启用任务快速处理' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('非法存储值回退默认开启', () => {
+    localStorage.setItem(STORAGE_KEYS.taskQuickProcessEnabled, 'invalid')
+    render(<GeneralPanel />)
+    expect(screen.getByRole('switch', { name: '启用任务快速处理' })).toHaveAttribute('aria-checked', 'true')
+  })
+})

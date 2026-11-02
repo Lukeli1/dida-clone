@@ -8,18 +8,21 @@ import { useTagStore } from '../../stores/tagStore'
 import { useListStore } from '../../stores/listStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskStore } from '../../stores/taskStore'
-import { useTaskDragActions } from '../../hooks/useTaskDragActions'
+import { useTaskQuickProcess } from '../../hooks/useTaskQuickProcess'
+import { useTaskQuickProcessEnabled } from '../../hooks/useTaskQuickProcessEnabled'
 import { useTaskListState } from '../../hooks/useTaskListState'
 import { useSearchHistory } from '../../hooks/useSearchHistory'
 import { habitApi } from '../../api'
 import { dateKey } from '../habit/constants'
+import { isTaskQuickProcessView } from '../../utils/taskQuickProcess'
 import type { TaskActions } from '../../hooks/useTaskActions'
 import type { Task } from '../../types'
 import { TaskInputBar } from './TaskInputBar'
 import { TaskFilterBar } from './TaskFilterBar'
 import { BatchToolbar } from './BatchToolbar'
 import { MiniCalendarDropzone } from './MiniCalendarDropzone'
-import { TaskDragActionPreview } from './TaskDragActionPreview'
+import { TaskQuickProcessToggle } from '../task-quick-process/TaskQuickProcessToggle'
+import { TaskQuickProcessPreview } from '../task-quick-process/TaskQuickProcessPreview'
 
 /**
  * 稳定的空操作函数（模块级常量，引用永不变）。
@@ -99,10 +102,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
     selectAllTasks,
   } = listState
 
-  // 今日任务视图启用水平拖拽动作；其他列表保持原有垂直排序行为。
-  const taskDrag = useTaskDragActions(currentView === 'today' ? actions : undefined, {
-    previewBeforeIntent: true,
-  })
+  // 快速处理功能开关；设置页切换后通过存储事件即时同步。
+  const { enabled: quickProcessEnabled } = useTaskQuickProcessEnabled()
 
   // ===== 分组折叠状态（今天/已过期/今日习惯 默认展开，已完成默认隐藏）=====
   const [showTodaySection, setShowTodaySection] = useState(true)
@@ -120,21 +121,6 @@ export function TaskListPanel(props: TaskListPanelProps) {
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY })
   }, [])
-
-  const handleListDragLeave = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      const related = e.relatedTarget as Node | null
-      if (!related || !e.currentTarget.contains(related)) taskDrag.controller.suppressPreview()
-    },
-    [taskDrag.controller],
-  )
-
-  const handleListDragEnter = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      taskDrag.controller.resumePreview(e)
-    },
-    [taskDrag.controller],
-  )
 
   // 菜单边界检测：贴近视口右/下边缘时向内收，避免溢出不可见
   useLayoutEffect(() => {
@@ -277,6 +263,20 @@ export function TaskListPanel(props: TaskListPanelProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
+  // ===== 任务快速处理模式（设置开关 + 页面模式入口是两个独立状态）=====
+  // 今日视图按界面顺序合并“今天”与“已过期”两组；其他列表保持原有集合与顺序。
+  const quickProcessTasks = useMemo(
+    () => (currentView === 'today' ? [...incompleteTaskTree, ...overdueTaskTree] : incompleteTaskTree),
+    [currentView, incompleteTaskTree, overdueTaskTree],
+  )
+  const quickProcess = useTaskQuickProcess({
+    enabled: quickProcessEnabled,
+    supported: isTaskQuickProcessView(currentView),
+    tasks: quickProcessTasks,
+    actions,
+    containerRef: parentRef,
+  })
+
   // 估算高度跟随当前密度变量，避免继续假设固定 72px 造成首屏滚动条与可见项偏移。
   // 普通单行任务内容区约 30px（28px 操作按钮 + 2px 边框）；长标题与换行标签由
   // measureElement 动态测量。这里只影响未测量项。
@@ -298,6 +298,53 @@ export function TaskListPanel(props: TaskListPanelProps) {
     scrollMargin,
     getItemKey,
   })
+
+  // 快速处理当前任务在虚拟列表中的索引；-1 表示不在“今天”分组（如已过期任务）
+  const quickProcessTodayIndex = useMemo(() => {
+    if (!quickProcess.active || quickProcess.selectedTaskId === null) return -1
+    return incompleteTaskTree.findIndex((task) => task.id === quickProcess.selectedTaskId)
+  }, [quickProcess.active, quickProcess.selectedTaskId, incompleteTaskTree])
+
+  // 选中折叠分组中的任务时展开对应分组；虚拟列表先按索引滚入渲染范围，下一帧再做 DOM 最终定位。
+  useEffect(() => {
+    if (!quickProcess.active || quickProcess.selectedTaskId === null) return
+    const selectedId = quickProcess.selectedTaskId
+    const isOverdue = overdueTaskTree.some((task) => task.id === selectedId)
+
+    if (isOverdue) {
+      if (!showOverdue) {
+        setShowOverdue(true)
+        return
+      }
+    } else if (quickProcessTodayIndex >= 0 && !showTodaySection) {
+      setShowTodaySection(true)
+      return
+    }
+
+    if (useVirtual && quickProcessTodayIndex >= 0) {
+      virtualizer.scrollToIndex(quickProcessTodayIndex, { align: 'auto' })
+    }
+
+    if (typeof requestAnimationFrame !== 'function') return
+    const frame = requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-testid="task-item-${selectedId}"]`)
+        ?.scrollIntoView?.({ block: 'nearest' })
+    })
+    return () => {
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame)
+    }
+  }, [
+    quickProcess.active,
+    quickProcess.selectedTaskId,
+    quickProcessTodayIndex,
+    showOverdue,
+    showTodaySection,
+    useVirtual,
+    virtualizer,
+    overdueTaskTree,
+    setShowOverdue,
+  ])
 
   // 动态测量虚拟列表容器相对于滚动容器的偏移。
   // 今日视图上方有过期任务（可展开/折叠），其高度变化时需更新 scrollMargin，
@@ -369,7 +416,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       onToggleExpand: (taskId: number) => toggleTaskExpand(taskId),
       onToggleSelect: (taskId: number) => toggleTaskSelection(taskId),
       onSubtaskInputChange: (taskId: number, val: string) => setSubtaskInput(taskId, val),
-      dragActions: currentView === 'today' ? taskDrag.controller : undefined,
+      quickProcessTaskId: quickProcess.active ? quickProcess.selectedTaskId : null,
     }),
     [
       actions,
@@ -381,7 +428,8 @@ export function TaskListPanel(props: TaskListPanelProps) {
       toggleTaskExpand,
       toggleTaskSelection,
       setSubtaskInput,
-      taskDrag.controller,
+      quickProcess.active,
+      quickProcess.selectedTaskId,
     ],
   )
 
@@ -403,6 +451,10 @@ export function TaskListPanel(props: TaskListPanelProps) {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* 任务快速处理模式：设置开启且当前视图支持时才显示 */}
+            {quickProcess.canToggle && (
+              <TaskQuickProcessToggle active={quickProcess.active} onToggle={quickProcess.toggle} />
+            )}
             {/* 批量模式切换按钮 */}
             {currentView !== 'archived' && (
               <button
@@ -562,7 +614,7 @@ export function TaskListPanel(props: TaskListPanelProps) {
       </header>
 
       {/* 拖拽任务时显示的浮动迷你日历 */}
-      {isDraggingTask && !taskDrag.state?.side && (
+      {isDraggingTask && (
         <MiniCalendarDropzone
           currentDate={miniCalendarDate}
           onPrevMonth={() =>
@@ -594,10 +646,11 @@ export function TaskListPanel(props: TaskListPanelProps) {
         <div
           ref={parentRef}
           data-testid="task-list-scroll"
-          className="flex-1 overflow-y-auto px-4 pb-2 pt-1"
+          tabIndex={-1}
+          aria-label={quickProcess.active ? '任务快速处理：← / → 执行左右动作，Esc 退出' : undefined}
+          className="flex-1 overflow-y-auto px-4 pb-2 pt-1 focus:outline-none"
+          style={quickProcess.active ? { paddingBottom: '3rem', scrollPaddingBottom: '3rem' } : undefined}
           onContextMenu={handleContextMenu}
-          onDragLeave={handleListDragLeave}
-          onDragEnter={handleListDragEnter}
         >
           {/* 归档视图：直接显示所有归档任务 */}
           {currentView === 'archived' ? (
@@ -862,7 +915,9 @@ export function TaskListPanel(props: TaskListPanelProps) {
           )}
         </div>
 
-        {currentView === 'today' && <TaskDragActionPreview state={taskDrag.state} container={parentRef.current} />}
+        {quickProcess.active && (
+          <TaskQuickProcessPreview config={quickProcess.config} activeSide={quickProcess.activeSide} />
+        )}
 
         {/* 右键上下文菜单 */}
         {contextMenu && (

@@ -283,7 +283,7 @@ function App() {
       {/* 通知中心面板（fixed 定位，按 TitleBar 通知按钮打开）*/}
       <NotificationCenter open={notificationCenterOpen} onClose={handleCloseNotificationCenter} />
 
-      {/* 新用户引导教程（首次启动自动弹出，可在侧边栏底部重新触发）*/}
+      {/* 新用户引导教程（首次启动自动弹出）*/}
       <OnboardingTour />
     </div>
   )

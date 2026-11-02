@@ -44,7 +44,7 @@ export const CALENDAR_TASK_DRAG_ACTION_OPTIONS: ReadonlyArray<{
   { value: 'clear-date', label: '清除日期' },
 ]
 
-/** 动作图标（任务列表左右预览与日历提示共用，避免第二套映射） */
+/** 动作图标（任务快速处理预览与日历提示共用，避免第二套映射） */
 export const CALENDAR_TASK_DRAG_ACTION_ICONS: Readonly<Record<CalendarTaskDragAction, string>> = {
   none: '—',
   pin: '↑',
