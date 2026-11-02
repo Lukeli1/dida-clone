@@ -2,13 +2,13 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.50.0-blue)
+![版本](https://img.shields.io/badge/version-1.51.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.50.0`（tag `b4094b4`，GitHub Release 含签名安装包与 `latest.json` 1.50.0）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.50.0`；`v1.51.0` 为日历任务水平拖拽独立开关，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -54,6 +54,7 @@
 - **更多选项菜单**（v1.2.1）：日历工具栏右上角 ⋯ 按钮，统一切换月/周/日/甘特/看板视图
 - **任务拖拽**（v1.2.1）：月视图拖拽任务保留原时间；周/日视图拖拽任务到任意时间格（15 分钟对齐）；保留原任务时长
 - **日历任务水平拖拽动作**（v1.49.0）：月 / 周 / 日视图的定时任务块与全天任务条支持左右拖动；默认左拖置顶、右拖删除（软删除进回收站），可在设置 > 通用中改为取消置顶、标记完成 / 取消完成、清除日期、将过期任务移动到当前时间等。水平位移 ≥48px 且明显大于垂直位移才触发，点击、垂直日期 / 时间拖放与 resize 保持原语义。
+- **日历水平拖拽开关**（v1.51.0）：设置 > 通用可独立启用 / 关闭月 / 周 / 日视图水平拖拽动作与提示，默认开启并持久化；关闭后上下拖拽调整日期 / 时间保持正常，左右动作配置与任务快速处理开关互不影响。
 
 ### AI 智能助手（v1.1.0 新增）
 
@@ -917,6 +918,15 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.51.0（2026-11-02）- 日历任务水平拖拽独立开关
+
+- 设置 > 通用“日历任务拖拽动作”区域新增独立开关“启用日历任务水平拖拽动作”，默认开启；关闭状态持久化，重启后保持。
+- 关闭后仅停用月 / 周 / 日视图任务块与全天任务条的水平拖拽动作和动作提示；上下拖拽调整日期 / 时间继续工作，drop 不会误走水平动作。
+- 左右动作配置 `dida:calendar_task_drag_actions` 保持不变；关闭再开启恢复原配置，不写入 `none`。
+- 新开关 `dida:calendar_task_drag_actions_enabled` 与任务快速处理开关 `dida:task_quick_process_enabled` 独立存储、独立生效；设置页切换后已打开日历即时更新。
+- 未修改任务数据结构、排序、数据库、同步协议或导入导出格式。
+- 状态（2026-11-02）：全量 Vitest 101 文件 / 1086 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；版本提升至 1.51.0，签名安装包与 GitHub Release 由 CI 发布。
 
 ### v1.50.0（2026-11-02）- 任务快速处理模式与设置开关
 
