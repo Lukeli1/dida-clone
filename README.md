@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.49.1`；`v1.50.0` 为任务快速处理模式，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.50.0`（tag `b4094b4`，GitHub Release 含签名安装包与 `latest.json` 1.50.0）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -926,7 +926,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 今日任务水平拖拽不再执行左右动作，垂直排序保持；日历月 / 周 / 日水平拖拽动作不变。
 - 移除侧栏底部常驻“引导教程”入口，保留首次启动自动引导与设置入口。
 - 未新增任务数据结构、数据库 schema、同步协议或导入导出字段。
-- 状态（2026-11-02）：全量 Vitest 100 文件 / 1070 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；版本提升至 1.50.0，签名安装包与 GitHub Release 由 CI 发布。
+- 状态（2026-11-02）：全量 Vitest 100 文件 / 1070 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；已通过 GitHub Release 发布签名安装包、tag `v1.50.0` 与 `latest.json` 1.50.0（workflow run `41412903920`，机器人回写 `5b08f8d`）。
 
 ### v1.49.1（2026-11-01）- 今日任务水平拖拽与左右预览
 
