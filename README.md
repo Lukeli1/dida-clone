@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.51.0`；`v1.51.1` 为月视图任务条视觉收敛与任务起止时间显示 / 编辑修复，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.51.1`（tag `7c0c89d`，GitHub Release 含签名安装包与 `latest.json` 1.51.1）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -929,7 +929,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 修改开始时间时保持原持续时长；全天切非全天时把排他性的次日 `00:00` 转换为 1 小时定时结束，避免遗留隐藏结束时间；快捷日期、任务列表拖到日历、逾期顺延统一使用同一日期语义。
 - 修复纯日期 `YYYY-MM-DD` 与 occurrence 本地自然日语义不一致的问题：纯日期按本地年月日解析，带时区时间戳仍按绝对时间解析；Asia/Shanghai 与 America/Los_Angeles 实测均保持原持续时长。
 - 真实跨午夜 `22:30 → 次日 00:15` 仍保留两天；次日 `00:00` 结束仍只占当天。未修改数据库 schema、同步协议、导入导出格式或 occurrence 算法，不迁移历史任务。
-- 状态（2026-11-03）：全量 Vitest 102 文件 / 1109 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；新增月视图真实 CSS 浏览器验收 4 项通过；版本提升至 1.51.1，签名安装包与 GitHub Release 由 CI 发布。
+- 状态（2026-11-03）：全量 Vitest 102 文件 / 1109 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；新增月视图真实 CSS 浏览器验收 4 项通过；已通过 GitHub Release 发布签名安装包、tag `v1.51.1` 与 `latest.json` 1.51.1（workflow run `41602432670`，机器人回写 `3b60ec6`；安装包 Ed25519 签名验签通过）。
 
 ### v1.51.0（2026-11-02）- 日历任务水平拖拽独立开关
 
