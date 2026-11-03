@@ -440,8 +440,9 @@ export function MonthView({
                   task={segment.task}
                   lists={lists}
                   segment={segment.segment}
+                  compact
                   dragged={draggedTaskId === segment.task.id}
-                  className="absolute z-20 shadow-sm"
+                  className="absolute z-20"
                   style={{
                     top: `${44 + segment.rowIndex * 24}px`,
                     left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,

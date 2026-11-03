@@ -238,11 +238,11 @@ export function CalendarTaskBlock({
       onDragEnd={onDragEnd}
       onClick={onTaskClick}
       onContextMenu={onContextMenu}
-      className={`calendar-month-task flex h-6 min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 text-[11px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
+      className={`calendar-month-task flex h-5 min-w-0 items-center gap-1 overflow-hidden rounded-[3px] px-1.5 text-[11px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
         task.completed ? 'opacity-60' : ''
       } ${dragged ? 'opacity-40' : ''} ${
         selected
-          ? 'ring-2 ring-inset ring-[var(--color-accent)]'
+          ? 'ring-1 ring-inset ring-[var(--color-accent)]'
           : 'hover:brightness-95'
       }`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}

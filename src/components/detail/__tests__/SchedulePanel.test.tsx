@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Task } from '../../../types'
 import { SchedulePanel } from '../TaskMetaPanel'
+import { isTaskMultiDay, splitTaskIntoOccurrences } from '../../../utils/calendarTaskOccurrences'
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   const now = '2026-07-03T09:00:00.000Z'
@@ -89,26 +90,122 @@ describe('SchedulePanel 全天编辑闭环', () => {
     expect(lastCall[1].end_date).toBeTruthy()
   })
 
-  it('非全天任务保存时不传 end_date，避免清空已有结束时间', () => {
+  it('非全天任务修改开始时间时同步移动结束时间，避免遗留旧结束时间', () => {
     const onUpdate = vi.fn()
     const task = makeTask({
       all_day: false,
-      due_date: '2026-07-03T09:00:00.000Z',
-      end_date: '2026-07-03T10:00:00.000Z',
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: new Date(2026, 6, 3, 10, 0).toISOString(),
     })
     renderSchedulePanel(task, onUpdate)
     expandScheduleEdit()
 
-    // 非全天模式下找到截止时间输入框
-    const dueInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
-    expect(dueInput).toBeTruthy()
+    const dueInput = screen.getByLabelText('开始时间')
     fireEvent.change(dueInput, { target: { value: '2026-07-03T14:00' } })
     fireEvent.blur(dueInput)
 
     const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1]
     expect(lastCall[1].all_day).toBe(false)
+    expect(new Date(lastCall[1].due_date).getTime()).toBe(new Date(2026, 6, 3, 14, 0).getTime())
+    expect(new Date(lastCall[1].end_date).getTime()).toBe(new Date(2026, 6, 3, 15, 0).getTime())
+  })
+
+  it('非全天任务无结束时间时保存不自动补结束时间', () => {
+    const onUpdate = vi.fn()
+    const task = makeTask({
+      all_day: false,
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: null,
+    })
+    renderSchedulePanel(task, onUpdate)
+    expandScheduleEdit()
+
+    const dueInput = screen.getByLabelText('开始时间')
+    fireEvent.change(dueInput, { target: { value: '2026-07-03T14:00' } })
+    fireEvent.blur(dueInput)
+
+    const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1]
     expect(lastCall[1].due_date).toBeTruthy()
     expect(lastCall[1].end_date).toBeUndefined()
+  })
+
+  it('非全天任务摘要显示同日或跨日起止时间', () => {
+    const sameDayTask = makeTask({
+      due_date: new Date(2026, 6, 3, 22, 30).toISOString(),
+      end_date: new Date(2026, 6, 3, 23, 30).toISOString(),
+    })
+    const sameDay = renderSchedulePanel(sameDayTask)
+    expect(screen.getByRole('button', { name: /7月3日 22:30 - 23:30/ })).toBeInTheDocument()
+    sameDay.unmount()
+
+    const crossDayTask = makeTask({
+      due_date: new Date(2026, 6, 3, 22, 30).toISOString(),
+      end_date: new Date(2026, 6, 4, 0, 15).toISOString(),
+    })
+    renderSchedulePanel(crossDayTask)
+    expect(screen.getByRole('button', { name: /7月3日 22:30 - 7月4日 00:15/ })).toBeInTheDocument()
+  })
+
+  it('非全天任务无结束时间时保持单时间摘要', () => {
+    const task = makeTask({
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: null,
+    })
+    renderSchedulePanel(task)
+
+    const summary = screen.getByRole('button', { name: /7月3日 09:00/ })
+    expect(summary).not.toHaveTextContent(' - ')
+  })
+
+  it('非全天任务可编辑结束时间', () => {
+    const onUpdate = vi.fn()
+    const task = makeTask({
+      all_day: false,
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: new Date(2026, 6, 3, 10, 0).toISOString(),
+    })
+    renderSchedulePanel(task, onUpdate)
+    expandScheduleEdit()
+
+    const endInput = screen.getByLabelText('结束时间')
+    fireEvent.change(endInput, { target: { value: '2026-07-03T11:30' } })
+    fireEvent.blur(endInput)
+
+    const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1]
+    expect(new Date(lastCall[1].end_date).getTime()).toBe(new Date(2026, 6, 3, 11, 30).getTime())
+  })
+
+  it('非全天任务可通过明确入口清除结束时间', () => {
+    const onUpdate = vi.fn()
+    const task = makeTask({
+      all_day: false,
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: new Date(2026, 6, 3, 10, 0).toISOString(),
+    })
+    renderSchedulePanel(task, onUpdate)
+    expandScheduleEdit()
+
+    fireEvent.click(screen.getByRole('button', { name: '清除结束时间' }))
+
+    expect(onUpdate).toHaveBeenCalledWith(1, { end_date: null })
+  })
+
+  it('结束时间早于开始时间时显示错误且不保存', () => {
+    const onUpdate = vi.fn()
+    const task = makeTask({
+      all_day: false,
+      due_date: new Date(2026, 6, 3, 9, 0).toISOString(),
+      end_date: new Date(2026, 6, 3, 10, 0).toISOString(),
+    })
+    renderSchedulePanel(task, onUpdate)
+    expandScheduleEdit()
+
+    const endInput = screen.getByLabelText('结束时间')
+    fireEvent.change(endInput, { target: { value: '2026-07-03T08:00' } })
+    fireEvent.blur(endInput)
+
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('结束时间必须晚于开始时间')
   })
 
   it('切换全天开关时发送 all_day: true 和正确的日期', () => {
@@ -133,7 +230,7 @@ describe('SchedulePanel 全天编辑闭环', () => {
     expect(dueDate.getMinutes()).toBe(0)
   })
 
-  it('切换全天开关从全天到非全天时发送 all_day: false', () => {
+  it('切换全天开关从全天到非全天时转换结束时间，避免遗留次日零点', () => {
     const onUpdate = vi.fn()
     const task = makeTask({
       all_day: true,
@@ -148,8 +245,12 @@ describe('SchedulePanel 全天编辑闭环', () => {
 
     const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1]
     expect(lastCall[1].all_day).toBe(false)
-    expect(lastCall[1].due_date).toBeTruthy()
-    expect(lastCall[1].end_date).toBeUndefined()
+    expect(new Date(lastCall[1].due_date).getTime()).toBe(new Date(2026, 6, 3, 9, 0).getTime())
+    expect(new Date(lastCall[1].end_date).getTime()).toBe(new Date(2026, 6, 3, 10, 0).getTime())
+
+    const updatedTask = { ...task, ...lastCall[1] } as Task
+    expect(isTaskMultiDay(updatedTask)).toBe(false)
+    expect(splitTaskIntoOccurrences(updatedTask, new Date(2026, 6, 3), new Date(2026, 6, 3))).toHaveLength(1)
   })
 
   it('全天模式保存时 due_date 为本地 00:00，end_date 为下一天 00:00', () => {

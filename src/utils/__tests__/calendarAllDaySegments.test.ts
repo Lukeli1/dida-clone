@@ -80,4 +80,34 @@ describe('calendar all-day segments', () => {
 
     expect(segments[0]).toMatchObject({ startIndex: 0, span: 4, segment: 'end' })
   })
+
+  it('次日零点结束的全天任务只占当天一行', () => {
+    const task = makeTask(1, {
+      due_date: '2026-01-06T00:00:00',
+      end_date: '2026-01-07T00:00:00',
+      all_day: true,
+    })
+    const occurrences = getOccurrencesForRange([task], week[0], week[6])
+
+    const segments = getAllDaySegmentsForDays(week, occurrences)
+
+    expect(segments).toEqual([
+      expect.objectContaining({ task, startIndex: 1, span: 1, rowIndex: 0, segment: 'single' }),
+    ])
+  })
+
+  it('真实跨午夜任务占两天，不会被压缩为单日', () => {
+    const task = makeTask(1, {
+      due_date: '2026-01-06T22:30:00',
+      end_date: '2026-01-07T00:15:00',
+      all_day: false,
+    })
+    const occurrences = getOccurrencesForRange([task], week[0], week[6])
+
+    const segments = getAllDaySegmentsForDays(week, occurrences)
+
+    expect(segments).toEqual([
+      expect.objectContaining({ task, startIndex: 1, span: 2, rowIndex: 0, segment: 'single' }),
+    ])
+  })
 })

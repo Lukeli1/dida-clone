@@ -1,6 +1,5 @@
 import { useMemo, useCallback, useState, useRef, useEffect, useLayoutEffect, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { format } from 'date-fns'
 import { TaskItem } from '../task-item/TaskItem'
 import { EmptyState } from '../EmptyState'
 import { TaskActionProvider, type TaskActionContextValue } from '../../contexts/TaskActionContext'
@@ -15,6 +14,7 @@ import { useSearchHistory } from '../../hooks/useSearchHistory'
 import { habitApi } from '../../api'
 import { dateKey } from '../habit/constants'
 import { isTaskQuickProcessView } from '../../utils/taskQuickProcess'
+import { buildDueDatePatch } from '../../utils/taskSchedule'
 import type { TaskActions } from '../../hooks/useTaskActions'
 import type { Task } from '../../types'
 import { TaskInputBar } from './TaskInputBar'
@@ -192,9 +192,11 @@ export function TaskListPanel(props: TaskListPanelProps) {
 
   // ===== 顺延：将所有过期任务的 due_date 改为今天 =====
   const handlePostponeOverdue = useCallback(async () => {
-    const todayStr = format(new Date(), "yyyy-MM-dd'T'00:00:00")
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayIso = todayStart.toISOString()
     for (const task of overdueTaskTree) {
-      await updateTask(task.id, { due_date: todayStr, all_day: false })
+      await updateTask(task.id, { ...buildDueDatePatch(task, todayIso), all_day: false })
     }
   }, [overdueTaskTree, updateTask])
 

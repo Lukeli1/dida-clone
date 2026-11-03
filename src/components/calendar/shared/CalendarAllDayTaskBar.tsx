@@ -8,6 +8,8 @@ interface CalendarAllDayTaskBarProps {
   task: Task
   lists: List[]
   segment?: 'single' | 'start' | 'middle' | 'end'
+  /** 月视图使用更紧凑的高度与圆角 */
+  compact?: boolean
   dragged?: boolean
   draggable?: boolean
   style?: CSSProperties
@@ -21,7 +23,13 @@ interface CalendarAllDayTaskBarProps {
   onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void
 }
 
-function getSegmentRadius(segment: CalendarAllDayTaskBarProps['segment']) {
+function getSegmentRadius(segment: CalendarAllDayTaskBarProps['segment'], compact: boolean) {
+  if (compact) {
+    if (segment === 'start') return 'rounded-l-[3px] rounded-r-[1px]'
+    if (segment === 'middle') return 'rounded-[1px]'
+    if (segment === 'end') return 'rounded-r-[3px] rounded-l-[1px]'
+    return 'rounded-[3px]'
+  }
   if (segment === 'start') return 'rounded-l rounded-r-sm'
   if (segment === 'middle') return 'rounded-sm'
   if (segment === 'end') return 'rounded-r rounded-l-sm'
@@ -32,6 +40,7 @@ export function CalendarAllDayTaskBar({
   task,
   lists,
   segment = 'single',
+  compact = false,
   dragged = false,
   draggable = true,
   style,
@@ -54,6 +63,7 @@ export function CalendarAllDayTaskBar({
     <div
       data-testid={`calendar-all-day-task-${task.id}`}
       data-task-id={task.id}
+      data-compact={compact || undefined}
       data-selected={selected ? 'true' : undefined}
       aria-current={selected ? 'true' : undefined}
       title={timeRangeLabel ? `${task.title} · ${timeRangeLabel}` : task.title}
@@ -63,11 +73,16 @@ export function CalendarAllDayTaskBar({
       onDragEnd={onDragEnd}
       onClick={onTaskClick}
       onContextMenu={onContextMenu}
-      className={`calendar-all-day-task flex h-5 min-w-0 items-center gap-1 overflow-hidden px-1.5 text-[10px] shadow-sm cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${getSegmentRadius(
+      className={`calendar-all-day-task flex min-w-0 items-center gap-1 overflow-hidden px-1.5 text-[10px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
+        compact ? 'h-[18px] shadow-none' : 'h-5 shadow-sm'
+      } ${getSegmentRadius(
         segment,
+        compact,
       )} ${task.completed ? 'opacity-60' : ''} ${dragged ? 'opacity-40' : ''} ${
         selected
-          ? 'ring-2 ring-inset ring-[var(--color-accent)]'
+          ? compact
+            ? 'ring-1 ring-inset ring-[var(--color-accent)]'
+            : 'ring-2 ring-inset ring-[var(--color-accent)]'
           : 'hover:brightness-95'
       } ${className}`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}

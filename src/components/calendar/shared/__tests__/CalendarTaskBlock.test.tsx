@@ -58,7 +58,7 @@ describe('CalendarTaskBlock', () => {
     )
 
     const root = container.firstElementChild as HTMLElement
-    expect(root).toHaveClass('flex', 'h-6')
+    expect(root).toHaveClass('flex', 'h-5', 'rounded-[3px]')
     expect(root).toHaveStyle({ backgroundColor: '#3b82f6' })
     expect(screen.getByRole('button', { name: '标记为已完成' })).toBeInTheDocument()
     expect(screen.getByText('月视图任务')).toHaveClass('truncate')
@@ -179,7 +179,7 @@ describe('CalendarTaskBlock', () => {
     const root = container.firstElementChild as HTMLElement
     expect(root).toHaveAttribute('data-selected', 'true')
     expect(root).toHaveAttribute('aria-current', 'true')
-    expect(root).toHaveClass('ring-2', 'ring-inset')
+    expect(root).toHaveClass('ring-1', 'ring-inset')
     expect(screen.getByRole('img', { name: '优先级：高' })).toBeInTheDocument()
     expect(root).toHaveAttribute('title', '测试任务')
   })

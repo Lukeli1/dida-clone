@@ -6,6 +6,7 @@ import { useUIStore } from '../stores/uiStore'
 import type { ToastApi } from '../components/Toast'
 import type { CreateTaskOnRangeData } from '../components/calendar/shared/types'
 import { buildLocalDateTime } from '../utils/calendarRangeSelection'
+import { buildDueDatePatch } from '../utils/taskSchedule'
 
 /**
  * 拖拽排序/移动/日历投放
@@ -38,9 +39,11 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
   async function handleDropToCalendarDate(taskId: number, dateKey: string) {
     const [year, month, day] = dateKey.split('-').map(Number)
     const dueDate = new Date(year, month - 1, day, 9, 0)
-    const success = await useTaskStore
-      .getState()
-      .updateTask(taskId, { due_date: dueDate.toISOString(), all_day: false })
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    const updates = task
+      ? { ...buildDueDatePatch(task, dueDate.toISOString()), all_day: false }
+      : { due_date: dueDate.toISOString(), all_day: false }
+    const success = await useTaskStore.getState().updateTask(taskId, updates)
     if (success) toast.success(`已设置截止日期为 ${month}月${day}日`)
     else toast.error('设置截止日期失败')
   }

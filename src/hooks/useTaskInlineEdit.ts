@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useTaskStore } from '../stores/taskStore'
 import { addTagToTask, removeTagFromTask } from '../services/tagService'
 import { useTagStore } from '../stores/tagStore'
+import { buildDueDatePatch } from '../utils/taskSchedule'
 import type { ToastApi } from '../components/Toast'
 
 /**
@@ -24,7 +25,9 @@ export function useTaskInlineEdit(toast: ToastApi) {
 
   // ===== 右键菜单快捷操作 =====
   async function handleSetDate(taskId: number, date: string | null) {
-    const success = await useTaskStore.getState().updateTask(taskId, { due_date: date ?? null, all_day: false })
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    const updates = task ? { ...buildDueDatePatch(task, date), all_day: false } : { due_date: date ?? null, all_day: false }
+    const success = await useTaskStore.getState().updateTask(taskId, updates)
     if (!success) toast.error('设置日期失败')
   }
 
