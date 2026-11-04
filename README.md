@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.51.1`；`v1.52.0` 为周视图日期跨度调整与右键菜单统一策略，源码版本已提升，签名安装包与 GitHub Release 由 CI 发布。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.52.0`（tag `e712742`，GitHub Release 含签名安装包与 `latest.json` 1.52.0）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -931,7 +931,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 取消任务列表拖拽时自动弹出的浮动迷你日历；垂直排序、拖动状态清理、日期菜单与任务快速处理保持不变。
 - 新增右键菜单集中策略：普通非编辑区域阻止 WebView 默认浏览器菜单，任务与日历等业务菜单照常打开；输入框 / textarea / contenteditable 保留系统文本菜单；普通区域有选中文本时仅提供「复制」菜单；未修改 Tauri / WebView 配置，不新增设置或全局快捷键。
 - 未修改数据库 schema、同步协议、导入导出格式、occurrence 算法或任务数据结构，不迁移历史任务；复用既有任务更新 API。
-- 状态（2026-11-04）：全量 Vitest 107 文件 / 1159 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；新增周视图跨度与右键菜单浏览器验收 7 项通过；全量 Playwright 88/93，5 项 `calendar-task-block-visual` 月格容量基线失败已确认在干净 HEAD 复现、与本次无关；版本提升至 1.52.0，签名安装包与 GitHub Release 由 CI 发布。
+- 状态（2026-11-04）：全量 Vitest 107 文件 / 1159 项通过，typecheck、生产构建、cargo check --locked 通过，ESLint 0 error / 140 warning；新增周视图跨度与右键菜单浏览器验收 7 项通过；全量 Playwright 88/93，5 项 `calendar-task-block-visual` 月格容量基线失败已确认在干净 HEAD 复现、与本次无关；已通过 GitHub Release 发布签名安装包、tag `v1.52.0` 与 `latest.json` 1.52.0（workflow run `41806906945`，机器人回写 `89e9c6e`；安装包 Ed25519 签名验签通过）。
 
 ### v1.51.1（2026-11-03）- 月视图任务条视觉收敛与任务起止时间修复
 
