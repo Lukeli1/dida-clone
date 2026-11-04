@@ -122,8 +122,6 @@ export function useTaskActions(toast: ToastApi, incompleteTaskTreeRef: RefObject
       handleToggleSubtask: subtask.handleToggleSubtask,
       // ===== 拖拽排序 =====
       handleReorderTasks: reorder.handleReorderTasks,
-      // ===== 拖拽到日历 =====
-      handleDropToCalendarDate: reorder.handleDropToCalendarDate,
       handleDragStartGlobal: reorder.handleDragStartGlobal,
       handleDragEndGlobal: reorder.handleDragEndGlobal,
       // ===== 日历视图创建任务 =====

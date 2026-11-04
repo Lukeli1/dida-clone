@@ -20,6 +20,7 @@ import { NotificationCenter } from './components/NotificationCenter'
 import { OnboardingTour } from './components/OnboardingTour'
 import { AppSkeleton } from './components/common/Skeleton'
 import { TopProgressBar } from './components/common/TopProgressBar'
+import { ContextMenuPolicyLayer } from './components/common/ContextMenuPolicyLayer'
 
 // 按需懒加载：非首屏视图（统计 / 设置 / AI / 四象限 / 番茄 / 习惯 / 模板 / 目标）
 // 独立打包为各自 chunk，减小首屏 bundle 体积。首屏任务列表 / 日历仍走同步导入。
@@ -285,6 +286,9 @@ function App() {
 
       {/* 新用户引导教程（首次启动自动弹出）*/}
       <OnboardingTour />
+
+      {/* 全局右键菜单策略：普通区域阻止 WebView 默认浏览器菜单，编辑区保留系统文本菜单 */}
+      <ContextMenuPolicyLayer />
     </div>
   )
 }

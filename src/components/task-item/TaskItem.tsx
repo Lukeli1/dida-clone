@@ -3,6 +3,7 @@ import type { Task } from '../../types'
 import { hexWithAlpha, getTaskColor } from '../../utils/priority'
 import { getSearchMatchSource } from '../../utils/taskSearch'
 import { highlightMatch } from '../../utils/searchHighlight'
+import { isTextEditableTarget } from '../../utils/contextMenuPolicy'
 import { useUIStore } from '../../stores/uiStore'
 import { useTaskActionContext } from '../../contexts/TaskActionContext'
 import { TaskInlineEditor } from './TaskInlineEditor'
@@ -182,6 +183,8 @@ const TaskItem = memo(function TaskItem({
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      // 编辑类控件（内联编辑输入框、子任务输入框等）保留系统文本菜单，不打开业务菜单
+      if (isTextEditableTarget(e.target)) return
       e.preventDefault()
       e.stopPropagation()
       document.dispatchEvent(new CustomEvent('close-context-menus'))
@@ -192,6 +195,7 @@ const TaskItem = memo(function TaskItem({
 
   /** 子任务行右键：打开针对该子任务的菜单（不冒泡到父任务） */
   const handleSubtaskContextMenu = useCallback((subtask: Task, e: React.MouseEvent) => {
+    if (isTextEditableTarget(e.target)) return
     e.preventDefault()
     e.stopPropagation()
     document.dispatchEvent(new CustomEvent('close-context-menus'))

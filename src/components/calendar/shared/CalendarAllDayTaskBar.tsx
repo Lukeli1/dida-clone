@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEvent, MouseEvent, SyntheticEvent } from 'react'
+import type { CSSProperties, DragEvent, MouseEvent, ReactNode, SyntheticEvent } from 'react'
 import type { List, Task } from '../../../types'
 import { PRIORITY_STYLES } from '../../../utils/priority'
 import { useUIStore } from '../../../stores/uiStore'
@@ -15,6 +15,8 @@ interface CalendarAllDayTaskBarProps {
   style?: CSSProperties
   className?: string
   timeRangeLabel?: string
+  /** 插入到条内的额外内容（周视图日期跨度 resize 手柄等） */
+  children?: ReactNode
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
   onDrag?: (e: DragEvent<HTMLDivElement>) => void
   onDragEnd?: (e: DragEvent<HTMLDivElement>) => void
@@ -46,6 +48,7 @@ export function CalendarAllDayTaskBar({
   style,
   className = '',
   timeRangeLabel,
+  children,
   onDragStart,
   onDrag,
   onDragEnd,
@@ -87,6 +90,7 @@ export function CalendarAllDayTaskBar({
       } ${className}`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}
     >
+      {children}
       <button
         type="button"
         onClick={(e) => {

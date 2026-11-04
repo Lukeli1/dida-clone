@@ -12,7 +12,7 @@ import type { TaskActions } from './useTaskActions'
  *   - 搜索：searchQuery
  *   - 批量选择：batchMode / selectedTaskIds / toggle / selectAll / clear
  *   - 组合筛选：showFilters / filters（含 setFilter / resetFilters）
- *   - 列表交互所需 UI 状态：AI 模式、折叠、子任务输入、显示控制、拖拽迷你日历、选中任务等
+ *   - 列表交互所需 UI 状态：AI 模式、折叠、子任务输入、显示控制、选中任务等
  *   - 派生操作：handleCreateTask / selectAllTasks
  *
  * 设计原则（遵循重构约束）：
@@ -70,13 +70,6 @@ export function useTaskListState(createTaskAction: TaskActions['handleCreateTask
   const currentView = useUIStore((s) => s.currentView)
   const selectedListId = useUIStore((s) => s.selectedListId)
 
-  // ===== 拖拽迷你日历 =====
-  const isDraggingTask = useUIStore((s) => s.isDraggingTask)
-  const miniCalendarDate = useUIStore((s) => s.miniCalendarDate)
-  const dragOverCalendarDate = useUIStore((s) => s.dragOverCalendarDate)
-  const setMiniCalendarDate = useUIStore((s) => s.setMiniCalendarDate)
-  const setDragOverCalendarDate = useUIStore((s) => s.setDragOverCalendarDate)
-
   // ===== 派生操作（与原 App.tsx 中的 handleCreateTask / selectAllTasks 行为完全一致）=====
   async function handleCreateTask() {
     if (!newTaskTitle.trim()) return
@@ -125,12 +118,6 @@ export function useTaskListState(createTaskAction: TaskActions['handleCreateTask
     // 视图 / 清单
     currentView,
     selectedListId,
-    // 拖拽迷你日历
-    isDraggingTask,
-    miniCalendarDate,
-    dragOverCalendarDate,
-    setMiniCalendarDate,
-    setDragOverCalendarDate,
     // 派生操作
     handleCreateTask,
     selectAllTasks,

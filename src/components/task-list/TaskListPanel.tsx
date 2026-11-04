@@ -20,7 +20,6 @@ import type { Task } from '../../types'
 import { TaskInputBar } from './TaskInputBar'
 import { TaskFilterBar } from './TaskFilterBar'
 import { BatchToolbar } from './BatchToolbar'
-import { MiniCalendarDropzone } from './MiniCalendarDropzone'
 import { TaskQuickProcessToggle } from '../task-quick-process/TaskQuickProcessToggle'
 import { TaskQuickProcessPreview } from '../task-quick-process/TaskQuickProcessPreview'
 
@@ -93,11 +92,6 @@ export function TaskListPanel(props: TaskListPanelProps) {
     setSelectedTaskId,
     currentView,
     selectedListId,
-    isDraggingTask,
-    miniCalendarDate,
-    dragOverCalendarDate,
-    setMiniCalendarDate,
-    setDragOverCalendarDate,
     handleCreateTask,
     selectAllTasks,
   } = listState
@@ -614,23 +608,6 @@ export function TaskListPanel(props: TaskListPanelProps) {
           />
         )}
       </header>
-
-      {/* 拖拽任务时显示的浮动迷你日历 */}
-      {isDraggingTask && (
-        <MiniCalendarDropzone
-          currentDate={miniCalendarDate}
-          onPrevMonth={() =>
-            setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() - 1, 1))
-          }
-          onNextMonth={() =>
-            setMiniCalendarDate(new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 1))
-          }
-          onDropDate={actions.handleDropToCalendarDate}
-          onClose={actions.handleDragEndGlobal}
-          dragOverDate={dragOverCalendarDate}
-          setDragOverDate={setDragOverCalendarDate}
-        />
-      )}
 
       {currentView !== 'archived' && (
         <TaskInputBar

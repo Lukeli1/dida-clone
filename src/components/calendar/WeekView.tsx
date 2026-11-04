@@ -11,11 +11,14 @@ import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { useTimeSelection } from './useTimeSelection'
 import { useTaskResize } from './useTaskResize'
+import { useDateSpanResize } from './useDateSpanResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
 import { CalendarDateNav } from './CalendarDateNav'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
 import { useCalendarTaskDragActions } from './shared/useCalendarTaskDragActions'
 import { computeDropStartMinute, computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../../utils/calendarDropTime'
+import type { CalendarAllDaySegment } from '../../utils/calendarAllDaySegments'
+import type { DateSpanResizeEdge } from '../../utils/dateSpanResize'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
 import type { TaskActions } from '../../hooks/useTaskActions'
 
@@ -138,6 +141,104 @@ export function WeekView({
     resizeMode: resize.resizeMode,
     hourHeight: HOUR_HEIGHT,
   })
+
+  const dayIndexByKey = useMemo(
+    () => new Map(days.map((day, index) => [format(day, 'yyyy-MM-dd'), index] as const)),
+    [days],
+  )
+
+  /**
+   * 指针 clientX → 日列下标。时间网格与全天区同一列宽（grid-cols-7），
+   * 用时间网格的矩形做横向映射即可同时服务两类手柄。
+   */
+  function resolveDayIndexFromClientX(clientX: number): number | null {
+    const grid = timeGridRef.current
+    if (!grid) return null
+    const rect = grid.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    const raw = Math.floor(((clientX - rect.left) / rect.width) * days.length)
+    return Math.max(0, Math.min(days.length - 1, raw))
+  }
+
+  const spanResize = useDateSpanResize({ tasks, days, onUpdateTask, resolveDayIndexFromClientX })
+
+  /** 全天条按真实端点决定手柄：single 两端、start 仅左端、end 仅右端、middle 无（裁剪边界不冒充端点） */
+  function getSegmentSpanEdges(segment: CalendarAllDaySegment<Task>): DateSpanResizeEdge[] {
+    if (segment.segment === 'single') return ['start', 'end']
+    if (segment.segment === 'start') return ['start']
+    if (segment.segment === 'end') return ['end']
+    return []
+  }
+
+  function renderSpanHandle(edge: DateSpanResizeEdge, task: Task) {
+    return (
+      <div
+        key={edge}
+        data-span-resize-handle={edge}
+        draggable={false}
+        onPointerDown={(e) => spanResize.handleEdgePointerDown(e, task, edge)}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        className={`absolute top-0 bottom-0 z-10 w-1.5 cursor-ew-resize touch-none transition-colors hover:bg-[var(--color-accent)]/40 ${
+          edge === 'start' ? 'left-0 rounded-l-[3px]' : 'right-0 rounded-r-[3px]'
+        }`}
+      />
+    )
+  }
+
+  /** 日期范围预览：任务归属全天区还是时间轴决定浮层位置；跨出当前周的一端按周边界裁剪渲染 */
+  const spanPreviewTask = useMemo(() => {
+    const preview = spanResize.spanPreview
+    if (!preview) return null
+    const task = tasks.find((t) => t.id === preview.taskId)
+    if (!task) return null
+    return { task, preview }
+  }, [spanResize.spanPreview, tasks])
+
+  function renderSpanPreviewOverlay(kind: 'all-day' | 'timed') {
+    if (!spanPreviewTask) return null
+    const { task, preview } = spanPreviewTask
+    const isAllDayArea = isTaskMultiDay(task) || isTaskAllDayLike(task)
+    if (kind === 'all-day' ? !isAllDayArea : isAllDayArea) return null
+
+    const rawStart = dayIndexByKey.get(preview.startKey) ?? 0
+    const rawEnd = dayIndexByKey.get(preview.endKey) ?? days.length - 1
+    const startIdx = Math.max(0, Math.min(days.length - 1, rawStart))
+    const endIdx = Math.max(startIdx, Math.min(days.length - 1, rawEnd))
+    const rangeLabel = `${format(new Date(`${preview.startKey}T00:00:00`), 'M月d日', { locale: zhCN })} → ${format(
+      new Date(`${preview.endKey}T00:00:00`),
+      'M月d日',
+      { locale: zhCN },
+    )}`
+
+    return (
+      <div
+        data-testid="week-span-preview"
+        data-start-key={preview.startKey}
+        data-end-key={preview.endKey}
+        className="pointer-events-none absolute z-30 rounded-[3px] border border-dashed border-[var(--color-accent)] bg-[var(--color-accent)]/15"
+        style={
+          kind === 'all-day'
+            ? {
+                top: `${4 + (allDaySegments.find((segment) => segment.task.id === task.id)?.rowIndex ?? 0) * 24}px`,
+                height: '20px',
+                left: `calc(${(startIdx / days.length) * 100}% + 2px)`,
+                width: `calc(${((endIdx - startIdx + 1) / days.length) * 100}% - 4px)`,
+              }
+            : {
+                top: `${getTaskTop(task)}px`,
+                height: `${getTaskHeight(task)}px`,
+                left: `${(startIdx / days.length) * 100}%`,
+                width: `${((endIdx - startIdx + 1) / days.length) * 100}%`,
+              }
+        }
+      >
+        <span className="absolute -top-6 left-0 z-40 whitespace-nowrap rounded bg-[var(--color-tooltip-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-tooltip-text)]">
+          {rangeLabel}
+        </span>
+      </div>
+    )
+  }
 
   function handleDragStart(e: React.DragEvent, taskId: number) {
     setDraggedTaskId(taskId)
@@ -334,6 +435,7 @@ export function WeekView({
                   lists={lists}
                   segment={segment.segment}
                   dragged={draggedTaskId === segment.task.id}
+                  draggable={!spanResize.isSpanResizing}
                   className="absolute z-20 shadow-sm"
                   timeRangeLabel={getCrossDayRangeLabel(segment.task)}
                   style={{
@@ -353,8 +455,11 @@ export function WeekView({
                     onToggleTask(segment.task.id)
                   }}
                   onContextMenu={(e) => handleTaskContextMenu(e, segment.task)}
-                />
+                >
+                  {getSegmentSpanEdges(segment).map((edge) => renderSpanHandle(edge, segment.task))}
+                </CalendarAllDayTaskBar>
               ))}
+              {renderSpanPreviewOverlay('all-day')}
             </div>
 
             <div
@@ -452,7 +557,7 @@ export function WeekView({
                             lists={lists}
                             variant="week"
                             dragged={draggedTaskId === task.id}
-                            draggable={resize.resizingTaskId === null}
+                            draggable={resize.resizingTaskId === null && !spanResize.isSpanResizing}
                             dataTask
                             timeLabel={task.due_date ? format(new Date(task.due_date), 'HH:mm') : undefined}
                             style={{
@@ -474,6 +579,9 @@ export function WeekView({
                             }}
                             onContextMenu={(e) => handleTaskContextMenu(e, task)}
                           >
+                            {/* 左右日期跨度手柄：拖左缘只改开始日期，拖右缘只改结束日期 */}
+                            {renderSpanHandle('start', task)}
+                            {renderSpanHandle('end', task)}
                             {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
                             {task.end_date && (
                               <div
@@ -506,6 +614,7 @@ export function WeekView({
                   </div>
                 )
               })}
+              {renderSpanPreviewOverlay('timed')}
               <WeekCreatePopups sel={sel} lists={lists} defaultListId={defaultListId} />
             </div>
           </div>

@@ -165,6 +165,34 @@ describe('今日任务拖拽回归', () => {
     expect(actions.handleDeleteTask).not.toHaveBeenCalled()
   })
 
+  it.each(['today', 'tasks'] as const)('拖拽任务时不再自动弹出迷你日历（%s 视图）', (view) => {
+    useUIStore.setState({ currentView: view })
+    renderPanel()
+    expect(screen.queryByText('拖拽任务到日期设置截止时间')).not.toBeInTheDocument()
+
+    startDrag(1)
+    // 迷你日历已移除：拖拽过程中也不得出现
+    expect(screen.queryByText('拖拽任务到日期设置截止时间')).not.toBeInTheDocument()
+    // 拖拽生命周期保留：isDraggingTask 状态仍被设置，拖动状态清理入口不变
+    expect(useUIStore.getState().isDraggingTask).toBe(true)
+
+    act(() => {
+      useUIStore.getState().setIsDraggingTask(false)
+    })
+    expect(useUIStore.getState().isDraggingTask).toBe(false)
+  })
+
+  it('全部任务视图下拖拽后垂直排序仍正常', () => {
+    useUIStore.setState({ currentView: 'tasks' })
+    const { actions } = renderPanel()
+    const dataTransfer = startDrag(1)
+    moveDrag(1, { x: 302, y: 280 })
+    dropOn(2, dataTransfer, { x: 302, y: 280 })
+
+    expect(actions.handleReorderTasks).toHaveBeenCalledWith(1, 2)
+    expect(screen.queryByText('拖拽任务到日期设置截止时间')).not.toBeInTheDocument()
+  })
+
   it('拖拽结束未投放时不执行任何动作', () => {
     const { actions } = renderPanel()
     startDrag(1)

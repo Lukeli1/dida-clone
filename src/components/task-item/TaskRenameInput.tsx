@@ -65,7 +65,6 @@ export function TaskRenameInput({ task, position, onSave, onCancel }: TaskRename
       style={{ left: adjustedPos.x, top: adjustedPos.y }}
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onContextMenu={(e) => e.preventDefault()}
     >
       <input
         ref={inputRef}
