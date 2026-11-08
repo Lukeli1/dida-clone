@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.52.1`（tag 与 GitHub Release 由发布流程同步，含签名安装包与 `latest.json` 1.52.1）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.52.1`（tag `ff43aa4`，GitHub Release 含签名安装包与 `latest.json` 1.52.1；workflow run `42460834734`，机器人回写 `86b0f03`）。图片附件仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -930,7 +930,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 时间 resize 预览改用同一布局结果：被最终打包顺延的 lane 任务调整上下时间手柄时保持显示位置、避让邻项，预览 / 提交 / 重载几何一致，真实时间按增量写入。
 - 日期跨度预览按真实起止日期判断单日 / 跨日，单列裁剪不会误判；预览与保存使用同一稳定任务顺序，并应用 strip / lane 的完整纵向与横向布局。单日→跨日、跨日→单日、左右日期手柄、lane 有 / 无避让及横向分栏的预览 / 提交 / 重载几何一致。
 - 未修改数据库 schema、同步协议、导入导出格式、occurrence 算法或任务数据结构，不迁移历史任务；复用既有任务更新 API。
-- 状态（2026-11-08）：全量 Vitest 108 文件 / 1240 项通过，typecheck、生产构建、ESLint 0 error / 36 warning 通过；关键审核 E2E 44/44 通过；全量 Playwright 122/130，8 项失败为月视图视觉与日期相关月条 fixture 基线。发布资产与 `latest.json` 1.52.1 由 GitHub Release 工作流生成。
+- 状态（2026-11-08）：全量 Vitest 108 文件 / 1240 项通过，typecheck、生产构建、cargo check --locked、ESLint 0 error / 36 warning 通过；关键审核 E2E 44/44 通过；全量 Playwright 122/130，8 项失败为月视图视觉与日期相关月条 fixture 基线。已通过 GitHub Release 发布签名安装包、tag `v1.52.1` 与 `latest.json` 1.52.1（workflow run `42460834734`，9m42s；机器人回写 `86b0f03`；安装包 Ed25519 + BLAKE2b-512 实际验签通过，key ID `0EC1DE27780EDC04`）。
 
 ### v1.52.0（2026-11-04）- 周视图日期跨度调整与右键菜单统一策略
 
