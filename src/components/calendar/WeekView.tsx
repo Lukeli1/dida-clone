@@ -4,8 +4,21 @@ import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
 import { useCurrentTime, toDayMinutes } from '../../hooks/useCurrentTime'
 import { useAutoScrollToNow } from '../../hooks/useAutoScrollToNow'
-import { layoutTimedTasks } from '../../utils/calendarTaskLayout'
-import { getOccurrencesForRange, isTaskAllDayLike, isTaskMultiDay } from '../../utils/calendarTaskOccurrences'
+import {
+  computeLanePosition,
+  getCoveredCalendarDayOrdinals,
+  getCrossDayTimedWindow,
+  getTimedTaskWindow,
+  layoutWeekTimedConflicts,
+  type CrossDayTimedWindow,
+  type WeekTimedConflictItem,
+} from '../../utils/calendarTaskLayout'
+import {
+  getOccurrencesForRange,
+  isTaskAllDayLike,
+  isTaskMultiDay,
+  type CalendarOccurrence,
+} from '../../utils/calendarTaskOccurrences'
 import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
@@ -16,7 +29,18 @@ import { WeekCreatePopups } from './WeekCreatePopups'
 import { CalendarDateNav } from './CalendarDateNav'
 import { useCalendarTaskContextMenu } from './shared/useCalendarTaskContextMenu'
 import { useCalendarTaskDragActions } from './shared/useCalendarTaskDragActions'
-import { computeDropStartMinute, computeGrabOffsetY, readGrabOffsetY, writeGrabOffsetY } from '../../utils/calendarDropTime'
+import {
+  computeDropStartMinute,
+  computeGrabOffsetY,
+  localDayDiff,
+  readDisplayOffsetMinutes,
+  readDragDayOffset,
+  readGrabOffsetY,
+  shiftLocalDateKeyByDays,
+  writeDisplayOffsetMinutes,
+  writeDragDayOffset,
+  writeGrabOffsetY,
+} from '../../utils/calendarDropTime'
 import type { CalendarAllDaySegment } from '../../utils/calendarAllDaySegments'
 import type { DateSpanResizeEdge } from '../../utils/dateSpanResize'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
@@ -79,11 +103,50 @@ export function WeekView({
   const dateKeys = useMemo(() => days.map((day) => format(day, 'yyyy-MM-dd')), [days])
 
   const allDaySegments = useMemo(() => {
-    const occurrences = getOccurrencesForRange(tasks, days[0], days[6]).filter(
-      (occurrence) => occurrence.isMultiDay || occurrence.isAllDayLike,
-    )
+    // 只有全天（或整天跨度）任务进入顶部全天区；定时任务跨日不再作为进入全天栏的理由
+    const occurrences = getOccurrencesForRange(tasks, days[0], days[6]).filter((occurrence) => occurrence.isAllDayLike)
     return getAllDaySegmentsForDays(days, occurrences)
   }, [tasks, days])
+
+  /** 定时跨日任务的日段（按覆盖日分桶）：留在时间网格内按列渲染 */
+  const timedCrossDayOccurrencesByDate = useMemo(() => {
+    const map = new Map<string, CalendarOccurrence<Task>[]>()
+    getOccurrencesForRange(tasks, days[0], days[6])
+      .filter((occurrence) => occurrence.isMultiDay && !occurrence.isAllDayLike)
+      .forEach((occurrence) => {
+        const arr = map.get(occurrence.dateKey) ?? []
+        arr.push(occurrence)
+        map.set(occurrence.dateKey, arr)
+      })
+    return map
+  }, [tasks, days])
+
+  /** 当前可见周内每个跨日任务实际占据的日列下标（用于渲染与单日任务避让） */
+  const visibleCrossColumnsByTask = useMemo(() => {
+    const map = new Map<number, number[]>()
+    days.forEach((day, index) => {
+      const key = format(day, 'yyyy-MM-dd')
+      const occurrences = timedCrossDayOccurrencesByDate.get(key) ?? []
+      occurrences.forEach((occurrence) => {
+        const columns = map.get(occurrence.task.id) ?? []
+        if (!columns.includes(index)) columns.push(index)
+        map.set(occurrence.task.id, columns)
+      })
+    })
+    return map
+  }, [days, timedCrossDayOccurrencesByDate])
+
+  /** 定时跨日任务的纵向窗口（按任务缓存：同一任务的所有日段共用同一窗口） */
+  const crossDayWindowsByTask = useMemo(() => {
+    const map = new Map<number, CrossDayTimedWindow>()
+    tasks.forEach((task) => {
+      if (!task.due_date || !isTaskMultiDay(task) || isTaskAllDayLike(task)) return
+      // 纵向窗口只由任务真实起止时刻决定，与当前查看哪一周无关（裁剪只影响横向可见范围）
+      const window = getCrossDayTimedWindow(task)
+      if (window) map.set(task.id, window)
+    })
+    return map
+  }, [tasks])
 
   const allDayRowCount = useMemo(() => {
     return Math.max(1, ...allDaySegments.map((segment) => segment.rowIndex + 1))
@@ -106,6 +169,68 @@ export function WeekView({
     })
     return map
   }, [tasks])
+
+  /** 当前可见周内每个单日定时任务所在的日列下标（用于稳定输入构造与渲染） */
+  const visibleSingleColumnByTask = useMemo(() => {
+    const map = new Map<number, number>()
+    days.forEach((day, index) => {
+      const key = format(day, 'yyyy-MM-dd')
+      const dayTasks = tasksByDate.get(key) ?? []
+      dayTasks.forEach((task) => {
+        if (!task.due_date || isTaskMultiDay(task) || isTaskAllDayLike(task)) return
+        if (!map.has(task.id)) map.set(task.id, index)
+      })
+    })
+    return map
+  }, [days, tasksByDate])
+
+  /**
+   * 周视图定时块冲突布局（整周协调，跨日与单日统一）：
+   * - 跨日任务以「任务级」条目参与，占据其全部可见日列
+   * - 同时间窗口内的冲突任务划分稳定的竖直子轨道（整列宽，互不遮挡）
+   * - 跨日任务在所有覆盖列使用同一子轨道 → 横带连续、纵向范围一致
+   * - 纯单日任务冲突沿用既有横向分列；窗口不一致时回退右侧半列
+   *
+   * 输入统一按任务列表顺序构造，与 single / cross 分类无关：
+   * 日期跨度调整导致任务在预览中改变类型时，条目仍保持同一位置，
+   * 保存后重建的输入顺序也一致，轨道 tie-break 不会跳变。
+   */
+  const weekTimedItems = useMemo(() => {
+    const items: WeekTimedConflictItem[] = []
+    tasks.forEach((task) => {
+      if (!task.due_date || isTaskAllDayLike(task)) return
+
+      // 跨日任务：输入不再局限于当前可见周。stableColumns 覆盖真实起止的全部日期，
+      // 使分轨与打包在切周前后保持一致；columns 仅表示本周可见日列，用于渲染与单日避让。
+      if (isTaskMultiDay(task)) {
+        const window = crossDayWindowsByTask.get(task.id)
+        if (!window) return
+        items.push({
+          id: `task-${task.id}`,
+          kind: 'cross',
+          columns: visibleCrossColumnsByTask.get(task.id) ?? [],
+          stableColumns: getCoveredCalendarDayOrdinals(task),
+          startMinute: window.startMinute,
+          endMinute: window.startMinute + window.heightMinutes,
+        })
+        return
+      }
+
+      const column = visibleSingleColumnByTask.get(task.id)
+      if (column === undefined) return
+      const window = getTimedTaskWindow(task, { hourHeight: HOUR_HEIGHT })
+      items.push({
+        id: `task-${task.id}`,
+        kind: 'single',
+        columns: [column],
+        startMinute: window.startMinute,
+        endMinute: window.startMinute + window.durationMinutes,
+      })
+    })
+    return items
+  }, [tasks, visibleSingleColumnByTask, crossDayWindowsByTask, visibleCrossColumnsByTask])
+
+  const weekTimedLayout = useMemo(() => layoutWeekTimedConflicts(weekTimedItems), [weekTimedItems])
 
   function getTaskTop(task: Task) {
     if (!task.due_date) return 0
@@ -132,6 +257,30 @@ export function WeekView({
   }
 
   const resize = useTaskResize({ tasks, onUpdateTask, getTaskTop, getTaskHeight })
+
+  /**
+   * 时间 resize 预览：用真实起止构造临时布局项，与提交 / 重载共用同一布局。
+   * resizePreview 是真实时间坐标；显示位置必须再经冲突布局换算，
+   * 否则被最终打包顺延过的 lane 任务会在预览时跳回真实位置并压住邻项。
+   */
+  const resizePreviewLayouts = useMemo(() => {
+    const preview = resize.resizePreview
+    const taskId = resize.resizingTaskId
+    if (!preview || taskId === null) return null
+    const previewId = `task-${taskId}`
+    const source = weekTimedItems.find((item) => item.id === previewId)
+    if (!source || source.kind !== 'single') return null
+    const previewItem: WeekTimedConflictItem = {
+      ...source,
+      kind: 'single',
+      stableColumns: undefined,
+      startMinute: preview.top,
+      endMinute: preview.top + preview.height,
+    }
+    return layoutWeekTimedConflicts(weekTimedItems.map((item) => (item.id === previewId ? previewItem : item)))
+  }, [resize.resizingTaskId, resize.resizePreview, weekTimedItems])
+
+  const activeWeekTimedLayout = resizePreviewLayouts ?? weekTimedLayout
   const sel = useTimeSelection({
     gridRef: timeGridRef,
     scrollContainerRef: weekScrollRef,
@@ -198,7 +347,8 @@ export function WeekView({
   function renderSpanPreviewOverlay(kind: 'all-day' | 'timed') {
     if (!spanPreviewTask) return null
     const { task, preview } = spanPreviewTask
-    const isAllDayArea = isTaskMultiDay(task) || isTaskAllDayLike(task)
+    // 只有全天（或整天跨度）任务预览挂在顶部；定时任务（含跨日）预览留在时间网格
+    const isAllDayArea = isTaskAllDayLike(task)
     if (kind === 'all-day' ? !isAllDayArea : isAllDayArea) return null
 
     const rawStart = dayIndexByKey.get(preview.startKey) ?? 0
@@ -210,6 +360,78 @@ export function WeekView({
       'M月d日',
       { locale: zhCN },
     )}`
+
+    // 定时预览与保存后的布局共用同一窗口规则：单日按实际时长，跨日按每日可读窗口
+    const pxPerMinute = HOUR_HEIGHT / 60
+    let timedTopPx = 30
+    let timedHeightPx = 30
+    // 定时预览的横向范围：默认按可见日列；最终若落入 lane 模式，再收窄到该 lane。
+    // 日列有 1px 右边框，保存后的任务块宽度按列内容宽（扣除边框）计算；
+    // 预览覆盖层直接相对整周网格定位，需用 calc 扣除右侧边框，横向几何才与保存后一致。
+    const trailingColumnBorderPx = endIdx < days.length - 1 ? 1 : 0
+    let timedLeftCss = `${(startIdx / days.length) * 100}%`
+    let timedWidthCss =
+      trailingColumnBorderPx > 0
+        ? `calc(${((endIdx - startIdx + 1) / days.length) * 100}% - ${trailingColumnBorderPx}px)`
+        : `${((endIdx - startIdx + 1) / days.length) * 100}%`
+    if (kind === 'timed') {
+      const previewStart = new Date(preview.startIso)
+      const previewEnd = preview.endIso ? new Date(preview.endIso) : null
+      timedTopPx = (getHours(previewStart) * 60 + getMinutes(previewStart)) * pxPerMinute
+      // 是否跨日只看预览的真实起止日期；可见列只用于裁剪渲染。
+      // 真实跨日但当前周只剩一列时，仍必须按跨日任务参与稳定分轨。
+      const isCrossDayPreview = preview.startKey !== preview.endKey
+      if (preview.startKey === preview.endKey) {
+        const minutes = previewEnd ? (previewEnd.getTime() - previewStart.getTime()) / 60000 : 0
+        timedHeightPx = Math.max(30, minutes) * pxPerMinute
+      } else {
+        const window = preview.endIso
+          ? getCrossDayTimedWindow({ due_date: preview.startIso, end_date: preview.endIso })
+          : null
+        timedHeightPx = (window?.heightMinutes ?? 30) * pxPerMinute
+        timedTopPx = (window?.startMinute ?? timedTopPx / pxPerMinute) * pxPerMinute
+      }
+
+      // 预览与保存后共用同一冲突布局：在原数组位置替换该任务条目，保持稳定身份与排序
+      // 跨日预览同样使用真实起止覆盖的稳定日期列，避免预览与提交 / 重载后的分轨不同
+      const previewItem: WeekTimedConflictItem = {
+        id: `task-${task.id}`,
+        kind: isCrossDayPreview ? 'cross' : 'single',
+        columns: Array.from({ length: endIdx - startIdx + 1 }, (_, offset) => startIdx + offset),
+        stableColumns: isCrossDayPreview
+          ? getCoveredCalendarDayOrdinals({ due_date: preview.startIso, end_date: preview.endIso })
+          : undefined,
+        startMinute: timedTopPx / pxPerMinute,
+        endMinute: (timedTopPx + timedHeightPx) / pxPerMinute,
+      }
+      const previewLayout = layoutWeekTimedConflicts(
+        weekTimedItems.map((item) => (item.id === previewItem.id ? previewItem : item)),
+      ).get(previewItem.id)
+      if (previewLayout) {
+        // 预览必须应用最终布局的完整结果：strip 的轨道位移与 lane 的最终避让位置都生效；
+        // 否则跨日→单日转换时预览会停在原始时间位置，与保存后差一个避让距离。
+        const previewRowMinutes = previewLayout.displayHeightMinutes
+        const previewStartMinutes =
+          previewLayout.mode === 'strip'
+            ? previewLayout.displayStartMinute + previewLayout.stripIndex * previewRowMinutes
+            : previewLayout.displayStartMinute
+        timedTopPx = previewStartMinutes * pxPerMinute
+        timedHeightPx = previewRowMinutes * pxPerMinute
+
+        if (previewLayout.mode === 'lane') {
+          const lane = computeLanePosition(previewLayout.lane, previewLayout.laneCount)
+          const laneLeftPercent = ((startIdx + lane.leftPercent / 100) / days.length) * 100
+          const laneWidthPercent = lane.widthPercent / days.length
+          const laneBorderPx = startIdx < days.length - 1 ? 1 : 0
+          const leftAdjustPx = (lane.leftPercent / 100) * laneBorderPx
+          timedLeftCss = leftAdjustPx > 0 ? `calc(${laneLeftPercent}% - ${leftAdjustPx}px)` : `${laneLeftPercent}%`
+          timedWidthCss =
+            laneBorderPx > 0
+              ? `calc(${laneWidthPercent}% - ${(lane.widthPercent / 100) * laneBorderPx}px)`
+              : `${laneWidthPercent}%`
+        }
+      }
+    }
 
     return (
       <div
@@ -226,10 +448,10 @@ export function WeekView({
                 width: `calc(${((endIdx - startIdx + 1) / days.length) * 100}% - 4px)`,
               }
             : {
-                top: `${getTaskTop(task)}px`,
-                height: `${getTaskHeight(task)}px`,
-                left: `${(startIdx / days.length) * 100}%`,
-                width: `${((endIdx - startIdx + 1) / days.length) * 100}%`,
+                top: `${timedTopPx}px`,
+                height: `${timedHeightPx}px`,
+                left: timedLeftCss,
+                width: timedWidthCss,
               }
         }
       >
@@ -240,13 +462,27 @@ export function WeekView({
     )
   }
 
-  function handleDragStart(e: React.DragEvent, taskId: number) {
-    setDraggedTaskId(taskId)
+  /**
+   * 定时任务块 dragstart。
+   * - segmentDateKey：该块所在自然日（跨日任务按日分段）。写入「分段日相对真实开始日」
+   *   的本地自然日偏移，drop 时用目标日 − 偏移还原整个任务的新起点；
+   *   单日任务传入所在日，偏移恒为 0。
+   */
+  function handleDragStart(e: React.DragEvent, task: Task, segmentDateKey?: string, displayOffsetMinutes = 0) {
+    setDraggedTaskId(task.id)
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(taskId))
+    e.dataTransfer.setData('text/plain', String(task.id))
     // 记录块内抓取偏移：拖动图像按该偏移跟随光标，drop 时据此还原落点
     const blockRect = e.currentTarget.getBoundingClientRect()
     writeGrabOffsetY(e.dataTransfer, computeGrabOffsetY(e.clientY, blockRect.top, blockRect.height))
+    // 子轨道显示偏移：块顶相对任务真实开始的下移量，drop 时先减偏移再吸附
+    writeDisplayOffsetMinutes(e.dataTransfer, displayOffsetMinutes)
+
+    if (segmentDateKey && task.due_date) {
+      const [year, month, day] = segmentDateKey.split('-').map(Number)
+      const segmentDay = new Date(year, month - 1, day)
+      writeDragDayOffset(e.dataTransfer, localDayDiff(new Date(task.due_date), segmentDay))
+    }
   }
 
   /**
@@ -261,9 +497,9 @@ export function WeekView({
     e.dataTransfer.setData('text/plain', String(task.id))
   }
 
-  function handleBlockDragStart(e: React.DragEvent, task: Task) {
+  function handleBlockDragStart(e: React.DragEvent, task: Task, segmentDateKey?: string, displayOffsetMinutes = 0) {
     taskDrag.beginDrag(e, task)
-    handleDragStart(e, task.id)
+    handleDragStart(e, task, segmentDateKey, displayOffsetMinutes)
   }
 
   function handleDragOver(e: React.DragEvent, dateKey: string) {
@@ -314,6 +550,7 @@ export function WeekView({
 
     const [year, month, day] = dateKey.split('-').map(Number)
     if (options?.allDay) {
+      // 全天区是日期级落点：保持原有语义（拖到哪一天就落在哪一天），不应用分段日偏移
       const newDate = new Date(year, month - 1, day)
       onMoveTask(taskId, newDate.toISOString(), options)
       setDraggedTaskId(null)
@@ -330,13 +567,19 @@ export function WeekView({
         pointerClientY: e.clientY,
         columnTop: rect.top,
         grabOffsetY: readGrabOffsetY(e.dataTransfer),
+        // 子轨道：块顶 = 真实开始 + 显示偏移；先归位再吸附，放回原位不改变原时间
+        displayOffsetMinutes: readDisplayOffsetMinutes(e.dataTransfer),
         hourHeight: HOUR_HEIGHT,
       })
       hour = Math.floor(startMinute / 60)
       minute = startMinute % 60
     }
 
-    const newDate = new Date(year, month - 1, day, hour, minute)
+    // 跨日任务从第 N 天分段抓起时，目标日 − N 天才是整个任务的新开始日
+    // （分段日偏移已在 dragstart 写入；单日任务与外部来源为 0）
+    const dayOffset = readDragDayOffset(e.dataTransfer)
+    const targetDay = shiftLocalDateKeyByDays(dateKey, dayOffset)
+    const newDate = new Date(targetDay.getFullYear(), targetDay.getMonth(), targetDay.getDate(), hour, minute)
     onMoveTask(taskId, newDate.toISOString(), { allDay: false })
     setDraggedTaskId(null)
   }
@@ -474,10 +717,11 @@ export function WeekView({
               {days.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
                 const dayTasks = tasksByDate.get(key) || []
-                const timedTaskLayouts = layoutTimedTasks(
-                  dayTasks.filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task)),
-                  { hourHeight: HOUR_HEIGHT },
-                )
+                // 单日任务按列布局：与跨日横带重叠时收进右侧半列（横带保持连续，单日任务叠在上层）
+                const singleDayWindows = dayTasks
+                  .filter((task) => task.due_date && !isTaskMultiDay(task) && !isTaskAllDayLike(task))
+                  .map((task) => ({ task, window: getTimedTaskWindow(task, { hourHeight: HOUR_HEIGHT }) }))
+                const crossDaySegments = timedCrossDayOccurrencesByDate.get(key) ?? []
                 const today = isToday(day)
                 const isDragOver = dragOverDate === key
                 const selectionSegment = sel.selection?.segments.find((segment) => segment.dateKey === key)
@@ -546,10 +790,89 @@ export function WeekView({
                         </div>
                       ) : null}
 
-                      {timedTaskLayouts.map(({ task, top, height, leftPercent, widthPercent }) => {
+                      {/* 定时跨日任务：留在时间网格内按日分段、横向相接；纵向共用每日可读窗口 */}
+                      {crossDaySegments.map((occurrence) => {
+                        const task = occurrence.task
+                        const window = crossDayWindowsByTask.get(task.id)
+                        if (!window) return null
+                        const layout = activeWeekTimedLayout.get(`task-${task.id}`)
+                        const isStrip = layout?.mode === 'strip'
+                        const displayStartMinute = layout?.displayStartMinute ?? window.startMinute
+                        const rowMinutes = layout?.displayHeightMinutes ?? window.heightMinutes
+                        const topPx = (displayStartMinute + (layout?.stripIndex ?? 0) * rowMinutes) * (HOUR_HEIGHT / 60)
+                        const heightPx = rowMinutes * (HOUR_HEIGHT / 60)
+                        const { leftPercent, widthPercent } = isStrip
+                          ? { leftPercent: 0, widthPercent: 100 }
+                          : computeLanePosition(layout?.lane ?? 0, layout?.laneCount ?? 1)
+                        return (
+                          <TaskBar
+                            key={`cross-day-${task.id}-${occurrence.dateKey}`}
+                            task={task}
+                            lists={lists}
+                            variant="week"
+                            dragged={draggedTaskId === task.id}
+                            draggable={resize.resizingTaskId === null && !spanResize.isSpanResizing}
+                            dataTask
+                            segment={occurrence.segment}
+                            titleOverride={getCrossDayRangeLabel(task)}
+                            timeLabel={
+                              occurrence.segment === 'start' && task.due_date
+                                ? format(new Date(task.due_date), 'HH:mm')
+                                : undefined
+                            }
+                            style={{
+                              top: `${topPx}px`,
+                              height: `${heightPx}px`,
+                              left: `${leftPercent}%`,
+                              width: `${widthPercent}%`,
+                            }}
+                            onDragStart={(e) =>
+                              handleBlockDragStart(
+                                e,
+                                task,
+                                occurrence.dateKey,
+                                displayStartMinute - window.startMinute + (layout?.stripIndex ?? 0) * rowMinutes,
+                              )
+                            }
+                            onDrag={(e) => taskDrag.updateDrag(e)}
+                            onDragEnd={() => taskDrag.handleDragEnd()}
+                            onTaskClick={(e) => {
+                              e.stopPropagation()
+                              onTaskClick(task.id)
+                            }}
+                            onToggle={(e) => {
+                              e.stopPropagation()
+                              onToggleTask(task.id)
+                            }}
+                            onContextMenu={(e) => handleTaskContextMenu(e, task)}
+                          >
+                            {/* 只有真实起止段带日期手柄；middle 段与裁剪边界不冒充端点 */}
+                            {occurrence.segment === 'start' ? renderSpanHandle('start', task) : null}
+                            {occurrence.segment === 'end' ? renderSpanHandle('end', task) : null}
+                            {/* 跨日段不渲染上下时间手柄：单日时分算法不适用于真实跨日结束时间 */}
+                          </TaskBar>
+                        )
+                      })}
+
+                      {singleDayWindows.map(({ task, window }) => {
+                        const layout = activeWeekTimedLayout.get(`task-${task.id}`)
+                        const isStrip = layout?.mode === 'strip'
+                        const displayStartMinute = layout?.displayStartMinute ?? window.startMinute
+                        const rowMinutes = layout?.displayHeightMinutes ?? window.durationMinutes
+                        const { leftPercent, widthPercent } = isStrip
+                          ? { leftPercent: 0, widthPercent: 100 }
+                          : computeLanePosition(layout?.lane ?? 0, layout?.laneCount ?? 1)
                         const isResizing = resize.resizingTaskId === task.id
-                        const displayTop = isResizing && resize.resizePreview ? resize.resizePreview.top : top
-                        const displayHeight = isResizing && resize.resizePreview ? resize.resizePreview.height : height
+                        const baseTop =
+                          (displayStartMinute + (layout?.stripIndex ?? 0) * rowMinutes) * (HOUR_HEIGHT / 60)
+                        const baseHeight = rowMinutes * (HOUR_HEIGHT / 60)
+                        // 子轨道显示偏移（分钟）：交集起点位移 + 轨道位移；拖拽放回原位时先减去它再吸附
+                        const displayOffsetMinutes =
+                          displayStartMinute - window.startMinute + (layout?.stripIndex ?? 0) * rowMinutes
+                        // 显示位置完全由当前布局（含 resize 预览布局）决定：
+                        // 被最终打包顺延过 / 因日界向上让位的任务也不会跳回真实时间坐标
+                        const displayTop = baseTop
+                        const displayHeight = baseHeight
                         return (
                           <TaskBar
                             key={task.id}
@@ -566,7 +889,7 @@ export function WeekView({
                               left: `${leftPercent}%`,
                               width: `${widthPercent}%`,
                             }}
-                            onDragStart={(e) => handleBlockDragStart(e, task)}
+                            onDragStart={(e) => handleBlockDragStart(e, task, key, displayOffsetMinutes)}
                             onDrag={(e) => taskDrag.updateDrag(e)}
                             onDragEnd={() => taskDrag.handleDragEnd()}
                             onTaskClick={(e) => {
@@ -582,8 +905,8 @@ export function WeekView({
                             {/* 左右日期跨度手柄：拖左缘只改开始日期，拖右缘只改结束日期 */}
                             {renderSpanHandle('start', task)}
                             {renderSpanHandle('end', task)}
-                            {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间 */}
-                            {task.end_date && (
+                            {/* TOP resize handle - 需 end_date 才可拖上边缘改开始时间；子轨道模式下隐藏 */}
+                            {!isStrip && task.end_date && (
                               <div
                                 draggable={false}
                                 data-resize-handle
@@ -598,8 +921,8 @@ export function WeekView({
                                 {sel.formatMinute(resize.resizePreview.top + resize.resizePreview.height)}
                               </div>
                             )}
-                            {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date */}
-                            {task.due_date && (
+                            {/* BOTTOM resize handle - 有 due_date 即可拖下边缘创建/调整 end_date；子轨道模式下隐藏 */}
+                            {!isStrip && task.due_date && (
                               <div
                                 draggable={false}
                                 data-resize-handle

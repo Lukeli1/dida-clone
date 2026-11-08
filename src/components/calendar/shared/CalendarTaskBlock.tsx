@@ -19,6 +19,17 @@ export interface CalendarTaskBlockProps {
   children?: ReactNode
   showBadges?: boolean
   badgeDensity?: TaskBadgeDensity
+  /**
+   * 提示文本覆盖：跨日定时段用于展示完整真实起止时间（如「周三 22:00 → 周五 02:00」），
+   * 不改变块内可见文本。
+   */
+  titleOverride?: string
+  /**
+   * timed 变体：跨日分段形状。默认 single 保持既有圆角与左边框；
+   * start 仅左圆角 + 左边框，middle 直角无左边框，end 仅右圆角无左边框，
+   * 相邻日段在视觉上连续、不伪装成多个独立任务。
+   */
+  segment?: 'single' | 'start' | 'middle' | 'end'
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void
   onDrag?: (e: DragEvent<HTMLDivElement>) => void
   onDragEnd?: (e: DragEvent<HTMLDivElement>) => void
@@ -136,6 +147,8 @@ export function CalendarTaskBlock({
   children,
   showBadges,
   badgeDensity = 'normal',
+  titleOverride,
+  segment = 'single',
   onDragStart,
   onDrag,
   onDragEnd,
@@ -151,6 +164,15 @@ export function CalendarTaskBlock({
     const color = getTaskColor(task, lists)
     const hasHorizontalPosition = style && ('left' in style || 'right' in style || 'width' in style)
     const timedStyle = hasHorizontalPosition ? style : { left: '0.25rem', right: '0.25rem', ...style }
+    // 跨日分段：只有真实起点带左边框与左圆角、真实终点带右圆角；相邻日段视觉连续
+    const segmentShapeClass =
+      segment === 'start'
+        ? 'rounded-l border-l-2'
+        : segment === 'end'
+          ? 'rounded-r border-l-0'
+          : segment === 'middle'
+            ? 'rounded-none border-l-0'
+            : 'rounded border-l-2'
 
     return (
       <div
@@ -158,19 +180,17 @@ export function CalendarTaskBlock({
         data-task-id={task.id}
         data-selected={selected ? 'true' : undefined}
         aria-current={selected ? 'true' : undefined}
-        title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
+        title={titleOverride ?? (timeLabel ? `${timeLabel} ${task.title}` : task.title)}
         draggable={draggable}
         onDragStart={onDragStart}
         onDrag={onDrag}
         onDragEnd={onDragEnd}
         onClick={onTaskClick}
         onContextMenu={onContextMenu}
-        className={`calendar-timed-task absolute flex items-start gap-1 overflow-hidden rounded border-l-2 px-1 py-0.5 text-xs cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
+        className={`calendar-timed-task absolute flex items-start gap-1 overflow-hidden px-1 py-0.5 text-xs cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${segmentShapeClass} ${
           task.completed ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]' : ''
         } ${dragged ? 'opacity-40' : ''} ${
-          selected
-            ? 'ring-2 ring-inset ring-[var(--color-accent)]'
-            : 'group hover:shadow-sm hover:brightness-[1.03]'
+          selected ? 'ring-2 ring-inset ring-[var(--color-accent)]' : 'group hover:shadow-sm hover:brightness-[1.03]'
         }`}
         style={{
           ...timedStyle,
@@ -241,9 +261,7 @@ export function CalendarTaskBlock({
       className={`calendar-month-task flex h-5 min-w-0 items-center gap-1 overflow-hidden rounded-[3px] px-1.5 text-[11px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
         task.completed ? 'opacity-60' : ''
       } ${dragged ? 'opacity-40' : ''} ${
-        selected
-          ? 'ring-1 ring-inset ring-[var(--color-accent)]'
-          : 'hover:brightness-95'
+        selected ? 'ring-1 ring-inset ring-[var(--color-accent)]' : 'hover:brightness-95'
       }`}
       style={{ ...style, backgroundColor: barColor, color: light ? '#374151' : '#ffffff' }}
     >
@@ -277,7 +295,9 @@ export function CalendarTaskBlock({
           className={`calendar-month-priority h-1.5 w-1.5 shrink-0 rounded-full ring-1 ring-white/40 ${priorityStyle.dot}`}
         />
       )}
-      <span className={`calendar-month-title min-w-0 flex-1 truncate font-medium ${task.completed ? 'line-through' : ''}`}>
+      <span
+        className={`calendar-month-title min-w-0 flex-1 truncate font-medium ${task.completed ? 'line-through' : ''}`}
+      >
         {task.title}
       </span>
       {timeLabel && <span className="calendar-month-time flex-shrink-0 text-[10px] opacity-80">{timeLabel}</span>}

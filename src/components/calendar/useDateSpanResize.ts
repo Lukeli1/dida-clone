@@ -28,6 +28,9 @@ export interface SpanPreviewState {
   taskId: number
   startKey: string
   endKey: string
+  /** 预览生效的开始/结束时间（ISO）；用于定时任务按真实时分计算纵向窗口 */
+  startIso: string
+  endIso: string | null
 }
 
 interface UseDateSpanResizeOptions {
@@ -64,18 +67,15 @@ export function useDateSpanResize({ tasks, days, onUpdateTask, resolveDayIndexFr
     setSpanPreview(null)
   }, [])
 
-  const handleEdgePointerDown = useCallback(
-    (e: React.PointerEvent, task: Task, edge: DateSpanResizeEdge) => {
-      if (e.button !== 0) return
-      e.preventDefault()
-      e.stopPropagation()
-      if (!getTaskSpanBounds(task)) return
-      dragRef.current = { taskId: task.id, edge, result: null }
-      setSpanResizing({ taskId: task.id, edge })
-      setSpanPreview(null)
-    },
-    [],
-  )
+  const handleEdgePointerDown = useCallback((e: React.PointerEvent, task: Task, edge: DateSpanResizeEdge) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (!getTaskSpanBounds(task)) return
+    dragRef.current = { taskId: task.id, edge, result: null }
+    setSpanResizing({ taskId: task.id, edge })
+    setSpanPreview(null)
+  }, [])
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const drag = dragRef.current
@@ -89,7 +89,23 @@ export function useDateSpanResize({ tasks, days, onUpdateTask, resolveDayIndexFr
 
     const result = computeDateSpanResizePatch(task, drag.edge, target)
     drag.result = result
-    setSpanPreview(result ? { taskId: task.id, startKey: result.startKey, endKey: result.endKey } : null)
+    if (result) {
+      const effectiveStart = result.patch.due_date ?? task.due_date
+      const effectiveEnd = result.patch.end_date ?? task.end_date
+      if (effectiveStart) {
+        setSpanPreview({
+          taskId: task.id,
+          startKey: result.startKey,
+          endKey: result.endKey,
+          startIso: effectiveStart,
+          endIso: effectiveEnd ?? null,
+        })
+      } else {
+        setSpanPreview(null)
+      }
+    } else {
+      setSpanPreview(null)
+    }
   }, [])
 
   const handlePointerUp = useCallback(() => {

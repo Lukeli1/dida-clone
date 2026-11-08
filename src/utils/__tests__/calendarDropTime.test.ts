@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CALENDAR_DRAG_DAY_OFFSET_MIME,
+  CALENDAR_DRAG_DISPLAY_OFFSET_MIME,
   CALENDAR_DRAG_GRAB_OFFSET_MIME,
   computeDropISO,
   computeDropStartMinute,
   computeGrabOffsetY,
+  localDayDiff,
+  readDisplayOffsetMinutes,
+  readDragDayOffset,
   readGrabOffsetY,
+  shiftLocalDateKeyByDays,
+  writeDisplayOffsetMinutes,
+  writeDragDayOffset,
   writeGrabOffsetY,
 } from '../calendarDropTime'
 
@@ -140,5 +148,114 @@ describe('抓取偏移的 DataTransfer 读写', () => {
     ).toBe(0)
     expect(() => writeGrabOffsetY(null, 10)).not.toThrow()
     expect(readGrabOffsetY(null)).toBe(0)
+  })
+})
+
+/**
+ * 跨日分段整体拖动：抓取日相对真实开始日的本地自然日偏移。
+ * offset 仅由「分段所在自然日 − 真实开始自然日」决定，drop 时用目标日减去 offset
+ * 还原整个任务的新起点，保证从 start / middle / end 段拖动都是同一整体平移。
+ */
+describe('本地自然日偏移', () => {
+  it('按本地年月日计算天数差，不受时段影响', () => {
+    expect(localDayDiff(new Date(2026, 6, 1, 9, 0), new Date(2026, 6, 2, 8, 0))).toBe(1)
+    expect(localDayDiff(new Date(2026, 6, 1, 23, 0), new Date(2026, 6, 2, 0, 30))).toBe(1)
+    expect(localDayDiff(new Date(2026, 6, 2, 9, 0), new Date(2026, 6, 1, 9, 0))).toBe(-1)
+    expect(localDayDiff(new Date(2026, 6, 1, 9, 0), new Date(2026, 6, 1, 21, 0))).toBe(0)
+  })
+
+  it('跨月 / 跨年 / 跨周按自然日推进（分量运算，不用固定 24 小时毫秒）', () => {
+    const shifted = shiftLocalDateKeyByDays('2026-07-01', 2)
+    expect([shifted.getFullYear(), shifted.getMonth(), shifted.getDate()]).toEqual([2026, 5, 29]) // 6 月 29 日
+    const yearEnd = shiftLocalDateKeyByDays('2027-01-01', 3)
+    expect([yearEnd.getFullYear(), yearEnd.getMonth(), yearEnd.getDate()]).toEqual([2026, 11, 29]) // 12 月 29 日
+    const crossMonth = shiftLocalDateKeyByDays('2026-03-01', 1)
+    expect([crossMonth.getMonth(), crossMonth.getDate()]).toEqual([1, 28]) // 2 月 28 日
+  })
+
+  it('写入 / 读取日偏移；缺省、非法、抛错均回退 0', () => {
+    const dt = new Map<string, string>()
+    const dataTransfer = {
+      setData: (type: string, value: string) => dt.set(type, value),
+      getData: (type: string) => dt.get(type) ?? '',
+    }
+    writeDragDayOffset(dataTransfer, 2)
+    expect(dt.get(CALENDAR_DRAG_DAY_OFFSET_MIME)).toBe('2')
+    expect(readDragDayOffset(dataTransfer)).toBe(2)
+
+    writeDragDayOffset(dataTransfer, -1)
+    expect(readDragDayOffset(dataTransfer)).toBe(0)
+    expect(readDragDayOffset({ getData: () => 'abc', setData: () => {} })).toBe(0)
+    expect(
+      readDragDayOffset({
+        getData: () => {
+          throw new Error('blocked')
+        },
+        setData: () => {},
+      }),
+    ).toBe(0)
+    expect(readDragDayOffset(null)).toBe(0)
+    expect(() => writeDragDayOffset(null, 1)).not.toThrow()
+  })
+})
+
+/**
+ * 子轨道显示偏移：块顶 = 真实开始 + 显示偏移。
+ * drop 时先减偏移再吸附，保证抓取并放回原坐标不改变原时间。
+ */
+describe('子轨道显示偏移', () => {
+  it('写入 / 读取显示偏移；缺省、非法、抛错均回退 0', () => {
+    const store = new Map<string, string>()
+    const dt = {
+      setData: (type: string, value: string) => store.set(type, value),
+      getData: (type: string) => store.get(type) ?? '',
+    }
+    writeDisplayOffsetMinutes(dt, 20)
+    expect(store.get(CALENDAR_DRAG_DISPLAY_OFFSET_MIME)).toBe('20')
+    expect(readDisplayOffsetMinutes(dt)).toBe(20)
+    // 允许负偏移：显示位置可早于原始位置（交集起点位移为负时）
+    writeDisplayOffsetMinutes(dt, -5)
+    expect(readDisplayOffsetMinutes(dt)).toBe(-5)
+    expect(readDisplayOffsetMinutes({ getData: () => 'abc', setData: () => {} })).toBe(0)
+    expect(readDisplayOffsetMinutes(null)).toBe(0)
+  })
+
+  it('放回原位：块顶分钟减去显示偏移后吸附，不产生 15 分钟漂移', () => {
+    // 任务真实 09:00，第三子轨道显示下移 40 分钟（块顶 09:40 = 580px）
+    const startMinute = computeDropStartMinute({
+      pointerClientY: 590,
+      columnTop: 0,
+      grabOffsetY: 10,
+      displayOffsetMinutes: 40,
+      hourHeight: 60,
+    })
+    expect(startMinute).toBe(540)
+  })
+
+  it('仅横向移动日期时保持原时分（纵向坐标不变）', () => {
+    const startMinute = computeDropStartMinute({
+      pointerClientY: 590,
+      columnTop: 0,
+      grabOffsetY: 10,
+      displayOffsetMinutes: 40,
+      hourHeight: 60,
+    })
+    expect(startMinute).toBe(540)
+  })
+
+  it('负显示偏移（显示早于原始位置）同样正确归位', () => {
+    // 原始 09:30，显示位置 09:20（比真实开始早 10 分钟）
+    const startMinute = computeDropStartMinute({
+      pointerClientY: 560,
+      columnTop: 0,
+      grabOffsetY: 0,
+      displayOffsetMinutes: -10,
+      hourHeight: 60,
+    })
+    expect(startMinute).toBe(570)
+  })
+
+  it('无显示偏移时保持原有落点语义（不受影响）', () => {
+    expect(computeDropStartMinute({ pointerClientY: 840, columnTop: 0, grabOffsetY: 42, hourHeight: 60 })).toBe(795)
   })
 })

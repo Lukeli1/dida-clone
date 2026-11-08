@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../../types'
 import { WeekView } from '../WeekView'
 import { computeTimeAxisScrollTop } from '../../../hooks/useAutoScrollToNow'
-import { CALENDAR_DRAG_GRAB_OFFSET_MIME } from '../../../utils/calendarDropTime'
+import { CALENDAR_DRAG_DAY_OFFSET_MIME, CALENDAR_DRAG_GRAB_OFFSET_MIME } from '../../../utils/calendarDropTime'
 
 const lists: List[] = [
   {
@@ -143,7 +143,7 @@ describe('WeekView calendar task layout', () => {
     expect(second.style.width).toBe('49.25%')
   })
 
-  it('renders multi-day tasks in the all-day area and keeps callbacks working', () => {
+  it('renders multi-day timed tasks in the time grid (not the all-day area) and keeps callbacks working', () => {
     const onTaskClick = vi.fn()
     const onToggleTask = vi.fn()
     const onMoveTask = vi.fn()
@@ -155,18 +155,16 @@ describe('WeekView calendar task layout', () => {
 
     const { container } = renderWeekView([multiDay], { onTaskClick, onToggleTask, onMoveTask })
 
-    const bars = screen.getAllByTestId('calendar-all-day-task-3')
-    expect(bars).toHaveLength(1)
-    expect(bars[0].style.left).toBe('calc(42.8571% + 4px)')
-    expect(bars[0].style.width).toBe('calc(42.8571% - 8px)')
-    expect(
-      Array.from(container.querySelectorAll('[data-task]')).some((el) => el.textContent?.includes('跨天周任务')),
-    ).toBe(false)
+    // 定时跨日不再进入全天区，而是留在时间网格按日分段
+    expect(screen.queryByTestId('calendar-all-day-task-3')).not.toBeInTheDocument()
+    const segments = container.querySelectorAll('[data-task][data-task-id="3"]')
+    expect(segments).toHaveLength(3)
 
-    fireEvent.click(bars[0])
+    fireEvent.click(segments[0])
     expect(onTaskClick).toHaveBeenCalledWith(3)
 
-    fireEvent.click(screen.getAllByRole('button', { name: '标记为已完成' })[0])
+    const toggles = container.querySelectorAll('[data-task][data-task-id="3"] input[type="checkbox"]')
+    fireEvent.click(toggles[0])
     expect(onToggleTask).toHaveBeenCalledWith(3)
 
     fireEvent.drop(screen.getByTestId('week-time-column-2026-07-03'), {
@@ -409,7 +407,7 @@ describe('WeekView cross-day range creation', () => {
     expect(screen.queryByTestId(/week-selection-/)).not.toBeInTheDocument()
   })
 
-  it('跨日顶部条展示完整起止时间', () => {
+  it('跨日定时块提示展示完整起止时间', () => {
     renderWeekView([
       makeTask(10, {
         title: '跨日时间说明',
@@ -418,7 +416,11 @@ describe('WeekView cross-day range creation', () => {
       }),
     ])
 
-    expect(screen.getByText(/跨日时间说明/)).toHaveTextContent('周四 22:00 → 周六 02:00')
+    const blocks = screen.getAllByText(/跨日时间说明/).map((el) => el.closest('[data-task]'))
+    expect(blocks.length).toBeGreaterThan(0)
+    for (const block of blocks) {
+      expect(block?.getAttribute('title')).toContain('周四 22:00 → 周六 02:00')
+    }
   })
 })
 
@@ -746,7 +748,17 @@ describe('WeekView 任务拖动落点与抓取偏移', () => {
     // 全天区 700px 宽覆盖周一至周日，clientX = 0 落在周一（本周起始日 2026-06-29）
     Object.defineProperty(area, 'getBoundingClientRect', {
       configurable: true,
-      value: () => ({ top: 0, left: 0, width: 700, height: 32, bottom: 32, right: 700, x: 0, y: 0, toJSON: () => ({}) }),
+      value: () => ({
+        top: 0,
+        left: 0,
+        width: 700,
+        height: 32,
+        bottom: 32,
+        right: 700,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
     })
 
     const dt = makeDataTransfer('14')
@@ -762,5 +774,168 @@ describe('WeekView 任务拖动落点与抓取偏移', () => {
     expect(dropped.getHours()).toBe(0)
     expect(dropped.getMinutes()).toBe(0)
     expect(options).toEqual({ allDay: true })
+  })
+
+  /**
+   * 跨日定时任务分段整体拖动：抓取的分段相对真实起点有本地自然日偏移，
+   * drop 时用「目标日 − 偏移」还原整个任务的新起点；放回原位不改变起止时间，
+   * 平移一天则起止时间整体移动一天（moveTask 负责保持持续时长）。
+   */
+  function getSegments(container: HTMLElement, taskId: number): HTMLElement[] {
+    return Array.from(container.querySelectorAll<HTMLElement>(`[data-task][data-task-id="${taskId}"]`))
+  }
+
+  it('从第二天（end 段）抓取放回原位：onMoveTask 收到原始开始时间，不丢失第一天', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(20, {
+      title: '跨日拖动任务',
+      due_date: '2026-07-01T09:00:00',
+      end_date: '2026-07-02T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const segments = getSegments(container, 20)
+    expect(segments).toHaveLength(2)
+    // 第二段（7 月 2 日）：块顶 540px、高 60px；抓取点 550px → 抓取偏移 10px
+    mockRect(segments[1], 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', segments[1], { clientY: 550, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_DAY_OFFSET_MIME)).toBe('1')
+    expect(dt.getData(CALENDAR_DRAG_GRAB_OFFSET_MIME)).toBe('10')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-02')
+      // 放回 7 月 2 日原时间位置：光标 550px − 偏移 10px = 540 分钟（09:00）
+      dispatchDrag('drop', column, { clientY: 550, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    expect(onMoveTask).toHaveBeenCalledTimes(1)
+    const [taskId, iso, options] = onMoveTask.mock.calls[0]
+    expect(taskId).toBe(20)
+    const dropped = new Date(iso as string)
+    expect([dropped.getMonth(), dropped.getDate(), dropped.getHours(), dropped.getMinutes()]).toEqual([6, 1, 9, 0])
+    expect(options).toEqual({ allDay: false })
+  })
+
+  it('从第二天（end 段）平移一天：整个任务起点移到次日同一时刻', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(21, {
+      title: '跨日平移任务',
+      due_date: '2026-07-01T09:00:00',
+      end_date: '2026-07-02T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const segments = getSegments(container, 21)
+    mockRect(segments[1], 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', segments[1], { clientY: 550, dataTransfer: dt })
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-03')
+      dispatchDrag('drop', column, { clientY: 550, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect([dropped.getMonth(), dropped.getDate(), dropped.getHours(), dropped.getMinutes()]).toEqual([6, 2, 9, 0])
+  })
+
+  it('从 start 段抓取：偏移为 0，落点日期即新起点日期', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(22, {
+      title: '跨日起点段任务',
+      due_date: '2026-07-01T09:00:00',
+      end_date: '2026-07-02T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const segments = getSegments(container, 22)
+    mockRect(segments[0], 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', segments[0], { clientY: 550, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_DAY_OFFSET_MIME)).toBe('0')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-07-01')
+      dispatchDrag('drop', column, { clientY: 550, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect([dropped.getMonth(), dropped.getDate(), dropped.getHours()]).toEqual([6, 1, 9])
+  })
+
+  it('跨周裁剪仅可见 middle 段：按真实起点日偏移还原整体平移', () => {
+    const onMoveTask = vi.fn()
+    // 上周五 09:00 → 本周三 10:00；本周一为 middle 段，相对真实起点偏移 3 天
+    const task = makeTask(23, {
+      title: '跨周中间段任务',
+      due_date: '2026-06-26T09:00:00',
+      end_date: '2026-07-01T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const segments = getSegments(container, 23)
+    expect(segments).toHaveLength(3) // 周一、周二、周三
+    mockRect(segments[0], 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', segments[0], { clientY: 550, dataTransfer: dt })
+    expect(dt.getData(CALENDAR_DRAG_DAY_OFFSET_MIME)).toBe('3')
+
+    const restore = mockColumnBodyRects()
+    try {
+      const column = screen.getByTestId('week-time-column-2026-06-29')
+      dispatchDrag('drop', column, { clientY: 550, dataTransfer: dt })
+    } finally {
+      restore()
+    }
+
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect([dropped.getMonth(), dropped.getDate(), dropped.getHours()]).toEqual([5, 26, 9])
+  })
+
+  it('跨日分段拖入全天区仍保持日期级语义（不应用分段日偏移）', () => {
+    const onMoveTask = vi.fn()
+    const task = makeTask(24, {
+      title: '跨日分段到全天',
+      due_date: '2026-07-01T09:00:00',
+      end_date: '2026-07-02T10:00:00',
+    })
+    const { container } = renderWeekView([task], { onMoveTask })
+
+    const segments = getSegments(container, 24)
+    mockRect(segments[1], 540, 60)
+    const dt = makeDataTransfer()
+    dispatchDrag('dragstart', segments[1], { clientY: 550, dataTransfer: dt })
+
+    const area = screen.getByTestId('week-all-day-area')
+    Object.defineProperty(area, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 0,
+        left: 0,
+        width: 700,
+        height: 32,
+        bottom: 32,
+        right: 700,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    })
+    // clientX = 300 → 第 4 列（周四，2026-07-02）
+    dispatchDrag('drop', area, { clientX: 350, dataTransfer: dt })
+
+    const dropped = new Date(onMoveTask.mock.calls[0][1] as string)
+    expect([dropped.getMonth(), dropped.getDate(), dropped.getHours()]).toEqual([6, 2, 0])
+    expect(onMoveTask.mock.calls[0][2]).toEqual({ allDay: true })
   })
 })

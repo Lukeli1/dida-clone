@@ -20,6 +20,25 @@
  */
 export const CALENDAR_DRAG_GRAB_OFFSET_MIME = 'application/x-dida-calendar-grab-offset'
 
+/**
+ * 跨日分段日偏移写入 DataTransfer 的类型。
+ * 跨日定时任务按日分段渲染；抓住某一天的分段拖动时，写入该分段相对任务真实
+ * 开始日的本地自然日偏移（start 段为 0），drop 时用「目标日 − 偏移」还原
+ * 整个任务的新起点，保证从任意日段拖动都是同一整体平移。
+ * 单日任务与其它来源不写入（读取为 0），保持原有落点语义。
+ */
+export const CALENDAR_DRAG_DAY_OFFSET_MIME = 'application/x-dida-calendar-day-offset'
+
+/**
+ * 子轨道显示偏移写入 DataTransfer 的类型（分钟）。
+ * 冲突布局把任务放在原时间窗口内的子轨道上，块顶 = 真实开始 + 显示偏移；
+ * drop 时先减去该偏移再吸附，保证「抓取并放回原坐标」不改变原时间。
+ */
+export const CALENDAR_DRAG_DISPLAY_OFFSET_MIME = 'application/x-dida-calendar-display-offset'
+
+/** 允许的最大日偏移（天）；超出视为异常数据，按 0 处理 */
+const MAX_DAY_OFFSET_DAYS = 3660
+
 /** 落点吸附步长（分钟），与时间轴渲染刻度一致 */
 export const DROP_SNAP_MINUTES = 15
 
@@ -57,13 +76,19 @@ export function computeDropStartMinute(options: {
   pointerClientY: number
   columnTop: number
   grabOffsetY?: number
+  /** 子轨道显示偏移（分钟）：块顶相对任务真实开始的下移量 */
+  displayOffsetMinutes?: number
   hourHeight: number
   snapMinutes?: number
 }): number {
   const { pointerClientY, columnTop, grabOffsetY = 0, hourHeight } = options
   const snapMinutes = options.snapMinutes && options.snapMinutes > 0 ? options.snapMinutes : DROP_SNAP_MINUTES
+  const displayOffsetMinutes = options.displayOffsetMinutes ?? 0
   const pxPerMinute = hourHeight / 60
-  const rawMinute = (pointerClientY - columnTop - grabOffsetY) / pxPerMinute
+  // 块顶分钟 − 子轨道显示偏移 = 任务真实开始分钟；先归位再吸附，避免放回原位被吸附偏 15 分钟
+  const rawMinute =
+    (pointerClientY - columnTop - grabOffsetY) / pxPerMinute -
+    (Number.isFinite(displayOffsetMinutes) ? displayOffsetMinutes : 0)
   const snapped = Math.round((Number.isFinite(rawMinute) ? rawMinute : 0) / snapMinutes) * snapMinutes
   return Math.max(0, Math.min(MINUTES_PER_DAY - snapMinutes, snapped))
 }
@@ -77,6 +102,8 @@ export function computeDropISO(options: {
   pointerClientY: number
   columnTop: number
   grabOffsetY?: number
+  /** 子轨道显示偏移（分钟）：块顶相对任务真实开始的下移量 */
+  displayOffsetMinutes?: number
   hourHeight: number
   snapMinutes?: number
 }): string {
@@ -110,5 +137,78 @@ export function writeGrabOffsetY(dataTransfer: GrabOffsetDataTransfer | null | u
     dataTransfer.setData(CALENDAR_DRAG_GRAB_OFFSET_MIME, String(Math.max(0, Math.round(offsetY))))
   } catch {
     // 忽略：后续 drop 读取失败时按偏移 0 处理，不影响拖拽主流程
+  }
+}
+
+/**
+ * 本地自然日差：`to` 相对 `from` 的日历天数（按本地年月日，不用固定 24 小时毫秒）。
+ * 用 UTC 年月日差值消除 DST / 时区偏移，1 号与 2 号任何时刻都恰好相差 1 天。
+ */
+export function localDayDiff(from: Date, to: Date): number {
+  const fromUtc = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())
+  const toUtc = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate())
+  return Math.round((toUtc - fromUtc) / 86400000)
+}
+
+/**
+ * 本地自然日 key（`yyyy-MM-dd`）减去若干天，返回当地 00:00 的 Date。
+ * 使用年月日分量运算（而非毫秒减法），跨月 / 跨年 / DST 均保持自然日语义。
+ */
+export function shiftLocalDateKeyByDays(dateKey: string, offsetDays: number): Date {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Date(year, month - 1, day - offsetDays)
+}
+
+/** dragstart 时写入分段相对真实开始日的本地自然日偏移（供 drop 阶段还原整体起点） */
+export function writeDragDayOffset(dataTransfer: GrabOffsetDataTransfer | null | undefined, offsetDays: number): void {
+  if (!dataTransfer) return
+  try {
+    const safeOffset = Number.isFinite(offsetDays) ? Math.max(0, Math.round(offsetDays)) : 0
+    dataTransfer.setData(CALENDAR_DRAG_DAY_OFFSET_MIME, String(safeOffset))
+  } catch {
+    // 忽略：drop 读取失败时按 0 处理
+  }
+}
+
+/**
+ * 从 DataTransfer 读取分段日偏移。
+ * 未写入（单日任务、任务列表 / 侧边栏等来源）或非法值返回 0。
+ */
+export function readDragDayOffset(dataTransfer: GrabOffsetDataTransfer | null | undefined): number {
+  if (!dataTransfer) return 0
+  try {
+    const value = Number(dataTransfer.getData(CALENDAR_DRAG_DAY_OFFSET_MIME))
+    if (!Number.isFinite(value) || value <= 0) return 0
+    return Math.min(Math.round(value), MAX_DAY_OFFSET_DAYS)
+  } catch {
+    return 0
+  }
+}
+
+/** dragstart 时写入子轨道显示偏移（分钟）；非冲突布局任务写入 0；允许负值（显示位置早于原始位置） */
+export function writeDisplayOffsetMinutes(
+  dataTransfer: GrabOffsetDataTransfer | null | undefined,
+  offsetMinutes: number,
+): void {
+  if (!dataTransfer) return
+  try {
+    const safeOffset = Number.isFinite(offsetMinutes)
+      ? Math.max(-MINUTES_PER_DAY, Math.min(MINUTES_PER_DAY, Math.round(offsetMinutes)))
+      : 0
+    dataTransfer.setData(CALENDAR_DRAG_DISPLAY_OFFSET_MIME, String(safeOffset))
+  } catch {
+    // 忽略：drop 读取失败时按偏移 0 处理
+  }
+}
+
+/** 读取子轨道显示偏移（分钟）；未写入或非法值返回 0 */
+export function readDisplayOffsetMinutes(dataTransfer: GrabOffsetDataTransfer | null | undefined): number {
+  if (!dataTransfer) return 0
+  try {
+    const value = Number(dataTransfer.getData(CALENDAR_DRAG_DISPLAY_OFFSET_MIME))
+    if (!Number.isFinite(value)) return 0
+    return Math.max(-MINUTES_PER_DAY, Math.min(Math.round(value), MINUTES_PER_DAY))
+  } catch {
+    return 0
   }
 }

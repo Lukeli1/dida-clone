@@ -17,12 +17,16 @@ export interface TaskBarProps {
   draggable?: boolean
   /** week 变体：是否设置 data-task 属性（用于点击空白区域判断） */
   dataTask?: boolean
-  /** week 变体：插入到复选框之前的额外内容（resize 手柄、时间提示等） */
+  /** 插入到复选框之前的额外内容（resize 手柄、时间提示等） */
   children?: React.ReactNode
   /** 是否显示轻量标识；month 默认显示，week 默认不显示 */
   showBadges?: boolean
   /** 轻量标识密度 */
   badgeDensity?: TaskBadgeDensity
+  /** 提示文本覆盖（跨日定时段展示完整真实起止时间） */
+  titleOverride?: string
+  /** 跨日分段形状：single 保持既有外观，start/middle/end 用于连续分段 */
+  segment?: 'single' | 'start' | 'middle' | 'end'
   onDragStart?: (e: React.DragEvent) => void
   /** 水平拖拽手势跟踪（根元素 onDrag） */
   onDrag?: (e: React.DragEvent) => void
