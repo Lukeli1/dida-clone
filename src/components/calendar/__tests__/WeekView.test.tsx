@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { List, Task } from '../../../types'
 import { WeekView } from '../WeekView'
+import { ALL_DAY_DIVIDER_HEIGHT } from '../allDayAreaLayout'
 import { computeTimeAxisScrollTop } from '../../../hooks/useAutoScrollToNow'
 import { CALENDAR_DRAG_DAY_OFFSET_MIME, CALENDAR_DRAG_GRAB_OFFSET_MIME } from '../../../utils/calendarDropTime'
 
@@ -106,17 +107,19 @@ function mockScrollMetrics(el: HTMLElement, scrollHeight: number, clientHeight: 
 
 /** 按当前分钟（允许跨分钟边界抖动）计算期望滚动区间 */
 function expectedScrollRange(minutesBefore: number, minutesAfter: number) {
+  // 一行全天任务默认高 32px；全天区与小时网格之间新增 8px 可拖动分隔线
+  const allDayAreaHeight = 32 + ALL_DAY_DIVIDER_HEIGHT
   const low = computeTimeAxisScrollTop({
     scrollHeight: 1600,
     clientHeight: 600,
     minutes: Math.min(minutesBefore, minutesAfter),
-    allDayAreaHeight: 32,
+    allDayAreaHeight,
   })
   const high = computeTimeAxisScrollTop({
     scrollHeight: 1600,
     clientHeight: 600,
     minutes: Math.max(minutesBefore, minutesAfter),
-    allDayAreaHeight: 32,
+    allDayAreaHeight,
   })
   return { low, high }
 }

@@ -180,10 +180,13 @@ test('AUDIT6 不同原始冲突组的扩展区域遇到后续任务：900px 窄�
   const second = await clickCheckboxAndAssert(page, 7)
   console.log('AUDIT6 dense click later task7', JSON.stringify(second))
 
-  // 详情面板打开 / 关闭不改变纵向布局，也不产生碰撞
+  // 详情面板打开 / 关闭不改变纵向布局，也不产生碰撞；日历点击先打开轻量详情，再从入口进入完整详情
   const crossBlock = segmentsOf(page, 3).first()
   const crossBox = await crossBlock.boundingBox()
   await page.mouse.click(crossBox!.x + crossBox!.width * 0.6, crossBox!.y + crossBox!.height / 2)
+  const quick = page.getByTestId('calendar-quick-detail')
+  await expect(quick).toBeVisible()
+  await quick.getByRole('button', { name: '打开完整详情' }).click()
   const detail = page.locator('[data-testid="detail-docked"], [data-testid="detail-overlay"]')
   await expect(detail).toHaveCount(1, { timeout: 5000 })
   await expectNoOverlap(page, [3, 5, 6, 4, 7])

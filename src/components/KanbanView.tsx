@@ -340,6 +340,8 @@ export function KanbanView({ tasks, lists, onTaskClick, onToggleTask, onUpdateTa
                             {isDropBefore && <div className="h-0.5 mb-2 rounded-full bg-[var(--color-accent)]" />}
                             <div
                               draggable
+                              data-task-id={task.id}
+                              tabIndex={-1}
                               onDragStart={(e) => handleDragStart(e, task.id)}
                               onDragEnd={resetDrag}
                               onDragOver={(e) => handleCardDragOver(e, task.id, column.key)}

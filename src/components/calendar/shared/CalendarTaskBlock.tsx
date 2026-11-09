@@ -157,7 +157,8 @@ export function CalendarTaskBlock({
   onContextMenu,
 }: CalendarTaskBlockProps) {
   const selectedTaskId = useUIStore((s) => s.selectedTaskId)
-  const selected = selectedTaskId === task.id
+  const quickDetailTaskId = useUIStore((s) => s.calendarQuickDetailTaskId)
+  const selected = selectedTaskId === task.id || quickDetailTaskId === task.id
   const priorityStyle = task.priority ? PRIORITY_STYLES[task.priority] : null
 
   if (variant === 'timed') {
@@ -180,6 +181,7 @@ export function CalendarTaskBlock({
         data-task-id={task.id}
         data-selected={selected ? 'true' : undefined}
         aria-current={selected ? 'true' : undefined}
+        tabIndex={-1}
         title={titleOverride ?? (timeLabel ? `${timeLabel} ${task.title}` : task.title)}
         draggable={draggable}
         onDragStart={onDragStart}
@@ -251,6 +253,7 @@ export function CalendarTaskBlock({
       data-testid={`calendar-task-block-${task.id}`}
       data-selected={selected ? 'true' : undefined}
       aria-current={selected ? 'true' : undefined}
+      tabIndex={-1}
       title={timeLabel ? `${timeLabel} ${task.title}` : task.title}
       draggable={draggable}
       onDragStart={onDragStart}

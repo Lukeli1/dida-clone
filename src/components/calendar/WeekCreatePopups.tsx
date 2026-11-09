@@ -1,5 +1,8 @@
 import type { KeyboardEvent } from 'react'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 import type { List } from '../../types'
+import { parseDateKey } from '../../utils/calendarRangeSelection'
 import type { TimeSelectionApi } from './useTimeSelection'
 
 const priorityOptions = [
@@ -40,6 +43,16 @@ function getPopupPosition(top: number, left: number, width: number, height: numb
   }
 }
 
+function formatDayLabel(dateKey: string | undefined): string {
+  if (!dateKey) return ''
+  try {
+    const { year, month, day } = parseDateKey(dateKey)
+    return format(new Date(year, month - 1, day), 'M月d日', { locale: zhCN })
+  } catch {
+    return dateKey
+  }
+}
+
 export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopupsProps) {
   const createPopup = sel.createPopup
   if (!createPopup) return null
@@ -68,6 +81,11 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
     cyclePriority,
     closeCreatePopup,
   } = sel
+
+  const isAllDay = createPopup.allDay === true
+  const allDayRangeLabel = isAllDay
+    ? `${formatDayLabel(popupStartDateKey)} - ${formatDayLabel(createPopup.allDayEndDateKey ?? popupEndDateKey)}`
+    : ''
 
   function handleTitleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -123,11 +141,12 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
     )
   }
 
-  const position = getPopupPosition(createPopup.viewportTop, createPopup.viewportLeft, 336, 500)
+  const position = getPopupPosition(createPopup.viewportTop, createPopup.viewportLeft, 336, isAllDay ? 360 : 500)
   return (
     <div
       data-calendar-popup
       data-testid="week-create-popup"
+      data-all-day={isAllDay ? 'true' : undefined}
       className="fixed z-50 max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl"
       style={position}
       onClick={(e) => e.stopPropagation()}
@@ -142,7 +161,14 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002 2z"
           />
         </svg>
-        <span className="text-sm font-medium text-[var(--color-text-secondary)]">创建跨日任务</span>
+        <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+          {isAllDay ? '创建全天任务' : '创建跨日任务'}
+        </span>
+        {isAllDay ? (
+          <span className="rounded bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+            全天
+          </span>
+        ) : null}
       </div>
 
       <input
@@ -154,41 +180,50 @@ export function WeekCreatePopups({ sel, lists, defaultListId }: WeekCreatePopups
         className="mb-3 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
       />
 
-      <div className="mb-3 grid grid-cols-[3rem_1fr_6.5rem] items-center gap-2">
-        <label className="text-xs font-medium text-[var(--color-text-secondary)]">开始</label>
-        <input
-          aria-label="开始日期"
-          type="date"
-          value={popupStartDateKey}
-          onChange={(e) => setPopupStartDateKey(e.target.value)}
-          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
-        />
-        <input
-          aria-label="开始时间"
-          type="time"
-          step={900}
-          value={popupStartTime}
-          onChange={(e) => setPopupStartTime(e.target.value)}
-          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
-        />
+      {isAllDay ? (
+        <div
+          data-testid="week-all-day-create-range"
+          className="mb-3 rounded-lg border border-[var(--color-accent-light)] bg-[var(--color-accent-light)]/60 px-3 py-2 text-sm font-medium text-[var(--color-accent)]"
+        >
+          {allDayRangeLabel}
+        </div>
+      ) : (
+        <div className="mb-3 grid grid-cols-[3rem_1fr_6.5rem] items-center gap-2">
+          <label className="text-xs font-medium text-[var(--color-text-secondary)]">开始</label>
+          <input
+            aria-label="开始日期"
+            type="date"
+            value={popupStartDateKey}
+            onChange={(e) => setPopupStartDateKey(e.target.value)}
+            className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+          />
+          <input
+            aria-label="开始时间"
+            type="time"
+            step={900}
+            value={popupStartTime}
+            onChange={(e) => setPopupStartTime(e.target.value)}
+            className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+          />
 
-        <label className="text-xs font-medium text-[var(--color-text-secondary)]">结束</label>
-        <input
-          aria-label="结束日期"
-          type="date"
-          value={popupEndDateKey}
-          onChange={(e) => setPopupEndDateKey(e.target.value)}
-          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
-        />
-        <input
-          aria-label="结束时间"
-          type="time"
-          step={900}
-          value={popupEndTime}
-          onChange={(e) => setPopupEndTime(e.target.value)}
-          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
-        />
-      </div>
+          <label className="text-xs font-medium text-[var(--color-text-secondary)]">结束</label>
+          <input
+            aria-label="结束日期"
+            type="date"
+            value={popupEndDateKey}
+            onChange={(e) => setPopupEndDateKey(e.target.value)}
+            className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+          />
+          <input
+            aria-label="结束时间"
+            type="time"
+            step={900}
+            value={popupEndTime}
+            onChange={(e) => setPopupEndTime(e.target.value)}
+            className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text-primary)]"
+          />
+        </div>
+      )}
 
       <textarea
         value={popupNotes}

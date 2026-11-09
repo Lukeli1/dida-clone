@@ -3,7 +3,15 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, Tag } from '../../types'
 import { hexWithAlpha } from '../../utils/priority'
-import { buildDueDatePatch } from '../../utils/taskSchedule'
+import {
+  buildAllDaySchedulePatch,
+  buildDueDatePatch,
+  buildTimedSchedulePatch,
+  getAllDaySpanDays,
+  getVisibleAllDayEndDateInput,
+  toLocalDateInputValue,
+  toLocalDateTimeInputValue,
+} from '../../utils/taskSchedule'
 import { parseRepeatRule, serializeRepeatRule, getRepeatSummary, type RepeatFrequency } from '../../types/repeat'
 
 // 提醒提前量选项（单位：分钟）
@@ -34,32 +42,6 @@ const WEEKDAY_OPTIONS = [
   { value: 6, label: '六' },
 ]
 
-function toLocalInputValue(iso?: string) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function toDateInputValue(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-// 全天编辑中的可见结束日期：排他性的 00:00 结束时间取前一天；非零点的定时结束时间取当天。
-function getVisibleAllDayEndInput(endIso?: string | null): string {
-  if (!endIso) return ''
-  const d = new Date(endIso)
-  if (isNaN(d.getTime())) return ''
-  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0 && d.getMilliseconds() === 0) {
-    return toDateInputValue(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1).toISOString())
-  }
-  return toDateInputValue(d.toISOString())
-}
-
 interface SchedulePanelProps {
   task: Task
   onUpdate: (id: number, updates: Partial<Task>) => void
@@ -72,7 +54,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
   const [reminder, setReminder] = useState(task.reminder || '')
   const [allDay, setAllDay] = useState(task.all_day ?? false)
   // 全天模式结束日期（用户可见的最后一天，含当天）
-  const [allDayEndDate, setAllDayEndDate] = useState(() => getVisibleAllDayEndInput(task.end_date))
+  const [allDayEndDate, setAllDayEndDate] = useState(() => getVisibleAllDayEndDateInput(task.end_date))
   const [showScheduleEdit, setShowScheduleEdit] = useState(false)
   const [showRepeatEdit, setShowRepeatEdit] = useState(false)
 
@@ -94,88 +76,29 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     setEndDate(task.end_date || '')
     setReminder(task.reminder || '')
     setAllDay(task.all_day ?? false)
-    setAllDayEndDate(getVisibleAllDayEndInput(task.end_date))
+    setAllDayEndDate(getVisibleAllDayEndDateInput(task.end_date))
   }, [task])
 
-  // 计算全天任务的跨天天数
-  // - allDayEndDate 非空且合法：使用用户设置的结束日期计算跨度
-  // - allDayEndDate 非空但早于开始日期（用户改了开始日期但未调整结束日期）：回退到旧跨度
-  // - allDayEndDate 为空（用户显式清空或从未设置）：单天，span = 1
-  function getAllDaySpanDays(startLocal: Date): number {
-    if (allDayEndDate) {
-      const [ey, em, ed] = allDayEndDate.split('-').map(Number)
-      const endVisible = new Date(ey, em - 1, ed)
-      const span = Math.round((endVisible.getTime() - startLocal.getTime()) / (24 * 60 * 60 * 1000)) + 1
-      if (span >= 1) return span
-      // 结束日期早于开始日期（可能是用户修改了开始日期），回退到已有跨度
-    } else {
-      // allDayEndDate 为空：用户显式清空或从未设置，默认单天
-      return 1
-    }
-    if (task.end_date && task.due_date) {
-      const oldStart = new Date(task.due_date)
-      const oldEnd = new Date(task.end_date)
-      const oldStartLocal = new Date(oldStart.getFullYear(), oldStart.getMonth(), oldStart.getDate())
-      const oldEndLocal = new Date(oldEnd.getFullYear(), oldEnd.getMonth(), oldEnd.getDate())
-      const diffDays = Math.round((oldEndLocal.getTime() - oldStartLocal.getTime()) / (24 * 60 * 60 * 1000))
-      if (diffDays >= 1) return diffDays
-    }
-    return 1
-  }
-
-  // 保存日程：根据全天开关发送不同的字段组合
+  // 保存日程：根据全天开关发送不同的字段组合；日期语义集中在 taskSchedule 中
   function handleScheduleSave() {
     if (allDay) {
-      // 全天模式：due_date 取本地日期 00:00，end_date 取跨度后的下一天 00:00
-      if (!dueDate) {
-        // 开始日期为空：同步清空 due_date 和 end_date
+      const patch = buildAllDaySchedulePatch(task, dueDate, allDayEndDate)
+      if (!patch) return
+      if (patch.due_date === null) {
         setEndDate('')
-        onUpdate(task.id, { all_day: true, due_date: null, end_date: null, reminder: reminder || null })
+        onUpdate(task.id, { ...patch, reminder: reminder || null })
         return
       }
-      const parsed = new Date(dueDate)
-      if (isNaN(parsed.getTime())) return
-      const startLocal = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
-      const spanDays = getAllDaySpanDays(startLocal)
-      const endLocal = new Date(startLocal.getFullYear(), startLocal.getMonth(), startLocal.getDate() + spanDays)
-      setEndDate(endLocal.toISOString())
-      setAllDayEndDate(getVisibleAllDayEndInput(endLocal.toISOString()))
-      onUpdate(task.id, {
-        all_day: true,
-        due_date: startLocal.toISOString(),
-        end_date: endLocal.toISOString(),
-        reminder: reminder || null,
-      })
-    } else {
-      // 非全天模式：起止时间成对保存；无结束时间时不自动补，显式清除才发送 null
-      const dueValue = dueDate || null
-      let endPatch: string | null | undefined
-
-      if (!dueValue) {
-        endPatch = task.end_date || endDate ? null : undefined
-        setEndDate('')
-      } else if (endDate) {
-        const dueValueDate = new Date(dueValue)
-        const endValueDate = new Date(endDate)
-        if (isNaN(dueValueDate.getTime()) || isNaN(endValueDate.getTime())) return
-        if (endValueDate.getTime() <= dueValueDate.getTime()) {
-          // 用户刚改成非法区间：保留输入并展示错误，不写入
-          if (endDate !== (task.end_date || '')) return
-          // 历史遗留的非法结束时间：不静默清空，本次只更新开始时间
-          endPatch = undefined
-        } else {
-          endPatch = endDate
-        }
-      } else {
-        endPatch = task.end_date ? null : undefined
+      if (patch.end_date) {
+        setEndDate(patch.end_date)
+        setAllDayEndDate(getVisibleAllDayEndDateInput(patch.end_date))
       }
-
-      onUpdate(task.id, {
-        due_date: dueValue,
-        all_day: false,
-        ...(endPatch !== undefined ? { end_date: endPatch } : {}),
-        reminder: reminder || null,
-      })
+      onUpdate(task.id, { ...patch, reminder: reminder || null })
+    } else {
+      const patch = buildTimedSchedulePatch(task, dueDate, endDate)
+      if (!patch) return
+      if (!dueDate) setEndDate('')
+      onUpdate(task.id, { ...patch, reminder: reminder || null })
     }
   }
 
@@ -196,7 +119,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     if (patch.end_date !== undefined) {
       const nextEnd = patch.end_date ?? ''
       setEndDate(nextEnd)
-      setAllDayEndDate(getVisibleAllDayEndInput(nextEnd))
+      setAllDayEndDate(getVisibleAllDayEndDateInput(nextEnd))
     }
   }
 
@@ -212,7 +135,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     }
     const nextEnd = parsed.toISOString()
     setEndDate(nextEnd)
-    setAllDayEndDate(getVisibleAllDayEndInput(nextEnd))
+    setAllDayEndDate(getVisibleAllDayEndDateInput(nextEnd))
   }
 
   function handleClearEndDate() {
@@ -238,11 +161,11 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
         return
       }
       const startLocal = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
-      const spanDays = getAllDaySpanDays(startLocal)
+      const spanDays = getAllDaySpanDays(task, startLocal, allDayEndDate)
       const endLocal = new Date(startLocal.getFullYear(), startLocal.getMonth(), startLocal.getDate() + spanDays)
       setDueDate(startLocal.toISOString())
       setEndDate(endLocal.toISOString())
-      setAllDayEndDate(getVisibleAllDayEndInput(endLocal.toISOString()))
+      setAllDayEndDate(getVisibleAllDayEndDateInput(endLocal.toISOString()))
       onUpdate(task.id, {
         all_day: true,
         due_date: startLocal.toISOString(),
@@ -265,14 +188,11 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
       if (local.getHours() === 0 && local.getMinutes() === 0) {
         local = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9, 0)
       }
-      const patch = buildDueDatePatch(
-        { due_date: dueDate, end_date: endDate, all_day: true },
-        local.toISOString(),
-      )
+      const patch = buildDueDatePatch({ due_date: dueDate, end_date: endDate, all_day: true }, local.toISOString())
       setDueDate(local.toISOString())
       if (patch.end_date !== undefined) {
         setEndDate(patch.end_date ?? '')
-        setAllDayEndDate(getVisibleAllDayEndInput(patch.end_date))
+        setAllDayEndDate(getVisibleAllDayEndDateInput(patch.end_date))
       }
       onUpdate(task.id, {
         all_day: false,
@@ -308,9 +228,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
       const end = new Date(endDate)
       if (isNaN(end.getTime()) || end.getTime() <= d.getTime()) return startStr
       const sameDay =
-        d.getFullYear() === end.getFullYear() &&
-        d.getMonth() === end.getMonth() &&
-        d.getDate() === end.getDate()
+        d.getFullYear() === end.getFullYear() && d.getMonth() === end.getMonth() && d.getDate() === end.getDate()
       const endStr = sameDay
         ? format(end, 'HH:mm', { locale: zhCN })
         : format(end, "M'月'd'日' HH:mm", { locale: zhCN })
@@ -404,7 +322,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                 <span className="block text-xs text-[var(--color-text-secondary)] mb-1">开始日期</span>
                 <input
                   type="date"
-                  value={toDateInputValue(dueDate)}
+                  value={toLocalDateInputValue(dueDate)}
                   onChange={(e) => {
                     if (e.target.value) {
                       const [y, m, d] = e.target.value.split('-').map(Number)
@@ -437,7 +355,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                 <input
                   type="datetime-local"
                   aria-label="开始时间"
-                  value={toLocalInputValue(dueDate)}
+                  value={toLocalDateTimeInputValue(dueDate)}
                   onChange={(e) => handleDueDateChange(e.target.value)}
                   onBlur={handleScheduleSave}
                   className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
@@ -460,7 +378,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
                 <input
                   type="datetime-local"
                   aria-label="结束时间"
-                  value={toLocalInputValue(endDate)}
+                  value={toLocalDateTimeInputValue(endDate)}
                   onChange={(e) => handleEndDateChange(e.target.value)}
                   onBlur={handleScheduleSave}
                   className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
@@ -478,7 +396,7 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
             <input
               type="datetime-local"
               aria-label="提醒时间"
-              value={toLocalInputValue(reminder)}
+              value={toLocalDateTimeInputValue(reminder)}
               onChange={(e) => setReminder(e.target.value ? new Date(e.target.value).toISOString() : '')}
               onBlur={handleScheduleSave}
               className="w-full px-2 py-1 text-sm border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"

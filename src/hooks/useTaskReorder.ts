@@ -70,8 +70,10 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
 
   async function handleCreateTaskOnRange(data: CreateTaskOnRangeData): Promise<boolean> {
     try {
-      const dueDate = buildLocalDateTime(data.startDateKey, data.startMinute)
-      const endDate = buildLocalDateTime(data.endDateKey, data.endMinute)
+      const isAllDay = data.allDay === true
+      // 全天模式：起点 / 排他终点都固定为本地 00:00，忽略表单时分
+      const dueDate = buildLocalDateTime(data.startDateKey, isAllDay ? 0 : data.startMinute)
+      const endDate = buildLocalDateTime(data.endDateKey, isAllDay ? 0 : data.endMinute)
       if (endDate.getTime() <= dueDate.getTime()) {
         toast.error('结束时间必须晚于开始时间')
         return false
@@ -83,8 +85,9 @@ export function useTaskReorder(toast: ToastApi, incompleteTaskTreeRef: RefObject
         list_id: data.listId,
         due_date: dueDate.toISOString(),
         end_date: endDate.toISOString(),
-        all_day: false,
-        reminder: dueDate.toISOString(),
+        all_day: isAllDay,
+        // 全天任务不沿用定时任务的「开始时刻提醒」；默认提醒规则仍由 createTask 统一处理
+        ...(isAllDay ? {} : { reminder: dueDate.toISOString() }),
       })
       if (newTask) {
         useUIStore.getState().setSelectedTaskId(newTask.id)

@@ -71,8 +71,11 @@ export function DayViewTask({
       {task.end_date && (
         <div
           draggable={false}
+          data-resize-handle
           className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
           onMouseDown={(e) => onResizeStart(e, 'top')}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
         />
       )}
 
@@ -87,8 +90,11 @@ export function DayViewTask({
       {task.due_date && (
         <div
           draggable={false}
+          data-resize-handle
           className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[var(--color-accent)]/30 z-10 transition-colors"
           onMouseDown={(e) => onResizeStart(e, 'bottom')}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
         />
       )}
     </CalendarTaskBlock>

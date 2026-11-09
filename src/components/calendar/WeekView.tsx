@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, getHours, getMinutes } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, List } from '../../types'
@@ -23,6 +23,15 @@ import { getAllDaySegmentsForDays } from '../../utils/calendarAllDaySegments'
 import { TaskBar } from './shared/TaskBar'
 import { CalendarAllDayTaskBar } from './shared/CalendarAllDayTaskBar'
 import { useTimeSelection } from './useTimeSelection'
+import { useAllDayRangeSelection } from './useAllDayRangeSelection'
+import {
+  ALL_DAY_AREA_KEYBOARD_STEP,
+  ALL_DAY_AREA_MAX_HEIGHT,
+  ALL_DAY_AREA_MIN_HEIGHT,
+  ALL_DAY_DIVIDER_HEIGHT,
+  ALL_DAY_SCROLLBAR_WIDTH,
+  clampAllDayAreaHeight,
+} from './allDayAreaLayout'
 import { useTaskResize } from './useTaskResize'
 import { useDateSpanResize } from './useDateSpanResize'
 import { WeekCreatePopups } from './WeekCreatePopups'
@@ -45,9 +54,15 @@ import type { CalendarAllDaySegment } from '../../utils/calendarAllDaySegments'
 import type { DateSpanResizeEdge } from '../../utils/dateSpanResize'
 import type { CreateTaskOnRange, MoveTask, UpdateTask } from './shared/types'
 import type { TaskActions } from '../../hooks/useTaskActions'
+import { useUIStore } from '../../stores/uiStore'
 
 const HOUR_HEIGHT = 60
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+function formatDateRangeLabel(startDateKey: string, endDateKey: string): string {
+  const formatKey = (key: string) => format(new Date(`${key}T00:00:00`), 'M月d日', { locale: zhCN })
+  return `${formatKey(startDateKey)} - ${formatKey(endDateKey)}`
+}
 
 interface WeekViewProps {
   currentDate: Date
@@ -86,6 +101,10 @@ export function WeekView({
   const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const timeGridRef = useRef<HTMLDivElement>(null)
   const weekScrollRef = useRef<HTMLDivElement>(null)
+  const allDayAreaRef = useRef<HTMLDivElement>(null)
+  const allDayContentRef = useRef<HTMLDivElement>(null)
+  const dividerDragRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null)
+  const [isDividerDragging, setIsDividerDragging] = useState(false)
   const defaultListId = lists.length > 0 ? lists[0].id : 1
   const { handleTaskContextMenu, menuElement } = useCalendarTaskContextMenu({ actions, onTaskClick })
   const taskDrag = useCalendarTaskDragActions(actions)
@@ -152,10 +171,17 @@ export function WeekView({
     return Math.max(1, ...allDaySegments.map((segment) => segment.rowIndex + 1))
   }, [allDaySegments])
 
-  const allDayAreaHeight = allDayRowCount * 24 + 8
+  /** 默认高度继续按现有全天任务行数自适应 */
+  const allDayDefaultHeight = allDayRowCount * 24 + 8
+  const sessionAllDayHeight = useUIStore((state) => state.weekAllDayAreaHeight)
+  const setSessionAllDayHeight = useUIStore((state) => state.setWeekAllDayAreaHeight)
+  const allDayAreaHeight = clampAllDayAreaHeight(sessionAllDayHeight ?? allDayDefaultHeight)
+  /** 任务行数多于用户可见高度时保留完整内容高度，由全天区内部滚动，不隐藏任务 */
+  const allDayContentHeight = Math.max(allDayAreaHeight, allDayDefaultHeight)
+  const allDayOverflowing = allDayDefaultHeight > allDayAreaHeight
 
   // 进入周视图时自动定位到当前本地时间（仅挂载时执行一次，不影响后续手动滚动）
-  useAutoScrollToNow(weekScrollRef, allDayAreaHeight)
+  useAutoScrollToNow(weekScrollRef, allDayAreaHeight + ALL_DAY_DIVIDER_HEIGHT)
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -291,6 +317,74 @@ export function WeekView({
     hourHeight: HOUR_HEIGHT,
   })
 
+  const allDaySelection = useAllDayRangeSelection({
+    areaRef: allDayAreaRef,
+    contentRef: allDayContentRef,
+    dateKeys,
+    onSelectionStart: sel.closeCreatePopup,
+    onSelect: (range, position) => sel.openAllDayCreatePopup(range, position),
+  })
+
+  /** 分隔线拖动：按指针位移调整全天区可见高度；最小/最大边界由 clampAllDayAreaHeight 统一约束 */
+  function handleDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0 || e.isPrimary === false) return
+    e.preventDefault()
+    e.stopPropagation()
+    dividerDragRef.current = { pointerId: e.pointerId, startY: e.clientY, startHeight: allDayAreaHeight }
+    setIsDividerDragging(true)
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    } catch {
+      // 浏览器不支持捕获时仍可通过容器内 move/up 完成拖动。
+    }
+  }
+
+  function handleDividerPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const drag = dividerDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId) return
+    e.preventDefault()
+    setSessionAllDayHeight(clampAllDayAreaHeight(drag.startHeight + (e.clientY - drag.startY)))
+  }
+
+  function finishDividerDrag(e: React.PointerEvent<HTMLDivElement>) {
+    const drag = dividerDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId) return
+    dividerDragRef.current = null
+    setIsDividerDragging(false)
+    try {
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      // 同 pointerdown：浏览器已释放时忽略。
+    }
+  }
+
+  /** 键盘调整：与鼠标拖动写入同一 UI 状态，Home / End 直接到达边界 */
+  function handleDividerKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return
+    let nextHeight: number | null = null
+    if (e.key === 'ArrowUp') nextHeight = allDayAreaHeight - ALL_DAY_AREA_KEYBOARD_STEP
+    else if (e.key === 'ArrowDown') nextHeight = allDayAreaHeight + ALL_DAY_AREA_KEYBOARD_STEP
+    else if (e.key === 'Home') nextHeight = ALL_DAY_AREA_MIN_HEIGHT
+    else if (e.key === 'End') nextHeight = ALL_DAY_AREA_MAX_HEIGHT
+    if (nextHeight === null) return
+    e.preventDefault()
+    e.stopPropagation()
+    setSessionAllDayHeight(clampAllDayAreaHeight(nextHeight))
+  }
+
+  // 失焦 / 卸载清理拖动状态，避免下次进入周视图仍处于「拖动中」
+  useEffect(() => {
+    const clearDividerDrag = () => {
+      dividerDragRef.current = null
+      setIsDividerDragging(false)
+    }
+    window.addEventListener('blur', clearDividerDrag)
+    return () => {
+      window.removeEventListener('blur', clearDividerDrag)
+      dividerDragRef.current = null
+    }
+  }, [])
+
   const dayIndexByKey = useMemo(
     () => new Map(days.map((day, index) => [format(day, 'yyyy-MM-dd'), index] as const)),
     [days],
@@ -304,8 +398,10 @@ export function WeekView({
     const grid = timeGridRef.current
     if (!grid) return null
     const rect = grid.getBoundingClientRect()
-    if (rect.width <= 0) return null
-    const raw = Math.floor(((clientX - rect.left) / rect.width) * days.length)
+    // 全天区溢出时表头与时间网格右侧会扣除滚动条宽度，映射也要使用同一内容宽度
+    const width = rect.width - (allDayOverflowing ? ALL_DAY_SCROLLBAR_WIDTH : 0)
+    if (width <= 0) return null
+    const raw = Math.floor(((clientX - rect.left) / width) * days.length)
     return Math.max(0, Math.min(days.length - 1, raw))
   }
 
@@ -462,6 +558,32 @@ export function WeekView({
     )
   }
 
+  /** 全天区拖选预览：覆盖所选日期列的全部可见行，明确表示连续日期范围 */
+  function renderAllDaySelectionOverlay() {
+    const selection = allDaySelection.selection
+    if (!selection) return null
+    const { startIndex, endIndex, startDateKey, endDateKey } = selection
+    return (
+      <div
+        data-testid="week-all-day-selection"
+        data-start-key={startDateKey}
+        data-end-key={endDateKey}
+        className="pointer-events-none absolute inset-y-0 z-10 rounded-[3px] border border-dashed border-[var(--color-accent)] bg-[var(--color-accent)]/15"
+        style={{
+          left: `calc(${(startIndex / 7) * 100}% + 2px)`,
+          width: `calc(${((endIndex - startIndex + 1) / 7) * 100}% - 4px)`,
+        }}
+      >
+        <div
+          data-testid="week-all-day-selection-label"
+          className="absolute left-1 top-0.5 whitespace-nowrap rounded bg-[var(--color-accent)] px-1.5 py-0.5 text-[10px] font-medium text-white"
+        >
+          {formatDateRangeLabel(startDateKey, endDateKey)}
+        </div>
+      </div>
+    )
+  }
+
   /**
    * 定时任务块 dragstart。
    * - segmentDateKey：该块所在自然日（跨日任务按日分段）。写入「分段日相对真实开始日」
@@ -519,8 +641,9 @@ export function WeekView({
 
   function getAllDayDateKey(e: React.DragEvent<HTMLDivElement>): string {
     const rect = e.currentTarget.getBoundingClientRect()
-    if (rect.width <= 0) return format(days[0], 'yyyy-MM-dd')
-    const rawIndex = Math.floor(((e.clientX - rect.left) / rect.width) * days.length)
+    const width = rect.width - (allDayOverflowing ? ALL_DAY_SCROLLBAR_WIDTH : 0)
+    if (width <= 0) return format(days[0], 'yyyy-MM-dd')
+    const rawIndex = Math.floor(((e.clientX - rect.left) / width) * days.length)
     const index = Math.max(0, Math.min(days.length - 1, rawIndex))
     return format(days[index], 'yyyy-MM-dd')
   }
@@ -602,11 +725,25 @@ export function WeekView({
           <div className="w-16 flex-shrink-0 border-r border-[var(--color-border)]">
             <div className="h-12 border-b border-[var(--color-border)]" />
             <div
-              className="flex items-start justify-end border-b border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-tertiary)]"
+              data-testid="week-all-day-label"
+              className="flex items-start justify-end px-2 py-1 text-[10px] text-[var(--color-text-tertiary)]"
               style={{ height: `${allDayAreaHeight}px` }}
             >
               全天
             </div>
+            <div
+              data-testid="week-all-day-resize-handle-left"
+              data-all-day-divider
+              aria-hidden="true"
+              className={`h-2 flex-shrink-0 cursor-ns-resize touch-none border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-accent)]/30 ${
+                isDividerDragging ? 'bg-[var(--color-accent)]/20' : ''
+              }`}
+              onPointerDown={handleDividerPointerDown}
+              onPointerMove={handleDividerPointerMove}
+              onPointerUp={finishDividerDrag}
+              onPointerCancel={finishDividerDrag}
+              onLostPointerCapture={finishDividerDrag}
+            />
             {HOURS.map((hour) => (
               <div
                 key={hour}
@@ -621,7 +758,11 @@ export function WeekView({
           </div>
 
           <div className="flex-1">
-            <div className="grid grid-cols-7">
+            <div
+              data-testid="week-date-header"
+              className="grid grid-cols-7"
+              style={allDayOverflowing ? { paddingRight: `${ALL_DAY_SCROLLBAR_WIDTH}px` } : undefined}
+            >
               {days.map((day) => {
                 const key = format(day, 'yyyy-MM-dd')
                 const today = isToday(day)
@@ -630,6 +771,7 @@ export function WeekView({
                 return (
                   <div
                     key={key}
+                    data-testid={`week-day-header-${key}`}
                     className={`border-r border-[var(--color-border)] last:border-r-0 ${isDragOver ? 'bg-[var(--color-accent-light)]' : ''}`}
                     onDragOver={(e) => handleDragOver(e, key)}
                     onDragLeave={handleDragLeave}
@@ -654,61 +796,106 @@ export function WeekView({
             </div>
 
             <div
+              ref={allDayAreaRef}
               data-testid="week-all-day-area"
-              className="relative grid grid-cols-7 border-b border-[var(--color-border)]"
+              data-overflowing={allDayOverflowing ? 'true' : undefined}
+              className="relative select-none overflow-y-auto overflow-x-hidden"
               style={{ height: `${allDayAreaHeight}px` }}
               onDragOver={handleAllDayDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleAllDayDrop}
+              onPointerDown={allDaySelection.handlePointerDown}
+              onPointerMove={allDaySelection.handlePointerMove}
+              onPointerUp={allDaySelection.handlePointerUp}
+              onPointerCancel={allDaySelection.handlePointerCancel}
             >
-              {days.map((day) => {
-                const key = format(day, 'yyyy-MM-dd')
-                const isDragOver = dragOverDate === key
-                return (
-                  <div
-                    key={key}
-                    className={`border-r border-[var(--color-border)] last:border-r-0 ${isDragOver ? 'bg-[var(--color-accent-light)]' : ''}`}
-                  />
-                )
-              })}
-              {allDaySegments.map((segment) => (
-                <CalendarAllDayTaskBar
-                  key={`${segment.task.id}-${segment.startIndex}-${segment.span}`}
-                  task={segment.task}
-                  lists={lists}
-                  segment={segment.segment}
-                  dragged={draggedTaskId === segment.task.id}
-                  draggable={!spanResize.isSpanResizing}
-                  className="absolute z-20 shadow-sm"
-                  timeRangeLabel={getCrossDayRangeLabel(segment.task)}
-                  style={{
-                    top: `${4 + segment.rowIndex * 24}px`,
-                    left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
-                    width: `calc(${(segment.span / 7) * 100}% - 8px)`,
-                  }}
-                  onDragStart={(e) => handleAllDayBarDragStart(e, segment.task)}
-                  onDrag={(e) => taskDrag.updateDrag(e)}
-                  onDragEnd={() => taskDrag.handleDragEnd()}
-                  onTaskClick={(e) => {
-                    e.stopPropagation()
-                    onTaskClick(segment.task.id)
-                  }}
-                  onToggle={(e) => {
-                    e.stopPropagation()
-                    onToggleTask(segment.task.id)
-                  }}
-                  onContextMenu={(e) => handleTaskContextMenu(e, segment.task)}
-                >
-                  {getSegmentSpanEdges(segment).map((edge) => renderSpanHandle(edge, segment.task))}
-                </CalendarAllDayTaskBar>
-              ))}
-              {renderSpanPreviewOverlay('all-day')}
+              <div
+                ref={allDayContentRef}
+                data-testid="week-all-day-content"
+                className="relative grid grid-cols-7"
+                style={{ height: `${allDayContentHeight}px` }}
+              >
+                {days.map((day) => {
+                  const key = format(day, 'yyyy-MM-dd')
+                  const isDragOver = dragOverDate === key
+                  return (
+                    <div
+                      key={key}
+                      data-testid={`week-all-day-column-${key}`}
+                      className={`border-r border-[var(--color-border)] last:border-r-0 ${isDragOver ? 'bg-[var(--color-accent-light)]' : ''}`}
+                    />
+                  )
+                })}
+                {allDaySegments.map((segment) => (
+                  <CalendarAllDayTaskBar
+                    key={`${segment.task.id}-${segment.startIndex}-${segment.span}`}
+                    task={segment.task}
+                    lists={lists}
+                    segment={segment.segment}
+                    dragged={draggedTaskId === segment.task.id}
+                    draggable={!spanResize.isSpanResizing}
+                    className="absolute z-20 shadow-sm"
+                    timeRangeLabel={getCrossDayRangeLabel(segment.task)}
+                    style={{
+                      top: `${4 + segment.rowIndex * 24}px`,
+                      left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,
+                      width: `calc(${(segment.span / 7) * 100}% - 8px)`,
+                    }}
+                    onDragStart={(e) => handleAllDayBarDragStart(e, segment.task)}
+                    onDrag={(e) => taskDrag.updateDrag(e)}
+                    onDragEnd={() => taskDrag.handleDragEnd()}
+                    onTaskClick={(e) => {
+                      e.stopPropagation()
+                      onTaskClick(segment.task.id)
+                    }}
+                    onToggle={(e) => {
+                      e.stopPropagation()
+                      onToggleTask(segment.task.id)
+                    }}
+                    onContextMenu={(e) => handleTaskContextMenu(e, segment.task)}
+                  >
+                    {getSegmentSpanEdges(segment).map((edge) => renderSpanHandle(edge, segment.task))}
+                  </CalendarAllDayTaskBar>
+                ))}
+                {renderAllDaySelectionOverlay()}
+                {renderSpanPreviewOverlay('all-day')}
+              </div>
+            </div>
+
+            <div
+              data-testid="week-all-day-divider"
+              data-height={allDayAreaHeight}
+              data-dragging={isDividerDragging ? 'true' : undefined}
+              className={`relative h-2 flex-shrink-0 border-b border-[var(--color-border)] transition-colors ${
+                isDividerDragging ? 'bg-[var(--color-accent)]/20' : ''
+              }`}
+            >
+              <div
+                data-testid="week-all-day-resize-handle"
+                data-all-day-divider
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="调整全天任务区域高度"
+                aria-valuemin={ALL_DAY_AREA_MIN_HEIGHT}
+                aria-valuemax={ALL_DAY_AREA_MAX_HEIGHT}
+                aria-valuenow={allDayAreaHeight}
+                tabIndex={0}
+                title="拖动或用方向键调整全天区域高度"
+                className="absolute inset-x-0 -top-1 -bottom-1 z-30 cursor-ns-resize touch-none transition-colors hover:bg-[var(--color-accent)]/30 focus-visible:bg-[color:var(--color-accent-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+                onPointerDown={handleDividerPointerDown}
+                onPointerMove={handleDividerPointerMove}
+                onPointerUp={finishDividerDrag}
+                onPointerCancel={finishDividerDrag}
+                onLostPointerCapture={finishDividerDrag}
+                onKeyDown={handleDividerKeyDown}
+              />
             </div>
 
             <div
               ref={timeGridRef}
               data-testid="week-time-grid"
               className="relative grid grid-cols-7"
+              style={allDayOverflowing ? { paddingRight: `${ALL_DAY_SCROLLBAR_WIDTH}px` } : undefined}
               onPointerDown={sel.handleTimePointerDown}
               onPointerMove={sel.handleTimePointerMove}
               onPointerUp={sel.handleTimePointerUp}

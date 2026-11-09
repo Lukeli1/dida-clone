@@ -59,7 +59,8 @@ export function CalendarAllDayTaskBar({
   const barColor = getTaskBarColor(task, lists)
   const light = isLightColor(barColor)
   const selectedTaskId = useUIStore((s) => s.selectedTaskId)
-  const selected = selectedTaskId === task.id
+  const quickDetailTaskId = useUIStore((s) => s.calendarQuickDetailTaskId)
+  const selected = selectedTaskId === task.id || quickDetailTaskId === task.id
   const priorityStyle = task.priority ? PRIORITY_STYLES[task.priority] : null
 
   return (
@@ -69,6 +70,7 @@ export function CalendarAllDayTaskBar({
       data-compact={compact || undefined}
       data-selected={selected ? 'true' : undefined}
       aria-current={selected ? 'true' : undefined}
+      tabIndex={-1}
       title={timeRangeLabel ? `${task.title} · ${timeRangeLabel}` : task.title}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -78,10 +80,7 @@ export function CalendarAllDayTaskBar({
       onContextMenu={onContextMenu}
       className={`calendar-all-day-task flex min-w-0 items-center gap-1 overflow-hidden px-1.5 text-[10px] cursor-grab select-none transition-[filter,box-shadow] active:cursor-grabbing ${
         compact ? 'h-[18px] shadow-none' : 'h-5 shadow-sm'
-      } ${getSegmentRadius(
-        segment,
-        compact,
-      )} ${task.completed ? 'opacity-60' : ''} ${dragged ? 'opacity-40' : ''} ${
+      } ${getSegmentRadius(segment, compact)} ${task.completed ? 'opacity-60' : ''} ${dragged ? 'opacity-40' : ''} ${
         selected
           ? compact
             ? 'ring-1 ring-inset ring-[var(--color-accent)]'
@@ -123,7 +122,9 @@ export function CalendarAllDayTaskBar({
       )}
       <span className={`min-w-0 flex-1 truncate font-medium ${task.completed ? 'line-through' : ''}`}>
         {task.title}
-        {timeRangeLabel ? <span className="calendar-all-day-range font-normal opacity-80"> · {timeRangeLabel}</span> : null}
+        {timeRangeLabel ? (
+          <span className="calendar-all-day-range font-normal opacity-80"> · {timeRangeLabel}</span>
+        ) : null}
       </span>
     </div>
   )

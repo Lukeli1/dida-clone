@@ -180,6 +180,8 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                 return (
                   <div
                     key={task.id}
+                    data-task-id={task.id}
+                    tabIndex={-1}
                     onClick={() => onTaskClick(task.id)}
                     className="flex items-center gap-2 px-3 cursor-pointer hover:bg-[var(--color-bg-secondary)] border-b border-[var(--color-border-light)]"
                     style={{ height: ROW_HEIGHT }}
@@ -309,6 +311,8 @@ export function GanttView({ tasks, lists, onTaskClick, onMoveTask }: GanttViewPr
                     <div
                       key={task.id}
                       draggable
+                      data-task-id={task.id}
+                      tabIndex={-1}
                       onDragStart={(e) => handleDragStart(e, task.id)}
                       onClick={() => onTaskClick(task.id)}
                       className="absolute pointer-events-auto rounded-md cursor-pointer flex items-center px-2 text-xs text-white shadow-sm hover:shadow-md transition-shadow overflow-hidden"

@@ -97,16 +97,12 @@ export function AgendaView({ currentDate, tasks, lists, onTaskClick, onToggleTas
               <div className="flex items-center gap-2 mb-2">
                 <span
                   className={`text-sm font-medium ${
-                    dayIsToday
-                      ? 'text-[var(--color-accent)]'
-                      : 'text-[var(--color-text-secondary)]'
+                    dayIsToday ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-secondary)]'
                   }`}
                 >
                   {format(day, 'M月d日 EEEE', { locale: zhCN })}
                 </span>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
-                  {dayOccurrences.length} 个任务
-                </span>
+                <span className="text-xs text-[var(--color-text-tertiary)]">{dayOccurrences.length} 个任务</span>
               </div>
 
               {/* 全天任务段 */}
@@ -165,6 +161,8 @@ function AgendaAllDayRow({
   return (
     <div
       data-testid={`agenda-all-day-task-${task.id}`}
+      data-task-id={task.id}
+      tabIndex={-1}
       onClick={() => onTaskClick(task.id)}
       className={`flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer transition-opacity hover:opacity-80 ${
         task.completed ? 'opacity-50' : ''
@@ -181,16 +179,20 @@ function AgendaAllDayRow({
         className={`flex-shrink-0 w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${task.completed ? 'bg-[var(--color-bg-tertiary)] border-[var(--color-border)]' : 'border-[var(--color-border)]'}`}
       >
         {task.completed && (
-          <svg className="w-2.5 h-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-2.5 h-2.5 text-[var(--color-text-tertiary)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         )}
       </button>
+      <span className="flex-shrink-0 w-1.5 h-3.5 rounded-sm" style={{ backgroundColor: barColor }} />
       <span
-        className="flex-shrink-0 w-1.5 h-3.5 rounded-sm"
-        style={{ backgroundColor: barColor }}
-      />
-      <span className={`flex-1 min-w-0 truncate text-sm ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
+        className={`flex-1 min-w-0 truncate text-sm ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}
+      >
         {task.title}
       </span>
       {occurrence.segment !== 'single' && (
@@ -198,7 +200,10 @@ function AgendaAllDayRow({
           {occurrence.segment === 'start' ? '开始' : occurrence.segment === 'end' ? '结束' : '跨天'}
         </span>
       )}
-      <span className="flex-shrink-0 text-[10px] text-[var(--color-text-tertiary)]" style={{ color: light ? barColor : undefined }}>
+      <span
+        className="flex-shrink-0 text-[10px] text-[var(--color-text-tertiary)]"
+        style={{ color: light ? barColor : undefined }}
+      >
         全天
       </span>
     </div>
@@ -224,6 +229,8 @@ function AgendaTimedRow({
   return (
     <div
       data-testid={`agenda-timed-task-${task.id}`}
+      data-task-id={task.id}
+      tabIndex={-1}
       onClick={() => onTaskClick(task.id)}
       className={`flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer transition-opacity hover:opacity-80 ${
         task.completed ? 'opacity-50' : ''
@@ -240,19 +247,23 @@ function AgendaTimedRow({
         className={`flex-shrink-0 w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${task.completed ? 'bg-[var(--color-bg-tertiary)] border-[var(--color-border)]' : 'border-[var(--color-border)]'}`}
       >
         {task.completed && (
-          <svg className="w-2.5 h-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-2.5 h-2.5 text-[var(--color-text-tertiary)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         )}
       </button>
-      <span
-        className="flex-shrink-0 w-1.5 h-3.5 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
+      <span className="flex-shrink-0 w-1.5 h-3.5 rounded-sm" style={{ backgroundColor: color }} />
       <span className="flex-shrink-0 text-xs font-medium text-[var(--color-text-secondary)] min-w-[40px]">
         {timeLabel}
       </span>
-      <span className={`flex-1 min-w-0 truncate text-sm ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
+      <span
+        className={`flex-1 min-w-0 truncate text-sm ${task.completed ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}
+      >
         {task.title}
       </span>
       {occurrence.segment !== 'single' && (

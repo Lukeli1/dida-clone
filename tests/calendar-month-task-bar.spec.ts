@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 /**
  * 月视图任务条回归验收（真实 CSS / 真实盒模型）。
@@ -108,9 +108,7 @@ const tasks: MockTask[] = [
   }),
 ]
 
-const lists = [
-  { id: 1, name: '工作', color: '#3B82F6', is_default: true, created_at: nowIso, updated_at: nowIso },
-]
+const lists = [{ id: 1, name: '工作', color: '#3B82F6', is_default: true, created_at: nowIso, updated_at: nowIso }]
 
 async function installMock(page: Page) {
   await page.addInitScript(
@@ -160,6 +158,15 @@ async function openCalendar(page: Page) {
   await page.waitForTimeout(200)
 }
 
+/** 日历点击现在先打开轻量详情；需要完整详情时通过其入口进入，保留原有 TaskDetail 断言。 */
+async function openFullDetailFromTask(page: Page, task: Locator) {
+  await task.click()
+  const quick = page.getByTestId('calendar-quick-detail')
+  await expect(quick).toBeVisible()
+  await quick.getByRole('button', { name: '打开完整详情' }).click()
+  await expect(page.getByTestId('detail-docked')).toBeVisible()
+}
+
 test.describe('月视图任务条边界与选中态', () => {
   test('单日 / 次日零点 / 真实跨午夜任务的真实盒模型', async ({ page }) => {
     await installMock(page)
@@ -197,12 +204,8 @@ test.describe('月视图任务条边界与选中态', () => {
         const midnightEnd = taskElement(102)
         const crossMidnight = taskElement(103)
         if (!single || !midnightEnd || !crossMidnight) throw new Error('missing task bar')
-        const singleDateNumber = document.querySelector<HTMLElement>(
-          `[data-testid="month-day-number-${singleDayKey}"]`,
-        )
-        const crossDateNumber = document.querySelector<HTMLElement>(
-          `[data-testid="month-day-number-${todayKey}"]`,
-        )
+        const singleDateNumber = document.querySelector<HTMLElement>(`[data-testid="month-day-number-${singleDayKey}"]`)
+        const crossDateNumber = document.querySelector<HTMLElement>(`[data-testid="month-day-number-${todayKey}"]`)
         return {
           today: { left: today.left, right: today.right, top: today.top, width: today.width },
           tomorrow: { left: tomorrow.left, right: tomorrow.right },
@@ -248,10 +251,9 @@ test.describe('月视图任务条边界与选中态', () => {
     await installMock(page)
     await openCalendar(page)
 
-    const crossMidnight = page.locator('[data-task-id="103"]')
+    const crossMidnight = page.locator('[data-task-id="103"]').first()
     await expect(crossMidnight).toBeVisible()
-    await crossMidnight.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await openFullDetailFromTask(page, crossMidnight)
 
     const [, month, day] = todayKey.split('-').map(Number)
     const [, nextMonth, nextDay] = tomorrowKey.split('-').map(Number)
@@ -290,15 +292,13 @@ test.describe('月视图任务条边界与选中态', () => {
     await installMock(page)
     await openCalendar(page)
 
-    await page.locator('[data-task-id="101"]').click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await openFullDetailFromTask(page, page.locator('[data-task-id="101"]'))
     const [, singleMonth, singleDay] = singleDayKey.split('-').map(Number)
     const sameDaySummary = page.getByTestId('task-detail').getByRole('button', { name: /09:00/ })
     await expect(sameDaySummary).toContainText(`${singleMonth}月${singleDay}日 09:00 - 10:00`)
     await page.getByLabel('关闭任务详情').click()
 
-    await page.locator('[data-task-id="102"]').click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await openFullDetailFromTask(page, page.locator('[data-task-id="102"]'))
     const [, midnightMonth, midnightDay] = midnightEndKey.split('-').map(Number)
     const [, nextMonth, nextDay] = midnightEndNextKey.split('-').map(Number)
     const midnightSummary = page.getByTestId('task-detail').getByRole('button', { name: /09:00/ })
@@ -312,9 +312,8 @@ test.describe('月视图任务条边界与选中态', () => {
     await installMock(page)
     await openCalendar(page)
 
-    const crossMidnight = page.locator('[data-task-id="103"]')
-    await crossMidnight.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    const crossMidnight = page.locator('[data-task-id="103"]').first()
+    await openFullDetailFromTask(page, crossMidnight)
 
     const [, month, day] = todayKey.split('-').map(Number)
     const [, tomorrowMonth, tomorrowDay] = tomorrowKey.split('-').map(Number)
@@ -325,9 +324,7 @@ test.describe('月视图任务条边界与选中态', () => {
     await expect(endInput).toHaveValue(`${tomorrowKey}T00:15`)
     await endInput.fill(`${tomorrowKey}T00:45`)
     await endInput.press('Tab')
-    await expect(summary).toContainText(
-      `${month}月${day}日 22:30 - ${tomorrowMonth}月${tomorrowDay}日 00:45`,
-    )
+    await expect(summary).toContainText(`${month}月${day}日 22:30 - ${tomorrowMonth}月${tomorrowDay}日 00:45`)
 
     await page.getByRole('button', { name: '清除结束时间' }).click()
     await expect(summary).toContainText(`${month}月${day}日 22:30`)

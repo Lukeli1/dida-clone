@@ -2,6 +2,7 @@ import type { Task } from '../types'
 
 const MINUTE_MS = 60 * 1000
 const DEFAULT_TIMED_DURATION_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * 60 * MINUTE_MS
 
 /** 从任务的截止/结束时间生成 due_date Patch，保证修改日期时起止语义一致。 */
 export interface DueDatePatch {
@@ -24,13 +25,142 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+/** 本地 datetime-local 输入值（YYYY-MM-DDTHH:mm）；空值 / 非法值返回空字符串 */
+export function toLocalDateTimeInputValue(iso?: string | null): string {
+  const date = parseDate(iso)
+  if (!date) return ''
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(
+    date.getMinutes(),
+  )}`
+}
+
+/** 本地 date 输入值（YYYY-MM-DD）；空值 / 非法值返回空字符串 */
+export function toLocalDateInputValue(iso?: string | null): string {
+  const date = parseDate(iso)
+  if (!date) return ''
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+/** 全天编辑中的可见结束日期：排他性的 00:00 结束时间取前一天；非零点的定时结束时间取当天。 */
+export function getVisibleAllDayEndDateInput(endIso?: string | null): string {
+  const date = parseDate(endIso)
+  if (!date) return ''
+  if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0) {
+    return toLocalDateInputValue(new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1).toISOString())
+  }
+  return toLocalDateInputValue(date.toISOString())
+}
+
+/**
+ * 全天任务跨度（天，含开始日）：
+ * - 可见结束日合法且不早于开始日：按可见结束日计算
+ * - 可见结束日为空：单天
+ * - 可见结束日早于开始日（用户改了开始日）：回退到任务原跨度
+ */
+export function getAllDaySpanDays(
+  task: Pick<Task, 'due_date' | 'end_date'>,
+  startLocal: Date,
+  visibleEndDateKey: string,
+): number {
+  if (visibleEndDateKey) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(visibleEndDateKey)
+    if (match) {
+      const [, year, month, day] = match
+      const endVisible = new Date(Number(year), Number(month) - 1, Number(day))
+      const span = Math.round((endVisible.getTime() - startLocal.getTime()) / DAY_MS) + 1
+      if (span >= 1) return span
+    }
+  } else {
+    return 1
+  }
+
+  const oldStart = parseDate(task.due_date)
+  const oldEnd = parseDate(task.end_date)
+  if (oldStart && oldEnd) {
+    const oldStartLocal = new Date(oldStart.getFullYear(), oldStart.getMonth(), oldStart.getDate())
+    const oldEndLocal = new Date(oldEnd.getFullYear(), oldEnd.getMonth(), oldEnd.getDate())
+    const diffDays = Math.round((oldEndLocal.getTime() - oldStartLocal.getTime()) / DAY_MS)
+    if (diffDays >= 1) return diffDays
+  }
+  return 1
+}
+
+/**
+ * 全天日程保存 Patch：
+ * - due_date 为开始日本地 00:00
+ * - end_date 为可见结束日次日本地 00:00（排他）
+ * - 开始日期为空时同步清空 due_date / end_date
+ * - 开始日期非法时返回 null，调用方保留输入且不写入
+ */
+export function buildAllDaySchedulePatch(
+  task: Pick<Task, 'due_date' | 'end_date'>,
+  dueDateIso: string,
+  visibleEndDateKey: string,
+): Partial<Task> | null {
+  if (!dueDateIso) return { all_day: true, due_date: null, end_date: null }
+
+  const parsed = parseDate(dueDateIso)
+  if (!parsed) return null
+
+  const startLocal = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+  const spanDays = getAllDaySpanDays(task, startLocal, visibleEndDateKey)
+  const endLocal = new Date(startLocal.getFullYear(), startLocal.getMonth(), startLocal.getDate() + spanDays)
+
+  return {
+    all_day: true,
+    due_date: startLocal.toISOString(),
+    end_date: endLocal.toISOString(),
+  }
+}
+
+/**
+ * 定时日程保存 Patch：
+ * - 有有效结束时间：起止成对保存
+ * - 无结束时间：不自动补 end_date（undefined 表示不更新）；用户显式清除时发送 null
+ * - 结束时间不晚于开始时间且是本次新输入：返回 null，调用方保留输入
+ * - 历史遗留的非法结束时间：只更新 due_date，不静默清空旧值
+ */
+export function buildTimedSchedulePatch(
+  task: Pick<Task, 'due_date' | 'end_date'>,
+  dueDateIso: string,
+  endDateIso: string,
+): Partial<Task> | null {
+  const dueValue = dueDateIso || null
+  if (dueValue && !parseDate(dueValue)) return null
+
+  let endPatch: string | null | undefined
+
+  if (!dueValue) {
+    endPatch = task.end_date || endDateIso ? null : undefined
+  } else if (endDateIso) {
+    const dueDate = parseDate(dueValue)
+    const endDate = parseDate(endDateIso)
+    if (!dueDate || !endDate) return null
+    if (endDate.getTime() <= dueDate.getTime()) {
+      // 用户刚改成非法区间：保留输入并展示错误，不写入。
+      // 历史遗留的非法结束时间：不静默清空，本次只更新开始时间。
+      if (endDateIso !== (task.end_date || '')) return null
+      endPatch = undefined
+    } else {
+      endPatch = endDateIso
+    }
+  } else {
+    endPatch = task.end_date ? null : undefined
+  }
+
+  return {
+    due_date: dueValue,
+    all_day: false,
+    ...(endPatch !== undefined ? { end_date: endPatch } : {}),
+  }
+}
+
 function isLocalMidnight(date: Date): boolean {
-  return (
-    date.getHours() === 0 &&
-    date.getMinutes() === 0 &&
-    date.getSeconds() === 0 &&
-    date.getMilliseconds() === 0
-  )
+  return date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0
 }
 
 /**

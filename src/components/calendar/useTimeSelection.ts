@@ -14,10 +14,12 @@ import {
   buildLocalDateTime,
   canonicalizeDateAndMinute,
   formatCalendarRangeDuration,
+  formatLocalDateKey,
   formatMinuteOfDay,
   getCalendarRangeDurationMinutes,
   getPointerDayAndMinute,
   normalizeCalendarRange,
+  parseDateKey,
   parseTimeInput,
   splitCalendarRangeIntoDaySegments,
   type CalendarRangePoint,
@@ -40,6 +42,10 @@ export interface CreatePopup {
   viewportTop: number
   viewportLeft: number
   isQuickAdd: boolean
+  /** 全天跨日创建：起止按自然日包含计算，endDateKey 为排他结束日 */
+  allDay?: boolean
+  /** 全天创建框展示用的包含式结束日（与排他 endDateKey 区分） */
+  allDayEndDateKey?: string
 }
 
 interface UseTimeSelectionOpts {
@@ -222,6 +228,33 @@ export function useTimeSelection({
     [dateKeys, resetForm],
   )
 
+  /**
+   * 全天区域拖选完成后打开创建框。
+   * 入参为包含两端的自然日范围；持久化使用起始日 00:00 与结束日次日的排他 00:00。
+   */
+  const openAllDayCreatePopup = useCallback(
+    (range: { startDateKey: string; endDateKey: string }, position: { clientX: number; clientY: number }) => {
+      const inclusiveEnd = parseDateKey(range.endDateKey)
+      const exclusiveEndKey = formatLocalDateKey(
+        new Date(inclusiveEnd.year, inclusiveEnd.month - 1, inclusiveEnd.day + 1),
+      )
+      const popup: CreatePopup = {
+        startDateKey: range.startDateKey,
+        startMinute: 0,
+        endDateKey: exclusiveEndKey,
+        endMinute: 0,
+        viewportTop: position.clientY + 8,
+        viewportLeft: position.clientX + 8,
+        isQuickAdd: false,
+        allDay: true,
+        allDayEndDateKey: range.endDateKey,
+      }
+      setCreatePopup(popup)
+      resetForm(popup)
+    },
+    [resetForm],
+  )
+
   const releasePointerCapture = useCallback((target: HTMLDivElement, pointerId: number) => {
     try {
       if (target.hasPointerCapture?.(pointerId)) target.releasePointerCapture(pointerId)
@@ -327,8 +360,10 @@ export function useTimeSelection({
   const handlePopupSubmit = useCallback(async () => {
     if (!createPopup || isSubmitting) return
     const title = popupTitle.trim()
-    const startMinute = parseTimeInput(popupStartTime)
-    const endMinute = parseTimeInput(popupEndTime)
+    const isAllDay = createPopup.allDay === true
+    // 全天任务固定为自然日 00:00，不受弹窗中的时分输入影响
+    const startMinute = isAllDay ? 0 : parseTimeInput(popupStartTime)
+    const endMinute = isAllDay ? 0 : parseTimeInput(popupEndTime)
 
     if (!title) {
       setPopupError('请输入任务标题')
@@ -346,19 +381,22 @@ export function useTimeSelection({
       return
     }
 
+    const payload = {
+      startDateKey: popupStartDateKey,
+      startMinute,
+      endDateKey: popupEndDateKey,
+      endMinute,
+      title,
+      notes: popupNotes.trim() || undefined,
+      priority: popupPriority,
+      listId: popupListId || defaultListId,
+      ...(isAllDay ? { allDay: true } : {}),
+    }
+
     setPopupError(null)
     setIsSubmitting(true)
     try {
-      const result = await onCreateTaskOnRange({
-        startDateKey: popupStartDateKey,
-        startMinute,
-        endDateKey: popupEndDateKey,
-        endMinute,
-        title,
-        notes: popupNotes.trim() || undefined,
-        priority: popupPriority,
-        listId: popupListId || defaultListId,
-      })
+      const result = await onCreateTaskOnRange(payload)
       if (result === false) {
         setPopupError('创建失败，请检查任务信息后重试')
         return
@@ -434,6 +472,7 @@ export function useTimeSelection({
     handleTimePointerMove,
     handleTimePointerUp,
     handleTimePointerCancel,
+    openAllDayCreatePopup,
     handlePopupSubmit,
     cyclePriority,
     closeCreatePopup,

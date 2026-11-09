@@ -23,9 +23,10 @@ export function useTaskCRUD(toast: ToastApi) {
     }
   }
 
-  async function handleUpdateTask(id: number, updates: UpdateTaskRequest) {
+  async function handleUpdateTask(id: number, updates: UpdateTaskRequest): Promise<boolean> {
     const success = await useTaskStore.getState().updateTask(id, updates)
     if (!success) toast.error('更新任务失败')
+    return success
   }
 
   async function handleDeleteTask(id: number) {

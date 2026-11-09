@@ -170,6 +170,8 @@ export function TaskSidebar({ open, onClose, tasks, lists, onTaskClick }: TaskSi
                             <div
                               key={task.id}
                               draggable
+                              data-task-id={task.id}
+                              tabIndex={-1}
                               onDragStart={(e) => handleDragStart(e, task.id)}
                               onClick={() => onTaskClick(task.id)}
                               className="flex items-center gap-2 px-3 pl-8 py-1.5 mx-1 rounded-md cursor-grab hover:bg-[var(--color-accent-light)] active:cursor-grabbing transition-colors group select-none"

@@ -163,9 +163,7 @@ test('混合冲突：跨日/单日统一子轨道，正文、勾选框与手柄�
     const point = { x: box!.x + box!.width * 0.6, y: box!.y + box!.height / 2 }
     await assertHit(point, taskId)
     await page.mouse.click(point.x, point.y)
-    await expect(page.locator('[data-testid="detail-docked"], [data-testid="detail-overlay"]')).toHaveCount(1, {
-      timeout: 5000,
-    })
+    await expect(page.getByTestId('calendar-quick-detail')).toBeVisible({ timeout: 5000 })
     await page.getByLabel('关闭任务详情').click()
   }
 

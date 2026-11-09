@@ -5,8 +5,11 @@ import type { Task } from '../../../types'
 export interface CreateTaskOnRangeData {
   startDateKey: string
   startMinute: number
+  /** 全天模式为排他结束日期（结束日次日），定时模式为结束日期 */
   endDateKey: string
   endMinute: number
+  /** true：创建全天任务，日期按本地 00:00 整天语义处理 */
+  allDay?: boolean
   title: string
   notes?: string
   priority: number

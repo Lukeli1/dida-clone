@@ -282,7 +282,9 @@ async function assertTimedGeometry(page: Page, view: 'week' | 'day') {
 
 async function closeDetail(page: Page) {
   await page.getByLabel('关闭任务详情').click()
-  await expect(page.getByTestId('detail-docked')).toHaveCount(0, { timeout: 3000 })
+  await expect(page.locator('[data-testid="detail-docked"], [data-testid="calendar-quick-detail"]')).toHaveCount(0, {
+    timeout: 3000,
+  })
 }
 
 test.describe('日历任务块视觉层', () => {
@@ -330,7 +332,7 @@ test.describe('日历任务块视觉层', () => {
     expect(monthAfter?.height).toBeCloseTo(monthBefore?.height ?? 0, 0)
 
     await block.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await expect(page.getByTestId('calendar-quick-detail')).toBeVisible()
     await expect(block).toHaveAttribute('data-selected', 'true')
     await expect(block).toHaveAttribute('aria-current', 'true')
     expect(await block.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none')
@@ -345,7 +347,7 @@ test.describe('日历任务块视觉层', () => {
     const weekAfter = await weekBlock.boundingBox()
     expect(weekAfter?.height).toBeCloseTo(weekBefore?.height ?? 0, 0)
     await weekBlock.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await expect(page.getByTestId('calendar-quick-detail')).toBeVisible()
     await expect(weekBlock).toHaveAttribute('data-selected', 'true')
     await closeDetail(page)
 
@@ -359,7 +361,7 @@ test.describe('日历任务块视觉层', () => {
     const dayBlock = page.locator('[data-task]').filter({ hasText: '产品评审会议' }).first()
     await expect(dayBlock).toBeVisible()
     await dayBlock.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await expect(page.getByTestId('calendar-quick-detail')).toBeVisible()
     await expect(dayBlock).toHaveAttribute('data-selected', 'true')
     await closeDetail(page)
 
@@ -367,7 +369,7 @@ test.describe('日历任务块视觉层', () => {
     const allDay = page.getByTestId('calendar-all-day-task-3')
     await expect(allDay).toBeVisible()
     await allDay.click()
-    await expect(page.getByTestId('detail-docked')).toBeVisible()
+    await expect(page.getByTestId('calendar-quick-detail')).toBeVisible()
     await expect(allDay).toHaveAttribute('data-selected', 'true')
     await closeDetail(page)
   })
@@ -430,9 +432,7 @@ test.describe('日历任务块视觉层', () => {
     const overlapTime = await overlapBlock
       .locator('.calendar-timed-time')
       .evaluate((el) => getComputedStyle(el).display)
-    const singleTime = await singleBlock
-      .locator('.calendar-timed-time')
-      .evaluate((el) => getComputedStyle(el).display)
+    const singleTime = await singleBlock.locator('.calendar-timed-time').evaluate((el) => getComputedStyle(el).display)
     console.log('[container-query]', { overlapTime, singleTime })
     expect(overlapTime).toBe('none')
     expect(singleTime).not.toBe('none')

@@ -27,6 +27,8 @@ interface UIState {
   selectedListId: number | null
   selectedTagId: number | null
   selectedTaskId: number | null
+  /** 日历轻量详情当前任务（仅日历内高亮；不打开右侧完整详情） */
+  calendarQuickDetailTaskId: number | null
 
   // 显示控制
   showCompleted: boolean
@@ -54,6 +56,9 @@ interface UIState {
   isDraggingTask: boolean
   dragOverCalendarDate: string | null
   miniCalendarDate: Date
+
+  // 周视图全天区可见高度（仅当前运行期；null = 按全天任务行数自适应）
+  weekAllDayAreaHeight: number | null
 
   // 搜索
   searchQuery: string
@@ -94,6 +99,7 @@ interface UIState {
   setSelectedListId: (id: number | null) => void
   setSelectedTagId: (id: number | null) => void
   setSelectedTaskId: (id: number | null) => void
+  setCalendarQuickDetailTaskId: (id: number | null) => void
   setShowCompleted: (show: boolean) => void
   setShowOverdue: (show: boolean) => void
   toggleTaskExpand: (taskId: number) => void
@@ -120,6 +126,7 @@ interface UIState {
   setIsDraggingTask: (dragging: boolean) => void
   setDragOverCalendarDate: (date: string | null) => void
   setMiniCalendarDate: (date: Date) => void
+  setWeekAllDayAreaHeight: (height: number | null) => void
   setShortcutsHelpOpen: (open: boolean) => void
   setCommandPaletteOpen: (open: boolean) => void
   addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'read'>) => void
@@ -140,6 +147,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   selectedListId: null,
   selectedTagId: null,
   selectedTaskId: null,
+  calendarQuickDetailTaskId: null,
   showCompleted: false,
   showOverdue: true,
   showFilters: false,
@@ -163,6 +171,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isDraggingTask: false,
   dragOverCalendarDate: null,
   miniCalendarDate: new Date(),
+  weekAllDayAreaHeight: null,
   searchQuery: '',
   shortcutsHelpOpen: false,
   commandPaletteOpen: false,
@@ -207,6 +216,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setSelectedListId: (selectedListId) => set({ selectedListId, selectedTagId: null }),
   setSelectedTagId: (selectedTagId) => set({ selectedTagId, selectedListId: null }),
   setSelectedTaskId: (selectedTaskId) => set({ selectedTaskId }),
+  setCalendarQuickDetailTaskId: (calendarQuickDetailTaskId) => set({ calendarQuickDetailTaskId }),
   setShowCompleted: (showCompleted) => set({ showCompleted }),
   setShowOverdue: (showOverdue) => set({ showOverdue }),
 
@@ -304,6 +314,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setIsDraggingTask: (isDraggingTask) => set({ isDraggingTask }),
   setDragOverCalendarDate: (dragOverCalendarDate) => set({ dragOverCalendarDate }),
   setMiniCalendarDate: (miniCalendarDate) => set({ miniCalendarDate }),
+  setWeekAllDayAreaHeight: (weekAllDayAreaHeight) => set({ weekAllDayAreaHeight }),
   setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
   setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
 

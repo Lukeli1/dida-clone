@@ -373,3 +373,17 @@ describe('DayView 任务拖动落点与抓取偏移', () => {
     expect(options).toEqual({ allDay: false })
   })
 })
+
+describe('DayView 时间 resize 手柄与任务点击', () => {
+  it('上下时间 resize 手柄点击不冒泡到任务详情点击', () => {
+    const onTaskClick = vi.fn()
+    const { container } = renderDayView([makeTask(1)], { onTaskClick })
+    const block = container.querySelector<HTMLElement>('[data-task][data-task-id="1"]')
+    expect(block).not.toBeNull()
+    const handles = block!.querySelectorAll<HTMLElement>('[data-resize-handle]')
+    expect(handles.length).toBe(2)
+    fireEvent.click(handles[0])
+    fireEvent.click(handles[1])
+    expect(onTaskClick).not.toHaveBeenCalled()
+  })
+})
