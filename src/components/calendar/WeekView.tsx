@@ -835,7 +835,6 @@ export function WeekView({
                     dragged={draggedTaskId === segment.task.id}
                     draggable={!spanResize.isSpanResizing}
                     className="absolute z-20 shadow-sm"
-                    timeRangeLabel={getCrossDayRangeLabel(segment.task)}
                     style={{
                       top: `${4 + segment.rowIndex * 24}px`,
                       left: `calc(${(segment.startIndex / 7) * 100}% + 4px)`,

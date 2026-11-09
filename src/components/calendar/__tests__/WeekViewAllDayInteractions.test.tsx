@@ -555,3 +555,39 @@ describe('周视图全天区分隔线键盘可访问性', () => {
     expect(onCreateTaskOnRange).not.toHaveBeenCalled()
   })
 })
+
+describe('周视图全天区任务条标签', () => {
+  // 跨日期拖选生成的跨日全天任务：周一 00:00 起，周三 00:00 排他结束，覆盖周一、周二两列
+  const multiDayTask = makeTask(50, {
+    title: '跨日全天任务',
+    due_date: localIso(2026, 11, 2),
+    end_date: localIso(2026, 11, 4),
+    all_day: true,
+  })
+
+  it('跨日全天任务条只显示标题，不附带「周一 00:00 → 周三 00:00」时间范围', () => {
+    renderWeekView([multiDayTask, makeTask(52, { title: '单日对照任务' })])
+    const bar = screen.getByTestId('calendar-all-day-task-50')
+    const singleDayBar = screen.getByTestId('calendar-all-day-task-52')
+
+    // 同一条跨日任务只渲染一个横条，起始于周一列，宽度为单日条的两倍（覆盖周一 + 周二）
+    expect(bar.style.left).toBe('calc(0% + 4px)')
+    const widthPercent = (el: HTMLElement) => parseFloat(el.style.width.replace(/^calc\(/, ''))
+    expect(widthPercent(bar)).toBeCloseTo(widthPercent(singleDayBar) * 2, 3)
+
+    expect(bar.textContent).toBe('跨日全天任务')
+    expect(bar.querySelector('.calendar-all-day-range')).toBeNull()
+    expect(bar.textContent).not.toContain('00:00')
+    expect(bar.textContent).not.toContain('→')
+    expect(bar).toHaveAttribute('title', '跨日全天任务')
+  })
+
+  it('单日全天任务仍正常显示标题，同样不出现时间范围', () => {
+    renderWeekView([makeTask(51, { title: '单日全天任务' })])
+    const bar = screen.getByTestId('calendar-all-day-task-51')
+
+    expect(bar.textContent).toBe('单日全天任务')
+    expect(bar.querySelector('.calendar-all-day-range')).toBeNull()
+    expect(bar).toHaveAttribute('title', '单日全天任务')
+  })
+})

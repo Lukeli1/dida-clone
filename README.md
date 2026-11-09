@@ -2,13 +2,13 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.53.0-blue)
+![版本](https://img.shields.io/badge/version-1.53.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.53.0`（发布提交 `4e3d3cd`，tag `v1.53.0`，GitHub Release 含签名安装包与 `latest.json` 1.53.0；workflow run `42593430736`，机器人回写 `eeee038`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.53.1`（tag 与 GitHub Release 由发布流程同步，含签名安装包与 `latest.json` 1.53.1）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -61,6 +61,7 @@
 - **周视图全天区跨日拖选创建**（v1.53.0）：在周视图全天区的空白日期格按住鼠标横向拖过连续两个或多个日期，显示连续日期范围预览；松开后打开预填范围的全天任务创建框。创建沿用既有语义：起始日本地 00:00 为 `due_date`，结束日次日本地 00:00 为排他 `end_date`，`all_day=true`；Esc、取消、失焦不创建，不影响时间网格按时间拖选与任务条拖拽。
 - **全天区高度调节**（v1.53.0）：全天区与小时网格之间提供 8px 水平分隔线，可鼠标上下拖动调整全天区可见高度（32–320px），小时网格随高度移动；多行任务超出时全天区内部滚动、不隐藏任务。分隔线可 Tab 聚焦，ArrowUp / ArrowDown 按 24px 调整，Home / End 到达最小 / 最大，ARIA 数值同步；高度仅本次运行期生效，不新增数据库字段或设置项。
 - **日历任务轻量详情**（v1.53.0）：月 / 周 / 日等日历任务点击在任务块附近打开 Portal 轻量弹窗，避免被日历 overflow 裁切；视口边缘自动翻转与夹取，窄窗口可用。可直接编辑完成状态、标题、优先级、清单、日期时间和备注，支持复制、归档与「打开完整详情」；点击其他任务切换，外部点击 / Escape / 关闭按钮关闭。日期语义与完整详情一致，关闭 / 切换前等待有效草稿保存，失败保留草稿并可重试。
+- **跨日全天条标题精简**（v1.53.1）：周视图顶部全天区只显示复选框、优先级与任务标题，不再在标题后追加「周一 00:00 → 周三 00:00」这类时间范围，`title` 提示同样只保留标题；定时跨日任务在时间网格中的完整起止时间提示保持不变。
 
 ### AI 智能助手（v1.1.0 新增）
 
@@ -924,6 +925,13 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.53.1（2026-11-09）- 跨日全天条标题精简
+
+- 周视图顶部全天区任务条只显示复选框、优先级与任务标题，不再在标题后追加「周一 00:00 → 周三 00:00」这类时间范围；`title` 属性同步只保留任务标题，跨日横条视觉与滴答清单一致。
+- 根因是 `WeekView` 向共享 `CalendarAllDayTaskBar` 传入了 `timeRangeLabel`；本次仅移除该传参，保留共享组件的 `timeRangeLabel` 能力、`getCrossDayRangeLabel` 工具与 `src/index.css` 中 `.calendar-all-day-range` 样式。
+- 定时跨日任务在小时网格中的起始时间、完整起止时间 tooltip、全天任务 `due_date` / `end_date` / `all_day`、跨日期拖选与排他结束日、拖拽、日期跨度 resize、日 / 月视图与轻量 / 完整详情日期信息均未改动。
+- 状态（2026-11-09）：全量 Vitest 113 文件 / 1335 项通过（串行，较 v1.53.0 新增 2 项）；typecheck、生产构建通过；ESLint 0 error / 139 warning（`src/` 范围）；`cargo check --locked` 通过；`npm run check:version` 1.53.1；目标单测 3 文件 / 77 项、日历目录 16 文件 / 256 项、`week-all-day-interactions` E2E 5/5 通过；Prettier 与 `git diff --check` 通过。签名安装包、tag、GitHub Release 与 `latest.json` 1.53.1 由推送后的 Release 工作流生成。
 
 ### v1.53.0（2026-11-09）- 日历轻量详情与周视图全天区交互
 

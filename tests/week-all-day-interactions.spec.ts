@@ -285,9 +285,23 @@ test('全天区拖选周四到周五：连续预览 → 预填范围弹窗 → �
   expect(barBox!.width).toBeGreaterThan(friAfter!.width * 1.8)
   await page.screenshot({ path: 'output/visual-check/week-all-day-created.png' })
 
+  // 跨日全天条只显示复选框、优先级与标题：不叠加「周四 00:00 → 周五 00:00」时间范围
+  await expect(createdBar).toHaveText(/^E2E全天跨日任务$/)
+  expect(await createdBar.locator('.calendar-all-day-range').count()).toBe(0)
+  await expect(createdBar).not.toContainText('00:00')
+  await expect(createdBar).not.toContainText('→')
+  expect(await createdBar.getAttribute('title')).toBe('E2E全天跨日任务')
+
   // 重载后仍按同一范围显示（创建结果持久化 + occurrence 计算一致）
   await openWeekView(page)
-  await expect(page.getByTestId('calendar-all-day-task-100')).toBeVisible()
+  const reloadedBar = page.getByTestId('calendar-all-day-task-100')
+  await expect(reloadedBar).toBeVisible()
+  // 重载后同样只显示标题，确认不是只在创建瞬间正确
+  await expect(reloadedBar).toHaveText(/^E2E全天跨日任务$/)
+  expect(await reloadedBar.locator('.calendar-all-day-range').count()).toBe(0)
+  await expect(reloadedBar).not.toContainText('00:00')
+  await expect(reloadedBar).not.toContainText('→')
+  expect(await reloadedBar.getAttribute('title')).toBe('E2E全天跨日任务')
   expect(await page.evaluate(() => (window as unknown as { __createCalls: unknown[] }).__createCalls.length)).toBe(0)
   await expect(page.getByTestId('week-all-day-selection')).toHaveCount(0)
 })
