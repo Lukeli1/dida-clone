@@ -29,14 +29,14 @@
 
 截至当前阶段：
 
-- 版本方向：`v1.53.1` 发布（`release: v1.53.1`；签名安装包、tag、GitHub Release 与 `latest.json` 1.53.1 由推送后的 Release 工作流生成）
+- 版本方向：`v1.53.1` 已发布（tag `cc53d6e`；GitHub Release 签名安装包与 `latest.json` 1.53.1 已发布；workflow run `42649891777`，8m8s；机器人回写 `88a055f`）
 - 当前重点：周视图顶部全天区跨日任务条只显示复选框、优先级与标题
 - 重点范围：
   - 跨日期拖选生成的全天任务条不再在标题后追加「周一 00:00 → 周三 00:00」时间范围，`title` 属性只保留任务标题
   - 仅移除 `WeekView` 向 `CalendarAllDayTaskBar` 传入的 `timeRangeLabel`；共享组件的 `timeRangeLabel` 能力、`getCrossDayRangeLabel` 工具与 `src/index.css` 的 `.calendar-all-day-range` 样式保留
   - 定时跨日任务在小时网格中的起始时间、完整起止时间 tooltip，以及全天任务 `due_date` / `end_date` / `all_day`、跨日期拖选与排他结束日、拖拽、日期跨度 resize、日 / 月视图与轻量 / 完整详情日期信息均不变
   - 自动化验收：全量 Vitest 113 文件 / 1335 项（串行）、typecheck、build 通过；ESLint 0 error / 139 warning（`src/` 范围，无新增 error）；目标单测 3 文件 / 77 项、日历目录 16 文件 / 256 项、`week-all-day-interactions` E2E 5/5；`cargo check --locked`、`npm run check:version` 1.53.1、Prettier、`git diff --check` 通过
-  - 人工体验由用户后续自行完成；`v1.53.1` 已进入发布流程
+  - 人工体验由用户后续自行完成；`v1.53.1` 已发布
 - 上一版本 `v1.53.0`（tag `4e3d3cd`，workflow run `42593430736`，机器人回写 `eeee038`）：周视图全天区跨日拖选与高度调节、日历任务轻量详情、标题 / 日期 / 备注异步保存可靠性
 
 当新版本目标、路线图、分支方向或用户明确指令发生变化时，应建议更新本区块。
@@ -119,7 +119,7 @@
 
 ## 版本与文档补充规则
 
-当前源码版本为 `v1.53.1`，在 v1.53.0 基础上收敛周视图顶部全天区跨日任务条的标题显示：只保留复选框、优先级与任务标题，不再追加「周一 00:00 → 周三 00:00」时间范围，`title` 属性同步只保留标题；仅移除 `WeekView` 对 `CalendarAllDayTaskBar` 的 `timeRangeLabel` 传参，共享组件能力、`getCrossDayRangeLabel` 与 `.calendar-all-day-range` 样式保留。复用既有任务数据结构，不新增数据库表、同步格式或导入导出字段。图片附件仍仅本机持久化，不支持 WebDAV 跨设备同步。`v1.53.1` 的签名安装包、tag 与 `latest.json` 由推送后的 Release 工作流生成。
+当前源码版本为 `v1.53.1`，在 v1.53.0 基础上收敛周视图顶部全天区跨日任务条的标题显示：只保留复选框、优先级与任务标题，不再追加「周一 00:00 → 周三 00:00」时间范围，`title` 属性同步只保留标题；仅移除 `WeekView` 对 `CalendarAllDayTaskBar` 的 `timeRangeLabel` 传参，共享组件能力、`getCrossDayRangeLabel` 与 `.calendar-all-day-range` 样式保留。复用既有任务数据结构，不新增数据库表、同步格式或导入导出字段。图片附件仍仅本机持久化，不支持 WebDAV 跨设备同步。`v1.53.1` 已通过 GitHub Release 发布签名安装包、tag `v1.53.1` 与 `latest.json` 1.53.1（workflow run `42649891777`，机器人回写 `88a055f`；清单签名 key ID `0EC1DE27780EDC04`，Alg `ED` 预哈希、64B 签名，两平台一致）。
 
 版本建议可按以下项目节奏判断：
 

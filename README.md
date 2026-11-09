@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.53.1`（tag 与 GitHub Release 由发布流程同步，含签名安装包与 `latest.json` 1.53.1）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.53.1`（发布提交 `cc53d6e`，tag `v1.53.1`，GitHub Release 含签名安装包与 `latest.json` 1.53.1；workflow run `42649891777`，机器人回写 `88a055f`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -931,7 +931,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 周视图顶部全天区任务条只显示复选框、优先级与任务标题，不再在标题后追加「周一 00:00 → 周三 00:00」这类时间范围；`title` 属性同步只保留任务标题，跨日横条视觉与滴答清单一致。
 - 根因是 `WeekView` 向共享 `CalendarAllDayTaskBar` 传入了 `timeRangeLabel`；本次仅移除该传参，保留共享组件的 `timeRangeLabel` 能力、`getCrossDayRangeLabel` 工具与 `src/index.css` 中 `.calendar-all-day-range` 样式。
 - 定时跨日任务在小时网格中的起始时间、完整起止时间 tooltip、全天任务 `due_date` / `end_date` / `all_day`、跨日期拖选与排他结束日、拖拽、日期跨度 resize、日 / 月视图与轻量 / 完整详情日期信息均未改动。
-- 状态（2026-11-09）：全量 Vitest 113 文件 / 1335 项通过（串行，较 v1.53.0 新增 2 项）；typecheck、生产构建通过；ESLint 0 error / 139 warning（`src/` 范围）；`cargo check --locked` 通过；`npm run check:version` 1.53.1；目标单测 3 文件 / 77 项、日历目录 16 文件 / 256 项、`week-all-day-interactions` E2E 5/5 通过；Prettier 与 `git diff --check` 通过。签名安装包、tag、GitHub Release 与 `latest.json` 1.53.1 由推送后的 Release 工作流生成。
+- 状态（2026-11-09）：全量 Vitest 113 文件 / 1335 项通过（串行，较 v1.53.0 新增 2 项）；typecheck、生产构建通过；ESLint 0 error / 139 warning（`src/` 范围）；`cargo check --locked` 通过；`npm run check:version` 1.53.1；目标单测 3 文件 / 77 项、日历目录 16 文件 / 256 项、`week-all-day-interactions` E2E 5/5 通过；Prettier 与 `git diff --check` 通过。已通过 GitHub Release 发布签名安装包、tag `v1.53.1` 与 `latest.json` 1.53.1（workflow run `42649891777`，8m8s；机器人回写 `88a055f`；资产 `_1.53.1_x64-setup.exe` 5,904,032B、`.sig` 424B、`latest.json` 1,257B；清单签名 Alg `ED`、key ID `0EC1DE27780EDC04`、64B 签名，两平台一致）。
 
 ### v1.53.0（2026-11-09）- 日历轻量详情与周视图全天区交互
 
