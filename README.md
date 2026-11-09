@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.53.0`（tag 与 GitHub Release 由发布流程同步，含签名安装包与 `latest.json` 1.53.0）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.53.0`（发布提交 `4e3d3cd`，tag `v1.53.0`，GitHub Release 含签名安装包与 `latest.json` 1.53.0；workflow run `42593430736`，机器人回写 `eeee038`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -934,7 +934,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 异步保存可靠性：关闭、切换任务和进入完整详情前先提交有效草稿；保存失败保留弹窗、草稿和错误提示并支持显式重试；标题、日期、备注各自单飞，保存期间的新输入继续保存，任务切换与 A→B→A 场景不串写，不重复提交相同版本。
 - 未修改数据库 schema、同步协议、导入导出格式、Rust command 契约或任务数据结构，不新增备注数据结构，不迁移历史任务；图片附件仍仅本机持久化，不支持 WebDAV 跨设备同步。
 - 暂缓项：日历视图切换菜单、评论系统、关联任务 / 笔记新数据模型、正文富文本工具栏扩展均未纳入本版本。
-- 状态（2026-11-09）：全量 Vitest 113 文件 / 1333 项通过（串行）；typecheck、生产构建通过；ESLint 0 error / 175 warning（167 条位于未触碰文件，8 条为触碰文件既有 warning，无新增 error）；`git diff --check` 通过，Prettier 对本次改动文件通过（`src/stores/uiStore.ts` 为 HEAD 既有格式漂移）；目标日历 / 详情单测 24 文件 / 337 项、轻量详情 E2E 11/11、关联日历 E2E 28/28 通过；全量 Playwright 133/146，13 项失败为既有基线（5 项月视图容量 + 8 项 `independent-round8` 日期脆弱 fixture，已在干净 HEAD `11089f5` 逐项复现）；`npm run check:version` 1.53.0。发布资产、tag、GitHub Release 与 `latest.json` 1.53.0 由推送后的 Release 工作流生成。
+- 状态（2026-11-09）：全量 Vitest 113 文件 / 1333 项通过（串行）；typecheck、生产构建通过；ESLint 0 error / 175 warning（167 条位于未触碰文件，8 条为触碰文件既有 warning，无新增 error）；`git diff --check` 通过，Prettier 对本次改动文件通过（`src/stores/uiStore.ts` 为 HEAD 既有格式漂移）；目标日历 / 详情单测 24 文件 / 337 项、轻量详情 E2E 11/11、关联日历 E2E 28/28 通过；全量 Playwright 133/146，13 项失败为既有基线（5 项月视图容量 + 8 项 `independent-round8` 日期脆弱 fixture，已在干净 HEAD `11089f5` 逐项复现）；`npm run check:version` 1.53.0。已通过 GitHub Release 发布签名安装包、tag `v1.53.0` 与 `latest.json` 1.53.0（workflow run `42593430736`，8m43s；机器人回写 `eeee038`；安装包 Ed25519 + BLAKE2b-512 实际验签通过，key ID `0EC1DE27780EDC04`）。
 
 ### v1.52.1（2026-11-08）- 周视图定时任务布局与日期跨度预览收敛
 
