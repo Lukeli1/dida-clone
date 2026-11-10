@@ -2,13 +2,13 @@
 
 基于 Tauri v2 + React + TypeScript + SQLite 构建的本地任务管理桌面应用，集成大模型 AI 能力。数据完全本地存储，无需联网，隐私安全。
 
-![版本](https://img.shields.io/badge/version-1.53.2-blue)
+![版本](https://img.shields.io/badge/version-1.53.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-orange)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前已发布版本为 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`，GitHub Release 含签名安装包与 `latest.json` 1.53.2；workflow run `42788292508`，6m37s；机器人回写 `49c0b25`）。本次为日历任务快捷详情宽面板重构、日期摘要日期编辑器与逾期日期红色摘要；上一版为 `v1.53.1`（发布提交 `cc53d6e`，tag `v1.53.1`；workflow run `42649891777`，机器人回写 `88a055f`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前版本为 `v1.53.3`，包含任务快速详情弹窗紧凑化（约 440×360，窄 / 短窗口自适应）与 OpenCode Go / Zen 的 `x-opencode-session` 会话路由修复；上一版为 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`；workflow run `42788292508`，机器人回写 `49c0b25`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -64,6 +64,7 @@
 - **跨日全天条标题精简**（v1.53.1）：周视图顶部全天区只显示复选框、优先级与任务标题，不再在标题后追加「周一 00:00 → 周三 00:00」这类时间范围，`title` 提示同样只保留标题；定时跨日任务在时间网格中的完整起止时间提示保持不变。
 - **快捷详情宽面板重构**（v1.53.2）：日历任务轻量详情改为参考图式宽面板（约 810×600）：顶部为完成状态、日期摘要、优先级与关闭；主体为标题与备注；底部为所属清单、备注入口与更多菜单（复制任务 / 归档任务 / 打开完整详情）。日期摘要点击后就地打开日期编辑器，含「日期 / 时间段」两个页签、今天 / 明天 / 7 天后快捷项、月份网格、确定与清除。
 - **逾期日期红色摘要**（v1.53.2）：任务列表与完整详情日程摘要按「日期，昨天 / 延期X天，具体时间或时间范围」显示，逾期未完成任务整段使用危险色；天数按本地自然日计算，已完成任务不显示逾期文案与红色状态。
+- **快捷详情紧凑化**（v1.53.3）：日历任务快速详情弹窗默认收紧为约 440×360，保留完成状态、日期摘要、优先级、更多菜单、标题、备注、所属清单、日期编辑器、保存与关闭；窄窗口 / 短窗口按视口夹取，日期摘要允许换行，不产生横向溢出。
 
 ### AI 智能助手（v1.1.0 新增）
 
@@ -95,6 +96,7 @@
 - 测试连接：自动获取可用模型列表
 - 模型厂商存储：保存配置后一键切换不同厂商
 - 思考模式开关：支持推理模型的 reasoning_effort 参数（低/中/高三档）
+- **OpenCode Go / Zen 会话路由**（v1.53.3）：聊天请求按对话携带稳定的 `x-opencode-session`（UUID v4，localStorage `llm_chat_session_id`，跨请求 / 重启稳定，清空对话轮换），仅对 `opencode.ai` 及其子域发送；`/models` 连接测试与普通 OpenAI-compatible provider 不受影响。
 
 ### 设置模块
 
@@ -927,6 +929,13 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 所有操作都通过现有 API 接口，受 Tauri 命令白名单限制
 
 ## 版本更新记录
+
+### v1.53.3（2026-11-11）- 快捷详情紧凑化与 OpenCode 会话路由修复
+
+- 日历任务快速详情弹窗默认尺寸由约 810×600 收紧为约 440×360，保留完成状态、日期摘要、优先级、更多菜单、标题、备注、所属清单、日期编辑器、保存与关闭；窄窗口 / 短窗口按视口夹取，日期摘要允许换行，不产生横向溢出。
+- 修复 OpenCode Go / Zen 聊天请求缺少 `x-opencode-session` 导致 `400 MissingSessionID`：同一对话使用 UUID v4 会话标识（localStorage `llm_chat_session_id`），跨请求与应用重启稳定，清空对话时轮换；仅 host 为 `opencode.ai` 或其子域时发送，空白值不发送，普通 OpenAI-compatible provider 不增加该头。
+- 会话标识不进入 keychain、WebDAV 同步、导入导出或日志；`/models` 连接测试保持原有行为。图片附件仍仅本机持久化。
+- 状态（2026-11-11）：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、生产构建、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过。发布由 Release 工作流生成签名安装包、tag 与 `latest.json`，发布后回填 workflow 与资产信息。
 
 ### v1.53.2（2026-11-10）- 快捷详情宽面板重构与逾期日期摘要
 

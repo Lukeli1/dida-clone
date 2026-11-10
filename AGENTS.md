@@ -29,16 +29,15 @@
 
 截至当前阶段：
 
-- 版本方向：`v1.53.2` 已发布（发布提交 `907ce03`；tag `v1.53.2`；GitHub Release 签名安装包与 `latest.json` 1.53.2 已发布；workflow run `42788292508`，6m37s；机器人回写 `49c0b25`）
-- 当前重点：日历任务快捷详情按参考图重构为宽面板 + 日期摘要打开日期编辑器 + 逾期日期红色摘要
+- 版本方向：`v1.53.3` 发布流程执行中（紧凑快捷详情 + OpenCode Go / Zen session 路由修复；发布提交 / tag / workflow 信息待 Release 完成后回填）
+- 当前重点：日历任务快捷详情弹窗紧凑化 + OpenCode `x-opencode-session` 会话路由修复
 - 重点范围：
-  - `CalendarTaskQuickDetail` 改为 810×600 宽面板：顶部完成 / 日期摘要 / 优先级 / 关闭，主体标题 + 备注，底部所属清单 + 备注入口 + 更多菜单（复制 / 归档 / 打开完整详情）；「打开完整详情」由顶部按钮移入更多菜单
-  - 新增 `DateEditorPopover`：日期 / 时间段两页签、今天 / 明天 / 7 天后、6×7 月网格与上下月导航、确定 / 清除；「确定」才生成 Patch；全天保留原跨度与次日 00:00 排他结束，定时保留开始时间与持续时长，非法结束时间提示且确定不可用
-  - 新增 `src/utils/taskDateDisplay.ts`：任务行与完整详情日程摘要统一「日期，昨天 / 延期X天，时间或时间范围」，逾期未完成整段危险色，天数按本地自然日，已完成不标红
-  - 保留：标题 / 日期 / 备注单飞排空保存、关闭与切换前提交、失败保留草稿可重试、全天 / 跨日语义、任务切换、窄窗口定位
-  - 自动化验收：全量 Vitest 115 文件 / 1379 项（串行）、typecheck、build 通过；ESLint 0 error / 175 warning（含 `tests/` 既有 warning，无新增 error）；相关 E2E 4 文件 26/26；全量 Playwright 135/148（13 项既有基线：5 月视图容量 / 视觉 + 8 `independent-round8` 硬编码日期）；`cargo check --locked`、`npm run check:version` 1.53.2 通过；改动文件 Prettier 通过
-  - 仓库级 `npm run format:check` 在本机因 `core.autocrlf=true` 检出 CRLF，对 170 个既有文件报错（HEAD 可复现，非本次引入）；人工体验由用户后续自行完成；`v1.53.2` 已发布（安装包 5,907,246B，SHA-256 `788475bd…1b03e`，签名 key ID `0EC1DE27780EDC04` 实测验签通过）
-- 上一版本 `v1.53.1`（tag `cc53d6e`，workflow run `42649891777`，机器人回写 `88a055f`）：周视图跨日全天条只显示复选框 / 优先级 / 标题；`v1.53.0`（tag `4e3d3cd`，run `42593430736`，机器人回写 `eeee038`）：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性
+  - `CalendarTaskQuickDetail` 默认尺寸由约 810×600 收紧为约 440×360：保留完成状态 / 日期摘要 / 优先级 / 更多菜单、标题 / 备注、所属清单 / 日期编辑器 / 保存 / 关闭；窄窗口与短窗口按视口夹取，日期摘要允许换行，不产生横向溢出
+  - OpenCode Go / Zen 聊天请求统一携带稳定的 `x-opencode-session`：UUID v4 会话标识存 localStorage `llm_chat_session_id`，同一对话跨请求 / 重启稳定，清空对话轮换；仅 `opencode.ai` 及其子域发送，空白值不发送，普通 OpenAI-compatible provider 不增加该头
+  - 保留：`/models` 连接测试行为、流式 / 非流式 / Web fallback 三条聊天路径、标题 / 日期 / 备注单飞排空保存、全天 / 跨日语义、任务切换与窄窗口定位
+  - 自动化验收：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、build、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过
+  - 人工验证待用户完成：真实 OpenCode Go / Zen 流式对话、多轮 / 重启 / 清空对话 session 生命周期、普通 provider 不受影响、紧凑弹窗在真实 Tauri / WebView2 窗口下的视觉与操作
+- 上一版本 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`，run `42788292508`，机器人回写 `49c0b25`）：快捷详情宽面板重构、日期编辑器与逾期日期红色摘要；`v1.53.1`（tag `cc53d6e`，run `42649891777`，机器人回写 `88a055f`）：周视图跨日全天条只显示复选框 / 优先级 / 标题；`v1.53.0`（tag `4e3d3cd`，run `42593430736`，机器人回写 `eeee038`）：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性
 
 当新版本目标、路线图、分支方向或用户明确指令发生变化时，应建议更新本区块。
 
@@ -120,7 +119,7 @@
 
 ## 版本与文档补充规则
 
-当前源码版本为 `v1.53.2`，在 v1.53.1 基础上把日历任务快捷详情按参考图重构为宽面板（810×600，窄窗口自适应并夹在视口内）：顶部完成状态 / 日期摘要 / 优先级 / 关闭，主体标题与备注，底部所属清单 / 备注入口 / 更多菜单（复制、归档、打开完整详情）；日期摘要点击打开新增的 `DateEditorPopover`（日期与时间段两页签、快捷选项、6×7 月网格、确定 / 清除），全天任务保留原跨度与次日 00:00 排他结束，定时任务保留开始时间与持续时长，非法结束时间提示且不可确认；新增 `src/utils/taskDateDisplay.ts` 统一「日期，昨天 / 延期X天，时间或时间范围」摘要，逾期未完成整段危险色，天数按本地自然日，已完成不标红。保留标题 / 日期 / 备注单飞排空保存、关闭与切换前提交、失败保留草稿可重试、全天 / 跨日语义、任务切换与窄窗口定位。复用既有任务数据结构，不新增数据库表、同步格式或导入导出字段。图片附件仍仅本机持久化，不支持 WebDAV 跨设备同步。
+当前源码版本为 `v1.53.3`，在 v1.53.2 基础上把日历任务快捷详情弹窗从约 810×600 收紧为约 440×360（保留完成状态 / 日期摘要 / 优先级 / 更多菜单、标题 / 备注、所属清单 / 日期编辑器 / 保存 / 关闭；窄窗口与短窗口按视口夹取，日期摘要允许换行，不产生横向溢出），并修复 OpenCode Go / Zen 聊天缺少 `x-opencode-session` 导致的 `400 MissingSessionID`：同一对话使用 UUID v4 会话标识（localStorage `llm_chat_session_id`，跨请求 / 重启稳定，清空对话轮换），仅 `opencode.ai` 及其子域发送，空白值不发送，普通 OpenAI-compatible provider 不增加该头；`/models` 连接测试保持原行为。会话标识不进入 keychain、WebDAV 同步、导入导出或日志。复用既有任务数据结构，不新增数据库表、同步格式或导入导出字段。图片附件仍仅本机持久化，不支持 WebDAV 跨设备同步。
 
 版本建议可按以下项目节奏判断：
 
@@ -137,6 +136,7 @@
 - `v1.53.0`：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性（已发布）
 - `v1.53.1`：周视图跨日全天条只显示标题，不再附加时间范围（已发布）
 - `v1.53.2`：快捷详情宽面板重构、日期摘要日期编辑器与逾期日期红色摘要（已发布）
+- `v1.53.3`：快捷详情紧凑化（约 440×360）与 OpenCode Go / Zen `x-opencode-session` 会话路由修复（发布流程执行中）
 - minor：新的明显用户功能或跨模块体验升级
 - patch：缺陷修复、兼容性修复、小范围行为修正
 
@@ -146,15 +146,16 @@
 
 当前仓库可能存在较多未提交改动。处理任何开发任务前，应特别确认这些改动是否与当前任务相关。
 
-当前重点是 `v1.53.2` 的快捷详情宽面板重构、日期编辑器与逾期日期摘要。相关改动只涉及 `CalendarTaskQuickDetail`、新增 `DateEditorPopover`、`TaskNotes` 紧凑模式、`TaskMetaPanel` / `TaskItem` 日期摘要、`src/utils/taskDateDisplay.ts` 与 `src/utils/taskSchedule.ts` 的日期工具，以及对应单测 / E2E，不触及：
+当前重点是 `v1.53.3` 的快捷详情紧凑化与 OpenCode session 路由修复。相关改动只涉及 `CalendarTaskQuickDetail`、`tests/calendar-quick-detail.spec.ts`、`src-tauri/src/llm.rs`、`src/utils/llm.ts`、新增 `src/utils/chatSession.ts`、`AIAssistant` 清空对话轮换，以及对应单测 / E2E，不触及：
 
 - 数据库 schema
 - 同步协议（附件文件仍不参与 WebDAV 同步）
 - 导入导出格式（仅沿用既有附件元信息边界）
 - AI 动作解析
 - occurrence 算法与重复任务规则（真实跨午夜仍保持 span=2）
-- Rust command 契约与任务数据结构
+- 任务数据结构与任务命令契约（本次仅给 LLM command 增加可选 `sessionId` 参数）
 - 异步保存语义（标题 / 日期 / 备注单飞排空、关闭与切换前提交、失败保留草稿可重试）
 - 定时跨日任务在小时网格中的起始时间与完整起止时间 tooltip
 - 日历拖拽开关、日期 / 时间移动、方向键快速处理语义
 - 不迁移历史任务；无结束时间不自动补，未拉伸不自动补，非法结束时间不静默清空
+- session ID 不进入 keychain、WebDAV 同步、导入导出或日志

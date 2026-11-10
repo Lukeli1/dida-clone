@@ -17,6 +17,10 @@ pub struct LLMConfig {
     pub model: String,
     pub reasoning: bool,
     pub reasoning_effort: Option<String>,
+    /// 当前对话的稳定会话标识；仅对 OpenCode 网关作为 x-opencode-session 发送。
+    /// 不是 API Key，不写入日志或请求体。
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// 构建完整 API URL：兼容 base_url 是否已含 /v1
@@ -31,18 +35,82 @@ fn build_url(base_url: &str, endpoint: &str) -> String {
     }
 }
 
+fn create_http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))
+}
+
+/// /models 仅用于连接测试；保持既有行为，不携带会话头。
+fn build_models_request(
+    client: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+) -> reqwest::RequestBuilder {
+    client
+        .get(build_url(base_url, "/models"))
+        .header("Authorization", format!("Bearer {}", api_key))
+}
+
+const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
+
+/// 仅 opencode.ai 及其子域需要 x-opencode-session；其他 OpenAI-compatible
+/// provider 不注入任何额外头，避免改变既有兼容性。
+fn is_opencode_gateway(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url)
+        .ok()
+        .and_then(|url| url.host_str().map(|host| host.to_ascii_lowercase()))
+        .map(|host| host == "opencode.ai" || host.ends_with(".opencode.ai"))
+        .unwrap_or(false)
+}
+
+fn build_chat_request(
+    client: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    session_id: Option<&str>,
+) -> reqwest::RequestBuilder {
+    let request = client
+        .post(build_url(base_url, "/chat/completions"))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json");
+
+    match session_id.map(str::trim).filter(|id| !id.is_empty()) {
+        Some(id) if is_opencode_gateway(base_url) => request.header(OPENCODE_SESSION_HEADER, id),
+        _ => request,
+    }
+}
+
+/// 发送 chat/completions 请求并统一状态码错误；流式与非流式共用同一请求边界。
+async fn send_chat_request(
+    client: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    session_id: Option<&str>,
+    body: &serde_json::Value,
+) -> Result<reqwest::Response, String> {
+    let resp = build_chat_request(client, base_url, api_key, session_id)
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("HTTP {}: {}", status, body));
+    }
+
+    Ok(resp)
+}
+
 /// 测试大模型 API 连接，返回可用模型列表
 #[tauri::command]
 pub async fn test_llm_connection(base_url: String, api_key: String) -> Result<Vec<String>, String> {
-    let url = build_url(&base_url, "/models");
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+    let client = create_http_client(30)?;
 
-    let resp = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
+    let resp = build_models_request(&client, &base_url, &api_key)
         .send()
         .await
         .map_err(|e| format!("连接失败: {}", e))?;
@@ -84,12 +152,9 @@ pub async fn llm_chat(
     reasoning: Option<bool>,
     reasoning_effort: Option<String>,
     history: Option<Vec<ChatMessage>>,
+    session_id: Option<String>,
 ) -> Result<String, String> {
-    let url = build_url(&base_url, "/chat/completions");
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+    let client = create_http_client(60)?;
 
     let reasoning_enabled = reasoning.unwrap_or(false);
     let effort = reasoning_effort.unwrap_or_else(|| "medium".to_string());
@@ -114,20 +179,8 @@ pub async fn llm_chat(
         body["temperature"] = serde_json::json!(0.3);
     }
 
-    let resp = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("请求失败: {}", e))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("HTTP {}: {}", status, body));
-    }
+    let resp =
+        send_chat_request(&client, &base_url, &api_key, session_id.as_deref(), &body).await?;
 
     let resp_body: serde_json::Value = resp
         .json()
@@ -159,11 +212,7 @@ pub async fn llm_chat_stream(
     // 当前 messages 已可包含 system 角色消息；skill 预留给未来基于技能构建 system prompt 的扩展。
     let _ = &skill;
 
-    let url = build_url(&config.base_url, "/chat/completions");
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+    let client = create_http_client(120)?;
 
     let mut body = serde_json::json!({
         "model": config.model,
@@ -178,20 +227,14 @@ pub async fn llm_chat_stream(
         }
     }
 
-    let mut response = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", config.api_key))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("请求失败: {}", e))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(format!("HTTP {}: {}", status, body));
-    }
+    let mut response = send_chat_request(
+        &client,
+        &config.base_url,
+        &config.api_key,
+        config.session_id.as_deref(),
+        &body,
+    )
+    .await?;
 
     let mut buffer = String::new();
     let mut full_content = String::new();
@@ -242,4 +285,322 @@ pub async fn llm_chat_stream(
     app.emit("llm-chat-done", &full_content)
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{SocketAddr, TcpListener, TcpStream};
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    #[derive(Debug, Clone)]
+    struct CapturedRequest {
+        method: String,
+        path: String,
+        headers: Vec<(String, String)>,
+    }
+
+    impl CapturedRequest {
+        fn header(&self, name: &str) -> Option<&str> {
+            self.headers
+                .iter()
+                .find(|(header_name, _)| header_name == name)
+                .map(|(_, value)| value.as_str())
+        }
+    }
+
+    fn find_header_end(bytes: &[u8]) -> Option<usize> {
+        bytes.windows(4).position(|window| window == b"\r\n\r\n")
+    }
+
+    fn read_http_request(stream: &mut TcpStream) -> CapturedRequest {
+        let mut buffer = Vec::new();
+        let mut chunk = [0u8; 1024];
+
+        let header_end = loop {
+            let read = stream.read(&mut chunk).expect("read request headers");
+            if read == 0 {
+                panic!("connection closed before request headers completed");
+            }
+            buffer.extend_from_slice(&chunk[..read]);
+            if let Some(pos) = find_header_end(&buffer) {
+                break pos;
+            }
+        };
+
+        let header_text = String::from_utf8_lossy(&buffer[..header_end]).to_string();
+        let mut lines = header_text.split("\r\n");
+        let request_line = lines.next().unwrap_or_default();
+        let mut request_parts = request_line.split_whitespace();
+        let method = request_parts.next().unwrap_or_default().to_string();
+        let path = request_parts.next().unwrap_or_default().to_string();
+
+        let mut headers = Vec::new();
+        let mut content_length = 0usize;
+        for line in lines {
+            if let Some((name, value)) = line.split_once(':') {
+                let name = name.trim().to_ascii_lowercase();
+                let value = value.trim().to_string();
+                if name == "content-length" {
+                    content_length = value.parse().unwrap_or(0);
+                }
+                headers.push((name, value));
+            }
+        }
+
+        let body_start = header_end + 4;
+        while buffer.len() < body_start + content_length {
+            let read = stream.read(&mut chunk).expect("read request body");
+            if read == 0 {
+                break;
+            }
+            buffer.extend_from_slice(&chunk[..read]);
+        }
+
+        CapturedRequest {
+            method,
+            path,
+            headers,
+        }
+    }
+
+    fn write_http_response(stream: &mut TcpStream, status: u16, body: &str) {
+        let reason = match status {
+            200 => "OK",
+            400 => "Bad Request",
+            _ => "Error",
+        };
+        let response = format!(
+            "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            status,
+            reason,
+            body.len(),
+            body
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write response");
+    }
+
+    /// 同进程本地 mock：/models 不校验会话头；OpenCode 的 chat/completions 缺少
+    /// 会话头时复刻服务端 400 MissingSessionID。返回监听地址与捕获到的请求。
+    fn spawn_mock_gateway() -> (SocketAddr, Arc<Mutex<Vec<CapturedRequest>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock gateway");
+        let addr = listener.local_addr().expect("mock gateway addr");
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let captured_in_thread = Arc::clone(&captured);
+
+        thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let request = read_http_request(&mut stream);
+                let host = request
+                    .header("host")
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+                let is_chat =
+                    request.method == "POST" && request.path.contains("/chat/completions");
+                let has_session = request
+                    .header("x-opencode-session")
+                    .map(|value| !value.trim().is_empty())
+                    .unwrap_or(false);
+
+                let (status, body) = if is_chat && host.contains("opencode.ai") && !has_session {
+                    (
+                        400,
+                        r#"{"type":"MissingSessionID","message":"Request is missing x-opencode-session"}"#,
+                    )
+                } else if is_chat {
+                    (200, r#"{"choices":[{"message":{"content":"mock reply"}}]}"#)
+                } else if request.method == "GET" && request.path.contains("/models") {
+                    (200, r#"{"data":[{"id":"mock-model"}]}"#)
+                } else {
+                    (404, r#"{"error":"not found"}"#)
+                };
+
+                captured_in_thread
+                    .lock()
+                    .expect("capture lock")
+                    .push(request);
+                write_http_response(&mut stream, status, body);
+            }
+        });
+
+        (addr, captured)
+    }
+
+    fn mock_client(addr: SocketAddr) -> reqwest::Client {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .no_proxy()
+            .resolve("opencode.ai", addr)
+            .resolve("api.openai.com", addr)
+            .build()
+            .expect("build mock client")
+    }
+
+    fn captured_request(
+        captured: &Arc<Mutex<Vec<CapturedRequest>>>,
+        method: &str,
+    ) -> CapturedRequest {
+        captured
+            .lock()
+            .expect("capture lock")
+            .iter()
+            .find(|request| request.method == method)
+            .cloned()
+            .expect("matching captured request")
+    }
+
+    #[test]
+    fn models_connection_test_does_not_require_session_header() {
+        let (addr, captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let models = tauri::async_runtime::block_on(async {
+            let response = build_models_request(&client, "http://opencode.ai/zen/v1", "test-key")
+                .send()
+                .await
+                .expect("models request");
+            assert!(response.status().is_success());
+            response
+                .json::<serde_json::Value>()
+                .await
+                .expect("models json")
+        });
+
+        assert_eq!(models["data"][0]["id"], "mock-model");
+        assert!(captured_request(&captured, "GET")
+            .header("x-opencode-session")
+            .is_none());
+    }
+
+    #[test]
+    fn opencode_chat_without_session_header_reproduces_missing_session_id() {
+        let (addr, _captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let error = tauri::async_runtime::block_on(async {
+            send_chat_request(
+                &client,
+                "http://opencode.ai/zen/v1",
+                "test-key",
+                None,
+                &serde_json::json!({"model":"mock-model","messages":[]}),
+            )
+            .await
+            .expect_err("missing session must be rejected")
+        });
+
+        assert!(
+            error.contains("MissingSessionID"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn streaming_chat_with_session_header_is_accepted() {
+        let (addr, captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let response = tauri::async_runtime::block_on(async {
+            send_chat_request(
+                &client,
+                "http://opencode.ai/zen/v1",
+                "test-key",
+                Some("test-session-id"),
+                &serde_json::json!({"model":"mock-model","messages":[],"stream":true}),
+            )
+            .await
+            .expect("streaming chat should be accepted")
+        });
+
+        assert!(response.status().is_success());
+        assert_eq!(
+            captured_request(&captured, "POST").header("x-opencode-session"),
+            Some("test-session-id")
+        );
+    }
+
+    #[test]
+    fn non_stream_chat_with_session_header_is_accepted() {
+        let (addr, captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let response = tauri::async_runtime::block_on(async {
+            send_chat_request(
+                &client,
+                "http://opencode.ai/zen/v1",
+                "test-key",
+                Some("test-session-id"),
+                &serde_json::json!({"model":"mock-model","messages":[],"temperature":0.3}),
+            )
+            .await
+            .expect("non-streaming chat should be accepted")
+        });
+
+        assert!(response.status().is_success());
+        assert_eq!(
+            captured_request(&captured, "POST").header("x-opencode-session"),
+            Some("test-session-id")
+        );
+    }
+
+    #[test]
+    fn opencode_gateway_detection_is_host_scoped() {
+        assert!(is_opencode_gateway("https://opencode.ai/zen/v1"));
+        assert!(is_opencode_gateway("https://api.opencode.ai/zen/v1"));
+        assert!(!is_opencode_gateway("https://api.openai.com/v1"));
+        assert!(!is_opencode_gateway("https://opencode.ai.evil.example/v1"));
+        assert!(!is_opencode_gateway("https://notopencode.ai/v1"));
+        assert!(!is_opencode_gateway("not a url"));
+    }
+
+    #[test]
+    fn session_header_is_not_sent_to_other_providers() {
+        let (addr, captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let response = tauri::async_runtime::block_on(async {
+            send_chat_request(
+                &client,
+                "http://api.openai.com/v1",
+                "test-key",
+                Some("test-session-id"),
+                &serde_json::json!({"model":"mock-model","messages":[]}),
+            )
+            .await
+            .expect("non-opencode chat should be accepted")
+        });
+
+        assert!(response.status().is_success());
+        assert!(captured_request(&captured, "POST")
+            .header("x-opencode-session")
+            .is_none());
+    }
+
+    #[test]
+    fn blank_session_id_is_not_sent() {
+        let (addr, _captured) = spawn_mock_gateway();
+        let client = mock_client(addr);
+
+        let error = tauri::async_runtime::block_on(async {
+            send_chat_request(
+                &client,
+                "http://opencode.ai/zen/v1",
+                "test-key",
+                Some("   "),
+                &serde_json::json!({"model":"mock-model","messages":[]}),
+            )
+            .await
+            .expect_err("blank session must not be sent")
+        });
+
+        assert!(
+            error.contains("MissingSessionID"),
+            "unexpected error: {error}"
+        );
+    }
 }

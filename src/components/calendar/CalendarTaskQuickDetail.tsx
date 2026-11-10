@@ -56,8 +56,8 @@ interface CalendarTaskQuickDetailProps {
   onArchive?: (taskId: number) => void
 }
 
-const POPUP_WIDTH_FALLBACK = 810
-const POPUP_HEIGHT_FALLBACK = 600
+const POPUP_WIDTH_FALLBACK = 440
+const POPUP_HEIGHT_FALLBACK = 360
 const VIEWPORT_MARGIN = 12
 const ANCHOR_GAP = 8
 
@@ -683,7 +683,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
         role="dialog"
         aria-label="任务快速详情"
         tabIndex={-1}
-        className="pointer-events-none fixed z-50 flex h-[600px] max-h-[calc(100vh-1.5rem)] w-[810px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[var(--color-border-light)] bg-[var(--color-surface)] shadow-2xl outline-none"
+        className="pointer-events-none fixed z-50 flex h-[360px] max-h-[calc(100vh-1.5rem)] w-[440px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] shadow-2xl outline-none"
         style={{
           top: `${position.top}px`,
           left: `${position.left}px`,
@@ -694,7 +694,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
       >
         <div
           data-testid="calendar-quick-header"
-          className="pointer-events-none relative flex min-h-24 items-center gap-3 border-b border-[var(--color-border-light)] px-10 py-4"
+          className="pointer-events-none relative flex min-h-14 shrink-0 items-center gap-2 border-b border-[var(--color-border-light)] px-4 py-2"
         >
           <button
             type="button"
@@ -733,7 +733,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
               <rect x="3" y="5" width="18" height="16" rx="2" />
               <path strokeLinecap="round" d="M7 3v4m10-4v4M3 10h18" />
             </svg>
-            <span className="min-w-0 truncate font-medium">{dateDisplay?.text ?? '设置日期'}</span>
+            <span className="min-w-0 break-words font-medium">{dateDisplay?.text ?? '设置日期'}</span>
           </button>
 
           <button
@@ -798,7 +798,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
 
         <div
           data-testid="calendar-quick-body"
-          className="pointer-events-none min-h-0 flex-1 space-y-5 overflow-y-auto break-words px-10 py-6"
+          className="pointer-events-none min-h-0 flex-1 space-y-3 overflow-y-auto break-words px-5 py-4"
         >
           <input
             value={title}
@@ -808,7 +808,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
             aria-label="任务标题"
             placeholder="任务标题"
             data-testid="calendar-quick-title"
-            className={`pointer-events-auto block w-full min-w-0 border-b-2 border-transparent bg-transparent py-1 text-xl font-semibold text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] ${
+            className={`pointer-events-auto block w-full min-w-0 border-b-2 border-transparent bg-transparent py-1 text-lg font-semibold text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] ${
               task.completed ? 'line-through opacity-70' : ''
             }`}
           />
@@ -845,7 +845,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
 
         <div
           data-testid="calendar-quick-footer"
-          className="pointer-events-none flex min-h-14 items-center gap-1 border-t border-[var(--color-border-light)] px-4 py-2.5"
+          className="pointer-events-none flex min-h-12 shrink-0 items-center gap-1 border-t border-[var(--color-border-light)] px-3 py-2"
         >
           <div className="pointer-events-none relative min-w-0 flex-1">
             <button

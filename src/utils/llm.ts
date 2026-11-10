@@ -2,6 +2,7 @@ import { invokeCommand as invoke } from '../api/invokeClient'
 import { isTauri } from '../api'
 import { getSecret, setSecret, deleteSecret, SECRET_KEYS } from '../api/secretApi'
 import { getItem, setItem } from './storage'
+import { getChatSessionId } from './chatSession'
 import type { Task } from '../types'
 
 export interface LLMConfig {
@@ -11,6 +12,8 @@ export interface LLMConfig {
   /** 未传（undefined）时保留已有值，而非写入缺省值 */
   reasoning?: boolean
   reasoningEffort?: 'low' | 'medium' | 'high'
+  /** OpenCode 网关的对话级会话标识；其他 provider 不发送 */
+  sessionId?: string
 }
 
 const DEFAULT_BASE_URL = ''
@@ -65,7 +68,8 @@ export async function getLLMConfigAsync(): Promise<LLMConfig | null> {
 
   const reasoning = getItem('llm_reasoning') === 'true'
   const reasoningEffort = (getItem('llm_reasoning_effort') as 'low' | 'medium' | 'high') || 'medium'
-  return { baseUrl, apiKey, model, reasoning, reasoningEffort }
+  const sessionId = isOpenCodeBaseUrl(baseUrl) ? getChatSessionId() : undefined
+  return { baseUrl, apiKey, model, reasoning, reasoningEffort, sessionId }
 }
 
 /**
@@ -216,6 +220,23 @@ function buildUrl(baseUrl: string, endpoint: string): string {
   return `${base}/v1${endpoint}`
 }
 
+/** 判断 baseUrl 是否指向 OpenCode 网关（opencode.ai 或其子域）。 */
+export function isOpenCodeBaseUrl(baseUrl: string): boolean {
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase()
+    return host === 'opencode.ai' || host.endsWith('.opencode.ai')
+  } catch {
+    return false
+  }
+}
+
+/** 仅 OpenCode 网关附加 x-opencode-session；其他 provider 返回空对象。 */
+export function getOpenCodeSessionHeaders(baseUrl: string, sessionId?: string): Record<string, string> {
+  const id = sessionId?.trim()
+  if (!id || !isOpenCodeBaseUrl(baseUrl)) return {}
+  return { 'x-opencode-session': id }
+}
+
 export async function testConnection(baseUrl: string, apiKey: string): Promise<string[]> {
   if (isTauri) {
     return await invoke<string[]>('test_llm_connection', { baseUrl, apiKey })
@@ -274,6 +295,7 @@ export async function chat(systemPrompt: string, userMessage: string, history?: 
       reasoning: config.reasoning ?? false,
       reasoningEffort: config.reasoningEffort || 'medium',
       history: history || [],
+      sessionId: config.sessionId,
     })
   }
   const url = buildUrl(config.baseUrl, '/chat/completions')
@@ -296,6 +318,7 @@ export async function chat(systemPrompt: string, userMessage: string, history?: 
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
+        ...getOpenCodeSessionHeaders(config.baseUrl, config.sessionId),
       },
       body: JSON.stringify(payload),
       signal: controller.signal,

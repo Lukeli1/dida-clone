@@ -520,6 +520,51 @@ test('窄窗口、滚动与 resize：弹窗始终在视口内且不被日历 ove
   await expect(popup).toHaveCount(0)
 })
 
+test('compact 快捷详情保持紧凑尺寸，窄窗口与短窗口下操作可用', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await openCalendar(page, 'week')
+  await clickTimedTask(page, 1)
+  const popup = quickDetail(page)
+  await expect(popup).toBeVisible()
+
+  for (const viewport of [
+    { width: 1280, height: 800, name: 'desktop' },
+    { width: 500, height: 700, name: 'narrow' },
+    { width: 360, height: 520, name: 'small' },
+    { width: 500, height: 300, name: 'short' },
+  ]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await expect(popup).toBeVisible()
+    await expect(popup).toHaveCSS('width', `${Math.min(440, viewport.width - 24)}px`)
+    await expect(popup).toHaveCSS('height', `${Math.min(360, viewport.height - 24)}px`)
+    // resize 后定位在 requestAnimationFrame 中更新，等待实际边界收敛。
+    await expect(async () => {
+      const box = await popup.boundingBox()
+      expect(box).not.toBeNull()
+      expect(box!.x).toBeGreaterThanOrEqual(11)
+      expect(box!.y).toBeGreaterThanOrEqual(11)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width - 11)
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height - 11)
+    }).toPass({ timeout: 5000 })
+
+    const body = popup.getByTestId('calendar-quick-body')
+    expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await expect(popup.getByLabel('任务标题')).toBeVisible()
+    await expect(popup.getByRole('button', { name: '关闭任务详情' })).toBeVisible()
+    await expect(popup.getByTestId('calendar-quick-list-trigger')).toBeVisible()
+    await popup.getByTestId('calendar-quick-more-trigger').click()
+    await expect(popup.getByRole('menuitem', { name: '打开完整详情' })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await popup.screenshot({ path: testInfo.outputPath(`quick-detail-${viewport.name}.png`) })
+    await popup.getByTestId('calendar-quick-date-summary').click()
+    await expect(page.getByTestId('date-editor-popover')).toBeVisible()
+    await expect(page.getByTestId('date-editor-confirm')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeVisible()
+  }
+})
+
 test('日期编辑器在窄窗口内不溢出视口', async ({ page }) => {
   await openCalendar(page, 'week')
   await page.setViewportSize({ width: 500, height: 700 })

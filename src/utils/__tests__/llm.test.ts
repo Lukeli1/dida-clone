@@ -19,7 +19,10 @@ import {
   deriveProviderName,
   chat,
   testConnection,
+  isOpenCodeBaseUrl,
+  getOpenCodeSessionHeaders,
 } from '../llm'
+import { getChatSessionId } from '../chatSession'
 import type { LLMConfig } from '../llm'
 import type { Task } from '../../types'
 
@@ -132,6 +135,36 @@ describe('getLLMConfigAsync', () => {
       key: 'llm_api_key',
       value: 'sk-provider-only',
     })
+  })
+
+  it('OpenCode 网关返回跨请求稳定的 sessionId', async () => {
+    localStorage.setItem('llm_base_url', 'https://opencode.ai/zen/v1')
+    localStorage.setItem('llm_model', 'big-pickle')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-test')
+      return Promise.resolve(null)
+    })
+
+    const first = await getLLMConfigAsync()
+    const second = await getLLMConfigAsync()
+
+    expect(first?.sessionId).toBeTruthy()
+    expect(second?.sessionId).toBe(first?.sessionId)
+    expect(first?.sessionId).toBe(getChatSessionId())
+  })
+
+  it('普通 OpenAI-compatible provider 不生成 sessionId', async () => {
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-test')
+      return Promise.resolve(null)
+    })
+
+    const config = await getLLMConfigAsync()
+
+    expect(config?.sessionId).toBeUndefined()
+    expect(localStorage.getItem('llm_chat_session_id')).toBeNull()
   })
 })
 
@@ -491,6 +524,57 @@ describe('chat（mock invoke）', () => {
 
     await chat('sys', 'hi')
     expect(invoke).toHaveBeenCalledWith('llm_chat', expect.objectContaining({ history: [] }))
+  })
+
+  it('OpenCode 配置把稳定 sessionId 传给 llm_chat（Tauri 流式主路径的 fallback）', async () => {
+    localStorage.setItem('llm_base_url', 'https://opencode.ai/zen/v1')
+    localStorage.setItem('llm_model', 'big-pickle')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-test')
+      if (cmd === 'llm_chat') return Promise.resolve('ok')
+      return Promise.resolve(null)
+    })
+
+    await chat('sys', 'hi')
+
+    expect(invoke).toHaveBeenCalledWith('llm_chat', expect.objectContaining({ sessionId: getChatSessionId() }))
+  })
+
+  it('普通 provider 调用 llm_chat 时 sessionId 为空', async () => {
+    localStorage.setItem('llm_base_url', 'https://api.openai.com/v1')
+    localStorage.setItem('llm_model', 'gpt-4')
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_secret') return Promise.resolve('sk-xxx')
+      if (cmd === 'llm_chat') return Promise.resolve('ok')
+      return Promise.resolve(null)
+    })
+
+    await chat('sys', 'hi')
+
+    expect(invoke).toHaveBeenCalledWith('llm_chat', expect.objectContaining({ sessionId: undefined }))
+  })
+})
+
+describe('OpenCode session header 构造', () => {
+  it('仅对 opencode.ai 及其子域返回会话头', () => {
+    expect(isOpenCodeBaseUrl('https://opencode.ai/zen/v1')).toBe(true)
+    expect(isOpenCodeBaseUrl('https://api.opencode.ai/zen/v1')).toBe(true)
+    expect(isOpenCodeBaseUrl('https://api.openai.com/v1')).toBe(false)
+    expect(isOpenCodeBaseUrl('https://opencode.ai.evil.example/v1')).toBe(false)
+    expect(isOpenCodeBaseUrl('not a url')).toBe(false)
+
+    expect(getOpenCodeSessionHeaders('https://opencode.ai/zen/v1', 'test-session-id')).toEqual({
+      'x-opencode-session': 'test-session-id',
+    })
+    expect(getOpenCodeSessionHeaders('https://api.opencode.ai/zen/v1', 'test-session-id')).toEqual({
+      'x-opencode-session': 'test-session-id',
+    })
+    expect(getOpenCodeSessionHeaders('https://api.openai.com/v1', 'test-session-id')).toEqual({})
+  })
+
+  it('空白或缺失的 session id 不发送', () => {
+    expect(getOpenCodeSessionHeaders('https://opencode.ai/zen/v1', '   ')).toEqual({})
+    expect(getOpenCodeSessionHeaders('https://opencode.ai/zen/v1')).toEqual({})
   })
 })
 

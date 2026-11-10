@@ -27,6 +27,7 @@ import type { ValidationResult } from '../../utils/aiActionSafety'
 import { useTaskStore } from '../../stores/taskStore'
 import { api } from '../../api'
 import type { Task } from '../../types'
+import { rotateChatSessionId } from '../../utils/chatSession'
 
 export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps) {
   // 对话与偏好改为全局 store 持久化，关闭面板后对话记录保留
@@ -419,6 +420,7 @@ export function AIAssistant({ tasks, onClose, onTasksChange }: AIAssistantProps)
     setIsStreaming(false)
     setPendingPrefs(null)
     setMessages([])
+    rotateChatSessionId()
     setActiveSkill(null)
     setShowSkillMenu(false)
     setActionPreview(null)
