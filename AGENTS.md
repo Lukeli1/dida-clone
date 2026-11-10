@@ -29,13 +29,13 @@
 
 截至当前阶段：
 
-- 版本方向：`v1.53.3` 发布流程执行中（紧凑快捷详情 + OpenCode Go / Zen session 路由修复；发布提交 / tag / workflow 信息待 Release 完成后回填）
+- 版本方向：`v1.53.3` 已发布（发布提交 `6b6ae30`；tag `v1.53.3`；GitHub Release 签名安装包与 `latest.json` 1.53.3 已发布；workflow run `42850932363`，10m48s；机器人回写 `598df75`）
 - 当前重点：日历任务快捷详情弹窗紧凑化 + OpenCode `x-opencode-session` 会话路由修复
 - 重点范围：
   - `CalendarTaskQuickDetail` 默认尺寸由约 810×600 收紧为约 440×360：保留完成状态 / 日期摘要 / 优先级 / 更多菜单、标题 / 备注、所属清单 / 日期编辑器 / 保存 / 关闭；窄窗口与短窗口按视口夹取，日期摘要允许换行，不产生横向溢出
   - OpenCode Go / Zen 聊天请求统一携带稳定的 `x-opencode-session`：UUID v4 会话标识存 localStorage `llm_chat_session_id`，同一对话跨请求 / 重启稳定，清空对话轮换；仅 `opencode.ai` 及其子域发送，空白值不发送，普通 OpenAI-compatible provider 不增加该头
   - 保留：`/models` 连接测试行为、流式 / 非流式 / Web fallback 三条聊天路径、标题 / 日期 / 备注单飞排空保存、全天 / 跨日语义、任务切换与窄窗口定位
-  - 自动化验收：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、build、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过
+  - 自动化验收：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、build、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过；`v1.53.3` 已发布（安装包 5,919,044B，SHA-256 `62e58d5f…df78c`，签名 key ID `0EC1DE27780EDC04` 实测验签通过）
   - 人工验证待用户完成：真实 OpenCode Go / Zen 流式对话、多轮 / 重启 / 清空对话 session 生命周期、普通 provider 不受影响、紧凑弹窗在真实 Tauri / WebView2 窗口下的视觉与操作
 - 上一版本 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`，run `42788292508`，机器人回写 `49c0b25`）：快捷详情宽面板重构、日期编辑器与逾期日期红色摘要；`v1.53.1`（tag `cc53d6e`，run `42649891777`，机器人回写 `88a055f`）：周视图跨日全天条只显示复选框 / 优先级 / 标题；`v1.53.0`（tag `4e3d3cd`，run `42593430736`，机器人回写 `eeee038`）：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性
 
@@ -136,7 +136,7 @@
 - `v1.53.0`：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性（已发布）
 - `v1.53.1`：周视图跨日全天条只显示标题，不再附加时间范围（已发布）
 - `v1.53.2`：快捷详情宽面板重构、日期摘要日期编辑器与逾期日期红色摘要（已发布）
-- `v1.53.3`：快捷详情紧凑化（约 440×360）与 OpenCode Go / Zen `x-opencode-session` 会话路由修复（发布流程执行中）
+- `v1.53.3`：快捷详情紧凑化（约 440×360）与 OpenCode Go / Zen `x-opencode-session` 会话路由修复（已发布）
 - minor：新的明显用户功能或跨模块体验升级
 - patch：缺陷修复、兼容性修复、小范围行为修正
 

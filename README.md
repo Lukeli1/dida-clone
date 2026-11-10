@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前版本为 `v1.53.3`，包含任务快速详情弹窗紧凑化（约 440×360，窄 / 短窗口自适应）与 OpenCode Go / Zen 的 `x-opencode-session` 会话路由修复；上一版为 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`；workflow run `42788292508`，机器人回写 `49c0b25`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.53.3`（发布提交 `6b6ae30`，tag `v1.53.3`，GitHub Release 含签名安装包、`SHA256SUMS.txt` 与 `latest.json` 1.53.3；workflow run `42850932363`，10m48s；机器人回写 `598df75`）。本次为任务快速详情弹窗紧凑化与 OpenCode Go / Zen `x-opencode-session` 会话路由修复；上一版为 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`；workflow run `42788292508`，机器人回写 `49c0b25`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -935,7 +935,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 日历任务快速详情弹窗默认尺寸由约 810×600 收紧为约 440×360，保留完成状态、日期摘要、优先级、更多菜单、标题、备注、所属清单、日期编辑器、保存与关闭；窄窗口 / 短窗口按视口夹取，日期摘要允许换行，不产生横向溢出。
 - 修复 OpenCode Go / Zen 聊天请求缺少 `x-opencode-session` 导致 `400 MissingSessionID`：同一对话使用 UUID v4 会话标识（localStorage `llm_chat_session_id`），跨请求与应用重启稳定，清空对话时轮换；仅 host 为 `opencode.ai` 或其子域时发送，空白值不发送，普通 OpenAI-compatible provider 不增加该头。
 - 会话标识不进入 keychain、WebDAV 同步、导入导出或日志；`/models` 连接测试保持原有行为。图片附件仍仅本机持久化。
-- 状态（2026-11-11）：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、生产构建、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过。发布由 Release 工作流生成签名安装包、tag 与 `latest.json`，发布后回填 workflow 与资产信息。
+- 状态（2026-11-11）：Rust `llm::tests` 7/7；OpenCode 相关前端 6 文件 / 76 项；日期弹窗 3 文件 / 78 项；`tests/calendar-quick-detail.spec.ts` 14/14；typecheck、生产构建、`cargo check --locked`、`npm run check:version` 1.53.3 通过；ESLint 0 error（4 个既有 warning）；修改文件 Prettier 通过（`AIAssistant.tsx` 受仓库既有 CRLF / 换行基线影响，未做大范围格式化）；`git diff --check` 通过。已通过 GitHub Release 发布签名安装包、tag `v1.53.3` 与 `latest.json` 1.53.3（workflow run `42850932363`，10m48s；机器人回写 `598df75`；资产 `_1.53.3_x64-setup.exe` 5,919,044B、`.sig` 424B、`latest.json` 1,257B、`SHA256SUMS.txt` 258B；安装包 SHA-256 `62e58d5f0e13619086b8f35a2a58c233872f5e37d8903f531387fc3dd47df78c`；清单签名 Alg `ED`、key ID `0EC1DE27780EDC04`、64B，对下载后的安装包按 BLAKE2b-512 预哈希验签通过，两平台签名串一致）。
 
 ### v1.53.2（2026-11-10）- 快捷详情宽面板重构与逾期日期摘要
 
