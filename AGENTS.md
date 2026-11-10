@@ -29,7 +29,7 @@
 
 截至当前阶段：
 
-- 版本方向：`v1.53.2` 已发布（patch；发布流程由 `.github/workflows/release-windows.yml` 执行）
+- 版本方向：`v1.53.2` 已发布（发布提交 `907ce03`；tag `v1.53.2`；GitHub Release 签名安装包与 `latest.json` 1.53.2 已发布；workflow run `42788292508`，6m37s；机器人回写 `49c0b25`）
 - 当前重点：日历任务快捷详情按参考图重构为宽面板 + 日期摘要打开日期编辑器 + 逾期日期红色摘要
 - 重点范围：
   - `CalendarTaskQuickDetail` 改为 810×600 宽面板：顶部完成 / 日期摘要 / 优先级 / 关闭，主体标题 + 备注，底部所属清单 + 备注入口 + 更多菜单（复制 / 归档 / 打开完整详情）；「打开完整详情」由顶部按钮移入更多菜单
@@ -37,7 +37,7 @@
   - 新增 `src/utils/taskDateDisplay.ts`：任务行与完整详情日程摘要统一「日期，昨天 / 延期X天，时间或时间范围」，逾期未完成整段危险色，天数按本地自然日，已完成不标红
   - 保留：标题 / 日期 / 备注单飞排空保存、关闭与切换前提交、失败保留草稿可重试、全天 / 跨日语义、任务切换、窄窗口定位
   - 自动化验收：全量 Vitest 115 文件 / 1379 项（串行）、typecheck、build 通过；ESLint 0 error / 175 warning（含 `tests/` 既有 warning，无新增 error）；相关 E2E 4 文件 26/26；全量 Playwright 135/148（13 项既有基线：5 月视图容量 / 视觉 + 8 `independent-round8` 硬编码日期）；`cargo check --locked`、`npm run check:version` 1.53.2 通过；改动文件 Prettier 通过
-  - 仓库级 `npm run format:check` 在本机因 `core.autocrlf=true` 检出 CRLF，对 170 个既有文件报错（HEAD 可复现，非本次引入）；人工体验由用户后续自行完成
+  - 仓库级 `npm run format:check` 在本机因 `core.autocrlf=true` 检出 CRLF，对 170 个既有文件报错（HEAD 可复现，非本次引入）；人工体验由用户后续自行完成；`v1.53.2` 已发布（安装包 5,907,246B，SHA-256 `788475bd…1b03e`，签名 key ID `0EC1DE27780EDC04` 实测验签通过）
 - 上一版本 `v1.53.1`（tag `cc53d6e`，workflow run `42649891777`，机器人回写 `88a055f`）：周视图跨日全天条只显示复选框 / 优先级 / 标题；`v1.53.0`（tag `4e3d3cd`，run `42593430736`，机器人回写 `eeee038`）：周视图全天区跨日拖选与高度调节、日历任务轻量详情、异步保存可靠性
 
 当新版本目标、路线图、分支方向或用户明确指令发生变化时，应建议更新本区块。

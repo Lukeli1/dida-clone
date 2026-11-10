@@ -8,7 +8,7 @@
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![CI](https://github.com/Lukeli1/dida-clone/actions/workflows/ci.yml/badge.svg)
 
-> 当前版本为 `v1.53.2`（快捷详情按参考图重构为宽面板，日期摘要点击打开日期编辑器，逾期日期红色显示）。上一版 `v1.53.1`（发布提交 `cc53d6e`，tag `v1.53.1`，GitHub Release 含签名安装包与 `latest.json` 1.53.1；workflow run `42649891777`，机器人回写 `88a055f`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
+> 当前已发布版本为 `v1.53.2`（发布提交 `907ce03`，tag `v1.53.2`，GitHub Release 含签名安装包与 `latest.json` 1.53.2；workflow run `42788292508`，6m37s；机器人回写 `49c0b25`）。本次为日历任务快捷详情宽面板重构、日期摘要日期编辑器与逾期日期红色摘要；上一版为 `v1.53.1`（发布提交 `cc53d6e`，tag `v1.53.1`；workflow run `42649891777`，机器人回写 `88a055f`）。图片附件仍仅本机持久化，不随 WebDAV 或 JSON 导出跨设备同步。
 
 ## 截图
 
@@ -934,7 +934,7 @@ AI 助手采用"只读 + 建议型"设计，所有实际操作都需要用户确
 - 日期摘要点击就地打开新增的 `DateEditorPopover`：「日期」页提供今天 / 明天 / 7 天后、6×7 月网格与上 / 下月导航，只更新本地草稿，「确定」才生成 Patch；「时间段」页可改开始 / 结束时间并支持清除结束时间。全天任务改日期保留原跨度并以次日本地 00:00 为排他结束日，定时任务改日期保留原开始时间与持续时长；结束时间不晚于开始时间时展示错误且「确定」不可用。
 - 新增 `src/utils/taskDateDisplay.ts`，任务行与完整详情日程摘要统一按「日期，昨天 / 延期X天，具体时间或时间范围」显示；逾期未完成任务整段使用危险色，天数按本地自然日计算（纯日期按本地自然日解析），已完成任务不显示逾期文案与红色状态；全天跨日显示「11月5日 - 11月7日」且不计时间。
 - 保留既有异步保存语义：标题 / 日期 / 备注仍为单飞排空、关闭与切换任务前提交有效草稿、失败保留草稿并可重试；全天与跨日 `due_date` / `end_date` / `all_day` 语义、日期跨度、任务切换和窄窗口定位均未改动。
-- 状态（2026-11-10）：全量 Vitest 115 文件 / 1379 项通过（串行）；typecheck 与生产构建通过；ESLint 0 error / 175 warning（含 `tests/` 目录的既有 warning，无新增 error）；`cargo check --locked` 通过；`npm run check:version` 1.53.2；相关 E2E `calendar-quick-detail`、`calendar-toolbar-layout`、`calendar-month-task-bar`、`independent-round6` 共 26/26 通过；全量 Playwright 135/148，13 项失败为既有基线（5 项月视图任务容量 / 视觉用例 + 8 项 `independent-round8` 硬编码日期 fixture，与 v1.53.0 / v1.53.1 基线一致，本次新增 2 项用例全部通过）。仓库级 `npm run format:check` 在本机因 `core.autocrlf=true` 检出 CRLF 而对 170 个既有文件报错，本次改动与新增的 7 个源文件均通过 Prettier 检查。
+- 状态（2026-11-10）：全量 Vitest 115 文件 / 1379 项通过（串行）；typecheck 与生产构建通过；ESLint 0 error / 175 warning（含 `tests/` 目录的既有 warning，无新增 error）；`cargo check --locked` 通过；`npm run check:version` 1.53.2；相关 E2E `calendar-quick-detail`、`calendar-toolbar-layout`、`calendar-month-task-bar`、`independent-round6` 共 26/26 通过；全量 Playwright 135/148，13 项失败为既有基线（5 项月视图任务容量 / 视觉用例 + 8 项 `independent-round8` 硬编码日期 fixture，与 v1.53.0 / v1.53.1 基线一致，本次新增 2 项用例全部通过）。仓库级 `npm run format:check` 在本机因 `core.autocrlf=true` 检出 CRLF 而对 170 个既有文件报错，本次改动与新增的 7 个源文件均通过 Prettier 检查。已通过 GitHub Release 发布签名安装包、tag `v1.53.2` 与 `latest.json` 1.53.2（workflow run `42788292508`，6m37s；机器人回写 `49c0b25`；资产 `_1.53.2_x64-setup.exe` 5,907,246B、`.sig` 424B、`latest.json` 1,257B；安装包 SHA-256 `788475bd5d506da88f485f4af088762577d0718d66699bc16cd387501bb1b03e`；清单签名 Alg `ED`、key ID `0EC1DE27780EDC04`、64B，对下载后的安装包按 BLAKE2b-512 预哈希验签通过，两平台签名串一致）。
 
 ### v1.53.1（2026-11-09）- 跨日全天条标题精简
 
