@@ -135,7 +135,7 @@ describe('SchedulePanel 全天编辑闭环', () => {
       end_date: new Date(2026, 6, 3, 23, 30).toISOString(),
     })
     const sameDay = renderSchedulePanel(sameDayTask)
-    expect(screen.getByRole('button', { name: /7月3日 22:30 - 23:30/ })).toBeInTheDocument()
+    expect(screen.getByTestId('task-meta-schedule-summary')).toHaveTextContent('7月3日 22:30 - 23:30')
     sameDay.unmount()
 
     const crossDayTask = makeTask({
@@ -143,7 +143,7 @@ describe('SchedulePanel 全天编辑闭环', () => {
       end_date: new Date(2026, 6, 4, 0, 15).toISOString(),
     })
     renderSchedulePanel(crossDayTask)
-    expect(screen.getByRole('button', { name: /7月3日 22:30 - 7月4日 00:15/ })).toBeInTheDocument()
+    expect(screen.getByTestId('task-meta-schedule-summary')).toHaveTextContent('7月3日 22:30 - 7月4日 00:15')
   })
 
   it('非全天任务无结束时间时保持单时间摘要', () => {
@@ -153,8 +153,9 @@ describe('SchedulePanel 全天编辑闭环', () => {
     })
     renderSchedulePanel(task)
 
-    const summary = screen.getByRole('button', { name: /7月3日 09:00/ })
-    expect(summary).not.toHaveTextContent(' - ')
+    const summary = screen.getByTestId('task-meta-schedule-summary')
+    expect(summary).toHaveTextContent('7月3日 09:00')
+    expect(summary.textContent).not.toContain(' - ')
   })
 
   it('非全天任务可编辑结束时间', () => {

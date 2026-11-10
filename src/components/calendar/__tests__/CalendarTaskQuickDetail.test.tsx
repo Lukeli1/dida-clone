@@ -9,16 +9,16 @@ const lists: List[] = [
     name: '收件箱',
     color: '#3b82f6',
     is_default: true,
-    created_at: '2026-11-01T00:00:00.000Z',
-    updated_at: '2026-11-01T00:00:00.000Z',
+    created_at: '2099-11-01T00:00:00.000Z',
+    updated_at: '2099-11-01T00:00:00.000Z',
   },
   {
     id: 2,
     name: '工作',
     color: '#10b981',
     is_default: false,
-    created_at: '2026-11-01T00:00:00.000Z',
-    updated_at: '2026-11-01T00:00:00.000Z',
+    created_at: '2099-11-01T00:00:00.000Z',
+    updated_at: '2099-11-01T00:00:00.000Z',
   },
 ]
 
@@ -31,8 +31,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     title: '轻量详情任务',
     notes: null,
     priority: 2,
-    due_date: localIso(2026, 11, 5, 9),
-    end_date: localIso(2026, 11, 5, 10),
+    due_date: localIso(2099, 11, 5, 9),
+    end_date: localIso(2099, 11, 5, 10),
     all_day: false,
     reminder: null,
     completed: false,
@@ -42,8 +42,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     parent_id: null,
     repeat_rule: null,
     sort_order: 1,
-    created_at: '2026-11-01T00:00:00.000Z',
-    updated_at: '2026-11-01T00:00:00.000Z',
+    created_at: '2099-11-01T00:00:00.000Z',
+    updated_at: '2099-11-01T00:00:00.000Z',
     tag_ids: [],
     subtasks: [],
     ...overrides,
@@ -94,6 +94,22 @@ async function changeAndBlur(input: HTMLElement, value: string) {
     fireEvent.change(input, { target: { value } })
     fireEvent.blur(input)
     // 让 blur 触发的异步保存及其状态更新落在 act 范围内。
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+function openDateEditor() {
+  fireEvent.click(within(popup()).getByTestId('calendar-quick-date-summary'))
+  return screen.getByTestId('date-editor-popover')
+}
+
+function selectEditorDay(dateKey: string) {
+  fireEvent.click(screen.getByTestId(`date-editor-day-${dateKey}`))
+}
+
+async function confirmDateEditor() {
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
 }
@@ -203,8 +219,8 @@ describe('CalendarTaskQuickDetail 基础交互与定位', () => {
     const nextTask = makeTask({
       id: 2,
       title: '第二个任务',
-      due_date: localIso(2026, 11, 6, 14),
-      end_date: localIso(2026, 11, 6, 15),
+      due_date: localIso(2099, 11, 6, 14),
+      end_date: localIso(2099, 11, 6, 15),
     })
     rerender(
       <CalendarTaskQuickDetail
@@ -238,9 +254,11 @@ describe('CalendarTaskQuickDetail 字段更新', () => {
 
   it('优先级与所属清单切换通过 onUpdate 保存', () => {
     const { onUpdate } = renderQuickDetail(makeTask())
-    fireEvent.change(screen.getByLabelText('优先级'), { target: { value: '1' } })
+    fireEvent.click(screen.getByTestId('calendar-quick-priority-trigger'))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '高' }))
     expect(onUpdate).toHaveBeenCalledWith(1, { priority: 1 })
-    fireEvent.change(screen.getByLabelText('所属清单'), { target: { value: '2' } })
+    fireEvent.click(screen.getByTestId('calendar-quick-list-trigger'))
+    fireEvent.click(screen.getByRole('option', { name: '工作' }))
     expect(onUpdate).toHaveBeenCalledWith(1, { list_id: 2 })
   })
 
@@ -259,79 +277,201 @@ describe('CalendarTaskQuickDetail 字段更新', () => {
   })
 })
 
-describe('CalendarTaskQuickDetail 日期时间语义', () => {
-  it('全天单日：开始日期保存为本地 00:00，结束为次日 00:00 排他', async () => {
-    const { onUpdate } = renderQuickDetail(makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: null }))
-    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-11-05')
-    await changeAndBlur(screen.getByLabelText('开始日期'), '2026-11-06')
-    expect(onUpdate).toHaveBeenCalledWith(1, {
-      all_day: true,
-      due_date: localIso(2026, 11, 6),
-      end_date: localIso(2026, 11, 7),
-    })
+describe('CalendarTaskQuickDetail 日期摘要与日期编辑器', () => {
+  it('日期摘要具有可点击语义，点击后打开日期编辑器并可切换页签', () => {
+    renderQuickDetail(makeTask())
+    const summary = within(popup()).getByTestId('calendar-quick-date-summary')
+    expect(summary.tagName).toBe('BUTTON')
+    expect(summary).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(summary).toHaveAttribute('aria-expanded', 'false')
+    expect(summary).toHaveAccessibleName('截止日期 11月5日，09:00 - 10:00')
+
+    fireEvent.click(summary)
+    expect(summary).toHaveAttribute('aria-expanded', 'true')
+    const editor = screen.getByTestId('date-editor-popover')
+    expect(editor.parentElement?.parentElement).toBe(document.body)
+    expect(screen.getByTestId('date-editor-panel-date')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    expect(screen.getByTestId('date-editor-panel-time')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('date-editor-tab-date'))
+    expect(screen.getByTestId('date-editor-panel-date')).toBeInTheDocument()
   })
 
-  it('全天跨日：可见结束日按包含当天计算，保存为次日本地 00:00 排他', async () => {
-    const { onUpdate } = renderQuickDetail(
-      makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: localIso(2026, 11, 8) }),
-    )
-    const endInput = screen.getByLabelText('结束日期（可选）')
-    expect(endInput).toHaveValue('2026-11-07')
-    await changeAndBlur(endInput, '2026-11-08')
-    expect(onUpdate).toHaveBeenCalledWith(1, {
-      all_day: true,
-      due_date: localIso(2026, 11, 5),
-      end_date: localIso(2026, 11, 9),
-    })
-  })
-
-  it('定时任务有结束时间：改开始时间保持原持续时长', async () => {
+  it('点击某一天只更新编辑器草稿，不立即调用 onUpdate', () => {
     const { onUpdate } = renderQuickDetail(makeTask())
-    const startInput = screen.getByLabelText('开始时间')
-    await changeAndBlur(startInput, '2026-11-05T14:00')
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+
+    expect(screen.getByTestId('date-editor-day-2099-11-06')).toHaveAttribute('aria-pressed', 'true')
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(popup()).toBeInTheDocument()
+  })
+
+  it('点击确定只提交一次并关闭日期编辑器', async () => {
+    const { onUpdate } = renderQuickDetail(makeTask())
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    await confirmDateEditor()
+
+    expect(onUpdate).toHaveBeenCalledTimes(1)
     expect(onUpdate).toHaveBeenCalledWith(1, {
-      due_date: localIso(2026, 11, 5, 14),
+      due_date: localIso(2099, 11, 6, 9),
       all_day: false,
-      end_date: localIso(2026, 11, 5, 15),
+      end_date: localIso(2099, 11, 6, 10),
+    })
+    expect(screen.queryByTestId('date-editor-popover')).not.toBeInTheDocument()
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月6日，09:00 - 10:00')
+  })
+
+  it('点击清除发送 due_date: null 与 end_date: null 并关闭编辑器', async () => {
+    const { onUpdate } = renderQuickDetail(makeTask())
+    openDateEditor()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('date-editor-clear'))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(onUpdate).toHaveBeenCalledTimes(1)
+    expect(onUpdate).toHaveBeenCalledWith(1, { due_date: null, end_date: null })
+    expect(screen.queryByTestId('date-editor-popover')).not.toBeInTheDocument()
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveTextContent('设置日期')
+  })
+
+  it('Escape 只取消未确认的日期编辑，不关闭任务详情', () => {
+    const { onClose, onUpdate } = renderQuickDetail(makeTask())
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByTestId('date-editor-popover')).not.toBeInTheDocument()
+    expect(popup()).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月5日，09:00 - 10:00')
+  })
+
+  it('点击编辑器内部不会关闭任务详情；再次点击摘要可收起', () => {
+    const { onClose } = renderQuickDetail(makeTask())
+    const summary = within(popup()).getByTestId('calendar-quick-date-summary')
+    fireEvent.click(summary)
+
+    fireEvent.pointerDown(screen.getByTestId('date-editor-popover'))
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    expect(popup()).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(summary)
+    expect(screen.queryByTestId('date-editor-popover')).not.toBeInTheDocument()
+    expect(popup()).toBeInTheDocument()
+  })
+})
+
+describe('CalendarTaskQuickDetail 日期保存语义', () => {
+  it('全天单日：开始日保存为本地 00:00，结束为次日 00:00 排他', async () => {
+    const { onUpdate } = renderQuickDetail(makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: null }))
+    expect(within(popup()).getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月5日')
+
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    await confirmDateEditor()
+
+    expect(onUpdate).toHaveBeenCalledWith(1, {
+      all_day: true,
+      due_date: localIso(2099, 11, 6),
+      end_date: localIso(2099, 11, 7),
+    })
+  })
+
+  it('全天跨日：改开始日保留原跨度，结束仍为排他 00:00', async () => {
+    const { onUpdate } = renderQuickDetail(
+      makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: localIso(2099, 11, 8) }),
+    )
+    openDateEditor()
+    expect(screen.getByTestId('date-editor-day-2099-11-05')).toHaveAttribute('aria-pressed', 'true')
+    selectEditorDay('2099-11-10')
+    await confirmDateEditor()
+
+    expect(onUpdate).toHaveBeenCalledWith(1, {
+      all_day: true,
+      due_date: localIso(2099, 11, 10),
+      end_date: localIso(2099, 11, 13), // 原跨度 3 天：11-10..11-12，排他 11-13
+    })
+  })
+
+  it('定时任务改日期：保留原开始时间与持续时长', async () => {
+    const { onUpdate } = renderQuickDetail(makeTask())
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    await confirmDateEditor()
+
+    expect(onUpdate).toHaveBeenCalledWith(1, {
+      due_date: localIso(2099, 11, 6, 9),
+      all_day: false,
+      end_date: localIso(2099, 11, 6, 10),
     })
   })
 
   it('定时任务无结束时间：保存不自动补 end_date', async () => {
     const { onUpdate } = renderQuickDetail(makeTask({ end_date: null }))
-    await changeAndBlur(screen.getByLabelText('开始时间'), '2026-11-05T10:00')
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    await confirmDateEditor()
+
     const payload = onUpdate.mock.calls[0][1] as Partial<Task>
-    expect(payload).toEqual({ due_date: localIso(2026, 11, 5, 10), all_day: false })
+    expect(payload).toEqual({ due_date: localIso(2099, 11, 6, 9), all_day: false })
     expect(payload).not.toHaveProperty('end_date')
   })
 
-  it('清除结束时间发送 null；非法结束时间保留输入并提示', async () => {
+  it('时间段页可清除结束时间，发送 end_date: null', async () => {
     const { onUpdate } = renderQuickDetail(makeTask())
-    fireEvent.click(within(popup()).getByRole('button', { name: '清除结束时间' }))
-    await waitFor(() =>
-      expect(onUpdate).toHaveBeenCalledWith(1, {
-        due_date: localIso(2026, 11, 5, 9),
-        all_day: false,
-        end_date: null,
-      }),
-    )
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.click(screen.getByTestId('date-editor-clear-end-time'))
+    await confirmDateEditor()
 
-    onUpdate.mockClear()
-    const endInput = screen.getByLabelText('结束时间')
-    await changeAndBlur(endInput, '2026-11-05T08:00')
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('结束时间必须晚于开始时间'))
+    expect(onUpdate).toHaveBeenCalledWith(1, {
+      due_date: localIso(2099, 11, 5, 9),
+      all_day: false,
+      end_date: null,
+    })
+  })
+
+  it('非法结束时间显示错误且确定不可用', () => {
+    const { onUpdate } = renderQuickDetail(makeTask())
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.change(screen.getByTestId('date-editor-end-time'), { target: { value: '08:00' } })
+
+    expect(screen.getByTestId('date-editor-error')).toHaveTextContent('结束时间必须晚于开始时间')
+    const confirm = screen.getByTestId('date-editor-confirm')
+    expect(confirm).toBeDisabled()
+    fireEvent.click(confirm)
     expect(onUpdate).not.toHaveBeenCalled()
-    expect(endInput).toHaveValue('2026-11-05T08:00')
+  })
+
+  it('全天任务在时间段页显示全天状态且不渲染时间输入', () => {
+    renderQuickDetail(makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: null }))
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+
+    expect(screen.getByTestId('date-editor-all-day-state')).toHaveTextContent('全天任务不设置具体时间')
+    expect(screen.queryByTestId('date-editor-start-time')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('date-editor-end-time')).not.toBeInTheDocument()
   })
 })
 
 describe('CalendarTaskQuickDetail 底部入口', () => {
   it('复制、归档与打开完整详情调用对应回调', async () => {
     const { onDuplicate, onArchive, onOpenFullDetail } = renderQuickDetail(makeTask())
-    fireEvent.click(within(popup()).getByRole('button', { name: '复制任务' }))
+    fireEvent.click(screen.getByTestId('calendar-quick-more-trigger'))
+    fireEvent.click(within(popup()).getByRole('menuitem', { name: '复制任务' }))
     expect(onDuplicate).toHaveBeenCalledWith(1)
-    fireEvent.click(within(popup()).getByRole('button', { name: '归档任务' }))
+    fireEvent.click(screen.getByTestId('calendar-quick-more-trigger'))
+    fireEvent.click(within(popup()).getByRole('menuitem', { name: '归档任务' }))
     expect(onArchive).toHaveBeenCalledWith(1)
-    fireEvent.click(within(popup()).getByRole('button', { name: '打开完整详情' }))
+    fireEvent.click(screen.getByTestId('calendar-quick-more-trigger'))
+    fireEvent.click(within(popup()).getByRole('menuitem', { name: '打开完整详情' }))
     await waitFor(() => expect(onOpenFullDetail).toHaveBeenCalledWith(1))
   })
 })
@@ -364,44 +504,61 @@ describe('CalendarTaskQuickDetail 关闭前提交草稿', () => {
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
 
-  it('点击外部关闭前提交定时日期草稿', async () => {
+  it('日期编辑器确认后立即保存；随后点击外部关闭不重复提交', async () => {
     const { onUpdate, onClose } = renderQuickDetail(makeTask())
-    const start = screen.getByLabelText('开始时间')
-    start.focus()
-    fireEvent.change(start, { target: { value: '2026-11-05T14:00' } })
-
-    fireEvent.pointerDown(document.body)
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    await confirmDateEditor()
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith(1, {
-        due_date: localIso(2026, 11, 5, 14),
+        due_date: localIso(2099, 11, 6, 9),
         all_day: false,
-        end_date: localIso(2026, 11, 5, 15),
+        end_date: localIso(2099, 11, 6, 10),
       }),
     )
+    fireEvent.pointerDown(document.body)
+
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
 
-  it('Escape 关闭前提交全天跨日草稿', async () => {
+  it('全天跨日确认后 Escape 关闭只提交一次', async () => {
     const { onUpdate, onClose } = renderQuickDetail(
-      makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: localIso(2026, 11, 8) }),
+      makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: localIso(2099, 11, 8) }),
     )
-    const end = screen.getByLabelText('结束日期（可选）')
-    end.focus()
-    fireEvent.change(end, { target: { value: '2026-11-08' } })
-
-    fireEvent.keyDown(document, { key: 'Escape' })
+    openDateEditor()
+    selectEditorDay('2099-11-10')
+    await confirmDateEditor()
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith(1, {
         all_day: true,
-        due_date: localIso(2026, 11, 5),
-        end_date: localIso(2026, 11, 9),
+        due_date: localIso(2099, 11, 10),
+        end_date: localIso(2099, 11, 13),
       }),
     )
+    fireEvent.keyDown(document, { key: 'Escape' })
+
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('非法结束时间不可确认，Escape 只取消编辑且不关闭任务详情', () => {
+    const { onUpdate, onClose } = renderQuickDetail(makeTask())
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.change(screen.getByTestId('date-editor-end-time'), { target: { value: '08:00' } })
+
+    expect(screen.getByTestId('date-editor-error')).toHaveTextContent('结束时间必须晚于开始时间')
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
+    expect(onUpdate).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('date-editor-popover')).not.toBeInTheDocument()
+    expect(popup()).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onUpdate).not.toHaveBeenCalled()
   })
 
   it('关闭按钮与打开完整详情也提交有效草稿，标题不重复写入', async () => {
@@ -425,25 +582,12 @@ describe('CalendarTaskQuickDetail 关闭前提交草稿', () => {
     const notes = screen.getByPlaceholderText('添加备注... 支持 Markdown 语法')
     notes.focus()
     fireEvent.change(notes, { target: { value: '打开完整详情备注' } })
-    fireEvent.click(within(popup()).getByRole('button', { name: '打开完整详情' }))
+    fireEvent.click(screen.getByTestId('calendar-quick-more-trigger'))
+    fireEvent.click(within(popup()).getByRole('menuitem', { name: '打开完整详情' }))
 
     await waitFor(() => expect(second.onOpenFullDetail).toHaveBeenCalledWith(1))
     expect(second.onUpdate.mock.calls.filter(([, updates]) => updates.title === '完整详情标题')).toHaveLength(1)
     await waitFor(() => expect(second.onUpdate).toHaveBeenCalledWith(1, { notes: '打开完整详情备注' }))
-  })
-
-  it('无效日期阻止关闭并保留输入，不静默丢弃', async () => {
-    const { onUpdate, onClose } = renderQuickDetail(makeTask())
-    const end = screen.getByLabelText('结束时间')
-    end.focus()
-    fireEvent.change(end, { target: { value: '2026-11-05T08:00' } })
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('结束时间必须晚于开始时间'))
-    expect(onClose).not.toHaveBeenCalled()
-    expect(end).toHaveValue('2026-11-05T08:00')
-    expect(onUpdate).not.toHaveBeenCalled()
   })
 })
 
@@ -520,20 +664,21 @@ describe('CalendarTaskQuickDetail 异步保存与失败重试', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
 
-  it('日期延迟保存失败：弹窗、日期草稿与错误保留', async () => {
+  it('日期延迟保存失败：弹窗、日期草稿与错误保留，重试成功后才关闭', async () => {
     const pending = deferred<boolean>()
     const onUpdate = vi.fn(() => pending.promise)
     const { onClose } = renderQuickDetail(makeTask(), { onUpdate })
-    const start = screen.getByLabelText('开始时间')
-    start.focus()
-    fireEvent.change(start, { target: { value: '2026-11-05T14:00' } })
+    openDateEditor()
+    selectEditorDay('2099-11-06')
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
 
     fireEvent.keyDown(document, { key: 'Escape' })
     pending.resolve(false)
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('日期保存失败'))
     expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('开始时间')).toHaveValue('2026-11-05T14:00')
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveTextContent('11月6日')
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月6日，09:00 - 10:00')
 
     onUpdate.mockImplementation(() => Promise.resolve(true))
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -541,21 +686,21 @@ describe('CalendarTaskQuickDetail 异步保存与失败重试', () => {
   })
 })
 
-describe('CalendarTaskQuickDetail 清除开始时间边界', () => {
-  it('清除开始时间同步清除结束草稿，只提交一次且不递归', async () => {
+describe('CalendarTaskQuickDetail 清除日期边界', () => {
+  it('清除日期同步清空 due_date 与 end_date，只提交一次且不递归', async () => {
     const { onUpdate } = renderQuickDetail(makeTask())
-    const start = screen.getByLabelText('开始时间')
-    await changeAndBlur(start, '')
+    openDateEditor()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('date-editor-clear'))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
 
-    await waitFor(() =>
-      expect(onUpdate).toHaveBeenCalledWith(1, {
-        due_date: null,
-        all_day: false,
-        end_date: null,
-      }),
-    )
-    expect(screen.getByLabelText('结束时间')).toHaveValue('')
+    expect(onUpdate).toHaveBeenCalledWith(1, { due_date: null, end_date: null })
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveTextContent('设置日期')
     expect(onUpdate).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
   })
 })
 
@@ -569,43 +714,43 @@ describe('CalendarTaskQuickDetail 全天归一化与跨字段稳定性', () => {
       return true
     })
     const { onClose } = renderQuickDetail(
-      makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: localIso(2026, 11, 8) }),
+      makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: localIso(2099, 11, 8) }),
       { onUpdate },
     )
 
-    await changeAndBlur(screen.getByLabelText('开始日期'), '2026-11-10')
+    openDateEditor()
+    selectEditorDay('2099-11-10')
+    await confirmDateEditor()
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
     expect(patches[0]).toEqual({
       all_day: true,
-      due_date: localIso(2026, 11, 10),
-      end_date: localIso(2026, 11, 13), // 原跨度 3 天：11-10..11-12，排他 11-13
+      due_date: localIso(2099, 11, 10),
+      end_date: localIso(2099, 11, 13), // 原跨度 3 天：11-10..11-12，排他 11-13
     })
-    await waitFor(() => expect(screen.getByLabelText('结束日期（可选）')).toHaveValue('2026-11-12'))
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月10日 - 11月12日')
 
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
 
-  it('全天清空开始日期：同步清空结束草稿，只提交一次', async () => {
+  it('全天清除日期：同步清空 due_date 与 end_date，只提交一次', async () => {
     const { onUpdate } = renderQuickDetail(
-      makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: localIso(2026, 11, 6) }),
+      makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: localIso(2099, 11, 6) }),
     )
-    await changeAndBlur(screen.getByLabelText('开始日期'), '')
+    openDateEditor()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('date-editor-clear'))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
 
-    await waitFor(() =>
-      expect(onUpdate).toHaveBeenCalledWith(1, {
-        all_day: true,
-        due_date: null,
-        end_date: null,
-      }),
-    )
-    expect(screen.getByLabelText('结束日期（可选）')).toHaveValue('')
+    expect(onUpdate).toHaveBeenCalledWith(1, { due_date: null, end_date: null })
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveTextContent('设置日期')
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
 
-  it('归一化保存期间用户继续修改结束日期：不覆盖新输入，按新输入再次保存', async () => {
+  it('归一化保存期间用户继续改日期：不覆盖新输入，按新输入再次保存', async () => {
     const firstSave = deferred<boolean>()
     const patches: Partial<Task>[] = []
     const onUpdate = vi.fn((_id: number, updates: Partial<Task>) => {
@@ -614,15 +759,20 @@ describe('CalendarTaskQuickDetail 全天归一化与跨字段稳定性', () => {
       return patches.length === 1 ? firstSave.promise : Promise.resolve(true)
     })
     const { onClose } = renderQuickDetail(
-      makeTask({ all_day: true, due_date: localIso(2026, 11, 5), end_date: localIso(2026, 11, 8) }),
+      makeTask({ all_day: true, due_date: localIso(2099, 11, 5), end_date: localIso(2099, 11, 8) }),
       { onUpdate },
     )
 
-    await changeAndBlur(screen.getByLabelText('开始日期'), '2026-11-10')
+    openDateEditor()
+    selectEditorDay('2099-11-10')
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
 
-    const end = screen.getByLabelText('结束日期（可选）')
-    fireEvent.change(end, { target: { value: '2026-11-15' } })
+    // 第一次保存挂起期间继续把开始日改到 11-15；原跨度 3 天应得到 11-15..11-17。
+    openDateEditor()
+    selectEditorDay('2099-11-15')
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
+
     await act(async () => {
       firstSave.resolve(true)
     })
@@ -630,15 +780,15 @@ describe('CalendarTaskQuickDetail 全天归一化与跨字段稳定性', () => {
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(2))
     expect(patches[0]).toEqual({
       all_day: true,
-      due_date: localIso(2026, 11, 10),
-      end_date: localIso(2026, 11, 13),
+      due_date: localIso(2099, 11, 10),
+      end_date: localIso(2099, 11, 13),
     })
     expect(patches[1]).toEqual({
       all_day: true,
-      due_date: localIso(2026, 11, 10),
-      end_date: localIso(2026, 11, 16), // 11-10..11-15，排他 11-16
+      due_date: localIso(2099, 11, 15),
+      end_date: localIso(2099, 11, 18), // 11-15..11-17，排他 11-18
     })
-    expect(end).toHaveValue('2026-11-15')
+    expect(screen.getByTestId('calendar-quick-date-summary')).toHaveAccessibleName('截止日期 11月15日 - 11月17日')
 
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
@@ -731,9 +881,12 @@ describe('CalendarTaskQuickDetail 全天归一化与跨字段稳定性', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(calls.some((call) => 'title' in call)).toBe(true))
 
-    const start = screen.getByLabelText('开始时间')
-    start.focus()
-    fireEvent.change(start, { target: { value: '2026-11-05T14:00' } })
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.change(screen.getByTestId('date-editor-start-time'), { target: { value: '14:00' } })
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
+
+    await waitFor(() => expect(calls.some((call) => call.due_date === localIso(2099, 11, 5, 14))).toBe(true))
 
     await act(async () => {
       titlePending.resolve(true)
@@ -741,7 +894,7 @@ describe('CalendarTaskQuickDetail 全天归一化与跨字段稳定性', () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(calls.some((call) => call.title === '慢标题')).toBe(true)
-    expect(calls.some((call) => call.due_date === localIso(2026, 11, 5, 14))).toBe(true)
+    expect(calls.some((call) => call.due_date === localIso(2099, 11, 5, 14))).toBe(true)
   })
 })
 
@@ -771,7 +924,7 @@ describe('CalendarTaskQuickDetail 标题/日期单飞', () => {
     expect(calls.filter((call) => call.title === 'T2')).toHaveLength(1)
   })
 
-  it('日期 blur 保存挂起 + 关闭等待：新日期 Patch 只写一次', async () => {
+  it('日期保存挂起 + 关闭等待：新日期 Patch 只写一次', async () => {
     const first = deferred<boolean>()
     const calls: Partial<Task>[] = []
     const onUpdate = vi.fn((_id: number, updates: Partial<Task>) => {
@@ -779,20 +932,23 @@ describe('CalendarTaskQuickDetail 标题/日期单飞', () => {
       return calls.length === 1 ? first.promise : Promise.resolve(true)
     })
     const { onClose } = renderQuickDetail(makeTask(), { onUpdate })
-    const start = screen.getByLabelText('开始时间')
-    start.focus()
-    fireEvent.change(start, { target: { value: '2026-11-05T14:00' } })
-    fireEvent.blur(start)
+
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.change(screen.getByTestId('date-editor-start-time'), { target: { value: '14:00' } })
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
     await waitFor(() => expect(calls).toHaveLength(1))
 
-    start.focus()
-    fireEvent.change(start, { target: { value: '2026-11-05T16:00' } })
+    openDateEditor()
+    fireEvent.click(screen.getByTestId('date-editor-tab-time'))
+    fireEvent.change(screen.getByTestId('date-editor-start-time'), { target: { value: '16:00' } })
+    fireEvent.click(screen.getByTestId('date-editor-confirm'))
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await act(async () => {
       first.resolve(true)
     })
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
-    expect(calls.filter((call) => call.due_date === localIso(2026, 11, 5, 16))).toHaveLength(1)
+    expect(calls.filter((call) => call.due_date === localIso(2099, 11, 5, 16))).toHaveLength(1)
   })
 })

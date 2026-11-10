@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Task, Tag } from '../../types'
 import { hexWithAlpha } from '../../utils/priority'
+import { getTaskDueDateDisplay } from '../../utils/taskDateDisplay'
 import {
   buildAllDaySchedulePatch,
   buildDueDatePatch,
@@ -11,6 +12,7 @@ import {
   getVisibleAllDayEndDateInput,
   toLocalDateInputValue,
   toLocalDateTimeInputValue,
+  visibleAllDayEndToExclusiveIso,
 } from '../../utils/taskSchedule'
 import { parseRepeatRule, serializeRepeatRule, getRepeatSummary, type RepeatFrequency } from '../../types/repeat'
 
@@ -245,25 +247,24 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
     return !isNaN(due.getTime()) && !isNaN(end.getTime()) && end.getTime() <= due.getTime()
   })()
 
-  // 计算延期天数（未完成且已过期）
-  function getOverdueDays(): number {
-    if (!dueDate || task.completed) return 0
-    const d = new Date(dueDate)
-    if (isNaN(d.getTime())) return 0
-    const now = new Date()
-    if (d >= now) return 0
-    return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
-  }
+  const scheduleDisplay = getTaskDueDateDisplay({
+    due_date: dueDate || null,
+    end_date: allDay ? visibleAllDayEndToExclusiveIso(allDayEndDate) : endDate || null,
+    all_day: allDay,
+    completed: task.completed,
+  })
 
   return (
     <>
       {/* 日程行：折叠的日期/时间 */}
       <button
         onClick={() => setShowScheduleEdit((v) => !v)}
+        aria-label={scheduleDisplay?.ariaLabel ?? '设置日期'}
+        data-testid="task-meta-schedule-summary"
         className="mt-2 flex flex-wrap items-center gap-1.5 text-left text-sm transition-colors hover:text-[var(--color-accent)]"
       >
         <svg
-          className={`w-4 h-4 ${getOverdueDays() > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`}
+          className={`w-4 h-4 ${scheduleDisplay?.isOverdue ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-tertiary)]'}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -278,11 +279,15 @@ export function SchedulePanel({ task, onUpdate }: SchedulePanelProps) {
         {dueDate ? (
           <span
             className={
-              getOverdueDays() > 0 ? 'text-[var(--color-danger)] font-medium' : 'text-[var(--color-text-secondary)]'
+              scheduleDisplay?.isOverdue
+                ? 'text-[var(--color-danger)] font-medium'
+                : 'text-[var(--color-text-secondary)]'
             }
           >
             {formatScheduleText()}
-            {getOverdueDays() > 0 && <span className="text-[var(--color-danger)]">，延期{getOverdueDays()}天</span>}
+            {scheduleDisplay?.relativeLabel ? (
+              <span className="text-[var(--color-danger)]">，{scheduleDisplay.relativeLabel}</span>
+            ) : null}
           </span>
         ) : (
           <span className="text-[var(--color-text-tertiary)]">设置日期</span>

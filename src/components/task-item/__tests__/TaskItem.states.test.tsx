@@ -179,3 +179,82 @@ describe('TaskItem 关键行状态', () => {
     expect(pinnedRow.className).not.toContain('bg-orange-50')
   })
 })
+
+describe('TaskItem 过期日期摘要', () => {
+  function localOffsetDate(offsetDays: number, hour = 17, minute = 0): Date {
+    const date = new Date()
+    date.setDate(date.getDate() + offsetDays)
+    date.setHours(hour, minute, 0, 0)
+    return date
+  }
+
+  function monthDay(date: Date): string {
+    return `${date.getMonth() + 1}月${date.getDate()}日`
+  }
+
+  it('昨天显示「昨天」、具体时间、红色状态与稳定 aria/testid', () => {
+    const due = localOffsetDate(-1)
+    renderTask(makeTask({ due_date: due.toISOString() }))
+
+    const summary = screen.getByTestId('task-due-1')
+    const label = monthDay(due)
+    expect(summary).toHaveTextContent(`${label}，昨天，17:00`)
+    expect(summary).toHaveAttribute('aria-label', `截止日期 ${label}，昨天，17:00`)
+    expect(summary).toHaveClass('text-[var(--color-danger)]')
+  })
+
+  it('逾期 2 天显示「延期2天」', () => {
+    const due = localOffsetDate(-2)
+    renderTask(makeTask({ due_date: due.toISOString() }))
+
+    const summary = screen.getByTestId('task-due-1')
+    expect(summary).toHaveTextContent(`${monthDay(due)}，延期2天，17:00`)
+    expect(summary).toHaveAttribute('aria-label', `截止日期 ${monthDay(due)}，延期2天，17:00`)
+  })
+
+  it('逾期多天显示正确天数', () => {
+    const due = localOffsetDate(-5, 9, 30)
+    renderTask(makeTask({ due_date: due.toISOString() }))
+
+    const summary = screen.getByTestId('task-due-1')
+    expect(summary).toHaveTextContent(`${monthDay(due)}，延期5天，09:30`)
+    expect(summary).toHaveAttribute('aria-label', `截止日期 ${monthDay(due)}，延期5天，09:30`)
+  })
+
+  it('今天与明天不显示逾期文案或红色状态', () => {
+    const { unmount } = renderTask(makeTask({ due_date: localOffsetDate(0, 23, 59).toISOString() }))
+    const todaySummary = screen.getByTestId('task-due-1')
+    expect(todaySummary).not.toHaveTextContent('昨天')
+    expect(todaySummary).not.toHaveTextContent(/延期\d+天/)
+    expect(todaySummary).not.toHaveClass('text-[var(--color-danger)]')
+    unmount()
+
+    renderTask(makeTask({ due_date: localOffsetDate(1, 9).toISOString() }))
+    const tomorrowSummary = screen.getByTestId('task-due-1')
+    expect(tomorrowSummary).not.toHaveTextContent('昨天')
+    expect(tomorrowSummary).not.toHaveTextContent(/延期\d+天/)
+    expect(tomorrowSummary).not.toHaveClass('text-[var(--color-danger)]')
+  })
+
+  it('没有具体时间的全天任务不显示时间', () => {
+    const due = localOffsetDate(-1, 0, 0)
+    renderTask(makeTask({ due_date: due.toISOString(), all_day: true }))
+
+    const summary = screen.getByTestId('task-due-1')
+    expect(summary).toHaveTextContent(`${monthDay(due)}，昨天`)
+    expect(summary).not.toHaveTextContent('00:00')
+    expect(summary).toHaveAttribute('aria-label', `截止日期 ${monthDay(due)}，昨天`)
+  })
+
+  it('已完成任务保持完成态颜色规则，不显示逾期红色与相对文案', () => {
+    const due = localOffsetDate(-1)
+    renderTask(makeTask({ due_date: due.toISOString(), completed: true }))
+
+    const summary = screen.getByTestId('task-due-1')
+    expect(summary).toHaveTextContent(monthDay(due))
+    expect(summary).not.toHaveTextContent('昨天')
+    expect(summary).not.toHaveTextContent(/延期\d+天/)
+    expect(summary).not.toHaveClass('text-[var(--color-danger)]')
+    expect(screen.getByTestId('task-row-1')).toHaveClass('opacity-60')
+  })
+})

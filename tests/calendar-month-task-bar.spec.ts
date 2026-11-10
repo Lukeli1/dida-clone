@@ -163,7 +163,8 @@ async function openFullDetailFromTask(page: Page, task: Locator) {
   await task.click()
   const quick = page.getByTestId('calendar-quick-detail')
   await expect(quick).toBeVisible()
-  await quick.getByRole('button', { name: '打开完整详情' }).click()
+  await quick.getByTestId('calendar-quick-more-trigger').click()
+  await quick.getByRole('menuitem', { name: '打开完整详情' }).click()
   await expect(page.getByTestId('detail-docked')).toBeVisible()
 }
 

@@ -25,6 +25,11 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+/** 统一的本地日期解析入口：纯日期按本地自然日，其他按本地时间；非法值返回 null。 */
+export function parseTaskDate(value: string | null | undefined): Date | null {
+  return parseDate(value)
+}
+
 function pad2(value: number): string {
   return String(value).padStart(2, '0')
 }
@@ -43,6 +48,49 @@ export function toLocalDateInputValue(iso?: string | null): string {
   const date = parseDate(iso)
   if (!date) return ''
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+/** 在本地自然日上加减天数，返回 YYYY-MM-DD；非法输入返回空字符串。 */
+export function addDaysToLocalDateKey(dateKey: string, days: number): string {
+  const date = parseDate(dateKey)
+  if (!date) return ''
+  return toLocalDateInputValue(new Date(date.getFullYear(), date.getMonth(), date.getDate() + days).toISOString())
+}
+
+/** 将本地日期 key 与 HH:mm 组合为本地时间 ISO；非法输入返回 null。 */
+export function localDateKeyWithTimeToIso(dateKey: string, time: string): string | null {
+  const date = parseDate(dateKey)
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time)
+  if (!date || !match) return null
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes).toISOString()
+}
+
+/** 全天任务可见结束日（YYYY-MM-DD）转为排他结束时间（次日本地 00:00）。 */
+export function visibleAllDayEndToExclusiveIso(visibleEndDateKey: string): string | null {
+  const date = parseDate(visibleEndDateKey)
+  if (!date) return null
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).toISOString()
+}
+
+/**
+ * 全天任务的原跨度（天，含开始日）：
+ * - 结束为排他 00:00 时按自然日差计算
+ * - 结束缺失 / 无效 / 不晚于开始日：按单天
+ */
+export function getAllDayTaskSpanDays(task: Pick<Task, 'due_date' | 'end_date'>): number {
+  const start = parseDate(task.due_date)
+  const end = parseDate(task.end_date)
+  if (!start || !end) return 1
+
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  const diffDays = Math.round((endDay.getTime() - startDay.getTime()) / DAY_MS)
+  return diffDays >= 1 ? diffDays : 1
 }
 
 /** 全天编辑中的可见结束日期：排他性的 00:00 结束时间取前一天；非零点的定时结束时间取当天。 */

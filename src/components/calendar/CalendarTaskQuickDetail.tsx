@@ -11,15 +11,16 @@ import {
 import { createPortal } from 'react-dom'
 import type { List, Task } from '../../types'
 import { PRIORITY_STYLES } from '../../utils/priority'
+import { getTaskDueDateDisplay } from '../../utils/taskDateDisplay'
 import {
   buildAllDaySchedulePatch,
-  buildDueDatePatch,
   buildTimedSchedulePatch,
   getVisibleAllDayEndDateInput,
   toLocalDateInputValue,
-  toLocalDateTimeInputValue,
+  visibleAllDayEndToExclusiveIso,
 } from '../../utils/taskSchedule'
 import { TaskNotes, type TaskNotesHandle } from '../detail/TaskNotes'
+import { DateEditorPopover } from './DateEditorPopover'
 
 /**
  * 日历任务轻量详情弹窗。
@@ -55,8 +56,8 @@ interface CalendarTaskQuickDetailProps {
   onArchive?: (taskId: number) => void
 }
 
-const POPUP_WIDTH_FALLBACK = 340
-const POPUP_HEIGHT_FALLBACK = 420
+const POPUP_WIDTH_FALLBACK = 810
+const POPUP_HEIGHT_FALLBACK = 600
 const VIEWPORT_MARGIN = 12
 const ANCHOR_GAP = 8
 
@@ -99,8 +100,15 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
     ref,
   ) {
     const popupRef = useRef<HTMLDivElement>(null)
+    const dateSummaryRef = useRef<HTMLButtonElement>(null)
+    const dateEditorOpenRef = useRef(false)
+    const auxiliaryMenuOpenRef = useRef(false)
     const anchorWasConnectedRef = useRef(false)
     const requestCloseRef = useRef<() => void>(() => {})
+    const [dateEditorOpen, setDateEditorOpen] = useState(false)
+    const [priorityMenuOpen, setPriorityMenuOpen] = useState(false)
+    const [listMenuOpen, setListMenuOpen] = useState(false)
+    const [moreMenuOpen, setMoreMenuOpen] = useState(false)
     const [position, setPosition] = useState<PopupPosition>({
       top: VIEWPORT_MARGIN,
       left: VIEWPORT_MARGIN,
@@ -187,6 +195,12 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
     if (taskSnapshot !== task) {
       const taskChanged = taskSnapshot.id !== task.id
       setTaskSnapshot(task)
+
+      if (taskChanged) {
+        // 切换任务时丢弃上一任务未确认的日期编辑草稿。
+        dateEditorOpenRef.current = false
+        setDateEditorOpen(false)
+      }
 
       if (taskChanged || title.trim() === lastSavedTitle.trim()) {
         const nextTitle = task.title
@@ -293,16 +307,28 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
       requestCloseRef.current = requestClose
     })
 
-    // 点击弹窗外 / Escape 关闭；点击其他任务块交给日历切换，不在此关闭。
+    // 点击弹窗外 / Escape 关闭；日期编辑器内部的点击与 Escape 由编辑器自行处理。
     useEffect(() => {
       function handlePointerDown(event: PointerEvent) {
         const target = event.target as Node | null
         if (popupRef.current?.contains(target)) return
+        if (target instanceof Element && target.closest('[data-date-editor]')) return
         if (target instanceof Element && target.closest('[data-task-id]')) return
         requestCloseRef.current()
       }
       function handleKeyDown(event: KeyboardEvent) {
         if (event.key !== 'Escape') return
+        // 日期编辑器打开时，Escape 只关闭编辑器，不关闭任务详情。
+        if (dateEditorOpenRef.current) return
+        if (auxiliaryMenuOpenRef.current) {
+          event.preventDefault()
+          event.stopPropagation()
+          auxiliaryMenuOpenRef.current = false
+          setPriorityMenuOpen(false)
+          setListMenuOpen(false)
+          setMoreMenuOpen(false)
+          return
+        }
         event.preventDefault()
         event.stopPropagation()
         requestCloseRef.current()
@@ -380,13 +406,14 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
       })
     }
 
-    function saveScheduleDraft(): Promise<boolean> {
+    function saveScheduleDraft(firstPatch?: Partial<Task>): Promise<boolean> {
       const session = taskSessionRef.current
       // 同一任务会话只有一个排空最新日期草稿的保存流程；其他调用者等待同一完整结果。
       if (scheduleDrainRef.current?.session === session) return scheduleDrainRef.current.promise
 
       const requestTaskId = taskIdRef.current
       const promise = (async () => {
+        let pendingOverride = firstPatch
         while (true) {
           // 每次读取草稿/发请求前确认仍属于发起时的任务会话。
           if (taskSessionRef.current !== session) return false
@@ -395,7 +422,9 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
           const dueRevision = dueRevisionRef.current
           const endRevision = endRevisionRef.current
           const allDayEndRevision = allDayEndRevisionRef.current
-          const patch = buildSchedulePatch()
+          // 日期编辑器的「确定」优先使用编辑器生成的 Patch；后续轮次回到草稿重建。
+          const patch = pendingOverride ?? buildSchedulePatch()
+          pendingOverride = undefined
           if (!patch) {
             setScheduleDraftError()
             return false
@@ -558,10 +587,6 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
       void saveTitleDraft()
     }
 
-    function saveSchedule() {
-      void saveScheduleDraft()
-    }
-
     function handleTitleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
       if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
         event.preventDefault()
@@ -574,67 +599,82 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
       titleRef.current = value
     }
 
-    function handleAllDayStartChange(value: string) {
-      dueRevisionRef.current += 1
-      if (!value) {
-        allDayEndRevisionRef.current += 1
-        setDueDate('')
-        dueRef.current = ''
-        setAllDayEndDate('')
-        allDayEndRef.current = ''
-        return
-      }
-      const [year, month, day] = value.split('-').map(Number)
-      const next = new Date(year, month - 1, day).toISOString()
-      setDueDate(next)
-      dueRef.current = next
-    }
+    const openDateEditor = useCallback(() => {
+      dateEditorOpenRef.current = true
+      setDateEditorOpen(true)
+    }, [])
 
-    function handleAllDayEndChange(value: string) {
+    const closeDateEditor = useCallback(() => {
+      dateEditorOpenRef.current = false
+      setDateEditorOpen(false)
+    }, [])
+
+    /** 把日期编辑器确认的 Patch 同步到本地草稿，随后仍走原有排空/单飞保存。 */
+    function applySchedulePatchToDraft(patch: Partial<Task>) {
+      dueRevisionRef.current += 1
+      endRevisionRef.current += 1
       allDayEndRevisionRef.current += 1
-      setAllDayEndDate(value)
-      allDayEndRef.current = value
-    }
 
-    function handleTimedStartChange(value: string) {
-      const currentDue = dueRef.current
-      const currentEnd = endRef.current
-      dueRevisionRef.current += 1
-      if (!value) {
-        endRevisionRef.current += 1
-        setDueDate('')
-        dueRef.current = ''
-        setEndDate('')
-        endRef.current = ''
-        return
-      }
-      const nextDue = new Date(value).toISOString()
+      const nextDue = patch.due_date ?? ''
+      const nextEnd = patch.end_date !== undefined ? (patch.end_date ?? '') : endRef.current
+
       setDueDate(nextDue)
       dueRef.current = nextDue
-      const patch = buildDueDatePatch({ due_date: currentDue, end_date: currentEnd, all_day: false }, nextDue)
-      if (patch.end_date !== undefined) {
-        endRevisionRef.current += 1
-        const nextEnd = patch.end_date ?? ''
-        setEndDate(nextEnd)
-        endRef.current = nextEnd
+      setEndDate(nextEnd)
+      endRef.current = nextEnd
+
+      if (isAllDay) {
+        const nextVisibleEnd = getVisibleAllDayEndDateInput(nextEnd || null)
+        setAllDayEndDate(nextVisibleEnd)
+        allDayEndRef.current = nextVisibleEnd
       }
     }
 
-    function handleTimedEndChange(value: string) {
-      endRevisionRef.current += 1
-      const next = value ? new Date(value).toISOString() : ''
-      setEndDate(next)
-      endRef.current = next
+    function handleDateEditorConfirm(patch: Partial<Task>) {
+      applySchedulePatchToDraft(patch)
+      closeDateEditor()
+      void saveScheduleDraft(patch)
     }
 
-    async function handleClearEndDate() {
-      endRevisionRef.current += 1
-      setEndDate('')
-      endRef.current = ''
-      await saveScheduleDraft()
+    function handleDateEditorClear() {
+      const patch: Partial<Task> = { due_date: null, end_date: null }
+      applySchedulePatchToDraft(patch)
+      closeDateEditor()
+      void saveScheduleDraft(patch)
     }
 
     const priorityStyle = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES[0]
+    const currentList = lists.find((list) => list.id === task.list_id)
+    const scheduleDisplayTask = {
+      due_date: dueDate || null,
+      end_date: isAllDay ? visibleAllDayEndToExclusiveIso(allDayEndDate) : endDate || null,
+      all_day: isAllDay,
+      completed: task.completed,
+    }
+    const dateDisplay = getTaskDueDateDisplay(scheduleDisplayTask)
+    const dateEditorTask = {
+      due_date: scheduleDisplayTask.due_date,
+      end_date: scheduleDisplayTask.end_date,
+      all_day: isAllDay,
+    }
+
+    function toggleMenu(menu: 'priority' | 'list' | 'more') {
+      const nextPriority = menu === 'priority' ? !priorityMenuOpen : false
+      const nextList = menu === 'list' ? !listMenuOpen : false
+      const nextMore = menu === 'more' ? !moreMenuOpen : false
+      const isOpen = nextPriority || nextList || nextMore
+      auxiliaryMenuOpenRef.current = isOpen
+      setPriorityMenuOpen(nextPriority)
+      setListMenuOpen(nextList)
+      setMoreMenuOpen(nextMore)
+    }
+
+    function closeAuxiliaryMenus() {
+      auxiliaryMenuOpenRef.current = false
+      setPriorityMenuOpen(false)
+      setListMenuOpen(false)
+      setMoreMenuOpen(false)
+    }
 
     return createPortal(
       <div
@@ -643,7 +683,7 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
         role="dialog"
         aria-label="任务快速详情"
         tabIndex={-1}
-        className="fixed z-50 flex max-h-[calc(100vh-1.5rem)] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl outline-none"
+        className="pointer-events-none fixed z-50 flex h-[600px] max-h-[calc(100vh-1.5rem)] w-[810px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[var(--color-border-light)] bg-[var(--color-surface)] shadow-2xl outline-none"
         style={{
           top: `${position.top}px`,
           left: `${position.left}px`,
@@ -652,13 +692,16 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-2 border-b border-[var(--color-border-light)] px-3 py-2.5">
+        <div
+          data-testid="calendar-quick-header"
+          className="pointer-events-none relative flex min-h-24 items-center gap-3 border-b border-[var(--color-border-light)] px-10 py-4"
+        >
           <button
             type="button"
             onClick={() => onToggle(task)}
             aria-label={task.completed ? '标记为未完成' : '标记为已完成'}
             aria-pressed={task.completed}
-            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+            className={`pointer-events-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
               task.completed
                 ? 'border-[var(--color-success)] bg-[var(--color-success)] text-white'
                 : 'border-[var(--color-border)] text-transparent hover:border-[var(--color-accent)]'
@@ -669,24 +712,83 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
             </svg>
           </button>
 
-          <input
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            onBlur={saveTitle}
-            onKeyDown={handleTitleKeyDown}
-            aria-label="任务标题"
-            placeholder="任务标题"
-            className={`min-w-0 flex-1 border-b-2 border-transparent bg-transparent py-0.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] ${
-              task.completed ? 'line-through opacity-70' : ''
+          <span className="h-7 w-px shrink-0 bg-[var(--color-border)]" aria-hidden="true" />
+
+          <button
+            ref={dateSummaryRef}
+            type="button"
+            data-testid="calendar-quick-date-summary"
+            aria-label={dateDisplay?.ariaLabel ?? '设置日期'}
+            aria-haspopup="dialog"
+            aria-expanded={dateEditorOpen}
+            title="点击修改日期"
+            onClick={dateEditorOpen ? closeDateEditor : openDateEditor}
+            className={`pointer-events-auto flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 ${
+              dateDisplay?.isOverdue && !task.completed
+                ? 'text-[var(--color-danger)] hover:bg-[var(--color-danger)]/5'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]'
             }`}
-          />
+          >
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path strokeLinecap="round" d="M7 3v4m10-4v4M3 10h18" />
+            </svg>
+            <span className="min-w-0 truncate font-medium">{dateDisplay?.text ?? '设置日期'}</span>
+          </button>
+
+          <button
+            type="button"
+            data-testid="calendar-quick-priority-trigger"
+            aria-label={`优先级：${priorityStyle.label}`}
+            title={`优先级：${priorityStyle.label}`}
+            onClick={() => toggleMenu('priority')}
+            className="pointer-events-auto relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)]"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 21V5m0 0h12l-2.5 4L17 13H5" />
+            </svg>
+            <span
+              className="absolute right-1 top-1 h-2 w-2 rounded-full"
+              style={{ backgroundColor: priorityStyle.hex }}
+            />
+          </button>
+
+          {priorityMenuOpen ? (
+            <div
+              role="menu"
+              aria-label="选择优先级"
+              data-testid="calendar-quick-priority-menu"
+              className="pointer-events-auto absolute right-12 top-12 z-20 w-28 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] p-1 shadow-lg"
+            >
+              {PRIORITY_OPTIONS.map((option) => {
+                const style = PRIORITY_STYLES[option.value]
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={task.priority === option.value}
+                    aria-label={option.label}
+                    onClick={() => {
+                      void onUpdate(task.id, { priority: option.value })
+                      closeAuxiliaryMenus()
+                    }}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: style.hex }} />
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
 
           <button
             type="button"
             onClick={requestClose}
             aria-label="关闭任务详情"
             title="关闭"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
+            className="pointer-events-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -694,184 +796,194 @@ export const CalendarTaskQuickDetail = forwardRef<CalendarTaskQuickDetailHandle,
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto break-words px-3 py-2.5">
-          <div className="grid grid-cols-[3.5rem_1fr] items-center gap-x-2 gap-y-2">
-            <label htmlFor="calendar-quick-priority" className="text-xs text-[var(--color-text-tertiary)]">
-              优先级
-            </label>
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: priorityStyle.hex }} />
-              <select
-                id="calendar-quick-priority"
-                aria-label="优先级"
-                value={task.priority}
-                onChange={(e) => onUpdate(task.id, { priority: Number(e.target.value) })}
-                className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-secondary)] focus:border-[var(--color-accent)] focus:outline-none"
-              >
-                {PRIORITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div
+          data-testid="calendar-quick-body"
+          className="pointer-events-none min-h-0 flex-1 space-y-5 overflow-y-auto break-words px-10 py-6"
+        >
+          <input
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={handleTitleKeyDown}
+            aria-label="任务标题"
+            placeholder="任务标题"
+            data-testid="calendar-quick-title"
+            className={`pointer-events-auto block w-full min-w-0 border-b-2 border-transparent bg-transparent py-1 text-xl font-semibold text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] ${
+              task.completed ? 'line-through opacity-70' : ''
+            }`}
+          />
 
-            <label htmlFor="calendar-quick-list" className="text-xs text-[var(--color-text-tertiary)]">
-              清单
-            </label>
-            <select
-              id="calendar-quick-list"
-              aria-label="所属清单"
-              value={task.list_id}
-              onChange={(e) => onUpdate(task.id, { list_id: Number(e.target.value) })}
-              className="min-w-0 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-secondary)] focus:border-[var(--color-accent)] focus:outline-none"
-            >
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {dateEditorOpen ? (
+            <DateEditorPopover
+              task={dateEditorTask}
+              anchorRef={dateSummaryRef}
+              onCancel={closeDateEditor}
+              onConfirm={handleDateEditorConfirm}
+              onClear={handleDateEditorClear}
+            />
+          ) : null}
 
-          <div className="rounded-lg bg-[var(--color-bg-secondary)] p-2.5">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">日期与时间</span>
-              {isAllDay ? (
-                <span className="rounded bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
-                  全天
-                </span>
-              ) : null}
-            </div>
-
-            {isAllDay ? (
-              <div className="grid grid-cols-2 gap-2">
-                <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] text-[var(--color-text-tertiary)]">开始日期</span>
-                  <input
-                    type="date"
-                    aria-label="开始日期"
-                    value={toLocalDateInputValue(dueDate)}
-                    onChange={(e) => handleAllDayStartChange(e.target.value)}
-                    onBlur={saveSchedule}
-                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
-                  />
-                </label>
-                <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] text-[var(--color-text-tertiary)]">结束日期（可选）</span>
-                  <input
-                    type="date"
-                    aria-label="结束日期（可选）"
-                    value={allDayEndDate}
-                    onChange={(e) => handleAllDayEndChange(e.target.value)}
-                    onBlur={saveSchedule}
-                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
-                  />
-                </label>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="block min-w-0">
-                  <span className="mb-1 block text-[10px] text-[var(--color-text-tertiary)]">开始时间</span>
-                  <input
-                    type="datetime-local"
-                    aria-label="开始时间"
-                    value={toLocalDateTimeInputValue(dueDate)}
-                    onChange={(e) => handleTimedStartChange(e.target.value)}
-                    onBlur={saveSchedule}
-                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
-                  />
-                </label>
-                <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] text-[var(--color-text-tertiary)]">结束时间（可选）</span>
-                    {endDate ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleClearEndDate()
-                        }}
-                        aria-label="清除结束时间"
-                        className="rounded px-1.5 py-0.5 text-[10px] text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)]/10"
-                      >
-                        清除
-                      </button>
-                    ) : null}
-                  </div>
-                  <input
-                    type="datetime-local"
-                    aria-label="结束时间"
-                    value={toLocalDateTimeInputValue(endDate)}
-                    onChange={(e) => handleTimedEndChange(e.target.value)}
-                    onBlur={saveSchedule}
-                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
-
-            {scheduleError ? (
-              <p role="alert" className="mt-1.5 text-xs text-[var(--color-danger)]">
-                {scheduleError}
-              </p>
-            ) : null}
-            {saveError ? (
-              <p role="alert" className="mt-1.5 text-xs text-[var(--color-danger)]">
-                {saveError}
-              </p>
-            ) : null}
-          </div>
+          {scheduleError ? (
+            <p role="alert" className="text-xs text-[var(--color-danger)]">
+              {scheduleError}
+            </p>
+          ) : null}
+          {saveError ? (
+            <p role="alert" className="text-xs text-[var(--color-danger)]">
+              {saveError}
+            </p>
+          ) : null}
 
           <TaskNotes
             ref={notesRef}
             task={task}
             onUpdate={onUpdate}
+            compact
             onSaveError={() => setSaveError('备注保存失败，请重试')}
           />
         </div>
 
-        <div className="flex items-center gap-1 border-t border-[var(--color-border-light)] px-2 py-2">
+        <div
+          data-testid="calendar-quick-footer"
+          className="pointer-events-none flex min-h-14 items-center gap-1 border-t border-[var(--color-border-light)] px-4 py-2.5"
+        >
+          <div className="pointer-events-none relative min-w-0 flex-1">
+            <button
+              type="button"
+              data-testid="calendar-quick-list-trigger"
+              aria-label={`所属清单：${currentList?.name ?? '未分类'}`}
+              aria-haspopup="listbox"
+              aria-expanded={listMenuOpen}
+              title={currentList?.name ?? '未分类'}
+              onClick={() => toggleMenu('list')}
+              className="pointer-events-auto flex h-8 max-w-full items-center gap-2 rounded-md px-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h10m-10 5h16m-16 5h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 4l4 4-4 4" />
+              </svg>
+              <span className="truncate" data-testid="calendar-quick-list-name">
+                {currentList?.name ?? '未分类'}
+              </span>
+            </button>
+            {listMenuOpen ? (
+              <div
+                role="listbox"
+                aria-label="所属清单"
+                data-testid="calendar-quick-list-menu"
+                className="pointer-events-auto absolute bottom-full left-0 z-20 mb-1 max-h-52 w-48 overflow-y-auto rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] p-1 shadow-lg"
+              >
+                {lists.map((list) => (
+                  <button
+                    key={list.id}
+                    type="button"
+                    role="option"
+                    aria-selected={list.id === task.list_id}
+                    aria-label={list.name}
+                    data-testid={`calendar-quick-list-${list.id}`}
+                    onClick={() => {
+                      void onUpdate(task.id, { list_id: list.id })
+                      closeAuxiliaryMenus()
+                    }}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: list.color || 'var(--color-text-tertiary)' }}
+                    />
+                    <span className="truncate">{list.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
-            onClick={() => onDuplicate?.(task.id)}
-            disabled={!onDuplicate}
-            aria-label="复制任务"
-            title="复制任务"
-            className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="编辑"
+            title="编辑备注"
+            data-testid="calendar-quick-note-format"
+            onClick={() => notesRef.current?.focusEditor()}
+            className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm font-medium text-[var(--color-text-secondary)] underline decoration-2 underline-offset-4 hover:bg-[var(--color-bg-tertiary)]"
           >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            A
+          </button>
+          <button
+            type="button"
+            aria-label="备注"
+            title="编辑备注"
+            data-testid="calendar-quick-note-comment"
+            onClick={() => notesRef.current?.focusEditor()}
+            className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M8 7V5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2h-2M6 9h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2z"
+                d="M20 11.5a7.5 7.5 0 01-7.5 7.5H6l-3 2v-4.5A7.5 7.5 0 1112.5 19"
               />
-            </svg>
-            复制
-          </button>
-          <button
-            type="button"
-            onClick={() => onArchive?.(task.id)}
-            disabled={!onArchive}
-            aria-label="归档任务"
-            title="归档任务"
-            className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M6 8l1 11h10l1-11M9 8V5h6v3" />
-            </svg>
-            归档
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenFullDetailClick}
-            aria-label="打开完整详情"
-            className="ml-auto flex h-7 items-center gap-1 rounded-md bg-[var(--color-accent)] px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
-          >
-            完整详情
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <path strokeLinecap="round" d="M8 10h8M8 13h5" />
             </svg>
           </button>
+          <div className="pointer-events-none relative shrink-0">
+            <button
+              type="button"
+              aria-label="更多任务操作"
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              title="更多"
+              data-testid="calendar-quick-more-trigger"
+              onClick={() => toggleMenu('more')}
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.7" />
+                <circle cx="12" cy="12" r="1.7" />
+                <circle cx="19" cy="12" r="1.7" />
+              </svg>
+            </button>
+            {moreMenuOpen ? (
+              <div
+                role="menu"
+                aria-label="更多任务操作"
+                data-testid="calendar-quick-more-menu"
+                className="pointer-events-auto absolute bottom-full right-0 z-20 mb-1 w-44 overflow-hidden rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] p-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-label="复制任务"
+                  onClick={() => {
+                    onDuplicate?.(task.id)
+                    closeAuxiliaryMenus()
+                  }}
+                  className="w-full rounded px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                >
+                  复制任务
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-label="归档任务"
+                  onClick={() => {
+                    onArchive?.(task.id)
+                    closeAuxiliaryMenus()
+                  }}
+                  className="w-full rounded px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                >
+                  归档任务
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-label="打开完整详情"
+                  onClick={handleOpenFullDetailClick}
+                  className="w-full rounded px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
+                >
+                  打开完整详情
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>,
       document.body,

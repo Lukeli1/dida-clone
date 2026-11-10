@@ -373,18 +373,24 @@ test('编辑标题/优先级/清单/备注/日期，关闭重开与重载保持'
   const titleInput = popup.getByLabel('任务标题')
   await titleInput.fill('E2E改名任务')
   await titleInput.blur()
-  await popup.getByLabel('优先级').selectOption('1')
-  await popup.getByLabel('所属清单').selectOption('2')
+  await popup.getByTestId('calendar-quick-priority-trigger').click()
+  await page.getByRole('menuitemradio', { name: '高' }).click()
+  await popup.getByTestId('calendar-quick-list-trigger').click()
+  await page.getByRole('option', { name: '工作' }).click()
 
   await popup.getByRole('button', { name: '编辑' }).click()
   const notes = popup.getByPlaceholder('添加备注... 支持 Markdown 语法')
   await notes.fill('新的 E2E 备注')
   await notes.blur()
 
-  const startInput = popup.getByLabel('开始时间')
-  await startInput.fill(`${wedKey}T14:00`)
-  await startInput.blur()
-  await expect(popup.getByRole('alert')).toHaveCount(0)
+  // 日期：点击摘要打开编辑器，选周三并改开始时间为 14:00（原持续 1 小时保留）
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await expect(page.getByTestId('date-editor-popover')).toBeVisible()
+  await page.getByTestId(`date-editor-day-${wedKey}`).click()
+  await page.getByTestId('date-editor-tab-time').click()
+  await page.getByLabel('开始时间').fill('14:00')
+  await page.getByTestId('date-editor-confirm').click()
+  await expect(page.getByTestId('date-editor-popover')).toHaveCount(0)
 
   await expect
     .poll(() =>
@@ -411,21 +417,21 @@ test('编辑标题/优先级/清单/备注/日期，关闭重开与重载保持'
   await page.keyboard.press('Escape')
   await clickTimedTask(page, 1)
   await expect(popup.getByLabel('任务标题')).toHaveValue('E2E改名任务')
-  await expect(popup.getByLabel('优先级')).toHaveValue('1')
-  await expect(popup.getByLabel('所属清单')).toHaveValue('2')
-  await expect(popup.getByLabel('开始时间')).toHaveValue(`${wedKey}T14:00`)
+  await expect(popup.getByTestId('calendar-quick-priority-trigger')).toHaveAttribute('aria-label', '优先级：高')
+  await expect(popup.getByTestId('calendar-quick-list-trigger')).toHaveAttribute('aria-label', '所属清单：工作')
+  await expect(popup.getByTestId('calendar-quick-date-summary')).toContainText('14:00 - 15:00')
   await expect(popup.getByText('新的 E2E 备注')).toBeVisible()
 
   // 重载后再次打开：值仍保持
   await openCalendar(page, 'week')
   await clickTimedTask(page, 1)
   await expect(popup.getByLabel('任务标题')).toHaveValue('E2E改名任务')
-  await expect(popup.getByLabel('开始时间')).toHaveValue(`${wedKey}T14:00`)
+  await expect(popup.getByTestId('calendar-quick-date-summary')).toContainText('14:00 - 15:00')
   await expect(popup.getByText('新的 E2E 备注')).toBeVisible()
 })
 
 test('全天跨日编辑保持本地排他结束；打开完整详情后弹窗关闭且不双开', async ({ page }) => {
-  const { nextMonKey, sunKey, at } = weekKeys()
+  const { sunKey, at } = weekKeys()
   await openCalendar(page, 'week')
 
   const allDayBar = page.getByTestId('calendar-all-day-task-3')
@@ -435,10 +441,10 @@ test('全天跨日编辑保持本地排他结束；打开完整详情后弹窗�
 
   const popup = quickDetail(page)
   await expect(popup).toBeVisible()
-  const endInput = popup.getByLabel('结束日期（可选）')
-  await expect(endInput).toHaveValue(sunKey)
-  await endInput.fill(nextMonKey)
-  await endInput.blur()
+  // 原跨度 2 天（周六..周日）；开始日改到周日，结束仍为次日本地 00:00 排他
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await page.getByTestId(`date-editor-day-${sunKey}`).click()
+  await page.getByTestId('date-editor-confirm').click()
 
   await expect
     .poll(async () => {
@@ -447,12 +453,22 @@ test('全天跨日编辑保持本地排他结束；打开完整详情后弹窗�
           (window as unknown as { __updateCalls: Array<{ id: number; updates: Record<string, unknown> }> })
             .__updateCalls,
       )
-      return calls.some((c) => c.id === 3 && c.updates.end_date === at(8, 0))
+      return calls.some((c) => c.id === 3 && c.updates.due_date === at(6, 0) && c.updates.end_date === at(8, 0))
     })
     .toBe(true)
 
+  // 日期变更后任务条会移动到新日期；重新点击任务条再打开完整详情
+  if (await popup.count()) {
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+  }
+  await expect(allDayBar).toBeVisible({ timeout: 10000 })
+  await allDayBar.click()
+  await expect(popup).toBeVisible()
+
   // 打开完整详情：轻量弹窗关闭，完整 TaskDetail 出现，不双开
-  await popup.getByRole('button', { name: '打开完整详情' }).click()
+  await popup.getByTestId('calendar-quick-more-trigger').click()
+  await popup.getByRole('menuitem', { name: '打开完整详情' }).click()
   await expect(popup).toHaveCount(0)
   await expect(page.getByTestId('task-detail')).toBeVisible()
   await expect(page.locator('[data-testid="detail-docked"], [data-testid="detail-overlay"]')).toHaveCount(1)
@@ -504,6 +520,30 @@ test('窄窗口、滚动与 resize：弹窗始终在视口内且不被日历 ove
   await expect(popup).toHaveCount(0)
 })
 
+test('日期编辑器在窄窗口内不溢出视口', async ({ page }) => {
+  await openCalendar(page, 'week')
+  await page.setViewportSize({ width: 500, height: 700 })
+  await page.waitForTimeout(250)
+
+  await clickTimedTask(page, 1)
+  const popup = quickDetail(page)
+  await popup.getByTestId('calendar-quick-date-summary').click()
+
+  const editor = page.getByTestId('date-editor-popover')
+  await expect(editor).toBeVisible()
+  const box = await editor.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(501)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(701)
+  expect(box!.width).toBeLessThanOrEqual(485)
+
+  await expect(page.getByTestId('date-editor-tab-time')).toBeVisible()
+  await expect(page.getByTestId('date-editor-calendar')).toBeVisible()
+  await expect(page.getByTestId('date-editor-confirm')).toBeVisible()
+})
+
 test('关闭前提交未失焦草稿：外部点击/Escape/关闭按钮/完整详情入口，重开保持且不重复写入', async ({ page }) => {
   const { wedKey, at } = weekKeys()
   await openCalendar(page, 'week')
@@ -544,9 +584,13 @@ test('关闭前提交未失焦草稿：外部点击/Escape/关闭按钮/完整�
   await clickTimedTask(page, 1)
   await expect(popup.getByPlaceholder('添加备注... 支持 Markdown 语法')).toHaveValue('未失焦 E2E 备注')
 
-  // 日期：不主动 blur，外部 pointerdown 关闭
-  const start = popup.getByLabel('开始时间')
-  await start.fill(`${wedKey}T18:00`)
+  // 日期：编辑器确认后立即保存，外部 pointerdown 关闭不重复写入
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await page.getByTestId(`date-editor-day-${wedKey}`).click()
+  await page.getByTestId('date-editor-tab-time').click()
+  await page.getByLabel('开始时间').fill('18:00')
+  await page.getByTestId('date-editor-confirm').click()
+  await expect(page.getByTestId('date-editor-popover')).toHaveCount(0)
   await page.evaluate(() => {
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 1, clientY: 1 }))
   })
@@ -559,7 +603,7 @@ test('关闭前提交未失焦草稿：外部点击/Escape/关闭按钮/完整�
     )
     .toBe(true)
   await clickTimedTask(page, 1)
-  await expect(popup.getByLabel('开始时间')).toHaveValue(`${wedKey}T18:00`)
+  await expect(popup.getByTestId('calendar-quick-date-summary')).toContainText('18:00 - 19:00')
 
   // 关闭按钮：标题不主动 blur，只写一次
   await popup.getByLabel('任务标题').fill('关闭按钮未失焦')
@@ -577,7 +621,8 @@ test('关闭前提交未失焦草稿：外部点击/Escape/关闭按钮/完整�
   // 打开完整详情：备注不主动 blur，先提交再进入 TaskDetail
   await popup.getByRole('button', { name: '编辑' }).click()
   await popup.getByPlaceholder('添加备注... 支持 Markdown 语法').fill('完整详情前备注')
-  await popup.getByRole('button', { name: '打开完整详情' }).click()
+  await popup.getByTestId('calendar-quick-more-trigger').click()
+  await popup.getByRole('menuitem', { name: '打开完整详情' }).click()
   await expect(popup).toHaveCount(0)
   await expect(page.getByTestId('task-detail')).toBeVisible()
   await expect(page.getByTestId('task-detail').getByLabel('任务标题')).toHaveValue('关闭按钮未失焦')
@@ -656,28 +701,28 @@ test('保存中立即切换任务：等待保存成功，旧草稿只写旧任�
   await expect(popup.getByLabel('任务标题')).toHaveValue('切换前草稿')
 })
 
-test('非法结束时间后点击另一任务：留在原任务，输入与错误提示保留', async ({ page }) => {
-  const { todayKey } = weekKeys()
+test('日期编辑器非法结束时间：显示错误、确定不可用且不写入', async ({ page }) => {
   await openCalendar(page, 'week')
   await clickTimedTask(page, 1)
   const popup = quickDetail(page)
-  const end = popup.getByLabel('结束时间', { exact: true })
-  await end.fill(`${todayKey}T08:00`)
 
-  const switchTask = page.locator('[data-task][data-task-id="6"]').first()
-  await expect(switchTask).toBeVisible({ timeout: 10000 })
-  await switchTask.scrollIntoViewIfNeeded()
-  await switchTask.click()
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await page.getByTestId('date-editor-tab-time').click()
+  await page.getByTestId('date-editor-end-time').fill('08:00')
 
-  await expect(popup.getByRole('alert')).toContainText('结束时间必须晚于开始时间')
-  await expect(popup).toBeVisible()
-  await expect(popup.getByLabel('任务标题')).toHaveValue('E2E轻量详情任务')
-  await expect(popup.getByLabel('结束时间', { exact: true })).toHaveValue(`${todayKey}T08:00`)
+  await expect(page.getByTestId('date-editor-error')).toContainText('结束时间必须晚于开始时间')
+  await expect(page.getByTestId('date-editor-confirm')).toBeDisabled()
 
   const attempts = await page.evaluate(
     () => (window as unknown as { __updateAttempts: unknown[] }).__updateAttempts.length,
   )
   expect(attempts).toBe(0)
+
+  // Escape 只关闭日期编辑器，任务详情仍在
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('date-editor-popover')).toHaveCount(0)
+  await expect(popup).toBeVisible()
+  await expect(popup.getByLabel('任务标题')).toHaveValue('E2E轻量详情任务')
 })
 
 test('全天开始日移到原结束日之后：沿用原跨度且仅提交一次，不重复 Patch', async ({ page }) => {
@@ -689,11 +734,11 @@ test('全天开始日移到原结束日之后：沿用原跨度且仅提交一�
   await bar.scrollIntoViewIfNeeded()
   await bar.click()
   const popup = quickDetail(page)
-  const start = popup.getByLabel('开始日期')
-  await expect(start).toHaveValue(key(0))
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await expect(page.getByTestId(`date-editor-day-${key(0)}`)).toHaveAttribute('aria-pressed', 'true')
 
-  await start.fill(key(4))
-  await start.blur()
+  await page.getByTestId(`date-editor-day-${key(4)}`).click()
+  await page.getByTestId('date-editor-confirm').click()
 
   await expect
     .poll(async () => {
@@ -790,4 +835,77 @@ test('备注 blur 保存挂起后编辑新版本并关闭：新版本只写一�
 
   await clickTimedTask(page, 1)
   await expect(popup.getByPlaceholder('添加备注... 支持 Markdown 语法')).toHaveValue('备注 N2')
+})
+
+test('日期编辑器：选择日期持久化、内部点击不关闭详情、过期摘要红色且含相对文案与时间', async ({ page }) => {
+  const { key, at, todayOffset } = weekKeys()
+  const targetOffset = (todayOffset + 1) % 7
+  const targetKey = key(targetOffset)
+  const targetAt = at(targetOffset, 9)
+  const targetDate = new Date(targetAt)
+  const targetLabel = `${targetDate.getMonth() + 1}月${targetDate.getDate()}日`
+
+  await openCalendar(page, 'week')
+  await clickTimedTask(page, 1)
+  const popup = quickDetail(page)
+  await expect(popup).toBeVisible()
+
+  // 打开日期编辑器；点击内部日期只更新草稿，不关闭任务详情
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  const editor = page.getByTestId('date-editor-popover')
+  await expect(editor).toBeVisible()
+  await page.getByTestId(`date-editor-day-${targetKey}`).click()
+  await expect(popup).toBeVisible()
+  await expect(page.getByTestId(`date-editor-day-${targetKey}`)).toHaveAttribute('aria-pressed', 'true')
+
+  // 确定后保存并关闭编辑器
+  await page.getByTestId('date-editor-confirm').click()
+  await expect(editor).toHaveCount(0)
+  await expect
+    .poll(async () => {
+      const calls = await page.evaluate(
+        () =>
+          (window as unknown as { __updateCalls: Array<{ id: number; updates: Record<string, unknown> }> })
+            .__updateCalls,
+      )
+      return calls.some((call) => call.id === 1 && call.updates.due_date === targetAt)
+    })
+    .toBe(true)
+
+  // 关闭重开：摘要与编辑器选中日期都已持久化
+  await page.keyboard.press('Escape')
+  await expect(popup).toHaveCount(0)
+  await clickTimedTask(page, 1)
+  await expect(popup.getByTestId('calendar-quick-date-summary')).toContainText(`${targetLabel}，09:00 - 10:00`)
+  await popup.getByTestId('calendar-quick-date-summary').click()
+  await expect(page.getByTestId(`date-editor-day-${targetKey}`)).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Escape')
+  await expect(editor).toHaveCount(0)
+  await expect(popup).toBeVisible()
+
+  // 造一个 2 天前的过期任务，在今日列表中确认红色摘要、相对文案与具体时间
+  const overdueDate = new Date()
+  overdueDate.setDate(overdueDate.getDate() - 2)
+  overdueDate.setHours(17, 0, 0, 0)
+  const overdueLabel = `${overdueDate.getMonth() + 1}月${overdueDate.getDate()}日`
+  await page.evaluate((overdueIso) => {
+    const stored = localStorage.getItem('__e2e_quick_detail_tasks')
+    if (!stored) return
+    const tasks = JSON.parse(stored) as Array<Record<string, unknown>>
+    const task = tasks.find((item) => item.id === 1)
+    if (!task) return
+    task.due_date = overdueIso
+    task.end_date = new Date(new Date(overdueIso).getTime() + 60 * 60 * 1000).toISOString()
+    task.all_day = false
+    localStorage.setItem('__e2e_quick_detail_tasks', JSON.stringify(tasks))
+  }, overdueDate.toISOString())
+
+  await page.reload()
+  await page.getByTestId('nav-today').click()
+  const dueSummary = page.getByTestId('task-due-1')
+  await expect(dueSummary).toBeVisible({ timeout: 10000 })
+  await expect(dueSummary).toContainText('延期2天')
+  await expect(dueSummary).toContainText('17:00')
+  await expect(dueSummary).toHaveClass(/text-\[var\(--color-danger\)\]/)
+  await expect(dueSummary).toHaveAttribute('aria-label', `截止日期 ${overdueLabel}，延期2天，17:00 - 18:00`)
 })

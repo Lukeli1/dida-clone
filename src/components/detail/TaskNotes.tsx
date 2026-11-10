@@ -11,6 +11,8 @@ interface TaskNotesProps {
   onUpdate: (id: number, updates: Partial<Task>) => TaskNotesUpdateResult
   /** 可选：异步保存失败时通知外层展示错误 */
   onSaveError?: () => void
+  /** 快捷详情使用紧凑备注展示。 */
+  compact?: boolean
 }
 
 export interface TaskNotesHandle {
@@ -18,11 +20,13 @@ export interface TaskNotesHandle {
   flush: () => Promise<boolean>
   /** 是否仍有未提交/保存中的备注草稿。 */
   hasDraft: () => boolean
+  /** 切换到编辑模式并将焦点放到备注输入框。 */
+  focusEditor: () => void
 }
 
 // 备注区：Markdown 编辑 / 预览切换（带用户偏好持久化）
 export const TaskNotes = forwardRef<TaskNotesHandle, TaskNotesProps>(function TaskNotes(
-  { task, onUpdate, onSaveError },
+  { task, onUpdate, onSaveError, compact = false },
   ref,
 ) {
   const [notes, setNotes] = useState(task.notes || '')
@@ -33,6 +37,7 @@ export const TaskNotes = forwardRef<TaskNotesHandle, TaskNotesProps>(function Ta
   })
 
   const notesRef = useRef(notes)
+  const editorRef = useRef<HTMLTextAreaElement>(null)
   const lastSavedNotesRef = useRef((task.notes || '').trim())
   const sessionRef = useRef(0)
   const activeSaveRef = useRef<{ session: number; promise: Promise<boolean> } | null>(null)
@@ -127,7 +132,18 @@ export const TaskNotes = forwardRef<TaskNotesHandle, TaskNotesProps>(function Ta
 
   const hasDraft = useCallback(() => dirtyRef.current || activeSaveRef.current?.session === sessionRef.current, [])
 
-  useImperativeHandle(ref, () => ({ flush, hasDraft }), [flush, hasDraft])
+  useImperativeHandle(
+    ref,
+    () => ({
+      flush,
+      hasDraft,
+      focusEditor: () => {
+        handleModeChange('edit')
+        requestAnimationFrame(() => editorRef.current?.focus())
+      },
+    }),
+    [flush, hasDraft],
+  )
 
   function handleSave() {
     void flush()
@@ -146,34 +162,38 @@ export const TaskNotes = forwardRef<TaskNotesHandle, TaskNotesProps>(function Ta
   }
 
   return (
-    <div className="relative">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-[var(--color-text-tertiary)]">备注</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleModeChange('edit')}
-            className={`text-xs px-2 py-0.5 rounded transition-colors ${
-              noteMode === 'edit'
-                ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
-            }`}
-            title="编辑模式"
-          >
-            编辑
-          </button>
-          <button
-            onClick={() => handleModeChange('preview')}
-            className={`text-xs px-2 py-0.5 rounded transition-colors ${
-              noteMode === 'preview'
-                ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
-            }`}
-            title="预览模式"
-          >
-            预览
-          </button>
+    <div className={`relative ${compact ? 'pointer-events-none flex min-h-0 flex-1 flex-col' : ''}`}>
+      {!compact ? (
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-xs text-[var(--color-text-tertiary)]">备注</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleModeChange('edit')}
+              aria-label="编辑"
+              className={`rounded px-2 py-0.5 text-xs transition-colors ${
+                noteMode === 'edit'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
+              }`}
+              title="编辑模式"
+            >
+              编辑
+            </button>
+            <button
+              onClick={() => handleModeChange('preview')}
+              aria-label="预览"
+              className={`rounded px-2 py-0.5 text-xs transition-colors ${
+                noteMode === 'preview'
+                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
+              }`}
+              title="预览模式"
+            >
+              预览
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
       {noteMode === 'preview' ? (
         <div className="min-h-[60px] text-sm text-[var(--color-text-secondary)] prose prose-sm max-w-none">
           {notes.trim() ? (
@@ -184,12 +204,17 @@ export const TaskNotes = forwardRef<TaskNotesHandle, TaskNotesProps>(function Ta
         </div>
       ) : (
         <textarea
+          ref={editorRef}
           value={notes}
           onChange={(e) => handleChange(e.target.value)}
           onBlur={handleSave}
           rows={3}
           placeholder="添加备注... 支持 Markdown 语法"
-          className="w-full text-sm text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-tertiary)] border-none outline-none resize-none bg-transparent border-b border-transparent focus:border-[var(--color-accent)]/30"
+          className={`pointer-events-auto w-full bg-transparent text-sm text-[var(--color-text-secondary)] outline-none placeholder:text-[var(--color-text-tertiary)] ${
+            compact
+              ? 'min-h-0 flex-1 resize-none border-none'
+              : 'resize-none border-b border-transparent focus:border-[var(--color-accent)]/30'
+          }`}
         />
       )}
     </div>
